@@ -1,0 +1,1 @@
+export { SearchTermsScreen } from './SearchTermsScreen'

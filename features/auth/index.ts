@@ -1,0 +1,5 @@
+export { RegisterForm } from './RegisterForm'
+export { LoginForm } from './LoginForm'
+export { EmailVerification } from './EmailVerification'
+export { ForgotPasswordForm } from './ForgotPasswordForm'
+export { ResetPasswordForm } from './ResetPasswordForm'

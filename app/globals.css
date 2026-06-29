@@ -1,0 +1,535 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --font-inter: 'Inter', system-ui, sans-serif;
+    --font-mono: 'Fira Code', monospace;
+    --chart-primary: #111827;
+    --chart-success: #16a34a;
+    --chart-warning: #d97706;
+    --chart-danger: #dc2626;
+    --chart-neutral: #64748b;
+    --chart-accent: #8b5cf6;
+  }
+
+  * {
+    @apply border-border;
+    border-radius: 0 !important;
+  }
+
+  body {
+    @apply bg-background text-text-primary font-sans;
+  }
+
+  /* Global table font styles - must be in base layer to override Tailwind utilities */
+  table {
+    font-size: 13px !important;
+    font-family: sans-serif !important;
+  }
+
+  table th,
+  table td {
+    font-size: 13px !important;
+    font-family: sans-serif !important;
+    padding: 8px 12px !important;
+    line-height: 1.4 !important;
+    white-space: normal !important;
+    overflow-wrap: normal !important;
+    word-break: normal !important;
+  }
+
+  table th {
+    max-width: 200px !important;
+    white-space: nowrap !important;
+  }
+
+  table td {
+    max-width: 300px !important;
+  }
+
+  /* Allow specific cells to have nowrap when needed */
+  table td.whitespace-nowrap,
+  table th.whitespace-nowrap {
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    max-width: 200px !important;
+  }
+
+  /* Override Tailwind text size classes within tables */
+  table th.text-xs,
+  table td.text-xs,
+  table th.text-sm,
+  table td.text-sm,
+  table th.text-base,
+  table td.text-base,
+  table th.text-lg,
+  table td.text-lg {
+    font-size: 13px !important;
+  }
+}
+
+@layer components {
+  .text-page-title {
+    @apply text-2xl font-semibold text-text-primary;
+  }
+
+  .text-section-title {
+    @apply text-lg font-semibold text-text-primary;
+  }
+
+  .text-table-header {
+    @apply text-xs font-semibold uppercase tracking-wider text-text-muted;
+    font-size: 13px !important;
+  }
+
+  .text-body {
+    @apply text-sm text-text-primary;
+  }
+
+  /* Override text-body font size when used in tables */
+  table .text-body,
+  .ds-table .text-body {
+    font-size: 13px !important;
+  }
+
+  .text-muted {
+    @apply text-sm text-text-muted;
+  }
+
+  .text-metric {
+    @apply text-2xl font-semibold text-text-primary;
+  }
+
+  /* Layout tokens */
+  .ds-page {
+    @apply min-h-screen bg-background text-text-primary;
+  }
+
+  .ds-sidebar {
+    @apply fixed top-0 left-0 z-50 h-full w-sidebar bg-surface border-r border-border;
+  }
+
+  .ds-sidebar-header {
+    @apply flex items-center justify-between h-header px-6 border-b border-border;
+  }
+
+  .ds-sidebar-logo {
+    @apply text-lg font-semibold text-primary-600;
+  }
+
+  .ds-sidebar-section {
+    @apply mt-6 mb-2 px-4 text-xs font-semibold uppercase tracking-widest text-text-muted;
+  }
+
+  .ds-nav-item {
+    @apply flex items-center gap-3 px-4 py-2 transition-colors duration-150 text-sm;
+  }
+
+  .ds-nav-item-active {
+    @apply bg-primary-600 text-text-inverse font-medium;
+  }
+
+  .ds-nav-item-active-child {
+    @apply bg-secondary-100 text-text-primary font-medium;
+  }
+
+  .ds-nav-item-inactive {
+    @apply text-text-muted hover:bg-secondary-100 hover:text-text-primary;
+  }
+
+  .ds-sidebar-footer {
+    @apply mt-auto px-4 py-4 border-t border-border;
+  }
+
+  .ds-header {
+    @apply sticky top-0 z-30 h-header bg-surface border-b border-border;
+  }
+
+  .ds-header-inner {
+    @apply flex items-center justify-between h-full px-6;
+  }
+
+  .ds-header-filters {
+    @apply flex items-center gap-4;
+  }
+
+  .ds-header-filter {
+    @apply min-w-[150px];
+  }
+
+  .ds-header-actions {
+    @apply flex items-center gap-4;
+  }
+
+  .ds-main {
+    @apply lg:pl-sidebar;
+  }
+
+  .ds-content {
+    @apply p-6;
+  }
+
+  /* Buttons */
+  .ds-button {
+    @apply inline-flex items-center justify-center font-medium transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-200 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .ds-button-primary {
+    @apply bg-primary-600 text-text-inverse hover:bg-primary-700;
+  }
+
+  .ds-button-secondary {
+    @apply bg-secondary-100 text-text-primary border border-border hover:bg-secondary-200;
+  }
+
+  .ds-button-outline {
+    @apply border border-border text-text-primary hover:bg-secondary-50;
+  }
+
+  .ds-button-ghost {
+    @apply text-text-muted hover:text-text-primary hover:bg-secondary-100;
+  }
+
+  .ds-button-danger {
+    @apply bg-danger-600 text-text-inverse hover:bg-danger-700;
+  }
+
+  .ds-button-sm {
+    @apply px-3 py-1.5 text-sm;
+  }
+
+  .ds-button-md {
+    @apply px-4 py-2 text-sm;
+  }
+
+  .ds-button-lg {
+    @apply px-5 py-2.5 text-base;
+  }
+
+  .ds-icon-button {
+    @apply p-2 text-text-muted hover:text-text-primary hover:bg-secondary-100 transition-colors duration-150;
+  }
+
+  /* Cards */
+  .ds-card {
+    @apply bg-surface border border-border shadow-card;
+  }
+
+  .ds-card-header {
+    @apply px-6 py-4 border-b border-border;
+  }
+
+  .ds-card-content {
+    @apply px-6 py-4;
+  }
+
+  .ds-card-footer {
+    @apply px-6 py-4 border-t border-border;
+  }
+
+  /* Inputs */
+  .ds-input-label {
+    @apply block text-sm font-medium text-text-secondary mb-1;
+  }
+
+  .ds-input {
+    @apply w-full px-3 py-2 border bg-surface text-text-primary placeholder:text-text-muted shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-200 focus:border-primary-600 disabled:bg-secondary-100 disabled:cursor-not-allowed;
+  }
+
+  .ds-input-error {
+    @apply border-danger-500 focus:ring-danger-200 focus:border-danger-600;
+  }
+
+  .ds-input-default {
+    @apply border-border;
+  }
+
+  .ds-input-helper {
+    @apply mt-1 text-sm text-text-muted;
+  }
+
+  .ds-input-error-text {
+    @apply mt-1 text-sm text-danger-600;
+  }
+
+  /* Tables */
+  .ds-table-wrap {
+    @apply overflow-x-auto;
+    width: 100% !important;
+  }
+
+  .ds-table {
+    @apply min-w-full divide-y divide-border;
+    font-size: 13px !important;
+    font-family: sans-serif !important;
+    border-spacing: 0 !important;
+    table-layout: auto !important;
+    width: 100% !important;
+  }
+
+  .ds-table-head {
+    @apply bg-secondary-50;
+  }
+
+  .ds-table-body {
+    @apply bg-surface divide-y divide-border;
+  }
+
+  .ds-table-row {
+    @apply hover:bg-secondary-50 transition-colors duration-150;
+    line-height: 1.4 !important;
+  }
+
+  .ds-table-th {
+    @apply text-left text-table-header;
+    font-size: 13px !important;
+    font-family: sans-serif !important;
+    padding: 8px 12px !important;
+    line-height: 1.4 !important;
+    word-wrap: normal !important;
+    overflow-wrap: normal !important;
+    max-width: 200px !important;
+  }
+
+  .ds-table-td {
+    @apply text-body;
+    font-size: 13px !important;
+    font-family: sans-serif !important;
+    padding: 8px 12px !important;
+    line-height: 1.4 !important;
+    white-space: normal !important;
+    overflow-wrap: normal !important;
+    word-break: normal !important;
+    max-width: 300px !important;
+  }
+
+  /* Allow specific cells to have nowrap when needed */
+  .ds-table-td.whitespace-nowrap {
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    max-width: 200px !important;
+  }
+
+  /* Override text size classes within table components */
+  .ds-table th.text-xs,
+  .ds-table td.text-xs,
+  .ds-table th.text-sm,
+  .ds-table td.text-sm,
+  .ds-table th.text-base,
+  .ds-table td.text-base,
+  .ds-table th.text-lg,
+  .ds-table td.text-lg,
+  .ds-table th.text-body,
+  .ds-table td.text-body,
+  .ds-table th.text-table-header,
+  .ds-table td.text-table-header {
+    font-size: 13px !important;
+  }
+
+  /* Ensure table cells don't overflow */
+  .ds-table td,
+  .ds-table th {
+    vertical-align: top !important;
+  }
+
+  /* Headers should not wrap by default */
+  .ds-table th {
+    white-space: nowrap !important;
+  }
+
+  /* Allow text to wrap in table cells for long content */
+  .ds-table td:not(.whitespace-nowrap) {
+    white-space: normal !important;
+    word-break: normal !important;
+    overflow-wrap: normal !important;
+  }
+
+  /* Sticky column styles - prevent overlapping when scrolling */
+  .ds-table th.sticky,
+  .ds-table td.sticky,
+  table th.sticky,
+  table td.sticky {
+    position: sticky !important;
+    left: 0 !important;
+    z-index: 20 !important;
+    border-right: 2px solid rgb(229, 231, 235) !important;
+    box-shadow: 2px 0 4px rgba(0, 0, 0, 0.05) !important;
+  }
+
+  /* Ensure sticky header has higher z-index */
+  .ds-table th.sticky,
+  table th.sticky {
+    z-index: 30 !important;
+  }
+
+  /* Sticky column with specific background colors - ensure they don't inherit */
+  .ds-table th.sticky.bg-surface,
+  .ds-table td.sticky.bg-surface,
+  table th.sticky.bg-surface,
+  table td.sticky.bg-surface {
+    background-color: rgb(255, 255, 255) !important;
+  }
+
+  .ds-table th.sticky.bg-surface-secondary,
+  .ds-table td.sticky.bg-surface-secondary,
+  table th.sticky.bg-surface-secondary,
+  table td.sticky.bg-surface-secondary {
+    background-color: rgb(249, 250, 251) !important;
+  }
+
+  .ds-table th.sticky.bg-secondary-50,
+  .ds-table td.sticky.bg-secondary-50,
+  table th.sticky.bg-secondary-50,
+  table td.sticky.bg-secondary-50 {
+    background-color: rgb(249, 250, 251) !important;
+  }
+
+  /* Ensure sticky columns maintain proper width to prevent overlap */
+  .ds-table th.sticky,
+  .ds-table td.sticky,
+  table th.sticky,
+  table td.sticky {
+    width: auto !important;
+  }
+
+  /* Badges */
+  .ds-badge {
+    @apply inline-flex items-center font-medium border;
+  }
+
+  .ds-badge-sm {
+    @apply px-2 py-0.5 text-xs;
+  }
+
+  .ds-badge-md {
+    @apply px-2.5 py-1 text-sm;
+  }
+
+  .ds-badge-lg {
+    @apply px-3 py-1.5 text-base;
+  }
+
+  .ds-badge-primary {
+    @apply bg-primary-50 text-primary-700 border-primary-100;
+  }
+
+  .ds-badge-secondary {
+    @apply bg-secondary-100 text-secondary-700 border-secondary-200;
+  }
+
+  .ds-badge-success {
+    @apply bg-success-50 text-success-700 border-success-100;
+  }
+
+  .ds-badge-warning {
+    @apply bg-warning-50 text-warning-700 border-warning-100;
+  }
+
+  .ds-badge-error {
+    @apply bg-danger-50 text-danger-700 border-danger-100;
+  }
+
+  /* Tabs */
+  .ds-tabs {
+    @apply inline-flex items-center bg-secondary-100 p-1;
+  }
+
+  .ds-tab {
+    @apply font-medium transition-colors duration-150;
+  }
+
+  .ds-tab-active {
+    @apply bg-primary-600 text-text-inverse shadow-sm;
+  }
+
+  .ds-tab-inactive {
+    @apply text-text-muted hover:text-text-primary hover:bg-secondary-200;
+  }
+
+  .ds-tab-sm {
+    @apply text-xs px-3 py-1.5;
+  }
+
+  .ds-tab-md {
+    @apply text-sm px-4 py-2;
+  }
+
+  /* Modal */
+  .ds-modal-wrap {
+    @apply fixed inset-0 z-50 flex items-center justify-center;
+  }
+
+  .ds-modal-backdrop {
+    @apply absolute inset-0 bg-black/40;
+  }
+
+  .ds-modal {
+    @apply relative bg-surface shadow-lg border border-border w-full mx-4 max-h-[90vh] overflow-y-auto;
+  }
+
+  .ds-modal-header {
+    @apply px-6 py-4 border-b border-border;
+  }
+
+  .ds-modal-content {
+    @apply px-6 py-4;
+  }
+
+  .ds-modal-close {
+    @apply absolute top-4 right-4 text-text-subtle hover:text-text-secondary;
+  }
+}
+
+@layer utilities {
+  /* Add custom utility classes here if needed */
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  .animate-fade-in {
+    animation: fade-in 0.6s ease-out;
+  }
+
+  /* Table font size utility - ensures 13px font size */
+  .text-table {
+    font-size: 13px !important;
+    font-family: sans-serif !important;
+  }
+
+  /* Override all Tailwind rounded classes */
+  .rounded-none,
+  .rounded-sm,
+  .rounded,
+  .rounded-md,
+  .rounded-lg,
+  .rounded-xl,
+  .rounded-2xl,
+  .rounded-3xl,
+  .rounded-full,
+  .rounded-t-none,
+  .rounded-r-none,
+  .rounded-b-none,
+  .rounded-l-none,
+  .rounded-t,
+  .rounded-r,
+  .rounded-b,
+  .rounded-l,
+  .rounded-tl,
+  .rounded-tr,
+  .rounded-br,
+  .rounded-bl {
+    border-radius: 0 !important;
+  }
+}
+
