@@ -100,7 +100,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ sections, user }) => {
             {sections.map((section, sectionIndex) => (
               <div key={`${section.title || 'section'}-${sectionIndex}`}>
                 {section.title && <div className="ds-sidebar-section">{section.title}</div>}
-                <div className="space-y-1">
+                <div className="space-y-5">
                   {section.items.map((item) => {
                     const isDashboardRoot = item.href === '/dashboard'
                     const isActive = isDashboardRoot
