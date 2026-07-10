@@ -1,19 +1,9 @@
 import { baseApi } from './baseApi'
 
-/**
- * Profit API endpoints
- * 
- * Provides RTK Query hooks for profit calculations and aggregations
- * Supports real-time profit dashboard with filtering and breakdowns
- */
-
 // ============================================
 // TYPE DEFINITIONS
 // ============================================
 
-/**
- * Profit filter parameters
- */
 export interface ProfitFilters {
   accountId?: string
   amazonAccountId?: string
@@ -24,10 +14,36 @@ export interface ProfitFilters {
   period?: 'day' | 'week' | 'month'
 }
 
-/**
- * Profit summary metrics
- */
+export interface PeriodSummary {
+  period: 'TODAY' | 'YESTERDAY' | '7DAYSAGO' | '14DAYSAGO' | '30DAYSAGO'
+  salesRevenue: number
+  salesCount: number
+  ordersUnitCount: number
+  totalFees: number
+  totalRefunds: number
+  totalRefundsCount: number
+  totalCOGS: number
+  totalExpenses: number
+  netProfit: number
+  netMargin: number
+}
+
 export interface ProfitSummary {
+  summary: {
+    totalRevenue: number
+    totalProfit: number
+    totalOrders: number
+    totalUnits: number
+    totalRefunds: number
+    totalFees: number
+    totalCOGS: number
+    totalExpenses: number
+  }
+  periods: PeriodSummary[]
+}
+
+// Legacy shape for backward compatibility (single period)
+export interface LegacyProfitSummary {
   salesRevenue: number
   totalExpenses: number
   totalFees: number
@@ -44,9 +60,6 @@ export interface ProfitSummary {
   }
 }
 
-/**
- * Product-level profit breakdown
- */
 export interface ProductProfitBreakdown {
   sku: string
   productId: string | null
@@ -64,9 +77,6 @@ export interface ProductProfitBreakdown {
   orderCount: number
 }
 
-/**
- * Marketplace-level profit breakdown
- */
 export interface MarketplaceProfitBreakdown {
   marketplaceId: string
   marketplaceName: string
@@ -83,9 +93,6 @@ export interface MarketplaceProfitBreakdown {
   orderCount: number
 }
 
-/**
- * Order item-level profit breakdown
- */
 export interface OrderItemProfitBreakdown {
   id: string
   orderId: string
@@ -114,9 +121,6 @@ export interface OrderItemProfitBreakdown {
   currency: string
 }
 
-/**
- * Time-series profit trend data
- */
 export interface ProfitTrendData {
   date: string
   period: string
@@ -132,9 +136,6 @@ export interface ProfitTrendData {
   orderCount: number
 }
 
-/**
- * Profit trends response
- */
 export interface ProfitTrendsResponse {
   data: ProfitTrendData[]
   period: 'day' | 'week' | 'month'
@@ -142,9 +143,6 @@ export interface ProfitTrendsResponse {
   endDate: string
 }
 
-/**
- * API Response wrappers
- */
 export interface ProfitSummaryResponse {
   success: boolean
   data: ProfitSummary
@@ -173,9 +171,6 @@ export interface OrderItemsBreakdownResponse {
   totalRecords: number
 }
 
-/**
- * P&L (Profit & Loss) types
- */
 export interface PLPeriodValue {
   period: string
   value: number
@@ -186,7 +181,7 @@ export interface PLMetricRow {
   isExpandable: boolean
   periods: PLPeriodValue[]
   total: number
-  children?: PLMetricRow[] // Child metrics for expandable rows
+  children?: PLMetricRow[]
 }
 
 export interface PLResponse {
@@ -202,39 +197,24 @@ export interface PLResponseApi {
   data: PLResponse
 }
 
-/**
- * Country-level profit breakdown
- * Used for map visualization
- */
 export interface CountryProfitBreakdown {
-  country: string // Country code (e.g., "US", "GB", "DE")
-  profit: number // Net profit for the country
-  orders: number // Number of orders for the country
+  country: string
+  profit: number
+  orders: number
 }
 
-/**
- * Simplified profit trends response
- * Used for Trends screen with simplified chart data format
- */
 export interface ProfitTrendsSimpleResponse {
-  labels: string[] // Date labels (e.g., ["2026-01-01", "2026-01-02"])
-  profit: number[] // Net profit values for each period
-  revenue: number[] // Sales revenue values for each period
+  labels: string[]
+  profit: number[]
+  revenue: number[]
 }
 
-/**
- * Product trend data for a specific date
- */
 export interface ProductTrendDateValue {
-  date: string // Date in ISO format (YYYY-MM-DD)
-  value: number // Metric value for this date
-  changePercent: number // Percentage change from previous date
+  date: string
+  value: number
+  changePercent: number
 }
 
-/**
- * Product-level trends response
- * Used for Trends screen showing product-level metrics over time
- */
 export interface ProductTrendsResponse {
   products: Array<{
     productId: string
@@ -244,8 +224,8 @@ export interface ProductTrendsResponse {
     dailyValues: ProductTrendDateValue[]
     chartData: number[]
   }>
-  dates: string[] // All dates in the range (YYYY-MM-DD format)
-  metric: string // The metric being displayed
+  dates: string[]
+  metric: string
 }
 
 // ============================================
@@ -255,25 +235,24 @@ export interface ProductTrendsResponse {
 export const profitApi = baseApi.injectEndpoints({
   overrideExisting: true,
   endpoints: (builder) => ({
-    /**
-     * Get profit summary
-     * Returns aggregated metrics for a given period
-     */
+    // Add this at the top of your profit.api.ts or in the endpoint:
     getProfitSummary: builder.query<ProfitSummary, ProfitFilters>({
       query: (filters) => ({
         url: '/profit/summary',
         params: filters,
       }),
-      transformResponse: (response: ProfitSummaryResponse) => response.data,
+      transformResponse: (response: any): ProfitSummary => {
+        console.log('API response shape:', Object.keys(response))
+        // API returns { success, summary, periods } — extract what we need
+        return {
+          summary: response.summary,
+          periods: response.periods,
+        }
+      },
       providesTags: ['Profit'],
-      // Cache for 120 seconds - summary data changes less frequently
       keepUnusedDataFor: 120,
     }),
 
-    /**
-     * Get profit breakdown by product/SKU
-     * Returns profit metrics grouped by SKU
-     */
     getProfitByProduct: builder.query<ProductProfitBreakdown[], ProfitFilters>({
       query: (filters) => ({
         url: '/profit/by-product',
@@ -281,14 +260,9 @@ export const profitApi = baseApi.injectEndpoints({
       }),
       transformResponse: (response: ProductBreakdownResponse) => response.data,
       providesTags: ['Profit'],
-      // Cache for 180 seconds - product breakdown data is relatively stable
       keepUnusedDataFor: 180,
     }),
 
-    /**
-     * Get profit breakdown by marketplace
-     * Returns profit metrics grouped by marketplace
-     */
     getProfitByMarketplace: builder.query<MarketplaceProfitBreakdown[], ProfitFilters>({
       query: (filters) => ({
         url: '/profit/by-marketplace',
@@ -296,14 +270,9 @@ export const profitApi = baseApi.injectEndpoints({
       }),
       transformResponse: (response: MarketplaceBreakdownResponse) => response.data,
       providesTags: ['Profit'],
-      // Cache for 180 seconds - marketplace breakdown data is relatively stable
       keepUnusedDataFor: 180,
     }),
 
-    /**
-     * Get profit trends over time
-     * Returns time-series data for chart visualization
-     */
     getProfitTrends: builder.query<ProfitTrendsResponse, ProfitFilters>({
       query: (filters) => ({
         url: '/profit/trends',
@@ -311,14 +280,9 @@ export const profitApi = baseApi.injectEndpoints({
       }),
       transformResponse: (response: ProfitTrendsApiResponse) => response.data,
       providesTags: ['Profit'],
-      // Cache for 300 seconds - trend data is historical and changes less frequently
       keepUnusedDataFor: 300,
     }),
 
-    /**
-     * Get profit breakdown by order items
-     * Returns profit metrics for individual order items
-     */
     getProfitByOrderItems: builder.query<OrderItemProfitBreakdown[], ProfitFilters>({
       query: (filters) => ({
         url: '/profit/by-order-items',
@@ -326,14 +290,9 @@ export const profitApi = baseApi.injectEndpoints({
       }),
       transformResponse: (response: OrderItemsBreakdownResponse) => response.data,
       providesTags: ['Profit'],
-      // Cache for 120 seconds - order items can change more frequently
       keepUnusedDataFor: 120,
     }),
 
-    /**
-     * Get P&L (Profit & Loss) data by periods
-     * Returns financial metrics grouped by time periods (current month-to-date + past 12 months)
-     */
     getPLByPeriods: builder.query<PLResponse, ProfitFilters>({
       query: (filters) => ({
         url: '/profit/pl',
@@ -341,14 +300,9 @@ export const profitApi = baseApi.injectEndpoints({
       }),
       transformResponse: (response: PLResponseApi) => response.data,
       providesTags: ['Profit'],
-      // Cache for 300 seconds - P&L data is historical and changes less frequently
       keepUnusedDataFor: 300,
     }),
 
-    /**
-     * Get profit breakdown by country for map visualization
-     * Returns profit and orders per country
-     */
     getProfitByCountry: builder.query<CountryProfitBreakdown[], ProfitFilters>({
       query: (filters) => ({
         url: '/profit/map',
@@ -360,14 +314,9 @@ export const profitApi = baseApi.injectEndpoints({
         },
       }),
       providesTags: ['Profit'],
-      // Cache for 300 seconds - map data is historical
       keepUnusedDataFor: 300,
     }),
 
-    /**
-     * Get simplified profit trends for Trends screen
-     * Returns profit and revenue arrays for easy chart consumption
-     */
     getProfitTrendsSimple: builder.query<
       ProfitTrendsSimpleResponse,
       ProfitFilters & { interval?: 'daily' | 'weekly' | 'monthly' }
@@ -383,14 +332,9 @@ export const profitApi = baseApi.injectEndpoints({
         },
       }),
       providesTags: ['Profit'],
-      // Cache for 300 seconds - trend data is historical
       keepUnusedDataFor: 300,
     }),
 
-    /**
-     * Get product-level trends for Trends screen
-     * Returns daily metric values for each product
-     */
     getProductTrends: builder.query<
       ProductTrendsResponse,
       ProfitFilters & { metric?: string }
@@ -406,39 +350,10 @@ export const profitApi = baseApi.injectEndpoints({
         },
       }),
       providesTags: ['Profit'],
-      // Cache for 300 seconds - product trends are historical
       keepUnusedDataFor: 300,
-    }),
-
-    /**
-     * Get profit summary for multiple periods in one request
-     * Optimized endpoint to reduce API calls
-     * Returns object with period keys (today, yesterday, 7days, 14days, 30days)
-     */
-    getProfitSummaryMultiplePeriods: builder.query<
-      Record<string, ProfitSummary>,
-      Omit<ProfitFilters, 'startDate' | 'endDate'> & { periods?: string }
-    >({
-      query: (filters) => ({
-        url: '/profit/summary/multiple-periods',
-        params: {
-          accountId: filters.accountId,
-          amazonAccountId: filters.amazonAccountId,
-          marketplaceId: filters.marketplaceId,
-          periods: filters.periods || 'today,yesterday,7days,14days,30days',
-        },
-      }),
-      transformResponse: (response: { success: boolean; data: Record<string, ProfitSummary> }) => response.data,
-      providesTags: ['Profit'],
-      // Cache for 120 seconds - summary data changes less frequently
-      keepUnusedDataFor: 120,
     }),
   }),
 })
-
-// ============================================
-// EXPORTED HOOKS
-// ============================================
 
 export const {
   useGetProfitSummaryQuery,
@@ -450,7 +365,6 @@ export const {
   useGetProfitByCountryQuery,
   useGetProfitTrendsSimpleQuery,
   useGetProductTrendsQuery,
-  // Lazy queries for manual fetching
   useLazyGetProfitSummaryQuery,
   useLazyGetProfitByProductQuery,
   useLazyGetProfitByMarketplaceQuery,
@@ -460,6 +374,4 @@ export const {
   useLazyGetProfitByCountryQuery,
   useLazyGetProfitTrendsSimpleQuery,
   useLazyGetProductTrendsQuery,
-  useGetProfitSummaryMultiplePeriodsQuery,
-  useLazyGetProfitSummaryMultiplePeriodsQuery,
 } = profitApi

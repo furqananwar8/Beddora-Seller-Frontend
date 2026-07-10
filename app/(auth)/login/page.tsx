@@ -152,30 +152,9 @@ export default function LoginPage() {
               Sign in
             </Button>
 
-            {/* Social Login Section - Hidden for now */}
-            {/* <div className="relative my-6">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-border"></div>
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-3 bg-surface text-text-muted">Or continue with</span>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <SocialLoginButton provider="google" />
-              <SocialLoginButton provider="amazon" />
-            </div> */}
           </form>
 
           <div className="pt-4 space-y-4">
-            <p className="text-center text-sm text-text-muted">
-              Don&apos;t have an account?{' '}
-              <Link href="/register" className="text-primary-600 font-medium hover:text-primary-700 transition-colors">
-                Start free trial
-              </Link>
-            </p>
-
             <p className="text-center text-xs text-text-muted leading-relaxed">
               By signing in, you agree to our{' '}
               <Link href="/terms" className="text-primary-600 hover:text-primary-700 transition-colors">

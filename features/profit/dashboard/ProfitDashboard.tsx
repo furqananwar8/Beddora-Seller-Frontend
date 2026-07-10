@@ -11,6 +11,7 @@ import {
   useGetProfitByProductQuery,
   useGetProfitByMarketplaceQuery,
   useGetProfitTrendsQuery,
+  useGetProfitSummaryMultiplePeriodsQuery,
   ProfitFilters,
 } from '@/services/api/profit.api'
 import {
@@ -96,12 +97,13 @@ import {
 
 /**
  * ProfitDashboard component
- * 
+ *
  * Main dashboard component for profit analysis
  * Integrates all profit components and provides real-time updates
- * 
+ *
  * Features:
  * - Real-time profit summary metrics
+ * - Period comparison tiles (Today, Yesterday, 7/14/30 days ago)
  * - Product and marketplace breakdowns
  * - Time-series trend charts
  * - Advanced filtering
@@ -133,6 +135,17 @@ export const ProfitDashboard: React.FC = () => {
       dispatch(setFilters({ ...profitFilters, accountId: accountsData[0].id }))
     }
   }, [accountsData, dispatch, profitFilters])
+
+  // ── NEW: Fetch multi-period summary tiles ──
+  const {
+    data: multiPeriodData,
+    isLoading: multiPeriodLoading,
+    error: multiPeriodError,
+  } = useGetProfitSummaryMultiplePeriodsQuery({
+    accountId: profitFilters.accountId,
+    amazonAccountId: profitFilters.amazonAccountId,
+    marketplaceId: profitFilters.marketplaceId,
+  })
 
   // Fetch profit data with current filters
   const {
@@ -447,7 +460,7 @@ export const ProfitDashboard: React.FC = () => {
         title="Profit Dashboard"
         description="Real-time profit analysis and financial metrics"
       />
-
+hello
       <div className="space-y-6">
         {/* Filters Panel */}
         <FiltersPanel
@@ -457,11 +470,14 @@ export const ProfitDashboard: React.FC = () => {
           marketplaces={marketplaces}
         />
 
-        {/* Profit Summary */}
+        {/* ── UPDATED: Profit Summary with Period Tiles ── */}
         <ProfitSummaryCard
           data={summaryData}
+          periodData={multiPeriodData}
           isLoading={summaryLoading}
-          error={summaryError}
+          periodLoading={multiPeriodLoading}
+          error={summaryError as any}
+          periodError={multiPeriodError}
         />
 
         {/* KPI Cards */}
@@ -793,7 +809,6 @@ export const ProfitDashboard: React.FC = () => {
                 isLoading={cogsLoading}
                 error={cogsError}
                 onEdit={() => {
-                  // For now, just show form. In production, you'd load the specific entry
                   dispatch(setShowForm(true))
                 }}
               />
@@ -849,4 +864,3 @@ export const ProfitDashboard: React.FC = () => {
     </Container>
   )
 }
-

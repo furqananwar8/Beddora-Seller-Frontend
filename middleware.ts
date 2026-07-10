@@ -67,12 +67,20 @@ const HIDDEN_ROUTES = [
   '/dashboard/settings/tell-a-friend',
   '/dashboard/settings/billing',
 
-  // Newly commented in your latest layout
+  // Other
   '/dashboard/repricer',
   '/dashboard/keyword-research',
+
+  // Root-level
+  '/register',
 ]
 
 export function middleware(request: NextRequest) {
+  // Safety guard: never rewrite /_hidden to itself
+  if (request.nextUrl.pathname === '/_hidden') {
+    return NextResponse.next()
+  }
+
   if (HIDDEN_ROUTES.includes(request.nextUrl.pathname)) {
     return NextResponse.rewrite(new URL('/_hidden', request.url))
   }
@@ -81,5 +89,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*'],
+  matcher: ['/dashboard/:path*', '/register'],
 }
