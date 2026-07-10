@@ -111,6 +111,28 @@ export const ProfitDashboardScreen: React.FC = () => {
     return new Map(profitData.periods.map((p) => [p.period, p]))
   }, [profitData])
 
+ const getPeriodDetailData = (periodId: TimePeriod) => {
+  const apiPeriod = periodMap.get(UI_TO_API_PERIOD[periodId])
+  if (!apiPeriod) return undefined
+  
+  const grossProfit = apiPeriod.salesRevenue + apiPeriod.totalFees - apiPeriod.totalCOGS
+  
+  return {
+    salesRevenue: apiPeriod.salesRevenue,
+    salesCount: apiPeriod.salesCount,
+    ordersUnitCount: apiPeriod.ordersUnitCount,
+    totalFees: apiPeriod.totalFees,
+    totalRefunds: apiPeriod.totalRefunds,
+    totalCOGS: apiPeriod.totalCOGS,
+    totalExpenses: apiPeriod.totalExpenses,
+    netProfit: apiPeriod.netProfit,
+    netMargin: apiPeriod.netMargin,
+    grossProfit,
+    grossMargin: apiPeriod.salesRevenue > 0 ? (grossProfit / apiPeriod.salesRevenue) * 100 : 0,
+    orderCount: apiPeriod.salesCount,
+  }
+}
+
   // Build period cards data for tiles view
   const periodCardsData = useMemo(() => {
     return timePeriods.map((config) => {
@@ -760,16 +782,16 @@ export const ProfitDashboardScreen: React.FC = () => {
         )}
 
         {/* Tile Details Modal */}
-        {selectedPeriodForDetails && (
-          <TileDetailsModal
-            isOpen={!!selectedPeriodForDetails}
-            onClose={() => setSelectedPeriodForDetails(null)}
-            periodLabel={periodCardsData.find((p) => p.id === selectedPeriodForDetails)?.label || ''}
-            dateRange={periodCardsData.find((p) => p.id === selectedPeriodForDetails)?.dateRange || ''}
-            data={thirtyDaysData as any}
-            currency="CAD"
-          />
-        )}
+      {selectedPeriodForDetails && (
+        <TileDetailsModal
+          isOpen={!!selectedPeriodForDetails}
+          onClose={() => setSelectedPeriodForDetails(null)}
+          periodLabel={periodCardsData.find((p) => p.id === selectedPeriodForDetails)?.label || ''}
+          dateRange={periodCardsData.find((p) => p.id === selectedPeriodForDetails)?.dateRange || ''}
+          data={getPeriodDetailData(selectedPeriodForDetails)}
+          currency="CAD"
+        />
+      )}
       </Container>
     </div>
   )
