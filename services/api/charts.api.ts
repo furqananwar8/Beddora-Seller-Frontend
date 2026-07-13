@@ -63,6 +63,7 @@ export interface DashboardChartResponse {
   period: ChartPeriod
   startDate: string
   endDate: string
+  summary?: string
   data: DashboardChartData[]
 }
 
@@ -80,7 +81,6 @@ export const chartsApi = baseApi.injectEndpoints({
       }),
       transformResponse: (response: ChartApiResponse) => response.data,
       providesTags: ['Profit'],
-      // Cache for 300 seconds - chart data is historical and changes less frequently
       keepUnusedDataFor: 300,
     }),
     getSalesTrend: builder.query<ChartResponse, ChartFilters>({
@@ -90,7 +90,6 @@ export const chartsApi = baseApi.injectEndpoints({
       }),
       transformResponse: (response: ChartApiResponse) => response.data,
       providesTags: ['Profit'],
-      // Cache for 300 seconds - chart data is historical and changes less frequently
       keepUnusedDataFor: 300,
     }),
     getPpcTrend: builder.query<ChartResponse, ChartFilters>({
@@ -100,7 +99,6 @@ export const chartsApi = baseApi.injectEndpoints({
       }),
       transformResponse: (response: ChartApiResponse) => response.data,
       providesTags: ['Profit'],
-      // Cache for 300 seconds - chart data is historical and changes less frequently
       keepUnusedDataFor: 300,
     }),
     getReturnsTrend: builder.query<ChartResponse, ChartFilters>({
@@ -110,7 +108,6 @@ export const chartsApi = baseApi.injectEndpoints({
       }),
       transformResponse: (response: ChartApiResponse) => response.data,
       providesTags: ['Profit'],
-      // Cache for 300 seconds - chart data is historical and changes less frequently
       keepUnusedDataFor: 300,
     }),
     getComparison: builder.query<ComparisonResponse, ChartFilters & { metric?: ChartMetric }>({
@@ -120,7 +117,6 @@ export const chartsApi = baseApi.injectEndpoints({
       }),
       transformResponse: (response: ComparisonApiResponse) => response.data,
       providesTags: ['Profit'],
-      // Cache for 300 seconds - comparison data is historical
       keepUnusedDataFor: 300,
     }),
     getDashboardChart: builder.query<DashboardChartResponse, ChartFilters>({
@@ -130,7 +126,6 @@ export const chartsApi = baseApi.injectEndpoints({
       }),
       transformResponse: (response: DashboardChartApiResponse) => response.data,
       providesTags: ['Profit'],
-      // Cache for 300 seconds - dashboard chart data is historical
       keepUnusedDataFor: 300,
     }),
   }),
@@ -144,4 +139,3 @@ export const {
   useGetComparisonQuery,
   useGetDashboardChartQuery,
 } = chartsApi
-

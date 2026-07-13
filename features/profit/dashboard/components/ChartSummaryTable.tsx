@@ -3,19 +3,11 @@
 import React, { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/design-system/cards'
 import { Select } from '@/design-system/inputs'
-import { ProfitSummary } from '@/services/api/profit.api'
 import { formatCurrency, formatPercentage, formatNumber } from '@/utils/format'
 import { cn } from '@/utils/cn'
 
-/**
- * ChartSummaryTable Component
- * 
- * Displays financial metrics summary for the chart screen
- * Shows all key metrics in a vertical list format
- */
-
 export interface ChartSummaryTableProps {
-  data?: ProfitSummary
+  data?: any
   isLoading?: boolean
   error?: any
   currency?: string
@@ -25,9 +17,6 @@ export interface ChartSummaryTableProps {
   className?: string
 }
 
-/**
- * Format date range for display
- */
 const formatDateRangeDisplay = (startDate?: string, endDate?: string): string => {
   if (!startDate || !endDate) return 'Select date range'
   
@@ -59,60 +48,30 @@ export const ChartSummaryTable: React.FC<ChartSummaryTableProps> = ({
     onPeriodChange?.(period)
   }
 
-  // Calculate additional metrics
-  // Note: These calculations should match the backend logic
-  // For now, using simplified calculations based on available data
-  const estimatedPayout = data
-    ? (data.salesRevenue || 0) - (data.totalFees || 0) - (data.totalRefunds || 0) - (data.totalExpenses || 0)
-    : 0
-
-  // Real ACOS = Advertising cost / Sales * 100
-  // For now, using totalExpenses as proxy for advertising cost
-  const realACOS = data && data.salesRevenue > 0
-    ? ((data.totalExpenses || 0) / data.salesRevenue) * 100
-    : 0
-
-  const refundsPercent = data && data.salesRevenue > 0
-    ? ((data.totalRefunds || 0) / data.salesRevenue) * 100
-    : 0
-
-  const sellableReturnsPercent = 57.93 // TODO: Calculate from actual returns data
-
-  const roi = data && data.totalCOGS > 0
-    ? ((data.netProfit || 0) / data.totalCOGS) * 100
-    : 0
-
-  // Estimate sessions (TODO: Get from actual analytics)
-  // Rough estimate: 50 sessions per order
-  const estimatedSessions = data ? (data.orderCount || 0) * 50 : 0
-  const units = data?.orderCount || 0 // Using orderCount as proxy for units
-  const unitSessionPercentage = estimatedSessions > 0
-    ? (units / estimatedSessions) * 100
-    : 0
-
-  const metrics = [
-    { label: 'Sales', value: data?.salesRevenue || 0, format: 'currency' },
-    { label: 'Units', value: units, format: 'number' },
-    { label: 'Promo', value: 0, format: 'currency' }, // TODO: Get from actual data
-    { label: 'Advertising cost', value: -(data?.totalExpenses || 0), format: 'currency' },
-    { label: 'Shipping costs', value: 0, format: 'currency' }, // TODO: Get from actual data
-    { label: 'Giftwrap', value: 0, format: 'currency' },
-    { label: 'Refund cost', value: -(data?.totalRefunds || 0), format: 'currency' },
-    { label: 'Amazon fees', value: -(data?.totalFees || 0), format: 'currency' },
-    { label: 'Cost of goods', value: -(data?.totalCOGS || 0), format: 'currency' },
-    { label: 'Gross profit', value: data?.grossProfit || 0, format: 'currency' },
-    { label: 'Indirect expenses', value: 0, format: 'currency' },
-    { label: 'Net profit', value: data?.netProfit || 0, format: 'currency' },
-    { label: 'Estimated payout', value: estimatedPayout, format: 'currency' },
-    { label: 'Real ACOS', value: realACOS, format: 'percentage' },
-    { label: '% Refunds', value: refundsPercent, format: 'percentage' },
-    { label: 'Sellable returns', value: sellableReturnsPercent, format: 'percentage' },
-    { label: 'Margin', value: data?.netMargin || 0, format: 'percentage' },
-    { label: 'ROI', value: roi, format: 'percentage' },
-    { label: 'Active subscriptions (SnS)', value: 0, format: 'number' },
-    { label: 'Sessions', value: estimatedSessions, format: 'number' },
-    { label: 'Unit session percentage', value: unitSessionPercentage, format: 'percentage' },
-  ]
+  // All metrics come from backend summary — no frontend calculations needed
+  const metrics = data ? [
+    { label: 'Sales', value: data.salesRevenue, format: 'currency' },
+    { label: 'Units', value: data.unitsSold, format: 'number' },
+    { label: 'Promo', value: data.promo, format: 'currency' },
+    { label: 'Advertising cost', value: -data.advertisingCost, format: 'currency' },
+    { label: 'Shipping costs', value: -data.shippingCosts, format: 'currency' },
+    { label: 'Giftwrap', value: -data.giftwrap, format: 'currency' },
+    { label: 'Refund cost', value: -data.refundCost, format: 'currency' },
+    { label: 'Amazon fees', value: -data.amazonFees, format: 'currency' },
+    { label: 'Cost of goods', value: -data.costOfGoods, format: 'currency' },
+    { label: 'Gross profit', value: data.grossProfit, format: 'currency' },
+    { label: 'Indirect expenses', value: -data.indirectExpenses, format: 'currency' },
+    { label: 'Net profit', value: data.netProfit, format: 'currency' },
+    { label: 'Estimated payout', value: data.estimatedPayout, format: 'currency' },
+    { label: 'Real ACOS', value: data.realACOS, format: 'percentage' },
+    { label: '% Refunds', value: data.refundsPercent, format: 'percentage' },
+    { label: 'Sellable returns', value: data.sellableReturns, format: 'percentage' },
+    { label: 'Margin', value: data.margin, format: 'percentage' },
+    { label: 'ROI', value: data.roi, format: 'percentage' },
+    { label: 'Active subscriptions (SnS)', value: data.activeSubscriptions, format: 'number' },
+    { label: 'Sessions', value: data.sessions, format: 'number' },
+    { label: 'Unit session percentage', value: data.unitSessionPercentage, format: 'percentage' },
+  ] : []
 
   const formatValue = (value: number, format: string): string => {
     switch (format) {

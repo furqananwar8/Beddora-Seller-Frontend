@@ -211,11 +211,14 @@ export const ProfitDashboardScreen: React.FC = () => {
     [effectiveAccountId, profitFilters.marketplaceId, chartDateRange]
   )
 
-  const { data: chartData, isLoading: chartLoading, error: chartError } = useGetDashboardChartQuery(
-    chartFilters,
-    { skip: !effectiveAccountId || activeTab !== 'chart' }
-  )
-
+  const {
+    data: chartData,
+    isLoading: chartLoading,
+    error: chartError,
+  } = useGetDashboardChartQuery(chartFilters, {
+    skip: !effectiveAccountId || activeTab !== 'chart',
+  })
+  
   // P&L data
   const plFilters: ProfitFilters = useMemo(
     () => ({
@@ -285,13 +288,13 @@ export const ProfitDashboardScreen: React.FC = () => {
                 <DashboardChart data={chartData} isLoading={chartLoading} error={chartError} currency="CAD" />
               </div>
               <div className="lg:col-span-1 h-full">
-                <ChartSummaryTable
-                  data={thirtyDaysData as any}
-                  isLoading={thirtyDaysLoading}
-                  currency="CAD"
-                  startDate={getDateRange(30).startDate}
-                  endDate={getDateRange(30).endDate}
-                />
+               <ChartSummaryTable
+                data={chartData?.summary}
+                isLoading={chartLoading}
+                currency="CAD"
+                startDate={getDateRange(30).startDate}
+                endDate={getDateRange(30).endDate}
+              />
               </div>
             </div>
 
