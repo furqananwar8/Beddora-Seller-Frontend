@@ -18,6 +18,7 @@ export interface SellerboardProductsTableProps {
   products?: ProductProfitBreakdown[]
   isLoading?: boolean
   searchTerm?: string
+  isFetching?: boolean
   error?: any
 }
 
@@ -42,9 +43,10 @@ type SortDirection = 'asc' | 'desc'
  * 
  * Comprehensive product table with all financial metrics
  */
+
 export const SellerboardProductsTable: React.FC<SellerboardProductsTableProps> = React.memo(({
   products,
-  isLoading,
+  isFetching,
   searchTerm = '',
   error,
 }) => {
@@ -99,7 +101,7 @@ export const SellerboardProductsTable: React.FC<SellerboardProductsTableProps> =
           bVal = b.salesRevenue || 0
           break
         case 'promo':
-          aVal = 0 // TODO: Add promo data
+          aVal = 0
           bVal = 0
           break
         case 'ads':
@@ -131,7 +133,7 @@ export const SellerboardProductsTable: React.FC<SellerboardProductsTableProps> =
           bVal = b.totalCOGS > 0 ? (b.netProfit / b.totalCOGS) * 100 : 0
           break
         case 'bsr':
-          aVal = 0 // TODO: Add BSR data
+          aVal = 0
           bVal = 0
           break
       }
@@ -161,7 +163,8 @@ export const SellerboardProductsTable: React.FC<SellerboardProductsTableProps> =
     </span>
   )
 
-  if (isLoading) {
+  // ── Skeleton on EVERY API call (first load + refetch) ──
+  if (isFetching) {
     return <TableSkeleton rows={10} columns={14} />
   }
 
@@ -268,11 +271,9 @@ export const SellerboardProductsTable: React.FC<SellerboardProductsTableProps> =
             {paginatedProducts.map((product: any) => {
               const roi = product.totalCOGS > 0 ? (product.netProfit / product.totalCOGS) * 100 : 0
               const refundCount = product.totalRefunds || 0
-              // Calculate refund cost (average refund amount * refund count)
-              // For now, using a simple calculation based on average order value
               const avgOrderValue = product.unitsSold > 0 ? (product.salesRevenue || 0) / product.unitsSold : 0
               const refundCost = refundCount * avgOrderValue
-              console.log({product})
+
               return (
                 <TableRow
                   key={product.sku}
@@ -280,67 +281,52 @@ export const SellerboardProductsTable: React.FC<SellerboardProductsTableProps> =
                 >
                   <TableCell>
                     <div className="flex items-start gap-3 max-w-[250px]">
-                      {/* Product Image */}
-                       {/* Product Image */}
-                        <div className="w-12 h-12 bg-surface-secondary rounded flex items-center justify-center flex-shrink-0 overflow-hidden">
-                          {product.imageUrl ? (
-                            <img
-                              src={product.imageUrl}
-                              alt={product.name}
-                              className="w-full h-full object-cover"
+                      <div className="w-12 h-12 bg-surface-secondary rounded flex items-center justify-center flex-shrink-0 overflow-hidden">
+                        {product.imageUrl ? (
+                          <img
+                            src={product.imageUrl}
+                            alt={product.name}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <svg
+                            className="w-6 h-6 text-text-muted"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
                             />
-                          ) : (
-                            <svg
-                              className="w-6 h-6 text-text-muted"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                              />
-                            </svg>
-                          )}
-                        </div>
-                      
-                      {/* Product Details */}
+                          </svg>
+                        )}
+                      </div>
+
                       <div className="min-w-0 flex-1 max-w-[200px]">
-                        {/* SKU */}
                         <div className="text-xs text-text-muted mb-1 truncate">{product.sku}</div>
-                        {/* Product Name */}
                         <div className="font-medium text-text-primary text-sm mb-1.5 line-clamp-2 break-words">
                           {product.productTitle || '-'}
                         </div>
-                        {/* Price, COGS, and FBA Stock */}
                         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-                          {/* Price */}
                           <div>
                             <span className="text-text-primary font-medium">
                               {formatCurrency((product.salesRevenue || 0) / Math.max(product.unitsSold || 1, 1))}
                             </span>
                           </div>
-                          {/* COGS */}
                           <div>
                             <span className="text-text-muted">COGS </span>
                             <span className="text-text-primary font-medium">
                               {formatCurrency((product.totalCOGS || 0) / Math.max(product.unitsSold || 1, 1))}
                             </span>
                           </div>
-                          {/* FBA Stock */}
                           <div className="flex items-center gap-1">
                             <span className="text-text-primary font-medium">0</span>
-                            {0 > 0 ? (
-                              <svg className="w-3 h-3 text-success-600" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                              </svg>
-                            ) : (
-                              <svg className="w-3 h-3 text-danger-600" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                              </svg>
-                            )}
+                            <svg className="w-3 h-3 text-danger-600" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                            </svg>
                           </div>
                         </div>
                       </div>
@@ -370,7 +356,7 @@ export const SellerboardProductsTable: React.FC<SellerboardProductsTableProps> =
                   </TableCell>
                   <TableCell className="text-right">{formatPercentage(product.netMargin || 0)}</TableCell>
                   <TableCell className="text-right">
-                    {roi >= 0 ? '' : ''}{formatPercentage(roi)}
+                    {formatPercentage(roi)}
                   </TableCell>
                   <TableCell className="text-right">
                     <span className="text-text-muted">—</span>
@@ -387,7 +373,6 @@ export const SellerboardProductsTable: React.FC<SellerboardProductsTableProps> =
         </Table>
       </div>
 
-      {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex items-center justify-between">
           <div className="text-sm text-text-muted">
@@ -446,4 +431,3 @@ export const SellerboardProductsTable: React.FC<SellerboardProductsTableProps> =
     </div>
   )
 })
-

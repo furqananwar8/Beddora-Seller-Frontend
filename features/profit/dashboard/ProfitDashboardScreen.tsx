@@ -35,6 +35,7 @@ import { formatCurrency, formatPercentage, formatNumber } from '@/utils/format'
 // ── PST/PDT DATE UTILITIES (date-fns + date-fns-tz) ──
 import { format, addDays, addMonths, startOfMonth, endOfMonth, startOfWeek, endOfWeek } from 'date-fns'
 import { toZonedTime, formatInTimeZone } from 'date-fns-tz'
+import SummaryTiles from './SummaryTiles'
 
 const TIMEZONE = 'America/Los_Angeles'
 const PRESET_STORAGE_KEY = 'profit-dashboard-preset'
@@ -568,8 +569,8 @@ const gridColsClass: Record<number, string> = {
   1: 'lg:grid-cols-1',
   2: 'lg:grid-cols-2',
   3: 'lg:grid-cols-3',
-  4: 'lg:grid-cols-4',
-  5: 'lg:grid-cols-5',
+  4: 'xl:grid-cols-4 lg:grid-cols-3',
+  5: 'xl:grid-cols-5 lg:grid-cols-3',
 }
 
 // ============================================
@@ -973,7 +974,12 @@ export const ProfitDashboardScreen: React.FC = () => {
                 </div>
                 <div className="p-6">
                   {tableView === 'products' ? (
-                    <SellerboardProductsTable products={productData} isLoading={productFetching} searchTerm={debouncedSearchTerm} />
+                    <SellerboardProductsTable
+                      products={productData}
+                      isLoading={productFetching}
+                      isFetching={productFetching}
+                      searchTerm={debouncedSearchTerm}
+                    />
                   ) : (
                     <OrderItemsTable orderItems={orderItemsData} isLoading={orderItemsFetching} searchTerm={debouncedSearchTerm} />
                   )}
@@ -990,9 +996,9 @@ export const ProfitDashboardScreen: React.FC = () => {
             {profitFetching && (
               <div className="bg-surface-secondary border border-border rounded-xl p-6 mb-6 animate-pulse">
                 <div className="h-6 bg-border rounded w-1/3 mb-4"></div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 items-center">
                   {[...Array(4)].map((_, i) => (
-                    <div key={i} className="h-12 bg-border rounded"></div>
+                    <div key={i} className="h-8 bg-border rounded"></div>
                   ))}
                 </div>
               </div>
@@ -1100,7 +1106,7 @@ export const ProfitDashboardScreen: React.FC = () => {
                           <div className="px-3 py-2 text-xs font-semibold text-text-muted uppercase tracking-wider border-b border-border">
                             Period Presets
                           </div>
-                          {tilePresets.map((preset) => (
+                          { tilePresets.map((preset) => (
                             <button
                               key={preset.id}
                               onClick={() => handlePresetSelect(preset.id)}
@@ -1184,93 +1190,35 @@ export const ProfitDashboardScreen: React.FC = () => {
             <div className={`grid grid-cols-1 md:grid-cols-2 ${gridColsClass[Math.min(currentPreset.tiles.length, 5)]} gap-4 mb-6`}>
               {periodCardsData.map((period) => {
                 if (period.isFetching) {
-                  return <KpiCardSkeleton key={period.id} />
+                  return (
+                   <Card key={period.id} className="bg-surface border border-border min-h-[400px] min-w-0 flex flex-col">
+                    <CardContent className="p-4 flex-1">
+                      <KpiCardSkeleton />
+                    </CardContent>
+                  </Card>
+                  )
                 }
 
                 const totalCosts = period.totalExpenses + period.totalFees + period.totalCOGS
                 const netProfitMargin = period.netMargin
 
                 return (
-                  <Card
-                    key={period.id}
-                    className={`bg-surface border border-border cursor-pointer transition-shadow hover:shadow-md ${
-                      selectedTileId === period.id ? 'ring-2 ring-primary-200' : ''
-                    }`}
-                    onClick={() => setSelectedTileId(period.id)}
-                  >
-                    <CardContent className="p-4">
-                      <div className="space-y-3">
-                        <div>
-                          <h3 className="text-lg font-semibold text-text-primary">{period.label}</h3>
-                          <p className="text-xs text-text-muted">{period.dateRange}</p>
-                        </div>
-
-                        <div>
-                          <div className="text-xs text-text-muted">Sales</div>
-                          <div className="text-2xl font-bold text-text-primary">
-                            {formatCurrency(period.salesRevenue)}
-                          </div>
-                          <div className={`text-xs mt-1 ${netProfitMargin >= 0 ? 'text-success-600' : 'text-danger-600'}`}>
-                            {netProfitMargin >= 0 ? '+' : ''}{formatPercentage(netProfitMargin)}
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-3 text-xs">
-                          <div>
-                            <div className="text-text-muted">Orders / Units</div>
-                            <div className="font-semibold text-text-primary">
-                              {period.salesCount} / {period.ordersUnitCount}
-                            </div>
-                          </div>
-                          <div>
-                            <div className="text-text-muted">Refunds</div>
-                            <div className="font-semibold text-text-primary">
-                              {formatNumber(period.totalRefunds)}
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-3 text-xs">
-                          <div>
-                            <div className="text-text-muted">Adv. cost</div>
-                            <div className="font-semibold text-danger-600">
-                              -{formatCurrency(period.totalExpenses)}
-                            </div>
-                          </div>
-                          <div>
-                            <div className="text-text-muted">Est. payout</div>
-                            <div className="font-semibold text-text-primary">
-                              {formatCurrency(period.salesRevenue - totalCosts)}
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="pt-3 border-t border-border">
-                          <div className="text-text-muted text-xs">Net profit</div>
-                          <div className="flex items-center justify-between">
-                            <div className={`text-xl font-bold ${period.netProfit >= 0 ? 'text-success-600' : 'text-danger-600'}`}>
-                              {formatCurrency(period.netProfit)}
-                            </div>
-                            <div className={`text-sm ${netProfitMargin >= 0 ? 'text-success-600' : 'text-danger-600'}`}>
-                              {netProfitMargin >= 0 ? '+' : ''}{formatPercentage(netProfitMargin)}
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="text-center">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setSelectedPeriodForDetails(period.id)
-                            }}
-                            className="text-xs text-primary-600 hover:text-primary-700 hover:underline"
-                          >
-                            More
-                          </button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
+                 <Card
+                  key={period.id}
+                  className={`bg-surface border border-border cursor-pointer transition-shadow hover:shadow-md min-h-[400px] min-w-0 flex flex-col ${
+                    selectedTileId === period.id ? 'ring-2 ring-primary-200' : ''
+                  }`}
+                  onClick={() => setSelectedTileId(period.id)}
+                >
+                  <CardContent className="p-4 break-words min-w-0 flex-1 flex flex-col">
+                    <SummaryTiles 
+                      setSelectedPeriodForDetails={setSelectedPeriodForDetails} 
+                      totalCosts={totalCosts} 
+                      netProfitMargin={netProfitMargin} 
+                      period={period}
+                    />
+                  </CardContent>
+                </Card>
                 )
               })}
             </div>
@@ -1318,21 +1266,21 @@ export const ProfitDashboardScreen: React.FC = () => {
                       <option>Group by product</option>
                       <option>Group by category</option>
                     </select>
-                    <button className="p-1.5 text-text-muted hover:text-text-primary hover:bg-surface-secondary rounded transition-colors" title="Download">
+                    <button disabled className="opacity-.5 p-1.5 text-text-muted  rounded transition-colors" title="Download">
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                      </svg>
-                    </button>
-                    <button className="p-1.5 text-text-muted hover:text-text-primary hover:bg-surface-secondary rounded transition-colors" title="Copy to clipboard">
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                       </svg>
                     </button>
                   </div>
                 </div>
                 <div className="p-6">
                   {tableView === 'products' ? (
-                    <SellerboardProductsTable products={productData} isLoading={productFetching} searchTerm={debouncedSearchTerm} />
+                    <SellerboardProductsTable
+                      products={productData}
+                      isLoading={productFetching}
+                      isFetching={productFetching}
+                      searchTerm={debouncedSearchTerm}
+                    />
                   ) : (
                     <OrderItemsTable orderItems={orderItemsData} isLoading={orderItemsFetching} searchTerm={debouncedSearchTerm} />
                   )}
@@ -1343,7 +1291,8 @@ export const ProfitDashboardScreen: React.FC = () => {
         )}
 
         {/* ── P&L VIEW ── */}
-        {activeTab === 'pnl' && (
+        {activeTab === 'pnl' && 
+        (
           <>
             <div className="mb-6">
               <PLTable data={plData} isLoading={plFetching} error={plError} currency={selectedCurrency} />
@@ -1474,7 +1423,12 @@ export const ProfitDashboardScreen: React.FC = () => {
                 </div>
                 <div className="p-6">
                   {tableView === 'products' ? (
-                    <SellerboardProductsTable products={productData} isLoading={productFetching} searchTerm={debouncedSearchTerm} />
+                    <SellerboardProductsTable
+                      products={productData}
+                      isLoading={productFetching}
+                      isFetching={productFetching}
+                      searchTerm={debouncedSearchTerm}
+                    />
                   ) : (
                     <OrderItemsTable orderItems={orderItemsData} isLoading={orderItemsFetching} searchTerm={debouncedSearchTerm} />
                   )}

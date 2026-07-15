@@ -46,10 +46,21 @@ export const Skeleton: React.FC<SkeletonProps> = ({
  * KPI Card Skeleton
  */
 export const KpiCardSkeleton: React.FC = () => (
-  <div className="ds-card p-4 space-y-2">
-    <Skeleton width="60%" height="16px" />
-    <Skeleton width="80%" height="32px" />
-    <Skeleton width="50%" height="14px" />
+  <div className="animate-pulse h-full flex flex-col">
+    <div className="h-6 bg-border rounded w-1/3 mb-4"></div>
+    <div className="flex-1 space-y-4">
+      <div className="h-8 bg-border rounded"></div>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="h-8 bg-border rounded"></div>
+        <div className="h-8 bg-border rounded"></div>
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="h-8 bg-border rounded"></div>
+        <div className="h-8 bg-border rounded"></div>
+      </div>
+      <div className="h-8 bg-border rounded w-2/3"></div>
+    </div>
+    <div className="h-6 bg-border rounded w-1/4 mx-auto mt-4"></div>
   </div>
 )
 
