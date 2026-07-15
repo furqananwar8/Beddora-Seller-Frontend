@@ -3,17 +3,6 @@ import { baseApi } from './baseApi'
 // ============================================
 // TYPE DEFINITIONS
 // ============================================
-
-export interface ProfitFilters {
-  accountId?: string
-  amazonAccountId?: string
-  marketplaceId?: string
-  sku?: string
-  startDate?: string
-  endDate?: string
-  period?: 'day' | 'week' | 'month'
-}
-
 export interface PeriodSummary {
   period: 'TODAY' | 'YESTERDAY' | '7DAYSAGO' | '14DAYSAGO' | '30DAYSAGO'
   salesRevenue: number
@@ -197,12 +186,6 @@ export interface PLResponseApi {
   data: PLResponse
 }
 
-export interface CountryProfitBreakdown {
-  country: string
-  profit: number
-  orders: number
-}
-
 export interface ProfitTrendsSimpleResponse {
   labels: string[]
   profit: number[]
@@ -226,6 +209,32 @@ export interface ProductTrendsResponse {
   }>
   dates: string[]
   metric: string
+}
+
+export interface CountryProfitBreakdown {
+  country: string      // ISO code for flag & map matching (e.g. "US", "CA")
+  region: string      // Display name: country name OR state/province name
+  profit: number      // Gross profit (same as grossProfit for backward compat)
+  orders: number
+  stock: number
+  unitsSold: number
+  sales: number       // Positive revenue
+  amazonFees: number  // Negative
+  sellableReturnsPercent: number
+  costOfGoods: number // Negative
+  refundCost: number  // Negative
+  grossProfit: number
+}
+
+export interface ProfitFilters {
+  startDate: string
+  endDate: string
+  accountId?: string
+  amazonAccountId?: string
+  marketplaceId?: string
+  sku?: string
+  period?: 'day' | 'week' | 'month'
+
 }
 
 // ============================================
