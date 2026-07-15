@@ -6,6 +6,7 @@ import { toggleSidebar } from '@/store/ui.slice'
 import { Select } from '@/design-system/inputs'
 import { Button } from '@/design-system/buttons'
 import { NavIcons } from './icons'
+import { HeaderClock } from '../header-clock/HeaderClock'
 
 /**
  * Header component - Navigation component
@@ -96,11 +97,9 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         <div className="ds-header-actions">
+          <HeaderClock />
           <button className="ds-icon-button" aria-label="Notifications">
             {NavIcons.bell}
-          </button>
-          <button className="ds-icon-button" aria-label="Apps">
-            {NavIcons.grid}
           </button>
           {onLogout && (
             <Button variant="ghost" size="sm" onClick={onLogout}>
