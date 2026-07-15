@@ -3,8 +3,31 @@ import { baseApi } from './baseApi'
 // ============================================
 // TYPE DEFINITIONS
 // ============================================
+
+export type PeriodSummaryPeriod =
+  | 'TODAY'
+  | 'YESTERDAY'
+  | '7DAYSAGO'
+  | '14DAYSAGO'
+  | '30DAYSAGO'
+  | 'MONTH_TO_DATE'
+  | 'THIS_MONTH_FORECAST'
+  | 'LAST_MONTH'
+  | 'THIS_WEEK'
+  | 'LAST_WEEK'
+  | '2WEEKSAGO'
+  | '3WEEKSAGO'
+  | '2MONTHSAGO'
+  | '3MONTHSAGO'
+  | '2DAYSAGO'
+  | '3DAYSAGO'
+  | '7DAYS'
+  | '14DAYS'
+  | '30DAYS'
+  | '8DAYSAGO'
+
 export interface PeriodSummary {
-  period: 'TODAY' | 'YESTERDAY' | '7DAYSAGO' | '14DAYSAGO' | '30DAYSAGO'
+  period: PeriodSummaryPeriod
   salesRevenue: number
   salesCount: number
   ordersUnitCount: number
@@ -29,24 +52,6 @@ export interface ProfitSummary {
     totalExpenses: number
   }
   periods: PeriodSummary[]
-}
-
-// Legacy shape for backward compatibility (single period)
-export interface LegacyProfitSummary {
-  salesRevenue: number
-  totalExpenses: number
-  totalFees: number
-  totalRefunds: number
-  totalCOGS: number
-  grossProfit: number
-  netProfit: number
-  grossMargin: number
-  netMargin: number
-  orderCount: number
-  period: {
-    startDate: string | null
-    endDate: string | null
-  }
 }
 
 export interface ProductProfitBreakdown {
@@ -212,29 +217,44 @@ export interface ProductTrendsResponse {
 }
 
 export interface CountryProfitBreakdown {
-  country: string      // ISO code for flag & map matching (e.g. "US", "CA")
-  region: string      // Display name: country name OR state/province name
-  profit: number      // Gross profit (same as grossProfit for backward compat)
+  country: string
+  region: string
+  profit: number
   orders: number
   stock: number
   unitsSold: number
-  sales: number       // Positive revenue
-  amazonFees: number  // Negative
+  sales: number
+  amazonFees: number
   sellableReturnsPercent: number
-  costOfGoods: number // Negative
-  refundCost: number  // Negative
+  costOfGoods: number
+  refundCost: number
   grossProfit: number
 }
 
+export interface Marketplace {
+  id: string
+  name: string
+  code: string
+  country: string
+  isDefault?: boolean
+}
+
+export interface MarketplacesResponse {
+  success: boolean
+  data: Marketplace[]
+}
+
 export interface ProfitFilters {
-  startDate: string
-  endDate: string
+  startDate?: string
+  endDate?: string
   accountId?: string
   amazonAccountId?: string
-  marketplaceId?: string
+  marketplaceId?: string      // single (backward compat)
+  marketplaces?: string[]       // multi-select array
   sku?: string
   period?: 'day' | 'week' | 'month'
-
+  preset?: string
+  currency?: string
 }
 
 // ============================================
@@ -244,7 +264,6 @@ export interface ProfitFilters {
 export const profitApi = baseApi.injectEndpoints({
   overrideExisting: true,
   endpoints: (builder) => ({
-    // Add this at the top of your profit.api.ts or in the endpoint:
     getProfitSummary: builder.query<ProfitSummary, ProfitFilters>({
       query: (filters) => ({
         url: '/profit/summary',
@@ -252,7 +271,6 @@ export const profitApi = baseApi.injectEndpoints({
       }),
       transformResponse: (response: any): ProfitSummary => {
         console.log('API response shape:', Object.keys(response))
-        // API returns { success, summary, periods } — extract what we need
         return {
           summary: response.summary,
           periods: response.periods,
@@ -320,6 +338,9 @@ export const profitApi = baseApi.injectEndpoints({
           endDate: filters.endDate,
           accountId: filters.accountId,
           amazonAccountId: filters.amazonAccountId,
+          marketplaceId: filters.marketplaceId,
+          marketplaces: filters.marketplaces,
+          currency: filters.currency,
         },
       }),
       providesTags: ['Profit'],
@@ -338,6 +359,9 @@ export const profitApi = baseApi.injectEndpoints({
           interval: filters.interval || 'daily',
           accountId: filters.accountId,
           amazonAccountId: filters.amazonAccountId,
+          marketplaceId: filters.marketplaceId,
+          marketplaces: filters.marketplaces,
+          currency: filters.currency,
         },
       }),
       providesTags: ['Profit'],
@@ -356,10 +380,22 @@ export const profitApi = baseApi.injectEndpoints({
           metric: filters.metric || 'sales',
           accountId: filters.accountId,
           marketplaceId: filters.marketplaceId,
+          marketplaces: filters.marketplaces,
+          currency: filters.currency,
         },
       }),
       providesTags: ['Profit'],
       keepUnusedDataFor: 300,
+    }),
+
+    getMarketplaces: builder.query<Marketplace[], { accountId?: string }>({
+      query: ({ accountId }) => ({
+        url: '/marketplaces',
+        params: { accountId },
+      }),
+      transformResponse: (response: MarketplacesResponse) => response.data,
+      providesTags: ['Marketplaces'],
+      keepUnusedDataFor: 3600,
     }),
   }),
 })
@@ -374,6 +410,7 @@ export const {
   useGetProfitByCountryQuery,
   useGetProfitTrendsSimpleQuery,
   useGetProductTrendsQuery,
+  useGetMarketplacesQuery,
   useLazyGetProfitSummaryQuery,
   useLazyGetProfitByProductQuery,
   useLazyGetProfitByMarketplaceQuery,
@@ -383,4 +420,5 @@ export const {
   useLazyGetProfitByCountryQuery,
   useLazyGetProfitTrendsSimpleQuery,
   useLazyGetProductTrendsQuery,
+  useLazyGetMarketplacesQuery,
 } = profitApi
