@@ -1,297 +1,388 @@
+// ── TrendsTable.tsx ──
 'use client'
 
-import React, { useMemo, useState } from 'react'
-import dynamic from 'next/dynamic'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/design-system/tables'
-import { TableSkeleton, ChartSkeleton } from '@/design-system/loaders'
-import { ProductTrendsResponse } from '@/services/api/profit.api'
-import { formatCurrency, formatNumber, formatPercentage } from '@/utils/format'
+import React, { useState, useMemo } from 'react'
+import { BarChart, Bar, ResponsiveContainer, Cell } from 'recharts'
+import { format, parseISO } from 'date-fns'
 import { cn } from '@/utils/cn'
+import { Button } from '@/design-system/buttons'
 
-// Lazy-load the heavy LineChart component (includes Recharts)
-const LineChart = dynamic(
-  () => import('@/design-system/charts/LineChart').then((mod) => mod.LineChart),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="w-full h-16 flex items-center justify-center">
-        <ChartSkeleton height="60px" />
-      </div>
-    ),
-  }
-)
+interface DailyValue {
+  date: string
+  value: number
+  changePercent: number
+}
 
-/**
- * TrendsTable Component
- * 
- * Displays product-level trends in a table format with:
- * - Product column (image, SKU, name)
- * - Chart column (small embedded line chart)
- * - Date columns (one for each day in the range)
- * - Each date cell shows value and percentage change
- * 
- * Architecture Note: This component is modular and can be extracted
- * to a separate microservice frontend.
- */
+interface ProductTrend {
+  productId: string
+  sku: string
+  productTitle: string | null
+  productImageUrl: string | null
+  dailyValues: DailyValue[]
+  chartData: number[]
+}
 
-export interface TrendsTableProps {
-  data?: ProductTrendsResponse
-  isLoading?: boolean
+interface PaginationMeta {
+  page: number
+  limit: number
+  total: number
+  totalPages: number
+}
+
+interface TrendsData {
+  products: ProductTrend[]
+  dates: string[]
+  metric: string
+  periodicity: string
+  currency: string
+  pagination: PaginationMeta
+}
+
+interface TrendsTableProps {
+  data: TrendsData | undefined
+  isLoading: boolean
+  isFetching: boolean
   error?: any
-  currency?: string
-  searchTerm?: string
-  heatmapEnabled?: boolean
-  className?: string
+  currency: string
+  searchTerm: string
+  heatmapEnabled: boolean
+  page: number
+  onPageChange: (page: number) => void
 }
 
-/**
- * Format date for display
- */
-const formatDateDisplay = (dateString: string): string => {
-  const date = new Date(dateString)
-  return date.toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })
+const MONETARY_METRICS = [
+  'sales',
+  'advertisingCost',
+  'refundCost',
+  'amazonFees',
+  'estimatedPayout',
+  'costOfGoods',
+  'grossProfit',
+  'indirectExpenses',
+  'netProfit',
+]
+
+const PERCENTAGE_METRICS = ['margin', 'refundsPercent', 'sellableReturns']
+
+const COUNT_METRICS = ['orders', 'units', 'refunds']
+
+const getCurrencyPrefix = (currency: string) => {
+  switch (currency) {
+    case 'CAD':
+      return 'CAD $'
+    case 'USD':
+      return 'US $'
+    case 'EUR':
+      return 'EUR €'
+    default:
+      return `${currency} `
+  }
 }
 
-/**
- * Get color for percentage change
- */
-const getChangeColor = (changePercent: number): string => {
-  if (changePercent > 0) return 'text-success-600'
-  if (changePercent < 0) return 'text-danger-600'
-  return 'text-text-muted'
-}
-
-/**
- * Get heatmap color based on value intensity
- */
-const getHeatmapColor = (value: number, maxValue: number, minValue: number): string => {
-  if (maxValue === minValue) return 'bg-blue-50'
-  const normalized = (value - minValue) / (maxValue - minValue)
-  const intensity = Math.floor(normalized * 10)
-  
-  // Blue gradient from light to dark
-  const colors = [
-    'bg-blue-50',
-    'bg-blue-100',
-    'bg-blue-200',
-    'bg-blue-300',
-    'bg-blue-400',
-    'bg-blue-500',
-    'bg-blue-600',
-    'bg-blue-700',
-    'bg-blue-800',
-    'bg-blue-900',
-  ]
-  
-  return colors[Math.min(intensity, 9)]
+const formatMonetary = (val: number, currency: string) => {
+  const prefix = getCurrencyPrefix(currency)
+  const num = new Intl.NumberFormat('en-CA', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(Math.abs(val))
+  return val < 0 ? `-${prefix}${num}` : `${prefix}${num}`
 }
 
 export const TrendsTable: React.FC<TrendsTableProps> = ({
   data,
   isLoading,
-  error,
-  currency = 'CAD',
-  searchTerm = '',
-  heatmapEnabled = false,
-  className,
+  isFetching,
+  currency,
+  searchTerm,
+  heatmapEnabled,
+  page,
+  onPageChange,
 }) => {
-  // Filter products by search term
+  const [hoveredCell, setHoveredCell] = useState<{
+    x: number
+    y: number
+    value: DailyValue
+    periodicity: string
+  } | null>(null)
+
+  const products = data?.products || []
+  const dates = data?.dates || []
+  const metric = data?.metric || 'sales'
+  const periodicity = data?.periodicity || 'day'
+  const pagination = data?.pagination
+  const totalPages = pagination?.totalPages || 1
+
   const filteredProducts = useMemo(() => {
-    if (!data?.products) return []
-    if (!searchTerm) return data.products
-
-    const lower = searchTerm.toLowerCase()
-    return data.products.filter(
-      (product) =>
-        product.productTitle?.toLowerCase().includes(lower) ||
-        product.sku?.toLowerCase().includes(lower)
+    if (!searchTerm) return products
+    const term = searchTerm.toLowerCase()
+    return products.filter(
+      (p) =>
+        p.sku?.toLowerCase().includes(term) ||
+        p.productTitle?.toLowerCase().includes(term)
     )
-  }, [data?.products, searchTerm])
+  }, [products, searchTerm])
 
-  // Calculate min/max values for heatmap
-  const { minValue, maxValue } = useMemo(() => {
-    if (!filteredProducts.length) return { minValue: 0, maxValue: 0 }
-    
-    const allValues = filteredProducts.flatMap((p) => p.dailyValues.map((dv) => dv.value))
-    return {
-      minValue: Math.min(...allValues),
-      maxValue: Math.max(...allValues),
+  const allValues = useMemo(() => {
+    if (!heatmapEnabled) return []
+    return filteredProducts.flatMap((p) => p.dailyValues?.map((d) => d.value) || [])
+  }, [filteredProducts, heatmapEnabled])
+
+  const getHeatmapClass = (value: number) => {
+    if (!heatmapEnabled || value == null || value === 0) return ''
+
+    const vals = allValues.filter((v) => v !== 0 && v != null)
+    if (vals.length === 0) return ''
+
+    const sorted = [...vals].sort((a, b) => a - b)
+    const min = sorted[0]
+    const max = sorted[sorted.length - 1]
+    const range = max - min || 1
+    const norm = (value - min) / range
+
+    if (value < 0) return 'bg-gray-300 text-gray-800'
+    if (norm >= 0.8) return 'bg-green-500 text-white'
+    if (norm >= 0.6) return 'bg-green-300 text-green-900'
+    if (norm >= 0.4) return 'bg-orange-300 text-orange-900'
+    if (norm >= 0.2) return 'bg-orange-200 text-orange-800'
+    return 'bg-gray-100 text-gray-600'
+  }
+
+  const formatCellValue = (val: number) => {
+    if (val == null) return '-'
+
+    if (PERCENTAGE_METRICS.includes(metric)) {
+      return `${val.toFixed(1)}%`
     }
-  }, [filteredProducts])
 
-  // Format metric value based on metric type
-  const formatMetricValue = (value: number, metric: string): string => {
-    switch (metric) {
-      case 'sales':
-      case 'promo':
-      case 'advertisingCost':
-      case 'refundCost':
-      case 'amazonFees':
-      case 'estimatedPayout':
-      case 'costOfGoods':
-      case 'grossProfit':
-      case 'indirectExpenses':
-      case 'netProfit':
-        return formatCurrency(value, currency)
-      case 'units':
-      case 'orders':
-      case 'refunds':
-        return formatNumber(value, 0)
-      case 'refundsPercent':
-      case 'sellableReturns':
-      case 'margin':
-        return formatPercentage(value)
-      default:
-        return formatCurrency(value, currency)
+    if (COUNT_METRICS.includes(metric)) {
+      return val.toLocaleString()
     }
+
+    if (MONETARY_METRICS.includes(metric)) {
+      return formatMonetary(val, currency)
+    }
+
+    // Fallback for any new monetary metric not yet categorized
+    return formatMonetary(val, currency)
   }
 
-  if (isLoading) {
-    return <TableSkeleton rows={5} columns={10} />
+  const formatHeaderDate = (dateStr: string) => {
+    if (periodicity === 'month') {
+      return format(parseISO(dateStr + '-01'), 'MMM yyyy')
+    }
+    if (periodicity === 'week') {
+      return `W${format(parseISO(dateStr), 'w')}`
+    }
+    return format(parseISO(dateStr), 'MMM d')
   }
 
-  if (error) {
+  const skeletonCols = dates.length > 0 ? dates : Array.from({ length: 12 })
+  const skeletonRows = Array.from({ length: 10 })
+
+  if (isLoading || isFetching) {
     return (
-      <div className="text-center text-danger-600 py-8">
-        Error loading trends data. Please try again.
-      </div>
-    )
-  }
-
-  if (!data || !data.products || data.products.length === 0) {
-    return (
-      <div className="text-center text-text-muted py-8">
-        No product trends data available. Try adjusting the date range or filters.
-      </div>
-    )
-  }
-
-  if (filteredProducts.length === 0) {
-    return (
-      <div className="text-center text-text-muted py-8">
-        No products match your search criteria.
+      <div className="min-h-[520px]">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-border">
+                <th className="text-left px-3 py-2 text-xs font-medium text-text-muted w-[260px] sticky left-0 bg-surface z-10">Product</th>
+                <th className="text-left px-3 py-2 text-xs font-medium text-text-muted w-[90px]">Trend</th>
+                {skeletonCols.map((_: any, i: number) => (
+                  <th key={i} className="px-2 py-2 text-xs font-medium text-text-muted text-center min-w-[56px]">
+                    <div className="h-3 bg-border rounded animate-pulse w-8 mx-auto" />
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {skeletonRows.map((_, ridx) => (
+                <tr key={ridx} className="border-b border-border">
+                  <td className="px-3 py-3 sticky left-0 bg-surface z-10">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-border rounded animate-pulse" />
+                      <div className="space-y-1.5">
+                        <div className="h-3 bg-border rounded animate-pulse w-32" />
+                        <div className="h-2.5 bg-border rounded animate-pulse w-20" />
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-3 py-3"><div className="h-8 bg-border rounded animate-pulse w-full" /></td>
+                  {skeletonCols.map((_: any, cidx: number) => (
+                    <td key={cidx} className="px-2 py-3 text-center"><div className="h-3 bg-border rounded animate-pulse w-10 mx-auto" /></td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className={cn('overflow-x-auto', className)}>
-      <Table className="table-fixed">
-        <TableHeader>
-          <TableRow>
-            <TableHead className="sticky left-0 bg-surface z-10 w-[250px] whitespace-nowrap">Product</TableHead>
-            <TableHead className="w-[150px] whitespace-nowrap">Chart</TableHead>
-            {data.dates.map((date) => (
-              <TableHead key={date} className="w-[120px] text-center whitespace-nowrap">
-                {formatDateDisplay(date)}
-              </TableHead>
-            ))}
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {filteredProducts.map((product) => {
-            // Create chart data for this product
-            const chartData = product.dailyValues.map((dv, index) => ({
-              date: `${index + 1}`,
-              value: dv.value,
-            }))
+    <div className="relative min-h-[520px]">
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead>
+            <tr className="border-b border-border">
+              <th className="text-left px-3 py-2 text-xs font-medium text-text-muted uppercase tracking-wider w-[260px] sticky left-0 bg-surface z-10">Product</th>
+              <th className="text-left px-3 py-2 text-xs font-medium text-text-muted uppercase tracking-wider w-[90px]">Trend</th>
+              {dates.map((date: string) => (
+                <th key={date} className="px-2 py-2 text-xs font-medium text-text-muted uppercase tracking-wider text-center min-w-[56px]">
+                  {formatHeaderDate(date)}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {filteredProducts.map((product: ProductTrend, rowIdx: number) => {
+              const chartData = product.dailyValues?.map((d) => ({ value: d.value })) || []
+              const title = product.productTitle?.trim() || '-'
 
-            return (
-              <TableRow key={product.sku} className="hover:bg-surface-secondary">
-                {/* Product Column */}
-                <TableCell className="sticky left-0 bg-surface z-10 w-[250px]">
-                  <div className="flex items-start gap-3">
-                    {/* Product Image */}
-                    <div className="w-12 h-12 bg-surface-secondary rounded flex items-center justify-center flex-shrink-0 overflow-hidden">
+              return (
+                <tr key={product.sku || rowIdx} className="border-b border-border hover:bg-surface-secondary/50 transition-colors">
+                  <td className="px-3 py-3 sticky left-0 bg-surface z-10">
+                    <div className="flex items-center gap-3">
                       {product.productImageUrl ? (
-                        <img
-                          src={product.productImageUrl}
-                          alt={product.productTitle || 'Product'}
-                          className="w-full h-full object-cover"
-                        />
+                        <img src={product.productImageUrl} alt="" className="w-10 h-10 rounded object-cover bg-surface-secondary" loading="lazy" />
                       ) : (
-                        <svg
-                          className="w-6 h-6 text-text-muted"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                          />
-                        </svg>
+                        <div className="w-10 h-10 rounded bg-surface-secondary flex items-center justify-center text-xs text-text-muted">N/A</div>
                       )}
-                    </div>
-
-                    {/* Product Details */}
-                    <div className="min-w-0 flex-1 max-w-[200px]">
-                      {/* SKU */}
-                      <div className="text-xs text-text-muted mb-1 truncate">{product.sku}</div>
-                      {/* Product Name */}
-                      <div className="font-medium text-text-primary text-sm line-clamp-2 break-words">
-                        {product.productTitle || 'Unnamed Product'}
+                      <div className="min-w-0">
+                        <div className="text-sm font-medium text-text-primary truncate max-w-[160px]" title={title}>{title}</div>
+                        <div className="text-xs text-text-muted">{product.sku}</div>
                       </div>
                     </div>
-                  </div>
-                </TableCell>
+                  </td>
 
-                {/* Chart Column */}
-                <TableCell className="w-[150px]">
-                  <div className="w-full h-[60px]">
-                    <LineChart
-                      data={chartData}
-                      xKey="date"
-                      yKeys={[
-                        {
-                          key: 'value',
-                          name: 'Value',
-                          color: '#3b82f6',
-                        },
-                      ]}
-                      height={60}
-                      className="w-full"
-                    />
-                  </div>
-                </TableCell>
+                  <td className="px-3 py-3">
+                    <div className="w-[80px] h-[32px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={chartData}>
+                          <Bar dataKey="value" radius={[2, 2, 0, 0]}>
+                            {chartData.map((_, i) => (
+                              <Cell key={i} fill={MONETARY_METRICS.includes(metric) ? '#10b981' : '#f59e0b'} />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </td>
 
-                {/* Date Columns */}
-                {product.dailyValues.map((dailyValue) => {
-                  const cellClassName = heatmapEnabled
-                    ? getHeatmapColor(dailyValue.value, maxValue, minValue)
-                    : ''
-
-                  return (
-                    <TableCell
-                      key={dailyValue.date}
-                      className={cn('w-[120px] text-center', cellClassName)}
+                  {product.dailyValues?.map((dv: DailyValue, colIdx: number) => (
+                    <td
+                      key={`${product.sku}-${dv.date}`}
+                      className={cn(
+                        'px-7 py-5 text-center text-xs tabular-nums cursor-default transition-colors',
+                        getHeatmapClass(dv.value)
+                      )}
+                      onMouseEnter={(e) => {
+                        const rect = (e.target as HTMLElement).getBoundingClientRect()
+                        setHoveredCell({
+                          x: rect.left + rect.width / 2,
+                          y: rect.top,
+                          value: dv,
+                          periodicity,
+                        })
+                      }}
+                      onMouseLeave={() => setHoveredCell(null)}
                     >
-                      <div className="flex flex-col items-center gap-1">
-                        <div className="font-medium text-text-primary">
-                          {formatMetricValue(dailyValue.value, data.metric)}
-                        </div>
-                        <div className={cn('text-xs', getChangeColor(dailyValue.changePercent))}>
-                          {dailyValue.changePercent > 0 ? '+' : ''}
-                          {formatPercentage(dailyValue.changePercent)}
-                        </div>
-                      </div>
-                    </TableCell>
-                  )
-                })}
-              </TableRow>
-            )
-          })}
-        </TableBody>
-      </Table>
+                      {formatCellValue(dv.value)}
+                    </td>
+                  ))}
+                </tr>
+              )
+            })}
+
+            {filteredProducts.length === 0 && (
+              <tr>
+                <td colSpan={2 + dates.length} className="text-center py-12 text-text-muted">No products found</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Hover Tooltip */}
+      {hoveredCell && (
+        <div
+          className="fixed z-50 bg-surface border border-border rounded-lg shadow-lg px-3 py-2 pointer-events-none"
+          style={{ left: hoveredCell.x, top: hoveredCell.y - 70, transform: 'translateX(-50%)' }}
+        >
+          <div className="text-xs text-text-muted mb-0.5">
+            {hoveredCell.periodicity === 'month'
+              ? format(parseISO(hoveredCell.value.date + '-01'), 'MMMM yyyy')
+              : hoveredCell.periodicity === 'week'
+              ? `Week of ${hoveredCell.value.date}`
+              : format(parseISO(hoveredCell.value.date), 'EEEE, MMM d, yyyy')}
+          </div>
+          <div className="text-sm font-semibold text-text-primary">{formatCellValue(hoveredCell.value.value)}</div>
+          {hoveredCell.value.changePercent !== 0 && (
+            <div className={cn('text-xs', hoveredCell.value.changePercent > 0 ? 'text-green-600' : 'text-red-600')}>
+              {hoveredCell.value.changePercent > 0 ? '+' : ''}
+              {hoveredCell.value.changePercent.toFixed(1)}%
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between mt-6 px-2">
+          <div className="text-sm text-text-muted">
+            Showing {((pagination?.page || page) - 1) * (pagination?.limit || 20) + 1} to{' '}
+            {Math.min((pagination?.page || page) * (pagination?.limit || 20), pagination?.total || 0)} of{' '}
+            {pagination?.total || 0} products
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onPageChange(page - 1)}
+              disabled={page <= 1}
+            >
+              Previous
+            </Button>
+            <div className="flex gap-1">
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                let pageNum: number
+                if (totalPages <= 5) {
+                  pageNum = i + 1
+                } else if (page <= 3) {
+                  pageNum = i + 1
+                } else if (page >= totalPages - 2) {
+                  pageNum = totalPages - 4 + i
+                } else {
+                  pageNum = page - 2 + i
+                }
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => onPageChange(pageNum)}
+                    className={cn(
+                      'w-8 h-8 rounded text-sm font-medium transition-colors',
+                      page === pageNum
+                        ? 'bg-primary-600 text-white'
+                        : 'text-text-muted hover:bg-surface-secondary hover:text-text-primary'
+                    )}
+                  >
+                    {pageNum}
+                  </button>
+                )
+              })}
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onPageChange(page + 1)}
+              disabled={page >= totalPages}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

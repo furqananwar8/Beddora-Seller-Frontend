@@ -1449,8 +1449,8 @@ export const ProfitDashboardScreen: React.FC = () => {
         {activeTab === 'trends' && (
           <TrendsComponent
             accountId={effectiveAccountId}
-            startDate={getRollingDateRangePST(30).startDate}
-            endDate={getRollingDateRangePST(30).endDate}
+            marketplaces={selectedMarketplaces}
+            currency={selectedCurrency}
           />
         )}
 

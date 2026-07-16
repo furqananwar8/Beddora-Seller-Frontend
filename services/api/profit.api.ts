@@ -370,7 +370,7 @@ export const profitApi = baseApi.injectEndpoints({
 
     getProductTrends: builder.query<
       ProductTrendsResponse,
-      ProfitFilters & { metric?: string }
+      ProfitFilters & { metric?: string; periodicity?: string; page?: number; limit?: number }
     >({
       query: (filters) => ({
         url: '/profit/trends/products',
@@ -378,10 +378,13 @@ export const profitApi = baseApi.injectEndpoints({
           startDate: filters.startDate,
           endDate: filters.endDate,
           metric: filters.metric || 'sales',
+          periodicity: filters.periodicity || 'day',
           accountId: filters.accountId,
           marketplaceId: filters.marketplaceId,
           marketplaces: filters.marketplaces,
           currency: filters.currency,
+          page: filters.page,
+          limit: filters.limit,
         },
       }),
       providesTags: ['Profit'],
