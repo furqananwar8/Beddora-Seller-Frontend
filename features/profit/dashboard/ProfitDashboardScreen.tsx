@@ -36,6 +36,8 @@ import { formatCurrency, formatPercentage, formatNumber } from '@/utils/format'
 import { format, addDays, addMonths, startOfMonth, endOfMonth, startOfWeek, endOfWeek } from 'date-fns'
 import { toZonedTime, formatInTimeZone } from 'date-fns-tz'
 import SummaryTiles from './SummaryTiles'
+import { MultiSelectInput } from '@/components/multi-select-input/MultiSelectInput'
+import { MARKETPLACES } from '@/utils/marketplaces'
 
 const TIMEZONE = 'America/Los_Angeles'
 const PRESET_STORAGE_KEY = 'profit-dashboard-preset'
@@ -94,125 +96,7 @@ const getSingleDayPST = (daysAgo: number) => {
   return { startDate: ymd, endDate: ymd }
 }
 
-// ============================================
-// MARKETPLACES (backend expects these strings)
-// ============================================
 
-const MARKETPLACES = [
-  { id: 'Amazon.ca', name: 'Canada' },
-  { id: 'Amazon.com', name: 'USA' },
-  { id: 'Amazon.mx', name: 'Mexico' },
-]
-
-// ============================================
-// MULTI-MARKETPLACE SELECT COMPONENT
-// ============================================
-
-const MarketplaceMultiSelect: React.FC<{
-  options: Array<{ id: string; name: string }>
-  value: string[]
-  onChange: (value: string[]) => void
-  placeholder?: string
-}> = ({ options, value, onChange, placeholder = 'Select marketplaces' }) => {
-  const [open, setOpen] = useState(false)
-  const dropdownRef = useRef<HTMLDivElement>(null)
-  const allRef = useRef<HTMLInputElement>(null)
-
-  const allIds = useMemo(() => options.map((o) => o.id), [options])
-  const allSelected = value.length === allIds.length && allIds.length > 0
-  const noneSelected = value.length === 0
-  const isIndeterminate = !allSelected && !noneSelected
-
-  useEffect(() => {
-    if (allRef.current) {
-      allRef.current.indeterminate = isIndeterminate
-    }
-  }, [isIndeterminate])
-
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setOpen(false)
-      }
-    }
-    if (open) {
-      document.addEventListener('mousedown', handleClickOutside)
-      return () => document.removeEventListener('mousedown', handleClickOutside)
-    }
-  }, [open])
-
-  const toggleAll = () => {
-    if (allSelected) {
-      onChange([])
-    } else {
-      onChange([...allIds])
-    }
-  }
-
-  const toggleOne = (id: string) => {
-    if (value.includes(id)) {
-      onChange(value.filter((v) => v !== id))
-    } else {
-      onChange([...value, id])
-    }
-  }
-
-  const displayLabel = useMemo(() => {
-    if (value.length === 0) return placeholder
-    if (value.length === 1) return options.find((o) => o.id === value[0])?.name || placeholder
-    if (value.length === options.length) return 'All Marketplaces'
-    return `${value.length} selected`
-  }, [value, options, placeholder])
-
-  return (
-    <div className="relative min-w-[160px]" ref={dropdownRef}>
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center justify-between gap-2 px-3 py-2.5 bg-surface border border-border rounded-lg text-sm text-text-primary hover:bg-surface-secondary focus:outline-none focus:ring-2 focus:ring-primary-200 focus:border-primary-600"
-      >
-        <span className="truncate">{displayLabel}</span>
-        <svg
-          className={`w-4 h-4 text-text-muted transition-transform ${open ? 'rotate-180' : ''}`}
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
-      </button>
-
-      {open && (
-        <div className="absolute z-50 mt-1 w-full min-w-[200px] bg-surface border border-border rounded-lg shadow-lg py-1">
-          <label className="flex items-center gap-2.5 px-3 py-2.5 border-b border-border cursor-pointer hover:bg-surface-secondary">
-            <input
-              ref={allRef}
-              type="checkbox"
-              className="w-4 h-4 rounded border-border text-primary-600 focus:ring-primary-500"
-              checked={allSelected}
-              onChange={toggleAll}
-            />
-            <span className="text-sm font-medium text-text-primary">All Marketplaces</span>
-          </label>
-          {options.map((opt) => (
-            <label
-              key={opt.id}
-              className="flex items-center gap-2.5 px-3 py-2 cursor-pointer hover:bg-surface-secondary"
-            >
-              <input
-                type="checkbox"
-                className="w-4 h-4 rounded border-border text-primary-600 focus:ring-primary-500"
-                checked={value.includes(opt.id)}
-                onChange={() => toggleOne(opt.id)}
-              />
-              <span className="text-sm text-text-primary">{opt.name}</span>
-            </label>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
 
 // ============================================
 // TYPES
@@ -858,7 +742,8 @@ export const ProfitDashboardScreen: React.FC = () => {
                       />
                     </div>
                     <div className="min-w-[160px]">
-                      <MarketplaceMultiSelect
+                      <MultiSelectInput
+                        title="Marketplace"
                         options={MARKETPLACES}
                         value={selectedMarketplaces}
                         onChange={handleMarketplacesChange}
@@ -1140,7 +1025,8 @@ export const ProfitDashboardScreen: React.FC = () => {
 
                     {/* Marketplace */}
                     <div className="min-w-[160px]">
-                      <MarketplaceMultiSelect
+                      <MultiSelectInput
+                        title="Marketplace"
                         options={MARKETPLACES}
                         value={selectedMarketplaces}
                         onChange={handleMarketplacesChange}
@@ -1326,7 +1212,8 @@ export const ProfitDashboardScreen: React.FC = () => {
                   </div>
                   <div className="flex items-center gap-3 flex-1 justify-end">
                     <div className="min-w-[160px]">
-                      <MarketplaceMultiSelect
+                      <MultiSelectInput
+                        title="Marketplace"
                         options={MARKETPLACES}
                         value={selectedMarketplaces}
                         onChange={handleMarketplacesChange}

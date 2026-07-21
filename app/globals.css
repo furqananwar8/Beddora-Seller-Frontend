@@ -169,7 +169,7 @@
   }
 
   .ds-content {
-    @apply p-6;
+    @apply p-0;
   }
 
   /* Buttons */

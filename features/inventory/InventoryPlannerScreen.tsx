@@ -1,9 +1,8 @@
 "use client"
 
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useCallback } from 'react'
 import { Container } from '@/components/layout'
 import { Button } from '@/design-system/buttons'
-import { Input } from '@/design-system/inputs'
 import { Card, CardContent } from '@/design-system/cards'
 import { useDebounce } from '@/utils/debounce'
 import {
@@ -14,102 +13,195 @@ import {
 import { ProductInventoryTable } from './ProductInventoryTable'
 import { formatCurrency, formatNumber } from '@/utils/format'
 import { mockInventorySummary, mockProductInventory } from './mockData'
+import { MultiSelectInput } from '@/components/multi-select-input/MultiSelectInput'
 
-/**
- * Inventory Planner Screen Component
- *
- * Main screen for inventory planning with summary cards and product table
- */
-export const InventoryPlannerScreen = () => {
-  // State
-  const [searchTerm, setSearchTerm] = useState('')
-  const [selectedProducts, setSelectedProducts] = useState<string[]>([])
+// ============================================
+// TYPES
+// ============================================
+
+interface SummaryItem {
+  location: string
+  units: number
+  costOfGoods: number
+  potentialSales: number
+  potentialProfit: number
+}
+
+interface ActionRequiredItem {
+  location: string
+  products: number
+  fundsNeeded: number
+  estMonthlySalesAtRisk: number
+  estMonthlyProfit: number
+}
+
+interface SummaryTotals {
+  units: number
+  costOfGoods: number
+  potentialSales: number
+  potentialProfit: number
+}
+
+// ============================================
+// FILTER OPTIONS
+// ============================================
+
+const FBA_OPTIONS = [
+  { id: 'fba', name: 'FBA' },
+  { id: 'fba_fbm', name: 'FBA/FBM' },
+  { id: 'fba_and_fbm', name: 'FBA And FBM' },
+]
+
+const OOS_OPTIONS = [
+  { id: 'show_oos', name: 'Show OOS Items' },
+  { id: 'hide_oos', name: 'Hide OOS Items' },
+]
+
+const MARKETPLACES = [
+  { id: 'Amazon.ca', name: 'Canada' },
+  { id: 'Amazon.com', name: 'USA' },
+  { id: 'Amazon.mx', name: 'Mexico' },
+]
+
+// ============================================
+// SCREEN COMPONENT
+// ============================================
+
+export const InventoryPlannerScreen: React.FC = () => {
+  // ---- Search ----
+  const [searchTerm, setSearchTerm] = useState<string>('')
   const debouncedSearch = useDebounce(searchTerm, 300)
 
-  // Build filters
-  const filters: InventoryPlannerFilters = useMemo(() => {
-    return {
-      search: debouncedSearch || undefined,
+  // ---- Selected products ----
+  const [selectedProducts, setSelectedProducts] = useState<string[]>([])
+
+  // ---- Filter states (pending) ----
+  const [pendingFilters, setPendingFilters] = useState<{
+    fba: string[]
+    marketplaces: string[]
+    oos: string[]
+  }>({
+    fba: ['fba'],
+    marketplaces: ['Amazon.ca', 'Amazon.com', 'Amazon.mx'],
+    oos: ['show_oos'],
+  })
+
+  // ---- Applied filters (drive API) ----
+  const [appliedFilters, setAppliedFilters] = useState<typeof pendingFilters>({ ...pendingFilters })
+
+  // ---- Build API filters ----
+  const filters = useMemo<InventoryPlannerFilters>(() => {
+    const result: InventoryPlannerFilters = {}
+    if (debouncedSearch) {
+      result.search = debouncedSearch
     }
-  }, [debouncedSearch])
+    if (appliedFilters.fba.length > 0) {
+      result.fba = appliedFilters.fba
+    }
+    if (appliedFilters.marketplaces.length > 0) {
+      result.marketplaces = appliedFilters.marketplaces
+    }
+    result.showOos = appliedFilters.oos.includes('show_oos')
+    return result
+  }, [debouncedSearch, appliedFilters])
 
-  // API Queries (with mock data fallback)
-  const { data: summaryData, isLoading: summaryLoading } =
-    useGetInventorySummaryQuery(filters)
-  const { data: products, isLoading: productsLoading } =
-    useGetProductInventoryQuery(filters)
+  // ---- API Queries ----
+  const { data: summaryData, isLoading: summaryLoading } = useGetInventorySummaryQuery(filters)
+  const { data: products, isLoading: productsLoading } = useGetProductInventoryQuery(filters)
 
-  // Use mock data if API data is not available
-  const displaySummary = summaryData || mockInventorySummary
-  const displayProducts = products || mockProductInventory
+  // ---- Mock fallback ----
+  const displaySummary = summaryData ?? mockInventorySummary
+  const displayProducts = products ?? mockProductInventory
 
-  // Calculate summary totals
-  const totalSummary = useMemo(() => {
-    if (!displaySummary) return null
-    return displaySummary.reduce(
+  // ---- Calculate totals ----
+  const totalSummary = useMemo<SummaryTotals | null>(() => {
+    if (!displaySummary || displaySummary.length === 0) return null
+    return displaySummary.reduce<SummaryTotals>(
       (acc, item) => ({
-        units: acc.units + item.units,
-        costOfGoods: acc.costOfGoods + item.costOfGoods,
-        potentialSales: acc.potentialSales + item.potentialSales,
-        potentialProfit: acc.potentialProfit + item.potentialProfit,
+        units: acc.units + (item.units ?? 0),
+        costOfGoods: acc.costOfGoods + (item.costOfGoods ?? 0),
+        potentialSales: acc.potentialSales + (item.potentialSales ?? 0),
+        potentialProfit: acc.potentialProfit + (item.potentialProfit ?? 0),
       }),
       { units: 0, costOfGoods: 0, potentialSales: 0, potentialProfit: 0 }
     )
   }, [displaySummary])
 
-  // Get specific location summaries
-  const fbaFbmSummary = displaySummary?.find((s) => s.location === 'fba') || {
-    units: 0,
-    costOfGoods: 0,
-    potentialSales: 0,
-    potentialProfit: 0,
-  }
-  const prepAwdSummary = displaySummary?.find((s) => s.location === 'prep') || {
-    units: 0,
-    costOfGoods: 0,
-    potentialSales: 0,
-    potentialProfit: 0,
-  }
-  const orderedSummary = displaySummary?.find((s) => s.location === 'ordered') || {
-    units: 0,
-    costOfGoods: 0,
-    potentialSales: 0,
-    potentialProfit: 0,
-  }
+  // ---- Location summaries ----
+  const fbaFbmSummary = useMemo<SummaryItem>(() => {
+    const found = displaySummary?.find((s) => s.location === 'fba')
+    return {
+      location: 'fba',
+      units: found?.units ?? 0,
+      costOfGoods: found?.costOfGoods ?? 0,
+      potentialSales: found?.potentialSales ?? 0,
+      potentialProfit: found?.potentialProfit ?? 0,
+    }
+  }, [displaySummary])
 
-  // Handle product selection
-  const handleProductSelect = (productId: string, selected: boolean) => {
+  const prepAwdSummary = useMemo<SummaryItem>(() => {
+    const found = displaySummary?.find((s) => s.location === 'prep')
+    return {
+      location: 'prep',
+      units: found?.units ?? 0,
+      costOfGoods: found?.costOfGoods ?? 0,
+      potentialSales: found?.potentialSales ?? 0,
+      potentialProfit: found?.potentialProfit ?? 0,
+    }
+  }, [displaySummary])
+
+  const orderedSummary = useMemo<SummaryItem>(() => {
+    const found = displaySummary?.find((s) => s.location === 'ordered')
+    return {
+      location: 'ordered',
+      units: found?.units ?? 0,
+      costOfGoods: found?.costOfGoods ?? 0,
+      potentialSales: found?.potentialSales ?? 0,
+      potentialProfit: found?.potentialProfit ?? 0,
+    }
+  }, [displaySummary])
+
+  // ---- Action Required summary ----
+  const actionRequiredSummary = useMemo<ActionRequiredItem>(() => {
+    const found = displaySummary?.find((s: any) => s.location === 'action_required')
+    return {
+      location: 'action_required',
+      products: (found as unknown as ActionRequiredItem)?.products ?? 0,
+      fundsNeeded: (found as unknown as ActionRequiredItem)?.fundsNeeded ?? 0,
+      estMonthlySalesAtRisk: (found as unknown as ActionRequiredItem)?.estMonthlySalesAtRisk ?? 0,
+      estMonthlyProfit: (found as unknown as ActionRequiredItem)?.estMonthlyProfit ?? 0,
+    }
+  }, [displaySummary])
+
+  // ---- Product selection ----
+  const handleProductSelect = useCallback((productId: string, selected: boolean) => {
     setSelectedProducts((prev) =>
       selected ? [...prev, productId] : prev.filter((id) => id !== productId)
     )
-  }
+  }, [])
 
-  const handleSelectAll = (selected: boolean) => {
-    if (selected && products) {
-      setSelectedProducts(products.map((p) => p.id))
+  const handleSelectAll = useCallback((selected: boolean) => {
+    if (selected && displayProducts && displayProducts.length > 0) {
+      setSelectedProducts(displayProducts.map((p) => p.id))
     } else {
       setSelectedProducts([])
     }
-  }
+  }, [displayProducts])
 
-  // Summary Card Component
-  const SummaryCard = ({
-    title,
-    units,
-    costOfGoods,
-    potentialSales,
-    potentialProfit,
-    color,
-    loading = false,
-  }: {
+  // ---- Apply filters ----
+  const handleApplyFilters = useCallback(() => {
+    setAppliedFilters({ ...pendingFilters })
+  }, [pendingFilters])
+
+  // ---- Summary Card ----
+  interface SummaryCardProps {
     title: string
-    units: number
-    costOfGoods: number
-    potentialSales: number
-    potentialProfit: number
     color: string
     loading?: boolean
-  }) => {
+    children: React.ReactNode
+  }
+
+  const SummaryCard: React.FC<SummaryCardProps> = ({ title, color, loading = false, children }) => {
     if (loading) {
       return (
         <Card>
@@ -130,32 +222,7 @@ export const InventoryPlannerScreen = () => {
       <Card className={`border-t-4 ${color}`}>
         <CardContent className="p-6">
           <h3 className="text-lg font-semibold text-text-primary mb-4">{title}</h3>
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div>
-              <div className="text-text-muted mb-1">Units</div>
-              <div className="font-semibold text-text-primary text-lg">
-                {formatNumber(units)}
-              </div>
-            </div>
-            <div>
-              <div className="text-text-muted mb-1">Cost of goods</div>
-              <div className="font-semibold text-text-primary text-lg">
-                {formatCurrency(costOfGoods)}
-              </div>
-            </div>
-            <div>
-              <div className="text-text-muted mb-1">Potential sales</div>
-              <div className="font-semibold text-text-primary">
-                {formatCurrency(potentialSales)}
-              </div>
-            </div>
-            <div>
-              <div className="text-text-muted mb-1">Potential profit</div>
-              <div className="font-semibold text-success-600">
-                {formatCurrency(potentialProfit)}
-              </div>
-            </div>
-          </div>
+          {children}
         </CardContent>
       </Card>
     )
@@ -163,7 +230,7 @@ export const InventoryPlannerScreen = () => {
 
   return (
     <Container size="full" className="py-8">
-      {/* Header with Search and Filters */}
+      {/* Header */}
       <div className="mb-6">
         <div className="bg-surface-secondary border-b border-border-primary">
           <div className="px-6 py-4">
@@ -192,59 +259,50 @@ export const InventoryPlannerScreen = () => {
                 />
               </div>
 
-              {/* Filter Buttons */}
+              {/* Filters */}
               <div className="flex items-center gap-2 flex-shrink-0">
-                <button className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-text-primary bg-surface-primary border border-border-primary rounded-md hover:bg-surface-secondary transition-colors">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                  </svg>
-                  New + Grade and Resell
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
+                
+                <MultiSelectInput
+                  title="FBA"
+                  options={FBA_OPTIONS}
+                  value={pendingFilters.fba}
+                  onChange={(val: any) => setPendingFilters((prev) => ({ ...prev, fba: val }))}
+                  placeholder="Select FBA"
+                />
 
-                <button className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-text-primary bg-surface-primary border border-border-primary rounded-md hover:bg-surface-secondary transition-colors">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                  </svg>
-                  FBA
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
+                <MultiSelectInput
+                  title="Marketplace"
+                  options={MARKETPLACES}
+                  value={pendingFilters.marketplaces}
+                  onChange={(val: any) => setPendingFilters((prev) => ({ ...prev, marketplaces: val }))}
+                  placeholder="All marketplaces"
+                />
 
-                <button className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-text-primary bg-surface-primary border border-border-primary rounded-md hover:bg-surface-secondary transition-colors">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  All marketplaces
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
+                <MultiSelectInput
+                  title="OOS"
+                  options={OOS_OPTIONS}
+                  value={pendingFilters.oos}
+                  onChange={(val: any) => setPendingFilters((prev) => ({ ...prev, oos: val }))}
+                  single
+                  placeholder="Show OOS Items"
+                />
 
-                <button className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-text-primary bg-surface-primary border border-border-primary rounded-md hover:bg-surface-secondary transition-colors">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  Show OOS items
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
-
-                <button className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-text-primary bg-surface-primary border border-border-primary rounded-md hover:bg-surface-secondary transition-colors">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"
-                    />
-                  </svg>
-                  Filter
-                </button>
+                <div className="ml-2">
+                  <Button
+                    variant="primary"
+                    onClick={handleApplyFilters}
+                  >
+                    <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"
+                      />
+                    </svg>
+                    Filter
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
@@ -252,50 +310,157 @@ export const InventoryPlannerScreen = () => {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <SummaryCard
-          title="FBA + FBM"
-          units={fbaFbmSummary.units}
-          costOfGoods={fbaFbmSummary.costOfGoods}
-          potentialSales={fbaFbmSummary.potentialSales}
-          potentialProfit={fbaFbmSummary.potentialProfit}
-          color="border-t-primary-600"
-          loading={summaryLoading}
-        />
-        <SummaryCard
-          title="Prep. stock + AWD"
-          units={prepAwdSummary.units}
-          costOfGoods={prepAwdSummary.costOfGoods}
-          potentialSales={prepAwdSummary.potentialSales}
-          potentialProfit={prepAwdSummary.potentialProfit}
-          color="border-t-info-600"
-          loading={summaryLoading}
-        />
-        <SummaryCard
-          title="Ordered"
-          units={orderedSummary.units}
-          costOfGoods={orderedSummary.costOfGoods}
-          potentialSales={orderedSummary.potentialSales}
-          potentialProfit={orderedSummary.potentialProfit}
-          color="border-t-warning-600"
-          loading={summaryLoading}
-        />
-        <SummaryCard
-          title="Total"
-          units={totalSummary?.units || 0}
-          costOfGoods={totalSummary?.costOfGoods || 0}
-          potentialSales={totalSummary?.potentialSales || 0}
-          potentialProfit={totalSummary?.potentialProfit || 0}
-          color="border-t-success-600"
-          loading={summaryLoading}
-        />
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+        <SummaryCard title="Action required" color="border-t-warning-500" loading={summaryLoading}>
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <div className="text-text-muted mb-1">Products</div>
+              <div className="font-semibold text-text-primary text-lg">
+                {formatNumber(actionRequiredSummary.products)}
+              </div>
+            </div>
+            <div>
+              <div className="text-text-muted mb-1">Funds needed</div>
+              <div className="font-semibold text-text-primary text-lg">
+                {formatCurrency(actionRequiredSummary.fundsNeeded)}
+              </div>
+            </div>
+            <div>
+              <div className="text-text-muted mb-1">Est. monthly sales at risk</div>
+              <div className="font-semibold text-text-primary">
+                {formatCurrency(actionRequiredSummary.estMonthlySalesAtRisk)}
+              </div>
+            </div>
+            <div>
+              <div className="text-text-muted mb-1">Est. monthly profit</div>
+              <div className="font-semibold text-success-600">
+                {formatCurrency(actionRequiredSummary.estMonthlyProfit)}
+              </div>
+            </div>
+          </div>
+        </SummaryCard>
+
+        <SummaryCard title="Total" color="border-t-primary-600" loading={summaryLoading}>
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <div className="text-text-muted mb-1">Units</div>
+              <div className="font-semibold text-text-primary text-lg">
+                {formatNumber(totalSummary?.units ?? 0)}
+              </div>
+            </div>
+            <div>
+              <div className="text-text-muted mb-1">Cost of goods</div>
+              <div className="font-semibold text-text-primary text-lg">
+                {formatCurrency(totalSummary?.costOfGoods ?? 0)}
+              </div>
+            </div>
+            <div>
+              <div className="text-text-muted mb-1">Potential sales</div>
+              <div className="font-semibold text-text-primary">
+                {formatCurrency(totalSummary?.potentialSales ?? 0)}
+              </div>
+            </div>
+            <div>
+              <div className="text-text-muted mb-1">Potential profit</div>
+              <div className="font-semibold text-success-600">
+                {formatCurrency(totalSummary?.potentialProfit ?? 0)}
+              </div>
+            </div>
+          </div>
+        </SummaryCard>
+
+        <SummaryCard title="FBA + FBM" color="border-t-info-600" loading={summaryLoading}>
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <div className="text-text-muted mb-1">Units</div>
+              <div className="font-semibold text-text-primary text-lg">
+                {formatNumber(fbaFbmSummary.units)}
+              </div>
+            </div>
+            <div>
+              <div className="text-text-muted mb-1">Cost of goods</div>
+              <div className="font-semibold text-text-primary text-lg">
+                {formatCurrency(fbaFbmSummary.costOfGoods)}
+              </div>
+            </div>
+            <div>
+              <div className="text-text-muted mb-1">Potential sales</div>
+              <div className="font-semibold text-text-primary">
+                {formatCurrency(fbaFbmSummary.potentialSales)}
+              </div>
+            </div>
+            <div>
+              <div className="text-text-muted mb-1">Potential profit</div>
+              <div className="font-semibold text-success-600">
+                {formatCurrency(fbaFbmSummary.potentialProfit)}
+              </div>
+            </div>
+          </div>
+        </SummaryCard>
+
+        <SummaryCard title="Prep. stock + AWD" color="border-t-teal-600" loading={summaryLoading}>
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <div className="text-text-muted mb-1">Units</div>
+              <div className="font-semibold text-text-primary text-lg">
+                {formatNumber(prepAwdSummary.units)}
+              </div>
+            </div>
+            <div>
+              <div className="text-text-muted mb-1">Cost of goods</div>
+              <div className="font-semibold text-text-primary text-lg">
+                {formatCurrency(prepAwdSummary.costOfGoods)}
+              </div>
+            </div>
+            <div>
+              <div className="text-text-muted mb-1">Potential sales</div>
+              <div className="font-semibold text-text-primary">
+                {formatCurrency(prepAwdSummary.potentialSales)}
+              </div>
+            </div>
+            <div>
+              <div className="text-text-muted mb-1">Potential profit</div>
+              <div className="font-semibold text-success-600">
+                {formatCurrency(prepAwdSummary.potentialProfit)}
+              </div>
+            </div>
+          </div>
+        </SummaryCard>
+
+        <SummaryCard title="Ordered" color="border-t-success-600" loading={summaryLoading}>
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <div className="text-text-muted mb-1">Units</div>
+              <div className="font-semibold text-text-primary text-lg">
+                {formatNumber(orderedSummary.units)}
+              </div>
+            </div>
+            <div>
+              <div className="text-text-muted mb-1">Cost of goods</div>
+              <div className="font-semibold text-text-primary text-lg">
+                {formatCurrency(orderedSummary.costOfGoods)}
+              </div>
+            </div>
+            <div>
+              <div className="text-text-muted mb-1">Potential sales</div>
+              <div className="font-semibold text-text-primary">
+                {formatCurrency(orderedSummary.potentialSales)}
+              </div>
+            </div>
+            <div>
+              <div className="text-text-muted mb-1">Potential profit</div>
+              <div className="font-semibold text-success-600">
+                {formatCurrency(orderedSummary.potentialProfit)}
+              </div>
+            </div>
+          </div>
+        </SummaryCard>
       </div>
 
-      {/* Product Inventory Section */}
+      {/* Product Inventory */}
       <div className="space-y-6">
         <h2 className="text-xl font-semibold text-text-primary">Product inventory</h2>
 
-        {/* Product Table */}
         <ProductInventoryTable
           products={displayProducts}
           isLoading={productsLoading}
@@ -305,7 +470,6 @@ export const InventoryPlannerScreen = () => {
           onSelectAll={handleSelectAll}
         />
 
-        {/* Action Buttons */}
         <div className="flex items-center gap-4 pt-4 border-t border-border-primary">
           <Button variant="outline">Import</Button>
           <Button variant="outline">Export</Button>

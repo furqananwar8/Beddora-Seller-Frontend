@@ -27,24 +27,17 @@ export interface ProductInventoryTableProps {
 
 type SortColumn =
   | 'title'
-  | 'fbaFbmStock'
+  | 'stock'
   | 'reserved'
   | 'salesVelocity'
   | 'daysOfStockLeft'
   | 'sentToFba'
-  | 'prepCenterStock'
-  | 'ordered'
   | 'daysUntilNextOrder'
   | 'recommendedQuantity'
   | 'stockValue'
   | 'roi'
 type SortDirection = 'asc' | 'desc'
 
-/**
- * Product Inventory Table Component
- * 
- * Displays product inventory with stock levels, recommendations, and actions
- */
 export const ProductInventoryTable = ({
   products,
   isLoading,
@@ -72,7 +65,6 @@ export const ProductInventoryTable = ({
     if (!products) return []
     let result = [...products]
 
-    // Filter
     if (searchTerm) {
       const lower = searchTerm.toLowerCase()
       result = result.filter(
@@ -83,7 +75,6 @@ export const ProductInventoryTable = ({
       )
     }
 
-    // Sort
     result.sort((a, b) => {
       let aVal: number | string = 0
       let bVal: number | string = 0
@@ -93,9 +84,9 @@ export const ProductInventoryTable = ({
           aVal = a.title || ''
           bVal = b.title || ''
           break
-        case 'fbaFbmStock':
-          aVal = a.fbaFbmStock || 0
-          bVal = b.fbaFbmStock || 0
+        case 'stock':
+          aVal = a.stock || 0
+          bVal = b.stock || 0
           break
         case 'reserved':
           aVal = a.reserved || 0
@@ -112,14 +103,6 @@ export const ProductInventoryTable = ({
         case 'sentToFba':
           aVal = a.sentToFba || 0
           bVal = b.sentToFba || 0
-          break
-        case 'prepCenterStock':
-          aVal = a.prepCenterStock || 0
-          bVal = b.prepCenterStock || 0
-          break
-        case 'ordered':
-          aVal = a.ordered || 0
-          bVal = b.ordered || 0
           break
         case 'daysUntilNextOrder':
           aVal = a.daysUntilNextOrder || 0
@@ -185,7 +168,7 @@ export const ProductInventoryTable = ({
   }
 
   if (isLoading) {
-    return <TableSkeleton rows={10} columns={15} />
+    return <TableSkeleton rows={10} columns={11} />
   }
 
   if (!products || products.length === 0) {
@@ -232,9 +215,9 @@ export const ProductInventoryTable = ({
                 </TableHead>
                 <TableHead
                   className="cursor-pointer hover:bg-surface-secondary text-right"
-                  onClick={() => handleSort('fbaFbmStock')}
+                  onClick={() => handleSort('stock')}
                 >
-                  FBA/FBM stock <SortIcon column="fbaFbmStock" />
+                  Stock <SortIcon column="stock" />
                 </TableHead>
                 <TableHead
                   className="cursor-pointer hover:bg-surface-secondary text-right"
@@ -262,18 +245,6 @@ export const ProductInventoryTable = ({
                 </TableHead>
                 <TableHead
                   className="cursor-pointer hover:bg-surface-secondary text-right"
-                  onClick={() => handleSort('prepCenterStock')}
-                >
-                  Prep center 1 stock <SortIcon column="prepCenterStock" />
-                </TableHead>
-                <TableHead
-                  className="cursor-pointer hover:bg-surface-secondary text-right"
-                  onClick={() => handleSort('ordered')}
-                >
-                  Ordered <SortIcon column="ordered" />
-                </TableHead>
-                <TableHead
-                  className="cursor-pointer hover:bg-surface-secondary text-right"
                   onClick={() => handleSort('daysUntilNextOrder')}
                 >
                   Days until next order <SortIcon column="daysUntilNextOrder" />
@@ -282,7 +253,7 @@ export const ProductInventoryTable = ({
                   className="cursor-pointer hover:bg-surface-secondary text-right"
                   onClick={() => handleSort('recommendedQuantity')}
                 >
-                  Recommended quantity <SortIcon column="recommendedQuantity" />
+                  Recommended qty <SortIcon column="recommendedQuantity" />
                 </TableHead>
                 <TableHead
                   className="cursor-pointer hover:bg-surface-secondary text-right"
@@ -296,7 +267,6 @@ export const ProductInventoryTable = ({
                 >
                   ROI <SortIcon column="roi" />
                 </TableHead>
-                <TableHead>Comment</TableHead>
                 <TableHead className="w-12">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -338,8 +308,8 @@ export const ProductInventoryTable = ({
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1">
-                      {getStockLevelIndicator(product.fbaFbmStock, product.salesVelocity)}
-                      <span>{formatNumber(product.fbaFbmStock)}</span>
+                      {getStockLevelIndicator(product.stock, product.salesVelocity)}
+                      <span>{formatNumber(product.stock)}</span>
                     </div>
                   </TableCell>
                   <TableCell className="text-right">{formatNumber(product.reserved)}</TableCell>
@@ -352,10 +322,6 @@ export const ProductInventoryTable = ({
                   <TableCell className="text-right">
                     <span className="text-primary-600">{formatNumber(product.sentToFba)}</span>
                   </TableCell>
-                  <TableCell className="text-right">
-                    {formatNumber(product.prepCenterStock)}
-                  </TableCell>
-                  <TableCell className="text-right">{formatNumber(product.ordered)}</TableCell>
                   <TableCell className="text-right">
                     {getDaysLeftBadge(product.daysUntilNextOrder)}
                   </TableCell>
@@ -380,9 +346,6 @@ export const ProductInventoryTable = ({
                       {product.roi}%
                     </span>
                   </TableCell>
-                  <TableCell className="text-sm text-text-muted max-w-xs truncate">
-                    {product.comment || '—'}
-                  </TableCell>
                   <TableCell>
                     <button className="text-text-muted hover:text-text-primary">
                       <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
@@ -397,7 +360,6 @@ export const ProductInventoryTable = ({
         </div>
       </div>
 
-      {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex items-center justify-between">
           <div className="text-sm text-text-muted">

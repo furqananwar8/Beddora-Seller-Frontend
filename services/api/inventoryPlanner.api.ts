@@ -35,6 +35,7 @@ export interface ProductInventoryItem {
   daysUntilNextOrder: number
   recommendedQuantity: number
   stockValue: number
+  stock?: any
   roi: number
   comment?: string
   supplier?: string
@@ -53,6 +54,9 @@ export interface InventoryPlannerFilters {
   lowStock?: boolean
   outOfStock?: boolean
   overstocked?: boolean
+  fba?: string[]
+  marketplaces?: string[]
+  showOos?: boolean
   tags?: string[]
 }
 
@@ -97,7 +101,7 @@ export const inventoryPlannerApi = baseApi.injectEndpoints({
      */
     getProductInventory: builder.query<ProductInventoryItem[], InventoryPlannerFilters>({
       query: (filters) => ({
-        url: '/inventory/planner/products',
+        url: '/inventory/products',   // <-- CHANGED from '/inventory/planner/products'
         params: filters,
       }),
       providesTags: ['Inventory'],
