@@ -60,11 +60,18 @@ export default function DashboardLayout({
           icon: NavIcons.inventory,
           children: [
             { label: 'Planner', href: '/dashboard/inventory/planner' },
-            // { label: 'Purchase Orders', href: '/dashboard/inventory/purchase-orders' },
             // { label: 'Reseller Workflow', href: '/dashboard/inventory/reseller-workflow' },
             // { label: 'FBA Shipments', href: '/dashboard/inventory/fba-shipments' },
             // { label: 'Suppliers', href: '/dashboard/inventory/suppliers' },
           ],
+        },
+        {
+          label: 'Breakeven Analysis',
+          href: '/breakeven-analysis',
+          icon: NavIcons.products,
+          children: [
+            { label: 'SKU Wise', href: '/breakeven-analysis' }
+          ]
         },
         // {
         //   label: 'Autoresponder',
