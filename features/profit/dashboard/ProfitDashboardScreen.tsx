@@ -546,7 +546,7 @@ export const ProfitDashboardScreen: React.FC = () => {
 
   const periodMap = useMemo(() => {
     if (!profitData?.periods) return new Map<PeriodSummaryPeriod, PeriodSummary>()
-    return new Map(profitData.periods.map((p) => [p.period, p]))
+    return new Map(profitData.periods.map((p: any) => [p.period, p]))
   }, [profitData])
 
   const getPeriodDetailData = useCallback(
@@ -554,7 +554,7 @@ export const ProfitDashboardScreen: React.FC = () => {
       const tile = currentPreset.tiles.find((t) => t.id === tileId)
       if (!tile) return undefined
 
-      const apiPeriod = periodMap.get(tile.apiPeriod)
+      const apiPeriod: any = periodMap.get(tile.apiPeriod)
       if (!apiPeriod) return undefined
 
       const grossProfit = apiPeriod.salesRevenue + apiPeriod.totalFees - apiPeriod.totalCOGS
@@ -581,7 +581,7 @@ export const ProfitDashboardScreen: React.FC = () => {
   const periodCardsData = useMemo(() => {
     const now = nowInPST()
     return currentPreset.tiles.map((tile) => {
-      const period = periodMap.get(tile.apiPeriod)
+      const period: any = periodMap.get(tile.apiPeriod)
       const range = tile.getDateRange(now)
 
       return {

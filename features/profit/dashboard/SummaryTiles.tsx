@@ -6,7 +6,7 @@ interface SummaryTilesProps {
     totalCosts: any
     setSelectedPeriodForDetails: (val: any) => void
 }
-const SummaryTiles = ({ period, netProfitMargin, totalCosts, setSelectedPeriodForDetails}) => {
+const SummaryTiles = ({ period, netProfitMargin, totalCosts, setSelectedPeriodForDetails}: any) => {
     return (
          <div className="space-y-3 flex-1 flex flex-col">
         {/* Header */}

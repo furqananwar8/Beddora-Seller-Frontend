@@ -21,16 +21,16 @@ import { cn } from '@/utils/cn'
  */
 export interface RegionData extends CountryProfitBreakdown {
   region: string // Display name (e.g., "Canada", "California", "Florida")
-  stock?: number
-  unitsSold?: number
-  sales?: number
-  amazonFees?: number
-  sellableReturns?: number
-  sellableReturnsPercent?: number
-  costOfGoods?: number
-  refundCost?: number
-  grossProfit?: number
-  isExpandable?: boolean
+  stock: any
+  unitsSold: any
+  sales: any
+  amazonFees: any
+  sellableReturns: any
+  sellableReturnsPercent: any
+  costOfGoods: any
+  refundCost: any
+  grossProfit: any
+  isExpandable: boolean
   children?: RegionData[] // For nested regions (e.g., states within countries)
 }
 

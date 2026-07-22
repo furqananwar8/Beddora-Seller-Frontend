@@ -473,7 +473,7 @@ hello
         {/* ── UPDATED: Profit Summary with Period Tiles ── */}
         <ProfitSummaryCard
           data={summaryData}
-          periodData={multiPeriodData}
+          periodData={multiPeriodData || {}}
           isLoading={summaryLoading}
           periodLoading={multiPeriodLoading}
           error={summaryError as any}

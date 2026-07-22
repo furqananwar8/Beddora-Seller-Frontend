@@ -677,7 +677,7 @@ export const TrendsComponent: React.FC<TrendsComponentProps> = ({
           {(showTable || isFetching) && (
             <div className="flex-1 p-6">
               <TrendsTable
-                data={trendsData}
+                data={trendsData as any}
                 isLoading={isLoading}
                 isFetching={isFetching}
                 error={isError ? error : undefined}

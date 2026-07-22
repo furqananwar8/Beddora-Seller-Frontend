@@ -43,6 +43,7 @@ export interface PeriodSummary {
 export interface ProfitSummary {
   summary: {
     totalRevenue: number
+    totalExpense: number
     totalProfit: number
     totalOrders: number
     totalUnits: number
@@ -51,6 +52,12 @@ export interface ProfitSummary {
     totalCOGS: number
     totalExpenses: number
   }
+  totalExpenses: number
+  totalCOGS: number
+  totalFees: number
+  salesRevenue: number
+  netMargin: number
+  netProfit: number
   periods: PeriodSummary[]
 }
 
@@ -264,12 +271,12 @@ export interface ProfitFilters {
 export const profitApi = baseApi.injectEndpoints({
   overrideExisting: true,
   endpoints: (builder) => ({
-    getProfitSummary: builder.query<ProfitSummary, ProfitFilters>({
+    getProfitSummary: builder.query<any, any>({
       query: (filters) => ({
         url: '/profit/summary',
         params: filters,
       }),
-      transformResponse: (response: any): ProfitSummary => {
+      transformResponse: (response: any): any => {
         console.log('API response shape:', Object.keys(response))
         return {
           summary: response.summary,
@@ -400,6 +407,15 @@ export const profitApi = baseApi.injectEndpoints({
       providesTags: ['Marketplaces'],
       keepUnusedDataFor: 3600,
     }),
+
+    getProfitSummaryMultiplePeriods: builder.query<any, any>({
+       query: (filters) => ({
+        url: '/profit/trends/products-multiple-period'
+      }),
+      providesTags: ['Profit'],
+      keepUnusedDataFor: 300,
+    })
+    
   }),
 })
 
@@ -424,4 +440,5 @@ export const {
   useLazyGetProfitTrendsSimpleQuery,
   useLazyGetProductTrendsQuery,
   useLazyGetMarketplacesQuery,
+  useGetProfitSummaryMultiplePeriodsQuery
 } = profitApi

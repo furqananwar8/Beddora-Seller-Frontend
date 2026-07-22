@@ -38,7 +38,7 @@ interface TrendsData {
   pagination: PaginationMeta
 }
 
-interface TrendsTableProps {
+export interface TrendsTableProps {
   data: TrendsData | undefined
   isLoading: boolean
   isFetching: boolean

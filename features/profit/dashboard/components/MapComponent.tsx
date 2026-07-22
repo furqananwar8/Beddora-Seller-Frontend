@@ -107,7 +107,7 @@ export const MapComponent: React.FC<MapComponentProps> = ({
   }, [countryData])
 
   // Pass full region data to table
-  const regionData: RegionData[] = useMemo(() => {
+  const regionData: any[] = useMemo(() => {
     if (!countryData) return []
     return countryData.map((item) => ({
       ...item,
@@ -212,7 +212,7 @@ export const MapComponent: React.FC<MapComponentProps> = ({
                 <ErrorComponent error={error} onRetry={() => refetch()} />
               </div>
             ) : countryDataForMap && countryDataForMap.length > 0 ? (
-              <LeafletMap data={countryDataForMap} />
+              <LeafletMap data={countryDataForMap as any} />
             ) : (
               <div className="w-full h-full flex items-center justify-center">
                 <div className="text-center">

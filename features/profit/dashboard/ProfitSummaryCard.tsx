@@ -7,7 +7,7 @@ const formatCurrency = (val: number) =>
 
 const formatPercent = (val: number) => `${val >= 0 ? '+' : ''}${val.toFixed(2)}%`
 
-const periodLabel: Record<PeriodSummary['period'], string> = {
+const periodLabel: any = {
   TODAY: 'Today',
   YESTERDAY: 'Yesterday',
   '7DAYSAGO': '7 Days Ago',
@@ -92,16 +92,19 @@ const PeriodTileCard = ({ tile }: { tile: PeriodSummary }) => {
 }
 
 export interface ProfitSummaryCardProps {
-  data: ProfitSummary | null
+  data: any
+  periodData: any
+  periodLoading: any
+  periodError: any
   isLoading: boolean
   error: string | null
 }
 
-export const ProfitSummaryCard: React.FC<ProfitSummaryCardProps> = ({
+export const ProfitSummaryCard = ({
   data,
   isLoading,
   error,
-}) => {
+}: any) => {
   if (isLoading) {
     return (
       <div className="space-y-6">
@@ -163,7 +166,7 @@ export const ProfitSummaryCard: React.FC<ProfitSummaryCardProps> = ({
       <div>
         <h3 className="text-lg font-semibold text-gray-800 mb-4">Period Breakdown</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-          {periods.map((tile) => (
+          {periods.map((tile: any) => (
             <PeriodTileCard key={tile.period} tile={tile} />
           ))}
         </div>

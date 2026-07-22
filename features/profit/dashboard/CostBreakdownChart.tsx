@@ -81,7 +81,7 @@ export const CostBreakdownChart: React.FC<CostBreakdownChartProps> = ({
     { name: 'COGS', value: summary.totalCOGS, color: ChartPalette.primary },
     { name: 'Amazon Fees', value: summary.totalFees, color: ChartPalette.warning },
     { name: 'PPC', value: ppcData?.totalSpend || 0, color: ChartPalette.danger },
-    { name: 'Other', value: summary.totalExpenses, color: ChartPalette.accent },
+    { name: 'Other', value: summary?.totalExpenses, color: ChartPalette.accent },
   ].filter((entry) => entry.value > 0)
 
   return (
