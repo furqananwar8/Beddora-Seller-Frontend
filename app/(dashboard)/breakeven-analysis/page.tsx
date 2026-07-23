@@ -1,11 +1,13 @@
 'use client';
 
 import React, { useState, useCallback, useMemo } from 'react';
+import { format, parseISO, subDays } from 'date-fns';
 import { PageHeader } from '@/components/layout';
 import { EmptyState } from '@/components/data-display/EmptyState';
 import { MultiSelectInput } from '@/components/multi-select-input/MultiSelectInput';
 import { MARKETPLACES } from '@/utils/marketplaces';
 import { PaginationFooter } from '@/components/pagination-footer/PaginationFooter';
+import DateRangePicker from '@/components/date-range-picker/DateRangePicker';
 import {
   Table,
   TableBody,
@@ -17,12 +19,13 @@ import {
 import { Button } from '@/design-system/buttons';
 import { TableSkeleton } from '@/design-system/loaders';
 import { formatCurrency, formatPercentage } from '@/utils/format';
+import { useGetBreakEvenDataQuery } from '@/services/api/breakEven.api';
 
 // ─── Constants ─────────────────────────────────────────────
 const FBA_OPTIONS = [
   { id: 'fba', name: 'FBA' },
   { id: 'fbm', name: 'FBM' },
-  { id: 'sfp', name: 'SFP' },
+  { id: 'fbaAndFbm', name: 'FBA And FBM' },
 ];
 
 const STATUS_OPTIONS = [
@@ -41,8 +44,14 @@ interface Filters {
   fba: string[];
 }
 
+interface DateRangeValue {
+  startDate: string | null;
+  endDate: string | null;
+  presetId?: string | null;
+}
+
 interface BreakevenItem {
-  skuId: string;
+  sku: string;
   description: string;
   units: number;
   productSales: number;
@@ -72,7 +81,7 @@ interface BreakevenItem {
 }
 
 type SortColumn =
-  | 'skuId'
+  | 'sku'
   | 'description'
   | 'units'
   | 'productSales'
@@ -102,155 +111,6 @@ type SortColumn =
 
 type SortDirection = 'asc' | 'desc';
 
-// ─── 5 Dummy Records ─────────────────────────────────────
-const DUMMY_DATA: BreakevenItem[] = [
-  {
-    skuId: 'BOMTSS4PCDQUEENWHIT1',
-    description: 'Bedsure Queen Size 4 Piece Bed Sheet Set - White',
-    units: 1247,
-    productSales: 38657.53,
-    promoRebates: -450.00,
-    sellingFees: -5231.88,
-    fbaFees: -8421.12,
-    otherAmazonAdj: -120.50,
-    totalAmazonExpenses: -14223.50,
-    marketingExpense: -2100.00,
-    allocatedNonSkuExpenses: -350.00,
-    totalExpensesInclMarketing: -16673.50,
-    totalCogs: -8750.00,
-    totalExpensesInclMarketingCogs: -25423.50,
-    netAfterAmazon: 24434.03,
-    netAfterAmazonMarketing: 22334.03,
-    amazonMarginPct: 63.2,
-    marginAfterMarketingPct: 57.8,
-    marginAfterAllPct: 29.2,
-    targetProfitAtB6Pct: 25.0,
-    targetGap: 3200.00,
-    status: 'active',
-    breakevenPrice: 18.50,
-    avgSellingPrice: 31.00,
-    adsPerUnit: 1.68,
-    allocatedOpex: 0.28,
-    trueNetProfit: 11305.00,
-  },
-  {
-    skuId: 'BDR-PLASTICHANGERSOPC',
-    description: 'Bedsure Plastic Hangers 50 Pack - Space Saving',
-    units: 856,
-    productSales: 15857.44,
-    promoRebates: -200.00,
-    sellingFees: -2147.78,
-    fbaFees: -4102.33,
-    otherAmazonAdj: -85.20,
-    totalAmazonExpenses: -6535.31,
-    marketingExpense: -1200.00,
-    allocatedNonSkuExpenses: -180.00,
-    totalExpensesInclMarketing: -7915.31,
-    totalCogs: -6800.00,
-    totalExpensesInclMarketingCogs: -14715.31,
-    netAfterAmazon: 9322.13,
-    netAfterAmazonMarketing: 8122.13,
-    amazonMarginPct: 58.8,
-    marginAfterMarketingPct: 51.2,
-    marginAfterAllPct: -5.4,
-    targetProfitAtB6Pct: 15.0,
-    targetGap: -1500.00,
-    status: 'active',
-    breakevenPrice: 22.00,
-    avgSellingPrice: 18.52,
-    adsPerUnit: 1.40,
-    allocatedOpex: 0.21,
-    trueNetProfit: -3211.18,
-  },
-  {
-    skuId: 'BEDDORA-PP-QUEENZPK',
-    description: 'Bedsure 2 Pack Pillow Protectors - Queen Size',
-    units: 534,
-    productSales: 12276.66,
-    promoRebates: -150.00,
-    sellingFees: -1662.34,
-    fbaFees: -2891.22,
-    otherAmazonAdj: -45.00,
-    totalAmazonExpenses: -4748.56,
-    marketingExpense: -800.00,
-    allocatedNonSkuExpenses: -120.00,
-    totalExpensesInclMarketing: -5668.56,
-    totalCogs: -5100.00,
-    totalExpensesInclMarketingCogs: -10768.56,
-    netAfterAmazon: 7528.10,
-    netAfterAmazonMarketing: 6728.10,
-    amazonMarginPct: 61.3,
-    marginAfterMarketingPct: 54.8,
-    marginAfterAllPct: 0.1,
-    targetProfitAtB6Pct: 20.0,
-    targetGap: 0.50,
-    status: 'active',
-    breakevenPrice: 22.95,
-    avgSellingPrice: 22.99,
-    adsPerUnit: 1.50,
-    allocatedOpex: 0.22,
-    trueNetProfit: 12.50,
-  },
-  {
-    skuId: 'BDSH-THROW-BLANKET-GRY',
-    description: 'Bedsure Fleece Throw Blanket - Grey 50x60',
-    units: 2103,
-    productSales: 45230.89,
-    promoRebates: -600.00,
-    sellingFees: -6123.18,
-    fbaFees: -12500.00,
-    otherAmazonAdj: -210.00,
-    totalAmazonExpenses: -19433.18,
-    marketingExpense: -3500.00,
-    allocatedNonSkuExpenses: -580.00,
-    totalExpensesInclMarketing: -23513.18,
-    totalCogs: -9800.00,
-    totalExpensesInclMarketingCogs: -33313.18,
-    netAfterAmazon: 25797.71,
-    netAfterAmazonMarketing: 22297.71,
-    amazonMarginPct: 57.0,
-    marginAfterMarketingPct: 49.3,
-    marginAfterAllPct: 19.3,
-    targetProfitAtB6Pct: 22.0,
-    targetGap: 2100.00,
-    status: 'active',
-    breakevenPrice: 14.85,
-    avgSellingPrice: 21.50,
-    adsPerUnit: 1.66,
-    allocatedOpex: 0.28,
-    trueNetProfit: 8750.25,
-  },
-  {
-    skuId: 'BDTW-MICROFIBER-KING-BLU',
-    description: 'Bedsure Microfiber Duvet Cover King - Navy Blue',
-    units: 678,
-    productSales: 28450.00,
-    promoRebates: -350.00,
-    sellingFees: -3850.75,
-    fbaFees: -6200.00,
-    otherAmazonAdj: -95.00,
-    totalAmazonExpenses: -10495.75,
-    marketingExpense: -1800.00,
-    allocatedNonSkuExpenses: -220.00,
-    totalExpensesInclMarketing: -12515.75,
-    totalCogs: -11200.00,
-    totalExpensesInclMarketingCogs: -23715.75,
-    netAfterAmazon: 17954.25,
-    netAfterAmazonMarketing: 16154.25,
-    amazonMarginPct: 63.1,
-    marginAfterMarketingPct: 56.8,
-    marginAfterAllPct: -3.0,
-    targetProfitAtB6Pct: 18.0,
-    targetGap: -425.00,
-    status: 'inactive',
-    breakevenPrice: 41.95,
-    avgSellingPrice: 41.95,
-    adsPerUnit: 2.65,
-    allocatedOpex: 0.32,
-    trueNetProfit: -850.00,
-  },
-];
-
 // ─── Column Definitions ──────────────────────────────────
 interface ColumnDef {
   key: SortColumn;
@@ -262,7 +122,7 @@ interface ColumnDef {
 }
 
 const COLUMNS: ColumnDef[] = [
-  { key: 'skuId', label: 'SKU', align: 'left', minWidth: 'min-w-[210px]' },
+  { key: 'sku', label: 'SKU', align: 'left', minWidth: 'min-w-[190px]' },
   { key: 'description', label: 'Description', align: 'left', minWidth: 'min-w-[310px]' },
   { key: 'units', label: 'Units', align: 'right', format: 'number', heatmap: 'green', minWidth: 'min-w-[120px]' },
   { key: 'productSales', label: 'Product Sales', align: 'right', format: 'currency', heatmap: 'green', minWidth: 'min-w-[160px]' },
@@ -273,7 +133,7 @@ const COLUMNS: ColumnDef[] = [
   { key: 'totalAmazonExpenses', label: 'Total Amazon Expenses', align: 'right', format: 'currency', heatmap: 'red', minWidth: 'min-w-[190px]' },
   { key: 'marketingExpense', label: 'Marketing Expense', align: 'right', format: 'currency', heatmap: 'red', minWidth: 'min-w-[180px]' },
   { key: 'allocatedNonSkuExpenses', label: 'Allocated Non-SKU Expenses', align: 'right', format: 'currency', heatmap: 'neutral', minWidth: 'min-w-[220px]' },
-  { key: 'totalExpensesInclMarketing', label: 'Total Expenses incl. Marketing', align: 'right', format: 'currency', heatmap: 'red', minWidth: 'min-w-[220px]' },
+  { key: 'totalExpensesInclMarketing', label: `Total Expenses incl. Marketing`, align: 'right', format: 'currency', heatmap: 'red', minWidth: 'min-w-[220px]' },
   { key: 'totalCogs', label: 'Total COGS', align: 'right', format: 'currency', heatmap: 'red', minWidth: 'min-w-[150px]' },
   { key: 'totalExpensesInclMarketingCogs', label: 'Total Expenses incl. Marketing + COGS', align: 'right', format: 'currency', heatmap: 'red', minWidth: 'min-w-[270px]' },
   { key: 'netAfterAmazon', label: 'Net After Amazon', align: 'right', format: 'currency', heatmap: 'green', minWidth: 'min-w-[180px]' },
@@ -306,14 +166,10 @@ function getHeatmapColor(
   const ratio = (val - min) / (max - min);
 
   if (type === 'green') {
-    // Light green to dark green
-    const intensity = Math.round(50 + ratio * 180);
     return `background-color: rgba(34, 197, 94, ${0.08 + ratio * 0.22})`;
   }
 
   if (type === 'red') {
-    // For negative/expense columns: more negative = darker red
-    const intensity = Math.round(50 + (1 - ratio) * 180);
     return `background-color: rgba(239, 68, 68, ${0.08 + (1 - ratio) * 0.22})`;
   }
 
@@ -340,18 +196,107 @@ const SortInactiveIcon = () => (
   </svg>
 );
 
+// ─── Skeleton Components ─────────────────────────────────
+function SummaryCardSkeleton() {
+  return (
+    <div className="bg-white rounded-lg border border-gray-200 p-4 animate-pulse">
+      <div className="h-3 bg-gray-200 rounded w-20 mb-2" />
+      <div className="h-6 bg-gray-200 rounded w-24" />
+    </div>
+  );
+}
+
+function SummaryCardsSkeleton() {
+  return (
+    <div className="grid grid-cols-5 gap-4">
+      <SummaryCardSkeleton />
+      <SummaryCardSkeleton />
+      <SummaryCardSkeleton />
+      <SummaryCardSkeleton />
+      <SummaryCardSkeleton />
+    </div>
+  );
+}
+
 // ─── Component ───────────────────────────────────────────
 export default function BreakevenAnalysis() {
   const [filters, setFilters] = useState<Filters>({
     search: '',
-    status: [],
+    status: [],          // ← empty = no status filter, return ALL products
     marketplaces: [],
     fba: [],
   });
+
+  // Default to "Last 30 Days" — DateRangePicker returns YYYY-MM-DD
+  const [dateRange, setDateRange] = useState<DateRangeValue>({
+    startDate: format(subDays(new Date(), 29), 'yyyy-MM-dd'),
+    endDate: format(new Date(), 'yyyy-MM-dd'),
+    presetId: 'last30',
+  });
+
   const [page, setPage] = useState(1);
   const [sortColumn, setSortColumn] = useState<SortColumn>('trueNetProfit');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
-  const [isLoading, setIsLoading] = useState(false);
+
+  // ═══════════════════════════════════════════════════════════════
+  // DB dates are PDT (Amazon timezone) — pass YYYY-MM-DD directly.
+  // No timezone conversion needed. The backend appends 00:00:00 / 23:59:59
+  // and queries the DB directly since all dates are already PDT.
+  // ═══════════════════════════════════════════════════════════════
+  // Build API params — typed to match the RTK Query hook's expected shape
+  const apiParams = useMemo(() => {
+    if (!dateRange.startDate || !dateRange.endDate) return null;
+    return {
+      startDate: dateRange.startDate,
+      endDate: dateRange.endDate,
+      ...(filters.status.length > 0 && { status: filters.status.join(',') }),
+    };
+  }, [dateRange.startDate, dateRange.endDate, filters.status]);
+
+  // Fetch data from API
+  const {
+    data: apiData,
+    isLoading,
+    isFetching,
+    error,
+  } = useGetBreakEvenDataQuery(
+    apiParams ?? { startDate: '', endDate: '' },
+    { skip: !apiParams }
+  );
+
+  // Map API response to component's BreakevenItem shape
+  const tableData: BreakevenItem[] = useMemo(() => {
+    if (!apiData?.items) return [];
+    return apiData.items.map((item: any) => ({
+      sku: item.sku,
+      description: item.title,
+      units: item.unitsSold,
+      productSales: item.productSales,
+      promoRebates: item.promoRebates,
+      sellingFees: item.sellingFee,
+      fbaFees: 0,
+      otherAmazonAdj: item.otherAmazonAdj,
+      totalAmazonExpenses: item.totalAmazonExpense,
+      marketingExpense: item.marketingExpense,
+      allocatedNonSkuExpenses: item.allocatedNonSku,
+      totalExpensesInclMarketing: item.totalExpenseInclMarketing,
+      totalCogs: item.totalCogs,
+      totalExpensesInclMarketingCogs: item.totalExpenseInclMarketingAndCogs,
+      netAfterAmazon: item.netAfterAmazon,
+      netAfterAmazonMarketing: item.netAfterAmazonAndMarketing,
+      amazonMarginPct: item.amazonMarginPct,
+      marginAfterMarketingPct: item.marginAfterMarketingPct,
+      marginAfterAllPct: item.marginAfterAllPct,
+      targetProfitAtB6Pct: 0,
+      targetGap: item.targetGap,
+      status: item.status.toUpperCase(),
+      breakevenPrice: item.breakevenPrice,
+      avgSellingPrice: item.avgSellingPrice,
+      adsPerUnit: item.adsPerUnit,
+      allocatedOpex: item.allocatedOpex,
+      trueNetProfit: item.trueNetProfit,
+    }));
+  }, [apiData]);
 
   const handleSort = useCallback((column: SortColumn) => {
     if (sortColumn === column) {
@@ -363,15 +308,15 @@ export default function BreakevenAnalysis() {
     setPage(1);
   }, [sortColumn]);
 
-  // Filter + sort dummy data client-side
+  // Client-side filter + sort
   const filteredData = useMemo(() => {
-    let result = [...DUMMY_DATA];
+    let result = [...tableData];
 
     if (filters.search) {
       const q = filters.search.toLowerCase();
       result = result.filter(
         (item) =>
-          item.skuId.toLowerCase().includes(q) ||
+          item.sku.toLowerCase().includes(q) ||
           item.description.toLowerCase().includes(q)
       );
     }
@@ -392,7 +337,7 @@ export default function BreakevenAnalysis() {
     });
 
     return result;
-  }, [filters.search, sortColumn, sortDirection]);
+  }, [tableData, filters.search, sortColumn, sortDirection]);
 
   // Pagination
   const totalItems = filteredData.length;
@@ -418,18 +363,12 @@ export default function BreakevenAnalysis() {
     setPage(1);
   }, []);
 
-  const handleRefresh = useCallback(() => {
-    setIsLoading(true);
-    setPage(1);
-    setTimeout(() => setIsLoading(false), 800);
-  }, []);
-
   const handleExportCSV = useCallback(() => {
     const headers = COLUMNS.map((c) => c.label);
     const rows = filteredData.map((item) =>
       COLUMNS.map((col) => {
         const val = (item as any)[col.key];
-        if (typeof val === 'string') return `\"${val.replace(/"/g, '\"\"')}\"`;
+        if (typeof val === 'string') return `\"${val.replace(/"/g, '""')}\"`;
         return String(val);
       })
     );
@@ -458,10 +397,10 @@ export default function BreakevenAnalysis() {
 
   const cellClass = (item: BreakevenItem, col: ColumnDef): string => {
     const val = (item as any)[col.key];
-    const base = col.align === 'right' ? 'text-right' : '';
+    const base = 'text-center table-cell align-middle';
 
-    if (col.key === 'skuId') {
-      return `${base} text-primary-600 font-medium whitespace-nowrap`;
+    if (col.key === 'sku') {
+       return `${base} text-primary-600 font-medium break-all whitespace-normal max-w-[210px]`;
     }
     if (col.format === 'currency' && val < 0) {
       return `${base} text-danger-600`;
@@ -489,6 +428,14 @@ export default function BreakevenAnalysis() {
     return formatted;
   };
 
+  // Show date range in header for user clarity
+  const dateDisplay = useMemo(() => {
+    if (!dateRange.startDate || !dateRange.endDate) return '';
+    const start = parseISO(dateRange.startDate);
+    const end = parseISO(dateRange.endDate);
+    return `${format(start, 'MMM d, yyyy')} – ${format(end, 'MMM d, yyyy')}`;
+  }, [dateRange]);
+
   // ── Loading state ──
   if (isLoading) {
     return (
@@ -497,6 +444,7 @@ export default function BreakevenAnalysis() {
           title="Breakeven Analysis"
           description="Profitability breakdown by SKU"
         />
+        <SummaryCardsSkeleton />
         <TableSkeleton rows={5} columns={COLUMNS.length} />
       </div>
     );
@@ -506,7 +454,7 @@ export default function BreakevenAnalysis() {
     <div className="p-6 space-y-4">
       <PageHeader
         title="Breakeven Analysis"
-        description="Profitability breakdown by SKU"
+        description={`Profitability breakdown by SKU${dateDisplay ? ` • ${dateDisplay}` : ''}`}
       />
 
       {/* ─── Toolbar ────────────────────────────────────── */}
@@ -537,14 +485,26 @@ export default function BreakevenAnalysis() {
           />
         </div>
 
-        {/* Status Filter */}
+        {/* 🗓️ Date Range Picker — RIGHT AFTER SEARCH */}
+        <DateRangePicker
+          value={dateRange}
+          onChange={(range) => {
+            setDateRange(range);
+            setPage(1);
+          }}
+          displayFormat="MMM d, yyyy"
+          placeholder="Select date range"
+        />
+
+        {/* Status Filter — WIRED TO API, empty = all products */}
         <MultiSelectInput
           title="Status"
           options={STATUS_OPTIONS}
           value={filters.status}
-          onChange={(val: string[]) =>
-            setFilters((prev) => ({ ...prev, status: val }))
-          }
+          onChange={(val: string[]) => {
+            setFilters((prev) => ({ ...prev, status: val }));
+            setPage(1);
+          }}
           placeholder="All Status"
         />
 
@@ -572,6 +532,19 @@ export default function BreakevenAnalysis() {
 
         <div className="flex-1" />
 
+        {/* Refresh */}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setPage(1)}
+          disabled={isFetching}
+        >
+          <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          {isFetching ? 'Loading...' : 'Refresh'}
+        </Button>
+
         {/* Export CSV */}
         <Button
           variant="outline"
@@ -589,85 +562,81 @@ export default function BreakevenAnalysis() {
           </svg>
           Export CSV
         </Button>
-
-        {/* Refresh */}
-        <Button variant="primary" size="sm" onClick={handleRefresh}>
-          <svg
-            className="w-4 h-4 mr-1.5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-            />
-          </svg>
-          Refresh
-        </Button>
       </div>
+
+      {/* ─── Summary Cards ──────────────────────────────── */}
+      {isFetching && !apiData?.summary ? (
+        <SummaryCardsSkeleton />
+      ) : apiData?.summary ? (
+        <div className="grid grid-cols-5 gap-4">
+          <SummaryCard label="Products" value={apiData.summary.totalProducts.toLocaleString()} />
+          <SummaryCard label="Total Sales" value={formatCurrency(apiData.summary.totalSales)} />
+          <SummaryCard label="Total Units" value={apiData.summary.totalUnits.toLocaleString()} />
+          <SummaryCard label="Net Profit" value={formatCurrency(apiData.summary.totalNetProfit)} />
+          <SummaryCard label="Avg Margin" value={formatPercentage(apiData.summary.avgMarginPct)} />
+        </div>
+      ) : null}
 
       {/* ─── Table Card ─────────────────────────────────── */}
       <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
-          <Table className="min-w-full">
-            <TableHeader>
-              <TableRow>
-                {COLUMNS.map((col) => (
-                  <TableHead
-                    key={col.key}
-                    className={`cursor-pointer hover:bg-surface-secondary select-none break-words leading-tight ${col.minWidth || ''} ${
-                      col.align === 'right' ? 'text-right' : ''
-                    } ${col.key === 'trueNetProfit' ? 'bg-success-50' : ''}`}
-                    onClick={() => handleSort(col.key)}
-                  >
-                    <span className={`inline-flex flex-wrap items-center gap-1 ${col.align === 'right' ? 'justify-end w-full' : ''}`}>
-                      {col.label}
-                      <SortIcon column={col.key} />
-                    </span>
-                  </TableHead>
-                ))}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {!paginatedData.length ? (
+          {isFetching && !tableData.length ? (
+            <TableSkeleton rows={5} columns={COLUMNS.length} />
+          ) : (
+            <Table className="min-w-full">
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={COLUMNS.length} className="text-center py-12">
-                    <EmptyState
-                      title="No products found"
-                      description="Try adjusting your filters or search query."
-                    />
-                  </TableCell>
+                  {COLUMNS.map((col) => (
+                    <TableHead
+                      key={col.key}
+                      className={`cursor-pointer hover:bg-surface-secondary select-none break-words leading-tight ${col.minWidth || ''} ${
+                        col.align === 'right' ? 'text-right' : ''
+                      } ${col.key === 'trueNetProfit' ? 'bg-success-50' : ''}`}
+                      onClick={() => handleSort(col.key)}
+                    >
+                        {col.label}
+                    </TableHead>
+                  ))}
                 </TableRow>
-              ) : (
-                paginatedData.map((item) => (
-                  <TableRow
-                    key={item.skuId}
-                    className="hover:bg-surface-secondary transition-colors"
-                  >
-                    {COLUMNS.map((col) => {
-                      const val = (item as any)[col.key];
-                      const heatmapStyle = col.heatmap && col.heatmap !== 'neutral'
-                        ? getHeatmapColor(val, heatmapRanges[col.key], col.heatmap)
-                        : '';
-
-                      return (
-                        <TableCell
-                          key={col.key}
-                          className={`${cellClass(item, col)} ${col.minWidth || ''} py-6`}
-                          style={heatmapStyle ? { backgroundColor: heatmapStyle.split('background-color: ')[1].replace(';', '') } : undefined}
-                        >
-                          {renderCell(item, col)}
-                        </TableCell>
-                      );
-                    })}
+              </TableHeader>
+              <TableBody>
+                {!paginatedData.length ? (
+                  <TableRow>
+                    <TableCell colSpan={COLUMNS.length} className="text-center py-12">
+                      <EmptyState
+                        title={error ? 'Failed to load data' : 'No products found'}
+                        description={error ? 'Please try again later.' : 'Try adjusting your filters or search query.'}
+                      />
+                    </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                ) : (
+                  paginatedData.map((item) => (
+                    <TableRow
+                      key={item.sku}
+                      className="hover:bg-surface-secondary transition-colors"
+                    >
+                      {COLUMNS.map((col) => {
+                        const val = (item as any)[col.key];
+                        const heatmapStyle = col.heatmap && col.heatmap !== 'neutral'
+                          ? getHeatmapColor(val, heatmapRanges[col.key], col.heatmap)
+                          : '';
+
+                        return (
+                          <TableCell
+                            key={col.key}
+                            className={`${cellClass(item, col)} ${col.minWidth || ''} py-6`}
+                            style={heatmapStyle ? { backgroundColor: heatmapStyle.split('background-color: ')[1].replace(';', '') } : undefined}
+                          >
+                            {renderCell(item, col)}
+                          </TableCell>
+                        );
+                      })}
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          )}
         </div>
       </div>
 
@@ -680,6 +649,15 @@ export default function BreakevenAnalysis() {
         onPageChange={setPage}
         itemLabel="products"
       />
+    </div>
+  );
+}
+
+function SummaryCard({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className="bg-white rounded-lg border border-gray-200 p-4">
+      <div className="text-xs text-gray-500 uppercase tracking-wide">{label}</div>
+      <div className="text-lg font-bold text-gray-900 mt-1">{value}</div>
     </div>
   );
 }

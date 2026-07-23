@@ -291,7 +291,8 @@
     line-height: 1.4 !important;
     word-wrap: normal !important;
     overflow-wrap: normal !important;
-    max-width: 200px !important;
+    white-space: pre-wrap !important;
+    text-align: center !important;
   }
 
   .ds-table-td {
@@ -303,7 +304,6 @@
     white-space: normal !important;
     overflow-wrap: normal !important;
     word-break: normal !important;
-    max-width: 300px !important;
   }
 
   /* Allow specific cells to have nowrap when needed */
@@ -311,7 +311,6 @@
     white-space: nowrap !important;
     overflow: hidden !important;
     text-overflow: ellipsis !important;
-    max-width: 200px !important;
   }
 
   /* Override text size classes within table components */
@@ -333,12 +332,12 @@
   /* Ensure table cells don't overflow */
   .ds-table td,
   .ds-table th {
-    vertical-align: top !important;
+    vertical-align: middle !important;
   }
 
   /* Headers should not wrap by default */
   .ds-table th {
-    white-space: nowrap !important;
+    white-space: pre-wrap !important;
   }
 
   /* Allow text to wrap in table cells for long content */
