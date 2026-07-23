@@ -4,6 +4,8 @@ export interface BreakEvenFilters {
   accountId?: string;
   amazonAccountId?: string;
   marketplaceId?: string;
+  currency?: any;
+  targetMargin?: number;
   sku?: string;
   startDate: string;   // YYYY-MM-DD (PDT — Amazon timezone)
   endDate: string;     // YYYY-MM-DD (PDT — Amazon timezone)

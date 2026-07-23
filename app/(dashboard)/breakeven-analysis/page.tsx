@@ -20,6 +20,7 @@ import { Button } from '@/design-system/buttons';
 import { TableSkeleton } from '@/design-system/loaders';
 import { formatCurrency, formatPercentage } from '@/utils/format';
 import { useGetBreakEvenDataQuery } from '@/services/api/breakEven.api';
+import { Select } from '@/design-system/inputs'; // Adjust import path as needed
 
 // ─── Constants ─────────────────────────────────────────────
 const FBA_OPTIONS = [
@@ -34,9 +35,17 @@ const STATUS_OPTIONS = [
   { id: 'discontinued', name: 'Discontinued' },
 ];
 
+const CURRENCY_OPTIONS = [
+  { value: 'CAD', label: 'CAD' },
+  { value: 'USD', label: 'USD' },
+  { value: 'EUR', label: 'EUR' },
+];
+
 const PAGE_SIZE = 50;
 
 // ─── Types ───────────────────────────────────────────────
+type CurrencyCode = 'CAD' | 'USD' | 'EUR';
+
 interface Filters {
   search: string;
   status: string[];
@@ -141,7 +150,7 @@ const COLUMNS: ColumnDef[] = [
   { key: 'amazonMarginPct', label: 'Amazon Margin %', align: 'right', format: 'pct', heatmap: 'green', minWidth: 'min-w-[170px]' },
   { key: 'marginAfterMarketingPct', label: 'Margin After Marketing %', align: 'right', format: 'pct', heatmap: 'green', minWidth: 'min-w-[210px]' },
   { key: 'marginAfterAllPct', label: 'Margin After All %', align: 'right', format: 'pct', heatmap: 'neutral', minWidth: 'min-w-[180px]' },
-  { key: 'targetProfitAtB6Pct', label: 'Target Profit @ B6 %', align: 'right', format: 'pct', heatmap: 'neutral', minWidth: 'min-w-[190px]' },
+  { key: 'targetProfitAtB6Pct', label: 'Target Profit @ B6', align: 'right', format: 'currency', heatmap: 'neutral', minWidth: 'min-w-[190px]' },
   { key: 'targetGap', label: 'Target Gap / (Surplus)', align: 'right', format: 'currency', heatmap: 'neutral', minWidth: 'min-w-[200px]' },
   { key: 'status', label: 'Status', align: 'left', minWidth: 'min-w-[130px]' },
   { key: 'breakevenPrice', label: 'Breakeven Price', align: 'right', format: 'currency', heatmap: 'neutral', minWidth: 'min-w-[170px]' },
@@ -238,6 +247,10 @@ export default function BreakevenAnalysis() {
   const [sortColumn, setSortColumn] = useState<SortColumn>('trueNetProfit');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
+  // ─── NEW: Currency & Target Margin State ───────────────
+  const [selectedCurrency, setSelectedCurrency] = useState<CurrencyCode>('USD');
+  const [targetMargin, setTargetMargin] = useState<string>('10');
+
   // ═══════════════════════════════════════════════════════════════
   // DB dates are PDT (Amazon timezone) — pass YYYY-MM-DD directly.
   // No timezone conversion needed. The backend appends 00:00:00 / 23:59:59
@@ -246,12 +259,21 @@ export default function BreakevenAnalysis() {
   // Build API params — typed to match the RTK Query hook's expected shape
   const apiParams = useMemo(() => {
     if (!dateRange.startDate || !dateRange.endDate) return null;
+
+    // Parse target margin as number, default to 10 if invalid
+    const marginNum = parseFloat(targetMargin);
+    const validatedMargin = !isNaN(marginNum) && marginNum >= 1 && marginNum <= 100
+      ? marginNum
+      : 10;
+
     return {
       startDate: dateRange.startDate,
       endDate: dateRange.endDate,
+      currency: selectedCurrency,        // ← pass currency (API support only for now)
+      targetMargin: validatedMargin,     // ← pass target margin %
       ...(filters.status.length > 0 && { status: filters.status.join(',') }),
     };
-  }, [dateRange.startDate, dateRange.endDate, filters.status]);
+  }, [dateRange.startDate, dateRange.endDate, filters.status, selectedCurrency, targetMargin]);
 
   // Fetch data from API
   const {
@@ -260,7 +282,7 @@ export default function BreakevenAnalysis() {
     isFetching,
     error,
   } = useGetBreakEvenDataQuery(
-    apiParams ?? { startDate: '', endDate: '' },
+    apiParams ?? { startDate: '', endDate: '', currency: 'USD', targetMargin: 10 },
     { skip: !apiParams }
   );
 
@@ -274,7 +296,7 @@ export default function BreakevenAnalysis() {
       productSales: item.productSales,
       promoRebates: item.promoRebates,
       sellingFees: item.sellingFee,
-      fbaFees: 0,
+      fbaFees: item.fbaFees || 0,
       otherAmazonAdj: item.otherAmazonAdj,
       totalAmazonExpenses: item.totalAmazonExpense,
       marketingExpense: item.marketingExpense,
@@ -287,7 +309,7 @@ export default function BreakevenAnalysis() {
       amazonMarginPct: item.amazonMarginPct,
       marginAfterMarketingPct: item.marginAfterMarketingPct,
       marginAfterAllPct: item.marginAfterAllPct,
-      targetProfitAtB6Pct: 0,
+      targetProfitAtB6Pct: item.targetProfit,
       targetGap: item.targetGap,
       status: item.status.toUpperCase(),
       breakevenPrice: item.breakevenPrice,
@@ -361,6 +383,22 @@ export default function BreakevenAnalysis() {
   const handleSearch = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setFilters((prev) => ({ ...prev, search: e.target.value }));
     setPage(1);
+  }, []);
+
+  // ─── NEW: Target Margin Input Handler ──────────────────
+  const handleTargetMarginChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value;
+    // Only allow numeric input
+    if (raw === '') {
+      setTargetMargin('');
+      return;
+    }
+    // Reject non-numeric characters
+    if (!/^\d*\.?\d*$/.test(raw)) return;
+    
+    const num = parseFloat(raw);
+    if (num > 100) return; // Cap at 100
+    setTargetMargin(raw);
   }, []);
 
   const handleExportCSV = useCallback(() => {
@@ -496,6 +534,15 @@ export default function BreakevenAnalysis() {
           placeholder="Select date range"
         />
 
+        {/* ─── NEW: Currency Select ─────────────────────── */}
+        <div className="min-w-[100px]">
+          <Select
+            value={selectedCurrency}
+            onChange={(e) => setSelectedCurrency(e.target.value as CurrencyCode)}
+            options={CURRENCY_OPTIONS}
+          />
+        </div>
+
         {/* Status Filter — WIRED TO API, empty = all products */}
         <MultiSelectInput
           title="Status"
@@ -532,19 +579,6 @@ export default function BreakevenAnalysis() {
 
         <div className="flex-1" />
 
-        {/* Refresh */}
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setPage(1)}
-          disabled={isFetching}
-        >
-          <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-          </svg>
-          {isFetching ? 'Loading...' : 'Refresh'}
-        </Button>
-
         {/* Export CSV */}
         <Button
           variant="outline"
@@ -562,6 +596,26 @@ export default function BreakevenAnalysis() {
           </svg>
           Export CSV
         </Button>
+      </div>
+
+      <div className="flex">
+          {/* ─── NEW: Target SKU Margin % Input ───────────── */}
+        <div className="flex items-center gap-2">
+          <label className="text-sm text-white p-2.5 bg-primary-500 whitespace-nowrap">
+            Target SKU Margin %
+          </label>
+          <input
+            type="text"
+            inputMode="decimal"
+            value={targetMargin}
+            onChange={handleTargetMarginChange}
+            placeholder="10"
+            className="w-16 px-2 py-2.5 border border-gray-200 rounded-lg text-sm text-center
+                       focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent
+                       bg-surface-primary text-text-primary"
+          />
+        </div>
+
       </div>
 
       {/* ─── Summary Cards ──────────────────────────────── */}
