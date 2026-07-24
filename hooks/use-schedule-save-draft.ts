@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import {
   buildSchedulesFromWeekTemplate,
   createEmptyWeekTemplate,
-} from "@/components/dashboard/scheduler/scheduler-utils";
+} from "@/app/(dashboard)/dayparting/components/dashboard/scheduler/scheduler-utils";
 
 export function useScheduleSaveDraft(
   campaignIdNum: number,

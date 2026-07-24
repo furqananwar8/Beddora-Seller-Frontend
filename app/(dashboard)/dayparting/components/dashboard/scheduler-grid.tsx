@@ -34,7 +34,7 @@ export function SchedulerGrid() {
   // if (!selectedCampaign || isLoadingFresh) {
   //   return (
   //     <div className="flex items-center justify-center h-64">
-  //       <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
+  //       <Loader2 className="h-8 w-8 animate-spin text-primary-600" />
   //     </div>
   //   );
   // }
@@ -64,7 +64,7 @@ export function SchedulerGrid() {
         {/* Loading Overlay - constrained to this container */}
         {isLoading && (
           <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-white/70 dark:bg-zinc-950/70 backdrop-blur-sm rounded-xl">
-            <Loader2 className="h-10 w-10 animate-spin text-indigo-600 mb-3" />
+            <Loader2 className="h-10 w-10 animate-spin text-primary-600 mb-3" />
             <span className="text-sm font-medium text-zinc-500">
               {isSaving ? "Saving schedule..." : "Clearing schedule..."}
             </span>
@@ -82,7 +82,7 @@ export function SchedulerGrid() {
             campaignId={selectedCampaign.id}
           />
 
-          {days.map((day, dIndex) => (
+          {days.map((day:any, dIndex: any) => (
             <WeeklySchedulerRow
               key={`${selectedCampaign.id}-${day}`}
               day={day}

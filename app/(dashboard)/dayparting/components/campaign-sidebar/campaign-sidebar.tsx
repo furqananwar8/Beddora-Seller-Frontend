@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { CampaignCard } from "../campaign-card/campaign-card";
 import { useCampaigns } from "@/hooks/useCampaigns";
 import { useDashboard } from "@/lib/context/dashboard-context";
@@ -39,7 +38,7 @@ export function CampaignSidebar() {
 
   const isScheduledPage = pathname === "/dashboard/scheduled" || pathname.startsWith("/dashboard/scheduled");
 
-  const campaignsQuery = useCampaigns({
+  const campaignsQuery: any = useCampaigns({
     type: activeTab,
     cursor: currentCursor,
     limit: 15,
@@ -125,7 +124,7 @@ export function CampaignSidebar() {
             className={cn(
               "cursor-pointer flex-1 px-2 py-2.5 text-xs font-medium transition-colors border-b-2 whitespace-normal break-words",
               activeTab === tab.key
-                ? "border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400"
+                ? "border-primary-900 text-primary-600 dark:border-indigo-400 dark:text-indigo-400"
                 : "border-transparent text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
             )}
             title={tab.label}
@@ -137,7 +136,7 @@ export function CampaignSidebar() {
 
       {isRefetching && (
         <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/60">
-          <Loader2 className="h-5 w-5 animate-spin text-indigo-600" />
+          <Loader2 className="h-5 w-5 animate-spin text-primary-600" />
         </div>
       )}
 

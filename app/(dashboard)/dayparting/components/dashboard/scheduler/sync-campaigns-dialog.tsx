@@ -2,16 +2,10 @@
 
 import { useEffect } from "react";
 import { CircleCheck, LoaderCircle } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+
 import type { SyncedCampaign } from "./synced-campaigns-list";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/dialog/Dialog";
+import { Button } from "@/design-system/buttons";
 
 type SyncCampaignsDialogProps = {
   open: boolean;
@@ -39,7 +33,7 @@ export function SyncCampaignsDialog({
   }, [open, completed, onOpenChange]);
 
   return (
-    <Dialog open={open} onOpenChange={(next) => {
+    <Dialog open={open} onOpenChange={(next: any) => {
       if (isSyncing && !completed && !next) return;
       onOpenChange(next);
     }}>
@@ -58,7 +52,7 @@ export function SyncCampaignsDialog({
             {completed ? (
               <CircleCheck className="h-4 w-4 text-emerald-600" />
             ) : (
-              <LoaderCircle className="h-4 w-4 animate-spin text-indigo-600" />
+              <LoaderCircle className="h-4 w-4 animate-spin text-primary-600" />
             )}
             <span>
               {completed

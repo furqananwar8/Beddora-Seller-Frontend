@@ -1,10 +1,11 @@
 "use client";
 
 import { useRef } from "react";
-import { Switch } from "@/components/ui/switch";
-import { Button } from "@/components/ui/button";
 import { X, Loader2 } from "lucide-react";
 import { DayKey, WeekTemplate } from "@/lib/context/dashboard-context";
+import { Button } from "@/design-system/buttons";
+import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
+import { Switch } from "@/components/switch/Switch";
 
 type SchedulerGridHeaderProps = {
   clearWeeklyTemplate: () => Promise<void>;
@@ -39,13 +40,12 @@ export function SchedulerGridHeader({
         <div className="col-span-24 relative flex items-center justify-between p-2 text-[10px] font-bold text-zinc-400 uppercase tracking-widest">
           <span>Hours (00 - 23)</span>
           <Button
-            variant="destructive"
             size="sm"
             onClick={clearWeeklyTemplate}
             disabled={isClearing}
           >
             {isClearing ? (
-              <Loader2 className="h-4 w-4 animate-spin mr-1" />
+              <LoadingSpinner />
             ) : (
               <X className="h-4 w-4 mr-1" />
             )}

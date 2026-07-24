@@ -19,6 +19,7 @@ export const tagTypes = [
   'Accounts',
   'AmazonAccounts',
   'Campaigns',
+  'ScheduledJobs',
   'Permissions',
   'Profit',
   'Inventory',

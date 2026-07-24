@@ -55,6 +55,7 @@ export interface WeeklySchedulePayload {
 
 export interface UpdateCampaignSchedulePayload {
   schedules?: any[]
+  campaignName: string
   // Add other fields your backend expects
 }
 
@@ -68,6 +69,35 @@ export interface SyncSchedulesResponse {
   success: boolean
   message?: string
   syncedCount?: number
+}
+
+
+export interface ScheduledJob {
+  id: string
+  campaignId: string
+  campaignName: string
+  status: string
+  scheduledAt: string
+  executedAt?: string
+  errorMessage?: string
+  // add whatever fields your backend returns
+}
+
+export interface GetScheduledJobsParams {
+  page?: number
+  limit?: number
+  status?: string
+  sortBy?: string
+  sortOrder?: string
+  campaignId?: string
+  search?: string
+}
+
+export interface ScheduledJobsResponse {
+  jobs: ScheduledJob[]
+  total: number
+  page: number
+  totalPages: number
 }
 
 // ============================================
@@ -181,6 +211,27 @@ export const campaignsApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ['Campaigns'],
     }),
+
+    getScheduledJobs: builder.query<ScheduledJobsResponse, GetScheduledJobsParams>({
+      query: ({ page = 1, limit = 20, status, sortBy, sortOrder, campaignId, search }) => {
+        const params = new URLSearchParams({
+          page: String(page),
+          limit: String(limit),
+        })
+        if (status) params.set('status', status)
+        if (sortBy) params.set('sortBy', sortBy)
+        if (sortOrder) params.set('sortOrder', sortOrder)
+        if (campaignId) params.set('campaignId', campaignId)
+        if (search) params.set('search', search)
+
+        return {
+          url: `/campaigns/scheduled-jobs?${params.toString()}`,
+          method: 'GET',
+        }
+      },
+      providesTags: ['ScheduledJobs'],
+      keepUnusedDataFor: 300,
+    }),
   }),
 })
 
@@ -190,6 +241,8 @@ export const campaignsApi = baseApi.injectEndpoints({
 
 export const {
   useGetCampaignsQuery,
+  useGetScheduledJobsQuery,
+  useLazyGetScheduledJobsQuery,
   useLazyGetCampaignsQuery,
   useGetCampaignsListQuery,
   useLazyGetCampaignsListQuery,

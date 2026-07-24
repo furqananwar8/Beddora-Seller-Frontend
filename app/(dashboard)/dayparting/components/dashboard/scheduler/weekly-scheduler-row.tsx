@@ -33,7 +33,7 @@ export function WeeklySchedulerRow({
           className={cn(
             "text-xs font-bold uppercase tracking-wider transition-colors",
             allActive
-              ? "text-indigo-600"
+              ? "text-primary-600"
               : someActive
                 ? "text-indigo-400"
                 : "text-zinc-400 hover:text-zinc-600",

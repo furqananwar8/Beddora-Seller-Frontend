@@ -5,7 +5,7 @@ import { useDashboard } from "@/lib/context/dashboard-context";
 import { useCampaignSync } from "./use-campaign-sync";
 import { useScheduleGridState } from "./use-schedule-grid-state";
 import { useScheduleSaveDraft } from "./use-schedule-save-draft";
-import { SCHEDULER_DAYS } from "@/components/dashboard/scheduler/scheduler-utils";
+import { SCHEDULER_DAYS } from "@/app/(dashboard)/dayparting/components/dashboard/scheduler/scheduler-utils";
 
 export function useSchedulerGrid() {
   const {

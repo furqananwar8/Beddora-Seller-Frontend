@@ -1,14 +1,14 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import type { WeekTemplate } from "@/lib/context/dashboard-context";
 import {
   SCHEDULER_DAYS,
   createEmptyWeekTemplate,
   createZeroSchedule,
   buildWeeklyTemplateFromSchedules,
-} from "@/components/dashboard/scheduler/scheduler-utils";
-import { clearCampaignWeeklySchedule } from "@/api/services/campaigns.api";
+} from "@/app/(dashboard)/dayparting/components/dashboard/scheduler/scheduler-utils";
+import { useClearCampaignWeeklyScheduleMutation } from "@/services/api/campaigns.api";
 
 interface UseScheduleGridStateOptions {
   selectedCampaign: any;
@@ -25,11 +25,12 @@ export function useScheduleGridState({
   campaignSchedules,
   setWeekTemplate,
 }: UseScheduleGridStateOptions) {
-  
+  const [clearSchedule] = useClearCampaignWeeklyScheduleMutation();
+
   const selectedCampaignKey = selectedCampaign?.id ?? "";
 
   // Build template fresh every time — selectedCampaign now always has latest schedules
-  const getCurrentTemplate = (): WeekTemplate => {
+  const getCurrentTemplate = useCallback((): WeekTemplate => {
     if (!selectedCampaignKey) return createEmptyWeekTemplate();
 
     // Always use fresh schedules from selectedCampaign (derived from campaigns array in context)
@@ -47,10 +48,10 @@ export function useScheduleGridState({
       }
     });
     return merged;
-  };
+  }, [selectedCampaignKey, selectedCampaign, campaignSchedules]);
 
   // Get template for rendering
-  const weekTemplate = getCurrentTemplate();
+  const weekTemplate = useMemo(() => getCurrentTemplate(), [getCurrentTemplate]);
 
   const clearWeeklyTemplate = useCallback(async () => {
     if (!selectedCampaign) return;
@@ -61,11 +62,11 @@ export function useScheduleGridState({
     // Wipe backend schedules
     const campaignIdNum = selectedCampaign.campaignId || Number(selectedCampaign.id);
     try {
-      await clearCampaignWeeklySchedule(campaignIdNum);
+      await clearSchedule(campaignIdNum).unwrap();
     } catch (e) {
       console.error('[Clear] Failed to wipe backend:', e);
     }
-  }, [selectedCampaign, setWeekTemplate]);
+  }, [selectedCampaign, setWeekTemplate, clearSchedule]);
 
   const toggleWeeklyCell = useCallback(
     (dayIndex: number, hourIndex: number) => {
@@ -83,7 +84,7 @@ export function useScheduleGridState({
         [day]: nextDay,
       });
     },
-    [selectedCampaign, setWeekTemplate], // getCurrentTemplate uses selectedCampaign which is always fresh
+    [selectedCampaign, setWeekTemplate, getCurrentTemplate],
   );
 
   const toggleFullDay = useCallback(
@@ -103,7 +104,7 @@ export function useScheduleGridState({
         [day]: nextDay,
       });
     },
-    [selectedCampaign, setWeekTemplate],
+    [selectedCampaign, setWeekTemplate, getCurrentTemplate],
   );
 
   return {

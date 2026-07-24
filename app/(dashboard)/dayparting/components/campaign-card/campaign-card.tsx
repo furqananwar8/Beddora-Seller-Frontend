@@ -104,7 +104,7 @@ export function CampaignCard({
 
       <div
         className={cn(
-          "text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-tighter",
+          "text-[10px] font-bold text-primary-600 dark:text-indigo-400 uppercase tracking-tighter",
           isSelected
             ? "opacity-100 translate-y-0 transition-all duration-300 ease-in-out"
             : "opacity-0 -translate-y-1 pointer-events-none absolute",

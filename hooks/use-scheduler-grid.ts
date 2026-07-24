@@ -5,8 +5,8 @@ import { useDashboard } from "@/lib/context/dashboard-context";
 import { useCampaignSync } from "./use-campaign-sync";
 import { useScheduleGridState } from "./use-schedule-grid-state";
 import { useScheduleSaveDraft } from "./use-schedule-save-draft";
-import { SCHEDULER_DAYS, createEmptyWeekTemplate } from "@/components/dashboard/scheduler/scheduler-utils";
-import { clearCampaignWeeklySchedule } from "@/api/services/campaigns.api";
+import { SCHEDULER_DAYS, createEmptyWeekTemplate } from "@/app/(dashboard)/dayparting/components/dashboard/scheduler/scheduler-utils";
+import { useClearCampaignWeeklyScheduleMutation } from "@/services/api/campaigns.api";
 
 export function useSchedulerGrid() {
   const {
@@ -14,10 +14,12 @@ export function useSchedulerGrid() {
     campaignSchedules,
     setWeekTemplate,
     campaigns,
-    setCampaigns,           // ADD
-    clearSelectedCampaign,
-    clearCampaignDraft,     // ADD
+    setCampaigns,
+    clearCampaignDraft,
   } = useDashboard();
+
+  // RTK Query mutation — must be called at top level
+  const [clearSchedule] = useClearCampaignWeeklyScheduleMutation();
 
   const campaignIdNum =
     selectedCampaign?.campaignId || Number(selectedCampaign?.id) || 0;
@@ -43,7 +45,6 @@ export function useSchedulerGrid() {
     selectedCampaign?.id,
   );
 
-  // REPLACE the old clearAndDeselect
   const clearWeeklyTemplate = useCallback(async () => {
     if (!activeCampaign) return;
 
@@ -52,19 +53,18 @@ export function useSchedulerGrid() {
 
     // 2. Wipe backend
     const id = activeCampaign.campaignId || Number(activeCampaign.id);
-    await clearCampaignWeeklySchedule(id);
+    await clearSchedule(id).unwrap();
 
-    // 3. UPDATE CONTEXT CAMPAIGNS ARRAY — this was missing
+    // 3. UPDATE CONTEXT CAMPAIGNS ARRAY
     setCampaigns(
       campaigns.map((c) =>
         c.id === activeCampaign.id ? { ...c, schedules: [] } : c
       )
     );
 
-    // 4. WIPE DRAFT ENTRY entirely so getCurrentTemplate() can't merge stale data
+    // 4. WIPE DRAFT ENTRY entirely
     clearCampaignDraft(activeCampaign.id);
-
-  }, [activeCampaign, setWeekTemplate, setCampaigns, clearCampaignDraft, clearSelectedCampaign]);
+  }, [activeCampaign, setWeekTemplate, clearSchedule, setCampaigns, campaigns, clearCampaignDraft]);
 
   return {
     selectedCampaign: activeCampaign,
@@ -79,7 +79,7 @@ export function useSchedulerGrid() {
     handleSyncNow: sync.handleSyncNow,
 
     weekTemplate: grid.weekTemplate,
-    clearWeeklyTemplate,        // ← your wrapper, not grid.clearWeeklyTemplate
+    clearWeeklyTemplate,
     toggleWeeklyCell: grid.toggleWeeklyCell,
     toggleFullDay: grid.toggleFullDay,
 
