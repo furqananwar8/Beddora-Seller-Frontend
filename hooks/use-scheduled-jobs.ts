@@ -33,9 +33,6 @@ export function useScheduledJobs({
     search,
   })
 
-  // Manual keepPreviousData — RTK Query doesn't have this built-in.
-  // We stash the last successful payload so the UI never flashes to
-  // empty while changing pages/filters/search.
   const previousDataRef = useRef<ScheduledJobsResponse | undefined>(undefined)
 
   useEffect(() => {
@@ -56,5 +53,6 @@ export function useScheduledJobs({
     error: result.error,
     isError: result.isError,
     isSuccess: result.isSuccess,
+    refetch: result.refetch,
   }
 }

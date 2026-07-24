@@ -8,8 +8,6 @@ import { useEffect } from "react";
 
 export default function DaypartingPage() {
   const { selectedCampaign } = useDashboard();
-  const { data: user } = useUser();
-  const canInvite = user?.invitedBy === 'system';
   // const queryClient = useQueryClient();
   
   // useEffect(() => {

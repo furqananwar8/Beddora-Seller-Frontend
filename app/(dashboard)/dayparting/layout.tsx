@@ -20,9 +20,10 @@ import { toast } from "sonner";
 import { CampaignSidebar } from "./components/campaign-sidebar/campaign-sidebar";
 import { Button } from "@/design-system/buttons";
 
-// 1. Extract these from your page files so they can be rendered anywhere
 import DaypartingPage  from "./dayparting/page";
 import ScheduledCampaignsPage from "./scheduled/page";
+import { useAmazonAuth } from '@/hooks/user-amazon-auth'
+import { AmazonAuthModal } from '@/components/amazon-auth-modal/amazon-auth-modal'
 
 type View = "dayparting" | "scheduled";
 
@@ -34,9 +35,11 @@ const navigation = [
 function DashboardLayoutContent({ children }: { children: ReactNode }) {
   const { selectedCampaign, handleSave, isSaving, setIsSaving } = useDashboard();
   const [activeView, setActiveView] = useState<View>("dayparting");
-  const [executingModalOpen, setExecutingModalOpen] = useState(false);
+  
+  const { isConnected, isLoading, showAuthModal, handleAuthSuccess } = useAmazonAuth();
 
   const isScheduledPage = activeView === "scheduled";
+  const isAuthReady = isConnected && !isLoading;
 
   const onSave = async () => {
     setIsSaving(true);
@@ -50,19 +53,30 @@ function DashboardLayoutContent({ children }: { children: ReactNode }) {
   };
 
   return (
-    <div className="flex h-screen bg-[#F8FAFC] dark:bg-zinc-950">
-      {/* Primary Sidebar */}
+    <div className="relative flex h-screen bg-[#F8FAFC] dark:bg-zinc-950">
+      
+      {showAuthModal && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <AmazonAuthModal
+            isOpen={showAuthModal}
+            onSuccess={handleAuthSuccess}
+          />
+        </div>
+      )}
+
       <div className="flex w-16 flex-col items-center border-r bg-white dark:bg-zinc-900 py-4 dark:border-zinc-800 relative z-[999]">
         <nav className="flex flex-1 flex-col items-center space-y-4">
           {navigation.map((item) => (
             <button
               key={item.name}
-              onClick={() => setActiveView(item.view)}
+              onClick={() => isAuthReady && setActiveView(item.view)}
+              disabled={!isAuthReady}
               className={cn(
                 "group relative flex h-10 w-10 items-center justify-center rounded-lg transition-colors",
                 activeView === item.view
                   ? "bg-indigo-50 text-primary-600 dark:bg-indigo-900/20 dark:text-indigo-400"
-                  : "text-zinc-400 hover:bg-zinc-50 hover:text-zinc-600 dark:hover:bg-zinc-800"
+                  : "text-zinc-400 hover:bg-zinc-50 hover:text-zinc-600 dark:hover:bg-zinc-800",
+                !isAuthReady && "cursor-not-allowed opacity-40 hover:bg-transparent hover:text-zinc-400 dark:hover:bg-transparent"
               )}
             >
               <item.icon className="h-5 w-5" />
@@ -74,45 +88,47 @@ function DashboardLayoutContent({ children }: { children: ReactNode }) {
         </nav>
 
         <div className="mt-auto flex flex-col items-center space-y-4">
-          <button className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200">
+          <button 
+            disabled={!isAuthReady}
+            className={cn(
+              "text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200",
+              !isAuthReady && "cursor-not-allowed opacity-40 hover:text-zinc-400"
+            )}
+          >
             <Settings className="h-5 w-5" />
           </button>
-          <div className="h-8 w-8 rounded-full bg-zinc-200 dark:bg-zinc-800" />
+          <div className={cn("h-8 w-8 rounded-full bg-zinc-200 dark:bg-zinc-800", !isAuthReady && "opacity-40")} />
         </div>
       </div>
 
-      {/* Campaign Sidebar */}
       <CampaignSidebar />
 
-      {/* Main Content */}
-      <div className="flex flex-1 flex-col relative">
+      <div className="flex flex-1 flex-col">
         <main
           className={`flex-1 overflow-auto bg-[#F8FAFC] dark:bg-zinc-950 p-8 ${
             isSaving ? "pointer-events-none" : ""
           }`}
         >
-          {/* 2. Conditionally render instead of navigating */}
           {activeView === "dayparting" ? <DaypartingPage /> : <ScheduledCampaignsPage />}
         </main>
-      </div>
 
-      {/* Floating Action Button (Save) */}
-      {!isScheduledPage && (
-        <div className="fixed bottom-8 right-8 z-50">
-          <Button
-            className="bg-indigo-600 text-white disabled:opacity-70 disabled:cursor-not-allowed"
-            onClick={onSave}
-            disabled={isSaving}
-          >
-            {isSaving ? (
-              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-            ) : (
-              <Save className="h-4 w-4 mr-2" />
-            )}
-            {isSaving ? "Saving..." : "Save"}
-          </Button>
-        </div>
-      )}
+        {!isScheduledPage && (
+          <div className="fixed bottom-8 right-8 z-40">
+            <Button
+              className="bg-indigo-600 text-white disabled:opacity-70 disabled:cursor-not-allowed"
+              onClick={onSave}
+              disabled={isSaving}
+            >
+              {isSaving ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <Save className="h-4 w-4 mr-2" />
+              )}
+              {isSaving ? "Saving..." : "Save"}
+            </Button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

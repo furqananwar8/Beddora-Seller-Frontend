@@ -85,7 +85,8 @@ export default function ScheduledCampaignsPage() {
     isFetching,
     isPlaceholderData,
     error,
-  } = useScheduledJobs({
+    refetch,
+  }: any = useScheduledJobs({
     page,
     limit,
     status,
