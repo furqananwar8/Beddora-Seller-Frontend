@@ -395,7 +395,7 @@ export default function BreakevenAnalysis() {
     }
     // Reject non-numeric characters
     if (!/^\d*\.?\d*$/.test(raw)) return;
-    
+
     const num = parseFloat(raw);
     if (num > 100) return; // Cap at 100
     setTargetMargin(raw);
@@ -631,14 +631,23 @@ export default function BreakevenAnalysis() {
         </div>
       ) : null}
 
-      {/* ─── Table Card ─────────────────────────────────── */}
+      {/* ═══════════════════════════════════════════════════════════════
+          STICKY HEADER FIX: The table wrapper now has a fixed height
+          with overflow-x-auto AND overflow-y-auto, making it a scroll
+          container on both axes. The <TableHeader> gets position:sticky
+          and z-index so it sticks to the top of this container while
+          horizontal scroll still works.
+          ═══════════════════════════════════════════════════════════════ */}
       <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-        <div className="overflow-x-auto">
+        <div 
+          className="overflow-x-auto overflow-y-auto"
+          style={{ maxHeight: 'calc(100vh - 340px)' }}
+        >
           {isFetching && !tableData.length ? (
             <TableSkeleton rows={5} columns={COLUMNS.length} />
           ) : (
             <Table className="min-w-full">
-              <TableHeader>
+              <TableHeader className="sticky top-0 z-20 bg-white shadow-sm">
                 <TableRow>
                   {COLUMNS.map((col) => (
                     <TableHead
@@ -648,7 +657,10 @@ export default function BreakevenAnalysis() {
                       } ${col.key === 'trueNetProfit' ? 'bg-success-50' : ''}`}
                       onClick={() => handleSort(col.key)}
                     >
+                      <div className="flex items-center gap-1">
                         {col.label}
+                        <SortIcon column={col.key} />
+                      </div>
                     </TableHead>
                   ))}
                 </TableRow>

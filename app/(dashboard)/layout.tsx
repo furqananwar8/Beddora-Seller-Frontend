@@ -48,7 +48,7 @@ export default function DashboardLayout({
           href: '/dashboard/ppc/dashboard',
           icon: NavIcons.ppc,
           children: [
-            { label: 'Day Parting', href: '/dashboard/ppc/dashboard' },
+            { label: 'Day Parting', href: '/dayparting' },
             // { label: 'Recommendations', href: '/dashboard/ppc/recommendations' },
             // { label: 'Automation Log', href: '/dashboard/ppc/automation-log' },
           ],

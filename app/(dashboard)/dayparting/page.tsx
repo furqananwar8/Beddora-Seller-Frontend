@@ -4,22 +4,14 @@ import React from 'react'
 import { PageHeader } from '@/components/layout'
 import { Card, CardContent, CardHeader, CardTitle } from '@/design-system/cards'
 import { EmptyState } from '@/components/data-display'
-// import { useGetCampaignsQuery } from '@/services/api/ppc.api'
 
-/**
- * PPC page
- * 
- * Business logic: Connect to PPC API
- * Example:
- * const { data, isLoading, error } = useGetCampaignsQuery({})
- */
-export default function PPCPage() {
-  // const { data, isLoading, error } = useGetCampaignsQuery({})
+export default function Dayparting() {
+
 
   return (
     <div>
       <PageHeader
-        title="PPC Campaigns"
+        title="Day Parting"
         description="Manage your pay-per-click campaigns"
       />
 
