@@ -26,6 +26,7 @@ export default function LoginPage() {
       url.searchParams.delete('error');
       url.searchParams.delete('message');
       window.history.replaceState({}, '', url.toString());
+      console.log({error, message})
 
       switch (error) {
         case 'NOT_INVITED':

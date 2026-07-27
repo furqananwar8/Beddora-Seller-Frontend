@@ -7,6 +7,7 @@ import { clearCredentials } from '@/store/auth.slice'
 import { useLogoutMutation } from '@/services/api/auth.api'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { NavIcons } from '@/components/navigation/icons'
+import { setAmazonSession } from '@/store/amazon.slice'
 
 /**
  * Dashboard layout
@@ -162,6 +163,27 @@ export default function DashboardLayout({
   const [periodValue, setPeriodValue] = useState('last-30-days')
   const [activeDashboardTab, setActiveDashboardTabState] = useState('tiles')
   const pathname = usePathname()
+
+  React.useEffect(() => {
+    const handler = (event: MessageEvent) => {
+      if (event.data?.type === 'AMAZON_AUTH_SUCCESS') {
+        const p = event.data.payload
+        dispatch(
+          setAmazonSession({
+            sessionId: p.sessionId,
+            profileId: p.profileId || null,
+            region: p.region || null,
+            email: p.email || null,
+            name: p.name || null,
+            isConnected: true,
+          })
+        )
+      }
+    }
+
+    window.addEventListener('message', handler)
+    return () => window.removeEventListener('message', handler)
+  }, [dispatch])
 
   // Wrapper for setActiveDashboardTab that updates both state and URL
   const setActiveDashboardTab = React.useCallback((tabId: string) => {

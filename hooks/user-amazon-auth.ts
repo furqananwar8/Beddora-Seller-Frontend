@@ -1,6 +1,9 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import { useSelector, useDispatch } from 'react-redux'
+import { RootState } from '@/store/store'
+import { setAmazonSession, clearAmazonSession, setAmazonAuthLoading } from "@/store/amazon.slice"
 
 interface AuthState {
   isConnected: boolean
@@ -12,50 +15,60 @@ interface AuthState {
 }
 
 export function useAmazonAuth(): AuthState {
-  const [isConnected, setIsConnected] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
+  const dispatch = useDispatch()
+  const amazon = useSelector((state: RootState) => state.amazon)
   const [showAuthModal, setShowAuthModal] = useState(false)
 
   const checkConnection = useCallback(async () => {
+    // No sessionId in Redux store → show connect modal
+    if (!amazon.sessionId) {
+      dispatch(setAmazonAuthLoading(false))
+      setShowAuthModal(true)
+      return
+    }
+
+    dispatch(setAmazonAuthLoading(true))
     try {
-      const res = await fetch('/api/amazon/advertising/me', {
-        credentials: 'include',
-      })
+      // Validate session via Next.js API route (passes sessionId to backend)
+      const res = await fetch(
+        `/api/amazon/advertising/me?sessionId=${encodeURIComponent(amazon.sessionId)}`
+      )
 
       if (!res.ok) {
-        setIsConnected(false)
-        setShowAuthModal(true)
-        return
+        throw new Error('Validation failed')
       }
 
-      const { data } = await res.json()
-      const connected = data?.connected === true
-      setIsConnected(connected)
+      const json = await res.json()
+      const connected = json?.data?.connected === true
 
-      if (!connected) {
+      if (connected) {
+        dispatch(setAmazonSession({ isConnected: true }))
+        setShowAuthModal(false)
+      } else {
+        dispatch(clearAmazonSession())
         setShowAuthModal(true)
       }
     } catch {
-      setIsConnected(false)
+      dispatch(clearAmazonSession())
       setShowAuthModal(true)
     } finally {
-      setIsLoading(false)
+      dispatch(setAmazonAuthLoading(false))
     }
-  }, [])
+  }, [amazon.sessionId, dispatch])
 
   useEffect(() => {
     checkConnection()
   }, [checkConnection])
 
-  const handleAuthSuccess = () => {
-    setShowAuthModal(false)
-    setIsConnected(true)
+  const handleAuthSuccess = useCallback(() => {
+    // Callback page already dispatched sessionId into Redux.
+    // Re-run validation to confirm tokens are valid in Redis.
     checkConnection()
-  }
+  }, [checkConnection])
 
   return {
-    isConnected,
-    isLoading,
+    isConnected: amazon.isConnected,
+    isLoading: amazon.isLoadingAuth,
     showAuthModal,
     checkConnection,
     handleAuthSuccess,
