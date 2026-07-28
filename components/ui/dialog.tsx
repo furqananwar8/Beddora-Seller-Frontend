@@ -1,53 +1,214 @@
 "use client";
 
 import * as React from "react";
-import * as DialogPrimitive from "@base-ui/react/dialog";
+import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 
-function Dialog({ children, ...props }: React.ComponentProps<typeof DialogPrimitive.Dialog.Root>) {
-  return <DialogPrimitive.Dialog.Root {...props}>{children}</DialogPrimitive.Dialog.Root>;
+/* ------------------------------------------------------------------ */
+/*  Context                                                            */
+/* ------------------------------------------------------------------ */
+
+interface DialogContextValue {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  titleId: string;
+  descriptionId: string;
 }
 
-function DialogTrigger({ className, ...props }: React.ComponentProps<typeof DialogPrimitive.Dialog.Trigger>) {
-  return <DialogPrimitive.Dialog.Trigger className={cn(className)} {...props} />;
+const DialogContext = React.createContext<DialogContextValue | null>(null);
+
+function useDialog() {
+  const ctx = React.useContext(DialogContext);
+  if (!ctx) throw new Error("Dialog components must be used inside <Dialog>");
+  return ctx;
 }
 
-function DialogPortal({ className, children, ...props }: React.ComponentProps<typeof DialogPrimitive.Dialog.Portal>) {
+/* ------------------------------------------------------------------ */
+/*  Dialog (Root)                                                      */
+/* ------------------------------------------------------------------ */
+
+function DialogRoot({
+  children,
+  defaultOpen = false,
+  open: controlledOpen,
+  onOpenChange,
+}: {
+  children: React.ReactNode;
+  defaultOpen?: boolean;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+}) {
+  const [uncontrolledOpen, setUncontrolledOpen] = React.useState(defaultOpen);
+  const isControlled = controlledOpen !== undefined;
+  const open = isControlled ? controlledOpen : uncontrolledOpen;
+
+  const handleOpenChange = React.useCallback(
+    (value: boolean) => {
+      if (!isControlled) setUncontrolledOpen(value);
+      onOpenChange?.(value);
+    },
+    [isControlled, onOpenChange]
+  );
+
+  const titleId = React.useId();
+  const descriptionId = React.useId();
+
   return (
-    <DialogPrimitive.Dialog.Portal className={cn(className)} {...props}>
+    <DialogContext.Provider
+      value={{ open, onOpenChange: handleOpenChange, titleId, descriptionId }}
+    >
       {children}
-    </DialogPrimitive.Dialog.Portal>
+    </DialogContext.Provider>
   );
 }
 
-function DialogBackdrop({ className, ...props }: React.ComponentProps<typeof DialogPrimitive.Dialog.Backdrop>) {
+/* ------------------------------------------------------------------ */
+/*  DialogTrigger                                                      */
+/* ------------------------------------------------------------------ */
+
+function DialogTrigger({ className, ...props }: React.ComponentProps<"button">) {
+  const { onOpenChange } = useDialog();
   return (
-    <DialogPrimitive.Dialog.Backdrop
-      className={cn(
-        "fixed inset-0 z-50 bg-black/40 backdrop-blur-sm transition-opacity data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out data-[state=open]:fade-in",
-        className
-      )}
+    <button
+      type="button"
+      className={cn(className)}
+      onClick={() => onOpenChange(true)}
       {...props}
     />
   );
 }
 
-function DialogContent({ className, children, ...props }: React.ComponentProps<typeof DialogPrimitive.Dialog.Popup>) {
-  return (
-    <DialogPrimitive.Dialog.Portal>
-      <DialogBackdrop />
-      <DialogPrimitive.Dialog.Popup
-        className={cn(
-          "fixed left-1/2 top-1/2 z-50 grid w-[min(95vw,32rem)] -translate-x-1/2 -translate-y-1/2 gap-4 overflow-hidden rounded-3xl border border-zinc-200 bg-white p-6 text-left shadow-2xl shadow-zinc-950/10 outline-none transition-all dark:border-zinc-800 dark:bg-zinc-950",
-          className
-        )}
-        {...props}
-      >
-        {children}
-      </DialogPrimitive.Dialog.Popup>
-    </DialogPrimitive.Dialog.Portal>
+/* ------------------------------------------------------------------ */
+/*  DialogPortal                                                       */
+/* ------------------------------------------------------------------ */
+
+function DialogPortal({
+  className,
+  children,
+  ...props
+}: React.ComponentProps<"div"> & { children: React.ReactNode }) {
+  const [mounted, setMounted] = React.useState(false);
+
+  React.useEffect(() => {
+    setMounted(true);
+    return () => setMounted(false);
+  }, []);
+
+  if (!mounted) return null;
+
+  return createPortal(
+    <div className={cn(className)} {...props}>
+      {children}
+    </div>,
+    document.body
   );
 }
+
+/* ------------------------------------------------------------------ */
+/*  DialogBackdrop                                                     */
+/* ------------------------------------------------------------------ */
+
+function DialogBackdrop({ className, ...props }: React.ComponentProps<"div">) {
+  const { open, onOpenChange } = useDialog();
+  if (!open) return null;
+
+  return (
+    <div
+      className={cn(
+        "fixed inset-0 z-50 bg-black/40 backdrop-blur-sm transition-opacity data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out data-[state=open]:fade-in",
+        className
+      )}
+      data-state={open ? "open" : "closed"}
+      onClick={() => onOpenChange(false)}
+      {...props}
+    />
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  DialogPopup  (internal primitive used by DialogContent)            */
+/* ------------------------------------------------------------------ */
+
+function DialogPopup({
+  className,
+  children,
+  ...props
+}: React.ComponentProps<"div">) {
+  const { open, onOpenChange, titleId, descriptionId } = useDialog();
+  const ref = React.useRef<HTMLDivElement>(null);
+
+  /* Lock body scroll */
+  React.useEffect(() => {
+    if (!open) return;
+    const original = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = original;
+    };
+  }, [open]);
+
+  /* Escape to close */
+  React.useEffect(() => {
+    if (!open) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onOpenChange(false);
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [open, onOpenChange]);
+
+  /* Focus the dialog surface when opened */
+  React.useEffect(() => {
+    if (open && ref.current) {
+      ref.current.focus({ preventScroll: true });
+    }
+  }, [open]);
+
+  if (!open) return null;
+
+  return (
+    <div
+      ref={ref}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={titleId}
+      aria-describedby={descriptionId}
+      tabIndex={-1}
+      data-state={open ? "open" : "closed"}
+      className={cn(
+        "fixed left-1/2 top-1/2 z-50 grid w-[min(95vw,32rem)] -translate-x-1/2 -translate-y-1/2 gap-4 overflow-hidden rounded-3xl border border-zinc-200 bg-white p-6 text-left shadow-2xl shadow-zinc-950/10 outline-none transition-all dark:border-zinc-800 dark:bg-zinc-950",
+        className
+      )}
+      onClick={(e) => e.stopPropagation()}
+      {...props}
+    >
+      {children}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  DialogContent                                                      */
+/* ------------------------------------------------------------------ */
+
+function DialogContent({
+  className,
+  children,
+  ...props
+}: React.ComponentProps<"div">) {
+  return (
+    <DialogPortal>
+      <DialogBackdrop />
+      <DialogPopup className={className} {...props}>
+        {children}
+      </DialogPopup>
+    </DialogPortal>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  DialogHeader                                                       */
+/* ------------------------------------------------------------------ */
 
 function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
@@ -55,34 +216,83 @@ function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
   );
 }
 
+/* ------------------------------------------------------------------ */
+/*  DialogFooter                                                       */
+/* ------------------------------------------------------------------ */
+
 function DialogFooter({ className, ...props }: React.ComponentProps<"div">) {
   return (
-    <div className={cn("flex flex-col-reverse gap-3 sm:flex-row sm:justify-end", className)} {...props} />
-  );
-}
-
-function DialogTitle({ className, ...props }: React.ComponentProps<typeof DialogPrimitive.Dialog.Title>) {
-  return (
-    <DialogPrimitive.Dialog.Title
-      className={cn("text-lg font-semibold text-zinc-900 dark:text-zinc-100", className)}
+    <div
+      className={cn(
+        "flex flex-col-reverse gap-3 sm:flex-row sm:justify-end",
+        className
+      )}
       {...props}
     />
   );
 }
 
-function DialogDescription({ className, ...props }: React.ComponentProps<typeof DialogPrimitive.Dialog.Description>) {
+/* ------------------------------------------------------------------ */
+/*  DialogTitle                                                        */
+/* ------------------------------------------------------------------ */
+
+function DialogTitle({ className, ...props }: React.ComponentProps<"h2">) {
+  const { titleId } = useDialog();
   return (
-    <DialogPrimitive.Dialog.Description className={cn("text-sm leading-6 text-zinc-500 dark:text-zinc-400", className)} {...props} />
+    <h2
+      id={titleId}
+      className={cn(
+        "text-lg font-semibold text-zinc-900 dark:text-zinc-100",
+        className
+      )}
+      {...props}
+    />
   );
 }
 
-function DialogClose({ className, ...props }: React.ComponentProps<typeof DialogPrimitive.Dialog.Close>) {
-  return <DialogPrimitive.Dialog.Close className={cn(className)} {...props} />;
+/* ------------------------------------------------------------------ */
+/*  DialogDescription                                                  */
+/* ------------------------------------------------------------------ */
+
+function DialogDescription({ className, ...props }: React.ComponentProps<"p">) {
+  const { descriptionId } = useDialog();
+  return (
+    <p
+      id={descriptionId}
+      className={cn(
+        "text-sm leading-6 text-zinc-500 dark:text-zinc-400",
+        className
+      )}
+      {...props}
+    />
+  );
 }
 
+/* ------------------------------------------------------------------ */
+/*  DialogClose                                                        */
+/* ------------------------------------------------------------------ */
+
+function DialogClose({ className, ...props }: React.ComponentProps<"button">) {
+  const { onOpenChange } = useDialog();
+  return (
+    <button
+      type="button"
+      className={cn(className)}
+      onClick={() => onOpenChange(false)}
+      {...props}
+    />
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Exports                                                            */
+/* ------------------------------------------------------------------ */
+
 export {
-  Dialog,
+  DialogRoot as Dialog,
   DialogTrigger,
+  DialogPortal,
+  DialogBackdrop,
   DialogContent,
   DialogHeader,
   DialogFooter,
