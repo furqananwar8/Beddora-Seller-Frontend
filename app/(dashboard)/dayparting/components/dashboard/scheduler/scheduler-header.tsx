@@ -1,9 +1,5 @@
 "use client";
 
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
 import { CalendarIcon } from "lucide-react";
 import { startOfWeek } from "date-fns";
 
@@ -30,7 +26,7 @@ export function SchedulerHeader({
 }: SchedulerHeaderProps) {
   return (
     <div className="flex gap-4">
-      <Tabs
+      {/* <Tabs
         value={mode}
         onValueChange={(value) => setMode(value as "WEEK" | "DATE")}
         className="w-full md:w-auto"
@@ -71,7 +67,7 @@ export function SchedulerHeader({
             </PopoverContent>
           </Popover>
         )}
-      </div>
+      </div> */}
     </div>
   );
 }

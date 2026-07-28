@@ -1,8 +1,8 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
+import { Button } from "@/design-system/buttons";
 
 type SchedulerPaginationProps = {
   mode: "WEEK" | "DATE";
