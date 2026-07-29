@@ -1,6 +1,6 @@
-"use client";
+'use client';
 
-import { ReactNode, useState } from "react";
+import { ReactNode, useState, useEffect } from "react";
 import {
   Calendar,
   Loader2,
@@ -36,10 +36,60 @@ function DashboardLayoutContent({ children }: { children: ReactNode }) {
   const { selectedCampaign, handleSave, isSaving, setIsSaving } = useDashboard();
   const [activeView, setActiveView] = useState<View>("dayparting");
   
-  const { isConnected, isLoading, showAuthModal, handleAuthSuccess } = useAmazonAuth();
+  const { isConnected, showAuthModal, handleAuthSuccess, handleAuthError, setShowAuthModal } = useAmazonAuth();
+
+  const campaignsQuery = useCampaigns({
+    type: "SPONSORED_PRODUCTS",
+    limit: 15,
+  });
 
   const isScheduledPage = activeView === "scheduled";
-  const isAuthReady = isConnected && !isLoading;
+  const isAuthReady = isConnected && !campaignsQuery.isLoading;
+
+  useEffect(() => {
+    // SUCCESS: data arrived → mark connected, hide modal
+    if (campaignsQuery.data && !campaignsQuery.isError) {
+      if (!isConnected) {
+        handleAuthSuccess()
+      }
+      setShowAuthModal(false)
+      return
+    }
+
+    // FAILURE: only show modal if we're NOT already connected
+    // (prevents overriding handleAuthSuccess() while refetch is in flight)
+    if (campaignsQuery.isError && campaignsQuery.error && !isConnected) {
+      const err = campaignsQuery.error as any
+      
+      const errorMessage = 
+        err?.data?.error || 
+        err?.data?.message || 
+        err?.message || 
+        String(err)
+      
+      const isAuthError = 
+        err?.status === 401 ||
+        (err?.status === 500 && (
+          errorMessage.includes('No Amazon token') ||
+          errorMessage.includes('Amazon Advertising session not found') ||
+          errorMessage.includes('Unauthorized') ||
+          errorMessage.includes('OAuth state') ||
+          errorMessage.includes('session expired')
+        ))
+
+      if (isAuthError) {
+        handleAuthError()
+      }
+    }
+  }, [
+    campaignsQuery.data,
+    campaignsQuery.isError,
+    campaignsQuery.error,
+    isConnected,
+    handleAuthSuccess,
+    handleAuthError,
+    setShowAuthModal,
+  ])
 
   const onSave = async () => {
     setIsSaving(true);
@@ -52,6 +102,11 @@ function DashboardLayoutContent({ children }: { children: ReactNode }) {
     }
   };
 
+  const onAuthSuccess = () => {
+    handleAuthSuccess()
+    campaignsQuery.refetch()
+  }
+
   return (
     <div className="relative flex h-screen bg-[#F8FAFC] dark:bg-zinc-950">
       
@@ -59,7 +114,7 @@ function DashboardLayoutContent({ children }: { children: ReactNode }) {
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
           <AmazonAuthModal
             isOpen={showAuthModal}
-            onSuccess={handleAuthSuccess}
+            onSuccess={onAuthSuccess}
           />
         </div>
       )}
@@ -134,23 +189,8 @@ function DashboardLayoutContent({ children }: { children: ReactNode }) {
 }
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
-  const campaignsQuery: any = useCampaigns({
-    type: "SPONSORED_PRODUCTS",
-    limit: 15,
-  });
-
-  const initialCampaigns: Campaign[] =
-    campaignsQuery.data?.map((campaign: any) => ({
-      id: campaign.campaignId.toString(),
-      name: campaign.name,
-      status: campaign.state.toUpperCase() as Campaign["status"],
-      adProduct: campaign.adProduct,
-      marketplaces: campaign.marketplaces,
-      creationDateTime: campaign.creationDateTime,
-    })) || [];
-
   return (
-    <DashboardProvider initialCampaigns={initialCampaigns}>
+    <DashboardProvider initialCampaigns={[]}>
       <DashboardLayoutContent>{children}</DashboardLayoutContent>
     </DashboardProvider>
   );

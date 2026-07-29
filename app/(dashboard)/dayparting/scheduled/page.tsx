@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { formatInTimeZone } from "date-fns-tz";
 import { useScheduledJobs } from "@/hooks/use-scheduled-jobs";
 import { useDashboard } from "@/lib/context/dashboard-context";
+import { parseISO } from 'date-fns'
 
 const TARGET_TZ = "America/Los_Angeles";
 const MAX_VISIBLE = 10;
@@ -19,6 +20,37 @@ const statusColors: Record<string, string> = {
   failed: "bg-red-100 text-red-800",
   cancelled: "bg-gray-100 text-gray-800",
 };
+
+
+function safeFormatPDT(value: any, fmt: string): string {
+  if (!value || value === 'null' || value === 'undefined' || value === '') {
+    return 'N/A'
+  }
+
+  try {
+    let date: Date
+
+    if (typeof value === 'string') {
+      // SQL datetime: "2026-08-03 12:00:00" → treat as UTC by injecting T and Z
+      if (value.includes(' ') && !value.includes('T')) {
+        date = parseISO(value.replace(' ', 'T') + 'Z')
+      } else {
+        // Already ISO: "2026-08-03T12:00:00Z" or "2026-08-03T12:00:00"
+        date = parseISO(value)
+      }
+    } else {
+      date = new Date(value)
+    }
+
+    if (isNaN(date.getTime())) {
+      return 'N/A'
+    }
+
+    return formatInTimeZone(date, TARGET_TZ, fmt)
+  } catch {
+    return 'N/A'
+  }
+}
 
 function useDebounce<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState(value);
@@ -270,10 +302,8 @@ export default function ScheduledCampaignsPage() {
               </tr>
             ) : (
               jobs.map((job: any) => {
-                const executeAtPDT = job.executeAt
-                  ? formatInTimeZone(new Date(job.executeAt), TARGET_TZ, "yyyy-MM-dd")
-                  : "N/A";
-                const executeTimePDT = job.executeAt ? formatInTimeZone(new Date(job.executeAt), TARGET_TZ, "hh:mm a") : "N/A";
+                const executeAtPDT = safeFormatPDT(job.executeAt, 'yyyy-MM-dd')
+                const executeTimePDT = safeFormatPDT(job.executeAt, 'hh:mm a')
 
                 const slot = job.schedule?.timeSlots?.[0];
 
@@ -299,9 +329,7 @@ export default function ScheduledCampaignsPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-center text-zinc-500 text-xs">
-                      {job.createdAt
-                        ? formatInTimeZone(new Date(job.createdAt), TARGET_TZ, "MMM dd, yyyy HH:mm")
-                        : "N/A"}
+                      {safeFormatPDT(job.createdAt, 'MMM dd, yyyy HH:mm')}
                     </td>
                   </tr>
                 );

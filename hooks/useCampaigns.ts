@@ -17,15 +17,16 @@ import type {
 // CURSOR-BASED QUERY (dayparting sidebar)
 // ============================================
 
-export type UseCampaignsOptions = GetCampaignsParams
+export type UseCampaignsOptions = GetCampaignsParams & { enabled?: boolean }
 
 export function useCampaigns(options: UseCampaignsOptions) {
-  const { type, cursor, limit = 15, search, state } = options
+  const { type, cursor, limit = 15, search, state, enabled = true } = options
   const isSearchActive = !!search && search.trim().length > 0
 
   const query = useGetCampaignsQuery(
     { type, cursor, limit, search, state },
-    { refetchOnMountOrArgChange: isSearchActive }
+    { refetchOnMountOrArgChange: isSearchActive, skip: !enabled }
+    
   )
 
   // Mutations
@@ -40,6 +41,7 @@ export function useCampaigns(options: UseCampaignsOptions) {
     data: query.data,
     isLoading: query.isLoading,
     isError: query.isError,
+    error: query.error, 
     isRefetching: query.isFetching && !query.isLoading,
     isFetching: query.isFetching,
     refetch: query.refetch,

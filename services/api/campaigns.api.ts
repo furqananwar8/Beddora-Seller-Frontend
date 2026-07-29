@@ -126,13 +126,16 @@ export const campaignsApi = baseApi.injectEndpoints({
           method: 'GET',
         }
       },
-      providesTags: (result) =>
-        result
-          ? [
-              ...result.campaigns.map((c) => ({ type: 'Campaigns' as const, id: c.campaignId })),
-              'Campaigns',
-            ]
-          : ['Campaigns'],
+      providesTags: (result) => {
+        const campaigns = result?.campaigns
+        if (!Array.isArray(campaigns) || campaigns.length === 0) {
+          return ['Campaigns']
+        }
+        return [
+          ...campaigns.map((c: any) => ({ type: 'Campaigns' as const, id: c.campaignId })),
+          'Campaigns',
+        ]
+      },
       keepUnusedDataFor: 300,
     }),
 
