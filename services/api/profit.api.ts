@@ -264,6 +264,45 @@ export interface ProfitFilters {
   currency?: string
 }
 
+export interface ProductProfitBreakdown {
+  sku: string
+  productId: string | null
+  productTitle: string | null
+  asin: string | null
+  imageUrl: string | null
+  unitsSold: number
+  totalCOGS: number
+  totalCOGSQty: number
+  cogsPerUnit: number
+  salesVelocity: number
+}
+
+export interface ProductBreakdownResponse {
+  success: boolean
+  data: ProductProfitBreakdown[]
+  totalRecords: number
+  totalPages: number
+  page: number
+  limit: number
+}
+
+export interface ProfitFilters {
+  startDate?: string
+  endDate?: string
+  accountId?: string
+  amazonAccountId?: string
+  marketplaceId?: string
+  marketplaces?: string[]
+  sku?: string
+  period?: 'day' | 'week' | 'month'
+  preset?: string
+  currency?: string
+  page?: number
+  limit?: number
+  cogsSet?: 'all' | 'set' | 'notSet'
+  search?: string
+}
+
 // ============================================
 // RTK QUERY ENDPOINTS
 // ============================================
@@ -287,12 +326,11 @@ export const profitApi = baseApi.injectEndpoints({
       keepUnusedDataFor: 120,
     }),
 
-    getProfitByProduct: builder.query<ProductProfitBreakdown[], ProfitFilters>({
+    getProfitByProduct: builder.query<ProductBreakdownResponse, ProfitFilters>({
       query: (filters) => ({
         url: '/profit/by-product',
         params: filters,
       }),
-      transformResponse: (response: ProductBreakdownResponse) => response.data,
       providesTags: ['Profit'],
       keepUnusedDataFor: 180,
     }),

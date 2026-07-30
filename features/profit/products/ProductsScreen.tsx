@@ -3,53 +3,66 @@
 import React, { useState, useMemo } from 'react'
 import { Container } from '@/components/layout'
 import { Button } from '@/design-system/buttons'
-import { Select, Input } from '@/design-system/inputs'
+import { Input } from '@/design-system/inputs'
 import { Card, CardContent } from '@/design-system/cards'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/design-system/tables'
 import { Badge } from '@/design-system/badges'
-import { useAppDispatch, useAppSelector } from '@/store/hooks'
-import { setFilters } from '@/store/profit.slice'
+import { useAppSelector, useAppDispatch } from '@/store/hooks'
+import { addNotification } from '@/store/ui.slice' // ← adjust path to your slice
 import { useGetAccountsQuery } from '@/services/api/accounts.api'
 import { useGetProfitByProductQuery } from '@/services/api/profit.api'
-import { formatCurrency, formatNumber, formatPercentage } from '@/utils/format'
+import { useUpdateCOGSPerSkuMutation } from '@/services/api/cogs.api'
+import { PaginationFooter } from '@/components/pagination-footer/PaginationFooter'
+import { formatNumber } from '@/utils/format'
 import { TableSkeleton } from '@/design-system/loaders'
 
-type SortColumn = 'product' | 'cogs' | 'profitPerUnit' | 'tags'
+type SortColumn = 'product' | 'cogs' | 'salesVelocity'
 type SortDirection = 'asc' | 'desc'
 
+interface EditedCOGS {
+  [sku: string]: string
+}
+
 export const ProductsScreen: React.FC = () => {
-  const dispatch = useAppDispatch()
   const profitFilters = useAppSelector((state) => state.profit.filters)
+  const dispatch = useAppDispatch()
   const { data: accountsData } = useGetAccountsQuery()
 
   const [searchTerm, setSearchTerm] = useState('')
+  const [appliedSearch, setAppliedSearch] = useState('')
+  const [pendingCogsSet, setPendingCogsSet] = useState<'all' | 'set' | 'notSet'>('all')
+  const [appliedCogsSet, setAppliedCogsSet] = useState<'all' | 'set' | 'notSet'>('all')
+  const [page, setPage] = useState(1)
   const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set())
   const [sortColumn, setSortColumn] = useState<SortColumn>('product')
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
-  const [groupBy, setGroupBy] = useState('product')
-  const [showHidden, setShowHidden] = useState(false)
+  const [editedCOGS, setEditedCOGS] = useState<EditedCOGS>({})
 
   const effectiveAccountId = profitFilters.accountId || accountsData?.[0]?.id
+  const limit = 10
 
-  // Get default date range (last 30 days)
-  const dateRange = useMemo(() => {
-    const end = new Date()
-    const start = new Date()
-    start.setDate(start.getDate() - 30)
-    return {
-      startDate: start.toISOString().split('T')[0],
-      endDate: end.toISOString().split('T')[0],
-    }
-  }, [])
-
-  const { data: productsData, isLoading } = useGetProfitByProductQuery(
+  const { data: productsResponse, isLoading, isFetching } = useGetProfitByProductQuery(
     {
-      ...profitFilters,
       accountId: effectiveAccountId,
-      ...dateRange,
+      page,
+      limit,
+      cogsSet: appliedCogsSet,
+      search: appliedSearch,
     },
     { skip: !effectiveAccountId }
   )
+
+  const isBusy = isLoading || isFetching
+
+  const productsData = productsResponse?.data ?? []
+  const totalRecords = productsResponse?.totalRecords ?? 0
+  const totalPages = productsResponse?.totalPages ?? 0
+
+  const [updateCOGS, { isLoading: isUpdatingCOGS }] = useUpdateCOGSPerSkuMutation()
+
+  const showToast = (message: string, type: 'success' | 'error' | 'warning' | 'info') => {
+    dispatch(addNotification({ message, type }))
+  }
 
   const handleSort = (column: SortColumn) => {
     if (sortColumn === column) {
@@ -71,29 +84,61 @@ export const ProductsScreen: React.FC = () => {
   }
 
   const toggleSelectAll = () => {
-    if (selectedProducts.size === filteredAndSortedProducts.length) {
+    if (selectedProducts.size === sortedProducts.length) {
       setSelectedProducts(new Set())
     } else {
-      setSelectedProducts(new Set(filteredAndSortedProducts.map((p) => p.sku)))
+      setSelectedProducts(new Set(sortedProducts.map((p) => p.sku)))
     }
   }
 
-  const filteredAndSortedProducts = useMemo(() => {
-    if (!productsData) return []
-    let result = [...productsData]
-
-    // Filter by search term
-    if (searchTerm) {
-      const lower = searchTerm.toLowerCase()
-      result = result.filter(
-        (product) =>
-          product.productTitle?.toLowerCase().includes(lower) ||
-          product.sku?.toLowerCase().includes(lower) ||
-          product.productId?.toLowerCase().includes(lower)
-      )
+  const handleCOGSChange = (sku: string, value: string) => {
+    if (value === '' || /^\d*\.?\d{0,2}$/.test(value)) {
+      setEditedCOGS((prev) => ({ ...prev, [sku]: value }))
     }
+  }
 
-    // Sort
+  const handleApplyFilters = () => {
+    setAppliedCogsSet(pendingCogsSet)
+    setAppliedSearch(searchTerm.trim())
+    setPage(1)
+    setSelectedProducts(new Set())
+  }
+
+  const handlePageChange = (newPage: number) => {
+    setPage(newPage)
+  }
+
+  const handleSave = async () => {
+    const updates = Object.entries(editedCOGS)
+      .filter(([_, value]) => value !== '' && !isNaN(parseFloat(value)))
+      .map(([sku, value]) => ({ sku, cogs: parseFloat(value) }))
+
+    if (updates.length === 0) return
+
+    try {
+      await updateCOGS({ items: [...updates] }).unwrap()
+      showToast(
+        `COGS saved for ${updates.length} product${updates.length > 1 ? 's' : ''}`,
+        'success'
+      )
+      setEditedCOGS({})
+    } catch (err: any) {
+      const message = err?.data?.message || err?.message || 'Failed to update COGS'
+      showToast(message, 'error')
+      console.error('Failed to update COGS:', err)
+    }
+  }
+
+  const handleDiscard = () => {
+    setEditedCOGS({})
+    showToast('Changes discarded', 'info')
+  }
+
+  const hasEdits = Object.keys(editedCOGS).length > 0
+
+  const sortedProducts = useMemo(() => {
+    const result = [...productsData]
+
     result.sort((a, b) => {
       let aVal: any = 0
       let bVal: any = 0
@@ -104,12 +149,12 @@ export const ProductsScreen: React.FC = () => {
           bVal = b.productTitle || b.sku || ''
           break
         case 'cogs':
-          aVal = a.totalCOGS || 0
-          bVal = b.totalCOGS || 0
+          aVal = a.cogsPerUnit || 0
+          bVal = b.cogsPerUnit || 0
           break
-        case 'profitPerUnit':
-          aVal = a.unitsSold > 0 ? (a.netProfit / a.unitsSold) : 0
-          bVal = b.unitsSold > 0 ? (b.netProfit / b.unitsSold) : 0
+        case 'salesVelocity':
+          aVal = a.salesVelocity || 0
+          bVal = b.salesVelocity || 0
           break
         default:
           aVal = 0
@@ -124,41 +169,20 @@ export const ProductsScreen: React.FC = () => {
     })
 
     return result
-  }, [productsData, searchTerm, sortColumn, sortDirection])
-
-  const handleExport = () => {
-    // TODO: Implement export functionality
-    console.log('Export products')
-  }
-
-  const handleImport = () => {
-    // TODO: Implement import functionality
-    console.log('Import products')
-  }
-
-  const handleRefresh = () => {
-    // TODO: Implement refresh functionality
-    console.log('Refresh products')
-  }
-
-  const handleSave = () => {
-    // TODO: Implement save functionality
-    console.log('Save changes')
-  }
+  }, [productsData, sortColumn, sortDirection])
 
   return (
-    <Container size="full">
+    <Container size="full" className="h-[calc(100vh-100px)] flex flex-col">
       {/* Page Header */}
-      <div className="mb-6">
+      <div className="shrink-0 mb-6">
         <h1 className="text-2xl font-semibold text-text-primary">Products</h1>
       </div>
 
-      {/* Top Toolbar - Search and Filters */}
-      <div className="bg-surface border-b border-border mb-4">
+      {/* Top Toolbar */}
+      <div className="shrink-0 bg-surface border-b border-border mb-4">
         <div className="px-6 py-4">
-          <div className="flex items-center justify-between gap-4">
-            {/* Search */}
-            <div className="flex-1 max-w-md">
+          <div className="flex items-center gap-4">
+            <div className="w-[70%]">
               <div className="relative">
                 <svg
                   className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted"
@@ -175,309 +199,231 @@ export const ProductsScreen: React.FC = () => {
                 </svg>
                 <Input
                   type="text"
-                  placeholder="Search"
+                  placeholder="Search by SKU, title, or ASIN..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleApplyFilters()
+                  }}
+                  className="pl-10 w-full"
                 />
               </div>
             </div>
 
-            {/* More Filters Dropdown */}
-            <Select
-              value="more-filters"
-              onChange={() => undefined}
-              options={[
-                { value: 'more-filters', label: 'More filters' },
-                { value: 'tags', label: 'Filter by Tags' },
-                { value: 'cogs', label: 'Filter by COGS' },
-              ]}
-              className="min-w-[140px]"
-            />
+            <div className="w-[30%] flex items-center justify-end gap-3">
+              <select
+                value={pendingCogsSet}
+                onChange={(e) => setPendingCogsSet(e.target.value as 'all' | 'set' | 'notSet')}
+                className="h-9 w-40 px-3 text-sm border border-border rounded-md bg-surface text-text-primary focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary cursor-pointer"
+              >
+                <option value="all">Any COGS</option>
+                <option value="set">COGS set</option>
+                <option value="notSet">COGS not set</option>
+              </select>
 
-            {/* Filter Button */}
-            <Button variant="primary">Filter</Button>
+              <Button
+                variant="primary"
+                onClick={handleApplyFilters}
+                isLoading={isFetching}
+              >
+                Filter
+              </Button>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Action Toolbar */}
-      <Card className="mb-4">
-        <CardContent className="p-4">
-          <div className="flex items-center justify-between flex-wrap gap-3">
-            {/* Left Side - Group By */}
-            <div className="flex items-center gap-3">
-              <Select
-                value={groupBy}
-                onChange={(e) => setGroupBy(e.target.value)}
-                options={[
-                  { value: 'product', label: 'Group by product' },
-                  { value: 'parent', label: 'Group by parent' },
-                  { value: 'category', label: 'Group by category' },
-                  { value: 'brand', label: 'Group by brand' },
-                  { value: 'supplier', label: 'Group by supplier' },
-                ]}
-                className="min-w-[180px]"
-              />
-            </div>
-
-            {/* Right Side - Action Buttons */}
-            <div className="flex items-center gap-2 flex-wrap">
-              <Button variant="secondary" size="sm" onClick={handleImport}>
-                Import
-              </Button>
-              <Button variant="secondary" size="sm" onClick={handleExport}>
-                Export
-              </Button>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => setShowHidden(!showHidden)}
-              >
-                {showHidden ? 'Hide Hidden' : 'Show Hidden'}
-              </Button>
-              <Button
-                variant="secondary"
-                size="sm"
-                disabled={selectedProducts.size === 0}
-              >
-                Hide
-              </Button>
-              <Button variant="secondary" size="sm" disabled={selectedProducts.size === 0}>
-                Create multi-product batch
-              </Button>
-              <Button variant="secondary" size="sm" onClick={handleRefresh}>
-                Refresh
-              </Button>
-              <Button variant="primary" size="sm" onClick={handleSave}>
-                Save
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Products Table */}
-      <Card>
-        <CardContent className="p-0">
-          {isLoading ? (
+      <Card className="flex-1 flex flex-col min-h-0">
+        <CardContent className="p-0 flex flex-col h-full">
+          {isBusy ? (
             <div className="p-6">
-              <TableSkeleton rows={10} columns={8} />
+              <TableSkeleton rows={10} columns={5} />
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-12">
-                      <input
-                        type="checkbox"
-                        checked={selectedProducts.size === filteredAndSortedProducts.length}
-                        onChange={toggleSelectAll}
-                        className="cursor-pointer"
-                      />
-                    </TableHead>
-                    <TableHead
-                      className="cursor-pointer hover:bg-surface-secondary min-w-[350px]"
-                      onClick={() => handleSort('product')}
-                    >
-                      Product
-                    </TableHead>
-                    <TableHead className="whitespace-nowrap">Tags</TableHead>
-                    <TableHead
-                      className="cursor-pointer hover:bg-surface-secondary text-right whitespace-nowrap"
-                      onClick={() => handleSort('cogs')}
-                    >
-                      COGS
-                    </TableHead>
-                    <TableHead className="text-center whitespace-nowrap">
-                      Value of unsellable returns (%)
-                    </TableHead>
-                    <TableHead className="text-center w-12">
-                      <svg className="w-4 h-4 mx-auto text-text-muted" fill="currentColor" viewBox="0 0 20 20">
-                        <path
-                          fillRule="evenodd"
-                          d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-                          clipRule="evenodd"
+            <>
+              <div className="overflow-auto flex-1 min-h-0">
+                <Table className="w-full table-fixed">
+                  <TableHeader>
+                    <TableRow className="sticky top-0 z-20 bg-surface shadow-sm">
+                      <TableHead className="w-12 text-center">
+                        <input
+                          type="checkbox"
+                          checked={
+                            sortedProducts.length > 0 &&
+                            selectedProducts.size === sortedProducts.length
+                          }
+                          onChange={toggleSelectAll}
+                          className="cursor-pointer"
                         />
-                      </svg>
-                    </TableHead>
-                    <TableHead className="whitespace-nowrap">Shipping profile</TableHead>
-                    <TableHead
-                      className="cursor-pointer hover:bg-surface-secondary text-right whitespace-nowrap"
-                      onClick={() => handleSort('profitPerUnit')}
-                    >
-                      Profit per unit
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredAndSortedProducts.length > 0 ? (
-                    filteredAndSortedProducts.map((product) => {
-                      const profitPerUnit =
-                        product.unitsSold > 0 ? product.netProfit / product.unitsSold : 0
-                      const unitPrice =
-                        product.unitsSold > 0 ? product.salesRevenue / product.unitsSold : 0
-                      const cogsPerUnit =
-                        product.unitsSold > 0 ? product.totalCOGS / product.unitsSold : 0
-
-                      return (
-                        <TableRow key={product.sku} className="hover:bg-surface-secondary">
-                          <TableCell>
-                            <input
-                              type="checkbox"
-                              checked={selectedProducts.has(product.sku)}
-                              onChange={() => toggleProductSelection(product.sku)}
-                              className="cursor-pointer"
-                            />
-                          </TableCell>
-
-                          {/* Product Column */}
-                          <TableCell>
-                            <div className="flex items-start gap-3">
-                              {/* Product Image Placeholder */}
-                              <div className="w-12 h-12 bg-surface-secondary flex items-center justify-center flex-shrink-0 overflow-hidden">
-                                {product.productId ? (
-                                  <svg
-                                    className="w-6 h-6 text-text-muted"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                      d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
-                                    />
-                                  </svg>
-                                ) : null}
-                              </div>
-
-                              {/* Product Info */}
-                              <div className="flex-1 min-w-0">
-                                {/* Product ID */}
-                                {product.productId && (
-                                  <div className="text-xs text-text-muted mb-0.5 truncate">
-                                    {product.productId}
-                                  </div>
-                                )}
-                                {/* SKU */}
-                                <div className="text-xs text-text-muted mb-1 truncate">
-                                  SKU: {product.sku}
-                                </div>
-                                {/* Product Name */}
-                                <div className="font-medium text-text-primary text-sm mb-1.5 line-clamp-2 break-words">
-                                  {product.productTitle || 'Unnamed Product'}
-                                </div>
-                                {/* Price, COGS, FBA Stock */}
-                                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-                                  {/* Price */}
-                                  <div>
-                                    <span className="text-text-primary font-medium">
-                                      {formatCurrency(unitPrice)}
-                                    </span>
-                                  </div>
-                                  {/* COGS */}
-                                  <div>
-                                    <span className="text-text-muted">COGS </span>
-                                    <span className="text-text-primary font-medium">
-                                      {formatCurrency(cogsPerUnit)}
-                                    </span>
-                                  </div>
-                                  {/* FBA Stock */}
-                                  <div className="flex items-center gap-1">
-                                    <span className="text-text-primary font-medium">0</span>
-                                    <span className="text-text-muted text-xs">FBA</span>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          </TableCell>
-
-                          {/* Tags */}
-                          <TableCell>
-                            <Badge variant="secondary" size="sm">
-                              #FBA
-                            </Badge>
-                          </TableCell>
-
-                          {/* COGS */}
-                          <TableCell className="text-right whitespace-nowrap">
-                            {formatCurrency(product.totalCOGS || 0)}
-                          </TableCell>
-
-                          {/* Value of unsellable returns */}
-                          <TableCell className="text-center whitespace-nowrap">
-                            0%
-                          </TableCell>
-
-                          {/* Info Icon */}
-                          <TableCell className="text-center">
-                            <button className="text-text-muted hover:text-text-primary">
-                              <svg
-                                className="w-4 h-4 mx-auto"
-                                fill="currentColor"
-                                viewBox="0 0 20 20"
-                              >
-                                <path
-                                  fillRule="evenodd"
-                                  d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-                                  clipRule="evenodd"
-                                />
-                              </svg>
-                            </button>
-                          </TableCell>
-
-                          {/* Shipping Profile */}
-                          <TableCell className="whitespace-nowrap">
-                            <span className="text-sm">Default</span>
-                          </TableCell>
-
-                          {/* Profit per Unit */}
-                          <TableCell className="text-right whitespace-nowrap">
-                            <span
-                              className={`font-medium ${
-                                profitPerUnit >= 0 ? 'text-success-600' : 'text-danger-600'
-                              }`}
-                            >
-                              {formatCurrency(profitPerUnit)}
-                            </span>
-                          </TableCell>
-                        </TableRow>
-                      )
-                    })
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={8} className="text-center text-text-muted py-8">
-                        No products found
-                      </TableCell>
+                      </TableHead>
+                      <TableHead
+                        className="min-w-[320px] w-[45%] cursor-pointer hover:bg-surface-secondary text-center"
+                        onClick={() => handleSort('product')}
+                      >
+                        Product {sortColumn === 'product' && (sortDirection === 'asc' ? '↑' : '↓')}
+                      </TableHead>
+                      <TableHead className="w-24 text-center">Tags</TableHead>
+                      <TableHead
+                        className="w-32 cursor-pointer hover:bg-surface-secondary text-center"
+                        onClick={() => handleSort('cogs')}
+                      >
+                        COGS {sortColumn === 'cogs' && (sortDirection === 'asc' ? '↑' : '↓')}
+                      </TableHead>
+                      <TableHead
+                        className="w-36 cursor-pointer hover:bg-surface-secondary text-center"
+                        onClick={() => handleSort('salesVelocity')}
+                      >
+                        Sales velocity {sortColumn === 'salesVelocity' && (sortDirection === 'asc' ? '↑' : '↓')}
+                      </TableHead>
                     </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </div>
+                  </TableHeader>
+                  <TableBody>
+                    {sortedProducts.length > 0 ? (
+                      sortedProducts.map((product) => {
+                        const editedValue = editedCOGS[product.sku]
+                        const displayCOGS =
+                          editedValue !== undefined
+                            ? editedValue
+                            : product.cogsPerUnit > 0
+                            ? product.cogsPerUnit.toFixed(2)
+                            : ''
+
+                        return (
+                          <TableRow key={product.sku} className="hover:bg-surface-secondary">
+                            <TableCell className="w-12 text-center">
+                              <input
+                                type="checkbox"
+                                checked={selectedProducts.has(product.sku)}
+                                onChange={() => toggleProductSelection(product.sku)}
+                                className="cursor-pointer"
+                              />
+                            </TableCell>
+
+                            <TableCell className="min-w-[320px] w-[45%] text-center">
+                              <div className="flex items-start justify-center gap-3">
+                                <div className="w-12 h-12 bg-surface-secondary flex items-center justify-center flex-shrink-0 overflow-hidden rounded">
+                                  {product.imageUrl ? (
+                                    <img
+                                      src={product.imageUrl}
+                                      alt={product.productTitle || product.sku}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  ) : (
+                                    <svg
+                                      className="w-6 h-6 text-text-muted"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      viewBox="0 0 24 24"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+                                      />
+                                    </svg>
+                                  )}
+                                </div>
+                                <div className="flex-1 min-w-0 text-left">
+                                  {product.productId && (
+                                    <div className="text-xs text-text-muted mb-0.5 truncate">
+                                      {product.productId}
+                                    </div>
+                                  )}
+                                  <div className="text-xs text-text-muted mb-1 truncate">
+                                    SKU: {product.sku}
+                                  </div>
+                                  <div className="font-medium text-text-primary text-sm mb-1 line-clamp-2 break-words">
+                                    {product.productTitle || 'Unnamed Product'}
+                                  </div>
+                                  <div className="text-xs text-text-muted">
+                                    Units sold: {formatNumber(product.unitsSold)} · FBA: 0
+                                  </div>
+                                </div>
+                              </div>
+                            </TableCell>
+
+                            <TableCell className="w-24 text-center">
+                              <Badge variant="secondary" size="sm">
+                                #FBA
+                              </Badge>
+                            </TableCell>
+
+                            <TableCell className="w-32 text-center whitespace-nowrap">
+                              <div className="flex items-center justify-center gap-1">
+                                <span className="text-text-muted text-sm">C$</span>
+                                <input
+                                  type="text"
+                                  inputMode="decimal"
+                                  value={displayCOGS}
+                                  onChange={(e) => handleCOGSChange(product.sku, e.target.value)}
+                                  className="w-14 text-center text-sm border border-border rounded px-1 py-1 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary bg-surface"
+                                  placeholder="—"
+                                />
+                              </div>
+                            </TableCell>
+
+                            <TableCell className="w-36 text-center whitespace-nowrap">
+                              <span className="text-text-primary font-medium">
+                                {formatNumber(product.salesVelocity)}
+                              </span>
+                              <span className="text-text-muted text-xs ml-1">units/day</span>
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center text-text-muted py-8">
+                          No products found
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {totalRecords > 0 && (
+                <div className="shrink-0 border-t border-border">
+                  <PaginationFooter
+                    page={page}
+                    pageSize={limit}
+                    totalItems={totalRecords}
+                    totalPages={totalPages}
+                    onPageChange={handlePageChange}
+                    itemLabel="products"
+                  />
+                </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>
 
-      {/* Bottom Toolbar - if items selected */}
-      {selectedProducts.size > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-surface border border-border shadow-lg px-6 py-3 z-50">
-          <div className="flex items-center gap-4">
+      {/* Save Bar */}
+        <div className="shrink-0 mt-4 bg-surface border border-border rounded-lg px-6 py-3">
+          <div className="flex items-center justify-end gap-4">
             <span className="text-sm text-text-muted">
-              {selectedProducts.size} product{selectedProducts.size > 1 ? 's' : ''} selected
+              {Object.keys(editedCOGS).length} product{Object.keys(editedCOGS).length > 1 ? 's' : ''} modified
             </span>
             <Button
               variant="secondary"
               size="sm"
-              onClick={() => setSelectedProducts(new Set())}
+              onClick={handleDiscard}
             >
-              Clear
+              Discard
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={handleSave}
+              isLoading={isUpdatingCOGS}
+            >
+              Save Changes
             </Button>
           </div>
         </div>
-      )}
     </Container>
   )
 }

@@ -46,6 +46,11 @@ export interface CreateBatchRequest {
   receivedAt?: string
 }
 
+export interface BulkUpdateCOGSRequest {
+  sku: string
+  cogs: number
+}
+
 export interface COGSResponse {
   id: string
   sku: string
@@ -177,6 +182,19 @@ export const cogsApi = baseApi.injectEndpoints({
     }),
 
     /**
+     * Bulk update COGS per SKU
+     * Creates/updates COGS entries for multiple products at once
+     */
+    updateCOGSPerSku: builder.mutation<void, any>({
+      query: (body) => ({
+        url: '/cogs/bulk',
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: ['Profit'],
+    }),
+
+    /**
      * Get batch details
      */
     getBatchDetails: builder.query<BatchDetailsResponse, string>({
@@ -231,6 +249,7 @@ export const {
   useGetCOGSBySKUQuery,
   useCreateCOGSMutation,
   useUpdateCOGSMutation,
+  useUpdateCOGSPerSkuMutation,
   useGetBatchDetailsQuery,
   useCreateBatchMutation,
   useGetCOGSHistoricalQuery,
@@ -238,4 +257,3 @@ export const {
   useLazyGetCOGSBySKUQuery,
   useLazyGetCOGSHistoricalQuery,
 } = cogsApi
-
