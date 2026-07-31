@@ -1,9 +1,10 @@
 'use client'
 
-import React from 'react'
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/design-system/tables'
+import React, { useMemo, useRef, useCallback, useEffect } from 'react'
+import { TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/design-system/tables'
 import { PaginationFooter } from '@/components/pagination-footer/PaginationFooter'
 import { TableSkeleton } from '@/design-system/loaders'
+import { cn } from '@/utils/cn'
 
 export type SortDirection = 'asc' | 'desc'
 
@@ -14,6 +15,9 @@ export interface ColumnDef<T = any> {
   align?: 'left' | 'center' | 'right'
   sortable?: boolean
   sortKey?: string
+  heatmap?: 'green' | 'red' | 'neutral'
+  headerClassName?: string
+  cellClassName?: string
 }
 
 export interface PaginationConfig {
@@ -31,16 +35,17 @@ export interface PaginationConfig {
 interface BaseProps {
   columns: ColumnDef[]
   wrapperClassName?: string
-  isLoading?: boolean        // STRICT: initial / full-table refetch ONLY
+  isLoading?: boolean
   skeletonRows?: number
   emptyMessage?: string
+  emptyState?: React.ReactNode
   pagination?: PaginationConfig
   sortColumn?: string
   sortDirection?: SortDirection
   onSort?: (sortKey: string) => void
   headerClassName?: string
   bodyClassName?: string
-  pendingRowKeys?: Set<string> // NEW: which rows are currently mutating
+  pendingRowKeys?: Set<string>
 }
 
 /* ────────────────────────────────────────────────────────────────
@@ -53,7 +58,7 @@ export interface GenericProps<T> extends BaseProps {
     row: T,
     column: ColumnDef<T>,
     rowIndex: number,
-    meta: { isPending: boolean } // NEW
+    meta: { isPending: boolean }
   ) => React.ReactNode
 }
 
@@ -79,6 +84,7 @@ export function SplitTable<T = any>(props: GenericProps<T> | SimpleProps): React
     isLoading = false,
     skeletonRows = 10,
     emptyMessage = 'No data found',
+    emptyState,
     pagination,
     sortColumn,
     sortDirection,
@@ -87,6 +93,22 @@ export function SplitTable<T = any>(props: GenericProps<T> | SimpleProps): React
     bodyClassName = '',
     pendingRowKeys,
   } = props
+
+  /* ── scroll sync refs ── */
+  const headerRef = useRef<HTMLDivElement>(null)
+  const bodyRef = useRef<HTMLDivElement>(null)
+
+  /* ── body drives header ── */
+  const handleBodyScroll = useCallback(() => {
+    if (headerRef.current && bodyRef.current) {
+      headerRef.current.scrollLeft = bodyRef.current.scrollLeft
+    }
+  }, [])
+
+  /* ── re-sync when data changes ── */
+  useEffect(() => {
+    handleBodyScroll()
+  }, [data, handleBodyScroll])
 
   /* ── runtime validations ── */
   if (!Array.isArray(columns) || columns.length === 0) {
@@ -124,6 +146,43 @@ export function SplitTable<T = any>(props: GenericProps<T> | SimpleProps): React
         `[SplitTable] Column/data count mismatch at row ${badRow}: ` +
           `expected ${columns.length} cells, got ${simpleData[badRow].length}`
       )
+    }
+  }
+
+  /* ── heatmap ranges (generic mode only) ── */
+  const heatmapRanges = useMemo(() => {
+    if (isSimpleMode) return {} as Record<string, number[]>
+    const ranges: Record<string, number[]> = {}
+    for (const col of columns) {
+      if (col.heatmap && col.heatmap !== 'neutral') {
+        const values: number[] = []
+        for (const row of data as T[]) {
+          const val = (row as any)[col.key]
+          if (typeof val === 'number' && !isNaN(val)) {
+            values.push(val)
+          }
+        }
+        ranges[col.key] = values
+      }
+    }
+    return ranges
+  }, [data, columns, isSimpleMode])
+
+  const getHeatmapBg = (
+    val: number,
+    range: number[] | undefined,
+    type: 'green' | 'red' | 'neutral'
+  ): string | undefined => {
+    if (type === 'neutral' || !range || range.length === 0) return undefined
+    const min = Math.min(...range)
+    const max = Math.max(...range)
+    if (min === max) return undefined
+    const ratio = (val - min) / (max - min)
+    if (type === 'green') {
+      return `rgba(34, 197, 94, ${0.08 + ratio * 0.22})`
+    }
+    if (type === 'red') {
+      return `rgba(239, 68, 68, ${0.08 + (1 - ratio) * 0.22})`
     }
   }
 
@@ -179,31 +238,54 @@ export function SplitTable<T = any>(props: GenericProps<T> | SimpleProps): React
         </div>
       ) : (
         <>
-          {/* Header – fixed, never scrolls */}
-          <div className={`flex flex-col justify-center align-between h-[50px] shrink-0 bg-surface border-b border-border z-20 ${headerClassName}`}>
-            <Table className="h-full w-full table-fixed">
+          {/* ═══════════════════════════════════════════════════════════════
+              HEADER — overflow: hidden. NO ds-table-wrap here.
+              Uses raw <table> instead of <Table> to avoid the inner
+              overflow-x-auto wrapper that Table.tsx injects.
+              ═══════════════════════════════════════════════════════════════ */}
+          <div
+            ref={headerRef}
+            className={cn(
+              'h-[50px] shrink-0 bg-surface border-b border-border z-20 overflow-hidden',
+              headerClassName
+            )}
+          >
+            <table className="h-full min-w-full table-fixed ds-table">
               <TableHeader>
-                <TableRow className="h-full bg-surface shadow-sm">
+                <TableRow className="h-full bg-surface shadow-sm items-center">
                   {columns.map((col) => (
-                <TableHead
-                    key={col.key}
-                    className={`h-full py-4 text-sm font-semibold text-text-primary ${col.width || ''} ${alignClass(col)} ${
-                    col.sortable ? 'cursor-pointer hover:bg-surface-secondary' : ''
-                    }`}
-                    onClick={() => handleSortClick(col)}
-                >
-                    {col.header}
-                    {sortIndicator(col)}
-                </TableHead>
-                ))}
+                    <TableHead
+                      key={col.key}
+                      className={cn(
+                        'h-full text-sm font-semibold text-text-primary',
+                        col.width,
+                        alignClass(col),
+                        col.headerClassName,
+                        col.sortable && 'cursor-pointer hover:bg-surface-secondary'
+                      )}
+                      onClick={() => handleSortClick(col)}
+                    >
+                      <div className="flex items-center h-full">
+                        {col.header}
+                        {sortIndicator(col)}
+                      </div>
+                    </TableHead>
+                  ))}
                 </TableRow>
               </TableHeader>
-            </Table>
+            </table>
           </div>
 
-          {/* Body – scrollable, rows NEVER unmount on mutation */}
-          <div className={`overflow-auto flex-1 min-h-0 ${bodyClassName}`}>
-            <Table className="w-full table-fixed">
+          {/* ═══════════════════════════════════════════════════════════════
+              BODY — overflow-auto = the ONLY scrollbar.
+              Same raw <table> approach. onScroll syncs header scrollLeft.
+              ═══════════════════════════════════════════════════════════════ */}
+          <div
+            ref={bodyRef}
+            className={cn('overflow-auto flex-1 min-h-0', bodyClassName)}
+            onScroll={handleBodyScroll}
+          >
+            <table className="min-w-full table-fixed ds-table">
               <TableBody>
                 {data.length > 0 ? (
                   (data as any[]).map((row, rowIndex) => {
@@ -214,18 +296,34 @@ export function SplitTable<T = any>(props: GenericProps<T> | SimpleProps): React
                       <TableRow
                         key={rowKeyValue}
                         aria-busy={isPending}
-                        className={`hover:bg-surface-secondary ${
-                          isPending ? 'opacity-60' : ''
-                        }`}
+                        className={cn(
+                          'hover:bg-surface-secondary',
+                          isPending && 'opacity-60'
+                        )}
                       >
-                        {columns.map((col) => (
-                          <TableCell
-                            key={col.key}
-                            className={`${col.width || ''} ${alignClass(col)}`}
-                          >
-                            {renderCellContent(row, col, rowIndex, isPending)}
-                          </TableCell>
-                        ))}
+                        {columns.map((col) => {
+                          const heatmapBg = (() => {
+                            if (isSimpleMode || !col.heatmap || col.heatmap === 'neutral')
+                              return undefined
+                            const val = (row as any)[col.key]
+                            if (typeof val !== 'number') return undefined
+                            return getHeatmapBg(val, heatmapRanges[col.key], col.heatmap)
+                          })()
+
+                          return (
+                            <TableCell
+                              key={col.key}
+                              className={cn(
+                                col.width,
+                                alignClass(col),
+                                col.cellClassName
+                              )}
+                              style={heatmapBg ? { backgroundColor: heatmapBg } : undefined}
+                            >
+                              {renderCellContent(row, col, rowIndex, isPending)}
+                            </TableCell>
+                          )
+                        })}
                       </TableRow>
                     )
                   })
@@ -235,12 +333,12 @@ export function SplitTable<T = any>(props: GenericProps<T> | SimpleProps): React
                       colSpan={columns.length}
                       className="text-center text-text-muted py-8"
                     >
-                      {emptyMessage}
+                      {emptyState || emptyMessage}
                     </TableCell>
                   </TableRow>
                 )}
               </TableBody>
-            </Table>
+            </table>
           </div>
 
           {/* Pagination */}

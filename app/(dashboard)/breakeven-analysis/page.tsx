@@ -6,21 +6,13 @@ import { PageHeader } from '@/components/layout';
 import { EmptyState } from '@/components/data-display/EmptyState';
 import { MultiSelectInput } from '@/components/multi-select-input/MultiSelectInput';
 import { MARKETPLACES } from '@/utils/marketplaces';
-import { PaginationFooter } from '@/components/pagination-footer/PaginationFooter';
 import DateRangePicker from '@/components/date-range-picker/DateRangePicker';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/design-system/tables';
 import { Button } from '@/design-system/buttons';
 import { TableSkeleton } from '@/design-system/loaders';
 import { formatCurrency, formatPercentage } from '@/utils/format';
 import { useGetBreakEvenDataQuery } from '@/services/api/breakEven.api';
-import { Select } from '@/design-system/inputs'; // Adjust import path as needed
+import { Select } from '@/design-system/inputs';
+import { SplitTable, ColumnDef, PaginationConfig, SortDirection } from '@/components/split-table/SplitTable';
 
 // ─── Constants ─────────────────────────────────────────────
 const FBA_OPTIONS = [
@@ -118,92 +110,95 @@ type SortColumn =
   | 'allocatedOpex'
   | 'trueNetProfit';
 
-type SortDirection = 'asc' | 'desc';
-
-// ─── Column Definitions ──────────────────────────────────
-interface ColumnDef {
-  key: SortColumn;
-  label: string;
-  align: 'left' | 'right';
-  format?: 'currency' | 'pct' | 'number';
-  heatmap?: 'green' | 'red' | 'neutral';
-  minWidth?: string;
-}
-
-const COLUMNS: ColumnDef[] = [
-  { key: 'sku', label: 'SKU', align: 'left', minWidth: 'min-w-[190px]' },
-  { key: 'description', label: 'Description', align: 'left', minWidth: 'min-w-[310px]' },
-  { key: 'units', label: 'Units', align: 'right', format: 'number', heatmap: 'green', minWidth: 'min-w-[120px]' },
-  { key: 'productSales', label: 'Product Sales', align: 'right', format: 'currency', heatmap: 'green', minWidth: 'min-w-[160px]' },
-  { key: 'promoRebates', label: 'Promo Rebates', align: 'right', format: 'currency', heatmap: 'red', minWidth: 'min-w-[160px]' },
-  { key: 'sellingFees', label: 'Selling Fees', align: 'right', format: 'currency', heatmap: 'red', minWidth: 'min-w-[150px]' },
-  { key: 'fbaFees', label: 'FBA Fees', align: 'right', format: 'currency', heatmap: 'red', minWidth: 'min-w-[140px]' },
-  { key: 'otherAmazonAdj', label: 'Other Amazon Adj.', align: 'right', format: 'currency', heatmap: 'neutral', minWidth: 'min-w-[170px]' },
-  { key: 'totalAmazonExpenses', label: 'Total Amazon Expenses', align: 'right', format: 'currency', heatmap: 'red', minWidth: 'min-w-[190px]' },
-  { key: 'marketingExpense', label: 'Marketing Expense', align: 'right', format: 'currency', heatmap: 'red', minWidth: 'min-w-[180px]' },
-  { key: 'allocatedNonSkuExpenses', label: 'Allocated Non-SKU Expenses', align: 'right', format: 'currency', heatmap: 'neutral', minWidth: 'min-w-[220px]' },
-  { key: 'totalExpensesInclMarketing', label: `Total Expenses incl. Marketing`, align: 'right', format: 'currency', heatmap: 'red', minWidth: 'min-w-[220px]' },
-  { key: 'totalCogs', label: 'Total COGS', align: 'right', format: 'currency', heatmap: 'red', minWidth: 'min-w-[150px]' },
-  { key: 'totalExpensesInclMarketingCogs', label: 'Total Expenses incl. Marketing + COGS', align: 'right', format: 'currency', heatmap: 'red', minWidth: 'min-w-[270px]' },
-  { key: 'netAfterAmazon', label: 'Net After Amazon', align: 'right', format: 'currency', heatmap: 'green', minWidth: 'min-w-[180px]' },
-  { key: 'netAfterAmazonMarketing', label: 'Net After Amazon + Marketing', align: 'right', format: 'currency', heatmap: 'green', minWidth: 'min-w-[240px]' },
-  { key: 'amazonMarginPct', label: 'Amazon Margin %', align: 'right', format: 'pct', heatmap: 'green', minWidth: 'min-w-[170px]' },
-  { key: 'marginAfterMarketingPct', label: 'Margin After Marketing %', align: 'right', format: 'pct', heatmap: 'green', minWidth: 'min-w-[210px]' },
-  { key: 'marginAfterAllPct', label: 'Margin After All %', align: 'right', format: 'pct', heatmap: 'neutral', minWidth: 'min-w-[180px]' },
-  { key: 'targetProfitAtB6Pct', label: 'Target Profit @ B6', align: 'right', format: 'currency', heatmap: 'neutral', minWidth: 'min-w-[190px]' },
-  { key: 'targetGap', label: 'Target Gap / (Surplus)', align: 'right', format: 'currency', heatmap: 'neutral', minWidth: 'min-w-[200px]' },
-  { key: 'status', label: 'Status', align: 'left', minWidth: 'min-w-[130px]' },
-  { key: 'breakevenPrice', label: 'Breakeven Price', align: 'right', format: 'currency', heatmap: 'neutral', minWidth: 'min-w-[170px]' },
-  { key: 'avgSellingPrice', label: 'Avg Selling Price', align: 'right', format: 'currency', heatmap: 'neutral', minWidth: 'min-w-[180px]' },
-  { key: 'adsPerUnit', label: 'Ads/Unit', align: 'right', format: 'currency', heatmap: 'red', minWidth: 'min-w-[130px]' },
-  { key: 'allocatedOpex', label: 'Allocated OPEX', align: 'right', format: 'currency', heatmap: 'neutral', minWidth: 'min-w-[170px]' },
-  { key: 'trueNetProfit', label: 'True Net Profit', align: 'right', format: 'currency', heatmap: 'green', minWidth: 'min-w-[180px]' },
+// ─── Declarative Column Definitions ──────────────────────
+const COLUMNS: ColumnDef<BreakevenItem>[] = [
+  { key: 'sku', header: 'SKU', align: 'left', width: 'min-w-[190px]', sortable: true, sortKey: 'sku', cellClassName: 'break-all whitespace-normal max-w-[210px]', headerClassName: 'break-words leading-tight' },
+  { key: 'description', header: 'Description', align: 'left', width: 'min-w-[310px]', sortable: true, sortKey: 'description', headerClassName: 'break-words leading-tight' },
+  { key: 'units', header: 'Units', align: 'right', width: 'min-w-[120px]', sortable: true, sortKey: 'units', heatmap: 'green', headerClassName: 'break-words leading-tight' },
+  { key: 'productSales', header: 'Product Sales', align: 'right', width: 'min-w-[160px]', sortable: true, sortKey: 'productSales', heatmap: 'green', headerClassName: 'break-words leading-tight' },
+  { key: 'promoRebates', header: 'Promo Rebates', align: 'right', width: 'min-w-[160px]', sortable: true, sortKey: 'promoRebates', heatmap: 'red', headerClassName: 'break-words leading-tight' },
+  { key: 'sellingFees', header: 'Selling Fees', align: 'right', width: 'min-w-[150px]', sortable: true, sortKey: 'sellingFees', heatmap: 'red', headerClassName: 'break-words leading-tight' },
+  { key: 'fbaFees', header: 'FBA Fees', align: 'right', width: 'min-w-[140px]', sortable: true, sortKey: 'fbaFees', heatmap: 'red', headerClassName: 'break-words leading-tight' },
+  { key: 'otherAmazonAdj', header: 'Other Amazon Adj.', align: 'right', width: 'min-w-[170px]', sortable: true, sortKey: 'otherAmazonAdj', heatmap: 'neutral', headerClassName: 'break-words leading-tight' },
+  { key: 'totalAmazonExpenses', header: 'Total Amazon Expenses', align: 'right', width: 'min-w-[190px]', sortable: true, sortKey: 'totalAmazonExpenses', heatmap: 'red', headerClassName: 'break-words leading-tight' },
+  { key: 'marketingExpense', header: 'Marketing Expense', align: 'right', width: 'min-w-[180px]', sortable: true, sortKey: 'marketingExpense', heatmap: 'red', headerClassName: 'break-words leading-tight' },
+  { key: 'allocatedNonSkuExpenses', header: 'Allocated Non-SKU Expenses', align: 'right', width: 'min-w-[220px]', sortable: true, sortKey: 'allocatedNonSkuExpenses', heatmap: 'neutral', headerClassName: 'break-words leading-tight' },
+  { key: 'totalExpensesInclMarketing', header: 'Total Expenses incl. Marketing', align: 'right', width: 'min-w-[220px]', sortable: true, sortKey: 'totalExpensesInclMarketing', heatmap: 'red', headerClassName: 'break-words leading-tight' },
+  { key: 'totalCogs', header: 'Total COGS', align: 'right', width: 'min-w-[150px]', sortable: true, sortKey: 'totalCogs', heatmap: 'red', headerClassName: 'break-words leading-tight' },
+  { key: 'totalExpensesInclMarketingCogs', header: 'Total Expenses incl. Marketing + COGS', align: 'right', width: 'min-w-[270px]', sortable: true, sortKey: 'totalExpensesInclMarketingCogs', heatmap: 'red', headerClassName: 'break-words leading-tight' },
+  { key: 'netAfterAmazon', header: 'Net After Amazon', align: 'right', width: 'min-w-[180px]', sortable: true, sortKey: 'netAfterAmazon', heatmap: 'green', headerClassName: 'break-words leading-tight' },
+  { key: 'netAfterAmazonMarketing', header: 'Net After Amazon + Marketing', align: 'right', width: 'min-w-[240px]', sortable: true, sortKey: 'netAfterAmazonMarketing', heatmap: 'green', headerClassName: 'break-words leading-tight' },
+  { key: 'amazonMarginPct', header: 'Amazon Margin %', align: 'right', width: 'min-w-[170px]', sortable: true, sortKey: 'amazonMarginPct', heatmap: 'green', headerClassName: 'break-words leading-tight' },
+  { key: 'marginAfterMarketingPct', header: 'Margin After Marketing %', align: 'right', width: 'min-w-[210px]', sortable: true, sortKey: 'marginAfterMarketingPct', heatmap: 'green', headerClassName: 'break-words leading-tight' },
+  { key: 'marginAfterAllPct', header: 'Margin After All %', align: 'right', width: 'min-w-[180px]', sortable: true, sortKey: 'marginAfterAllPct', heatmap: 'neutral', headerClassName: 'break-words leading-tight' },
+  { key: 'targetProfitAtB6Pct', header: 'Target Profit @ B6', align: 'right', width: 'min-w-[190px]', sortable: true, sortKey: 'targetProfitAtB6Pct', heatmap: 'neutral', headerClassName: 'break-words leading-tight' },
+  { key: 'targetGap', header: 'Target Gap / (Surplus)', align: 'right', width: 'min-w-[200px]', sortable: true, sortKey: 'targetGap', heatmap: 'neutral', headerClassName: 'break-words leading-tight' },
+  { key: 'status', header: 'Status', align: 'left', width: 'min-w-[130px]', sortable: true, sortKey: 'status', headerClassName: 'break-words leading-tight' },
+  { key: 'breakevenPrice', header: 'Breakeven Price', align: 'right', width: 'min-w-[170px]', sortable: true, sortKey: 'breakevenPrice', heatmap: 'neutral', headerClassName: 'break-words leading-tight' },
+  { key: 'avgSellingPrice', header: 'Avg Selling Price', align: 'right', width: 'min-w-[180px]', sortable: true, sortKey: 'avgSellingPrice', heatmap: 'neutral', headerClassName: 'break-words leading-tight' },
+  { key: 'adsPerUnit', header: 'Ads/Unit', align: 'right', width: 'min-w-[130px]', sortable: true, sortKey: 'adsPerUnit', heatmap: 'red', headerClassName: 'break-words leading-tight' },
+  { key: 'allocatedOpex', header: 'Allocated OPEX', align: 'right', width: 'min-w-[170px]', sortable: true, sortKey: 'allocatedOpex', heatmap: 'neutral', headerClassName: 'break-words leading-tight' },
+  { key: 'trueNetProfit', header: 'True Net Profit', align: 'right', width: 'min-w-[180px]', sortable: true, sortKey: 'trueNetProfit', heatmap: 'green', headerClassName: 'bg-success-50 break-words leading-tight' },
 ];
 
-// ─── Heatmap Helpers ─────────────────────────────────────
-function getHeatmapColor(
-  val: number,
-  allValues: number[],
-  type: 'green' | 'red' | 'neutral'
-): string {
-  if (type === 'neutral') return '';
+// ─── Cell Renderer ───────────────────────────────────────
+const renderCell = (row: BreakevenItem, column: ColumnDef<BreakevenItem>): React.ReactNode => {
+  const key = column.key as SortColumn;
+  const val = (row as any)[key];
 
-  const min = Math.min(...allValues);
-  const max = Math.max(...allValues);
-  if (min === max) return '';
-
-  const ratio = (val - min) / (max - min);
-
-  if (type === 'green') {
-    return `background-color: rgba(34, 197, 94, ${0.08 + ratio * 0.22})`;
+  if (key === 'sku') {
+    return <span className="text-primary-600 font-medium">{val}</span>;
   }
 
-  if (type === 'red') {
-    return `background-color: rgba(239, 68, 68, ${0.08 + (1 - ratio) * 0.22})`;
+  if (key === 'description' || key === 'status') {
+    return String(val);
   }
 
-  return '';
-}
+  if (key === 'units') {
+    return <span className="tabular-nums">{val.toLocaleString()}</span>;
+  }
 
-// ─── SVG Sort Icons ──────────────────────────────────────
-const SortAscIcon = () => (
-  <svg className="w-3 h-3 text-primary-600" fill="currentColor" viewBox="0 0 20 20">
-    <path fillRule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clipRule="evenodd" />
-  </svg>
-);
+  if (key === 'amazonMarginPct' || key === 'marginAfterMarketingPct' || key === 'marginAfterAllPct') {
+    return <span className="tabular-nums">{formatPercentage(val)}</span>;
+  }
 
-const SortDescIcon = () => (
-  <svg className="w-3 h-3 text-primary-600" fill="currentColor" viewBox="0 0 20 20">
-    <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 011.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-  </svg>
-);
+  if (key === 'targetGap') {
+    const prefix = val >= 0 ? '+' : '-';
+    return (
+      <span className={`font-semibold tabular-nums ${val >= 0 ? 'text-success-600' : 'text-danger-600'}`}>
+        {prefix}{formatCurrency(Math.abs(val))}
+      </span>
+    );
+  }
 
-const SortInactiveIcon = () => (
-  <svg className="w-3 h-3 text-text-muted opacity-40" fill="currentColor" viewBox="0 0 20 20">
-    <path d="M5 10l5-5 5 5H5z" />
-    <path d="M5 10l5 5 5-5H5z" />
-  </svg>
-);
+  if (key === 'trueNetProfit') {
+    return (
+      <span className={`font-semibold tabular-nums ${val >= 0 ? 'text-success-600' : 'text-danger-600'}`}>
+        {val < 0 ? '-' : ''}{formatCurrency(Math.abs(val))}
+      </span>
+    );
+  }
+
+  // Currency columns
+  const currencyCols: SortColumn[] = [
+    'productSales', 'promoRebates', 'sellingFees', 'fbaFees', 'otherAmazonAdj',
+    'totalAmazonExpenses', 'marketingExpense', 'allocatedNonSkuExpenses',
+    'totalExpensesInclMarketing', 'totalCogs', 'totalExpensesInclMarketingCogs',
+    'netAfterAmazon', 'netAfterAmazonMarketing', 'targetProfitAtB6Pct',
+    'breakevenPrice', 'avgSellingPrice', 'adsPerUnit', 'allocatedOpex',
+  ];
+
+  if (currencyCols.includes(key)) {
+    const isNegative = val < 0;
+    return (
+      <span className={`tabular-nums ${isNegative ? 'text-danger-600' : ''}`}>
+        {isNegative ? '-' : ''}{formatCurrency(Math.abs(val))}
+      </span>
+    );
+  }
+
+  return String(val);
+};
 
 // ─── Skeleton Components ─────────────────────────────────
 function SummaryCardSkeleton() {
@@ -217,7 +212,7 @@ function SummaryCardSkeleton() {
 
 function SummaryCardsSkeleton() {
   return (
-    <div className="grid grid-cols-5 gap-4">
+    <div className="p-4 grid grid-cols-5 gap-4">
       <SummaryCardSkeleton />
       <SummaryCardSkeleton />
       <SummaryCardSkeleton />
@@ -231,12 +226,11 @@ function SummaryCardsSkeleton() {
 export default function BreakevenAnalysis() {
   const [filters, setFilters] = useState<Filters>({
     search: '',
-    status: [],          // ← empty = no status filter, return ALL products
+    status: [],
     marketplaces: [],
     fba: [],
   });
 
-  // Default to "Last 30 Days" — DateRangePicker returns YYYY-MM-DD
   const [dateRange, setDateRange] = useState<DateRangeValue>({
     startDate: format(subDays(new Date(), 29), 'yyyy-MM-dd'),
     endDate: format(new Date(), 'yyyy-MM-dd'),
@@ -247,7 +241,6 @@ export default function BreakevenAnalysis() {
   const [sortColumn, setSortColumn] = useState<SortColumn>('trueNetProfit');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
-  // ─── NEW: Currency & Target Margin State ───────────────
   const [selectedCurrency, setSelectedCurrency] = useState<CurrencyCode>('USD');
   const [targetMargin, setTargetMargin] = useState<string>('10');
 
@@ -256,11 +249,9 @@ export default function BreakevenAnalysis() {
   // No timezone conversion needed. The backend appends 00:00:00 / 23:59:59
   // and queries the DB directly since all dates are already PDT.
   // ═══════════════════════════════════════════════════════════════
-  // Build API params — typed to match the RTK Query hook's expected shape
   const apiParams = useMemo(() => {
     if (!dateRange.startDate || !dateRange.endDate) return null;
 
-    // Parse target margin as number, default to 10 if invalid
     const marginNum = parseFloat(targetMargin);
     const validatedMargin = !isNaN(marginNum) && marginNum >= 1 && marginNum <= 100
       ? marginNum
@@ -269,13 +260,12 @@ export default function BreakevenAnalysis() {
     return {
       startDate: dateRange.startDate,
       endDate: dateRange.endDate,
-      currency: selectedCurrency,        // ← pass currency (API support only for now)
-      targetMargin: validatedMargin,     // ← pass target margin %
+      currency: selectedCurrency,
+      targetMargin: validatedMargin,
       ...(filters.status.length > 0 && { status: filters.status.join(',') }),
     };
   }, [dateRange.startDate, dateRange.endDate, filters.status, selectedCurrency, targetMargin]);
 
-  // Fetch data from API
   const {
     data: apiData,
     isLoading,
@@ -286,7 +276,6 @@ export default function BreakevenAnalysis() {
     { skip: !apiParams }
   );
 
-  // Map API response to component's BreakevenItem shape
   const tableData: BreakevenItem[] = useMemo(() => {
     if (!apiData?.items) return [];
     return apiData.items.map((item: any) => ({
@@ -320,11 +309,12 @@ export default function BreakevenAnalysis() {
     }));
   }, [apiData]);
 
-  const handleSort = useCallback((column: SortColumn) => {
-    if (sortColumn === column) {
-      setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+  const handleSort = useCallback((column: string) => {
+    const col = column as SortColumn;
+    if (sortColumn === col) {
+      setSortDirection((prev: any) => (prev === 'asc' ? 'desc' : 'asc'));
     } else {
-      setSortColumn(column);
+      setSortColumn(col);
       setSortDirection('desc');
     }
     setPage(1);
@@ -369,44 +359,30 @@ export default function BreakevenAnalysis() {
     return filteredData.slice(startIndex, startIndex + PAGE_SIZE);
   }, [filteredData, page]);
 
-  // Pre-compute heatmap ranges per column
-  const heatmapRanges = useMemo(() => {
-    const ranges: Record<string, number[]> = {};
-    for (const col of COLUMNS) {
-      if (col.heatmap && col.heatmap !== 'neutral') {
-        ranges[col.key] = filteredData.map((item) => (item as any)[col.key]);
-      }
-    }
-    return ranges;
-  }, [filteredData]);
-
   const handleSearch = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setFilters((prev) => ({ ...prev, search: e.target.value }));
     setPage(1);
   }, []);
 
-  // ─── NEW: Target Margin Input Handler ──────────────────
   const handleTargetMarginChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value;
-    // Only allow numeric input
     if (raw === '') {
       setTargetMargin('');
       return;
     }
-    // Reject non-numeric characters
     if (!/^\d*\.?\d*$/.test(raw)) return;
 
     const num = parseFloat(raw);
-    if (num > 100) return; // Cap at 100
+    if (num > 100) return;
     setTargetMargin(raw);
   }, []);
 
   const handleExportCSV = useCallback(() => {
-    const headers = COLUMNS.map((c) => c.label);
+    const headers = COLUMNS.map((c) => String(c.header));
     const rows = filteredData.map((item) =>
       COLUMNS.map((col) => {
         const val = (item as any)[col.key];
-        if (typeof val === 'string') return `\"${val.replace(/"/g, '""')}\"`;
+        if (typeof val === 'string') return `"${val.replace(/"/g, '""')}"`;
         return String(val);
       })
     );
@@ -420,53 +396,6 @@ export default function BreakevenAnalysis() {
     URL.revokeObjectURL(url);
   }, [filteredData]);
 
-  const SortIcon: React.FC<{ column: SortColumn }> = ({ column }) => {
-    if (sortColumn !== column) return <SortInactiveIcon />;
-    return sortDirection === 'asc' ? <SortAscIcon /> : <SortDescIcon />;
-  };
-
-  const formatCell = (item: BreakevenItem, col: ColumnDef): string => {
-    const val = (item as any)[col.key];
-    if (col.format === 'currency') return formatCurrency(Math.abs(val));
-    if (col.format === 'pct') return formatPercentage(val);
-    if (col.format === 'number') return val.toLocaleString();
-    return String(val);
-  };
-
-  const cellClass = (item: BreakevenItem, col: ColumnDef): string => {
-    const val = (item as any)[col.key];
-    const base = 'text-center table-cell align-middle';
-
-    if (col.key === 'sku') {
-       return `${base} text-primary-600 font-medium break-all whitespace-normal max-w-[210px]`;
-    }
-    if (col.format === 'currency' && val < 0) {
-      return `${base} text-danger-600`;
-    }
-    if (col.key === 'trueNetProfit') {
-      return `${base} font-semibold ${val >= 0 ? 'text-success-600' : 'text-danger-600'}`;
-    }
-    if (col.key === 'targetGap') {
-      return `${base} font-semibold ${val >= 0 ? 'text-success-600' : 'text-danger-600'}`;
-    }
-    return `${base} text-text-primary`;
-  };
-
-  const renderCell = (item: BreakevenItem, col: ColumnDef) => {
-    const val = (item as any)[col.key];
-    const formatted = formatCell(item, col);
-
-    if (col.key === 'targetGap') {
-      const prefix = val >= 0 ? '+' : '-';
-      return `${prefix}${formatted}`;
-    }
-    if (col.format === 'currency' && val < 0) {
-      return `-${formatted}`;
-    }
-    return formatted;
-  };
-
-  // Show date range in header for user clarity
   const dateDisplay = useMemo(() => {
     if (!dateRange.startDate || !dateRange.endDate) return '';
     const start = parseISO(dateRange.startDate);
@@ -474,22 +403,29 @@ export default function BreakevenAnalysis() {
     return `${format(start, 'MMM d, yyyy')} – ${format(end, 'MMM d, yyyy')}`;
   }, [dateRange]);
 
-  // ── Loading state ──
-  if (isLoading) {
-    return (
-      <div className="space-y-4">
-        <PageHeader
-          title="Breakeven Analysis"
-          description="Profitability breakdown by SKU"
-        />
-        <SummaryCardsSkeleton />
-        <TableSkeleton rows={5} columns={COLUMNS.length} />
-      </div>
-    );
-  }
+  // Pagination config object for SplitTable
+  const paginationConfig: PaginationConfig | undefined = useMemo(() => {
+    if (totalItems === 0) return undefined;
+    return {
+      page,
+      pageSize: PAGE_SIZE,
+      totalItems,
+      totalPages,
+      onPageChange: setPage,
+      itemLabel: 'products',
+    };
+  }, [page, totalItems, totalPages]);
+
+  // Rich empty state passed to SplitTable
+  const emptyState = useMemo(() => (
+    <EmptyState
+      title={error ? 'Failed to load data' : 'No products found'}
+      description={error ? 'Please try again later.' : 'Try adjusting your filters or search query.'}
+    />
+  ), [error]);
 
   return (
-    <div className="p-6 space-y-4">
+    <div className="p-6 flex flex-col gap-4 h-[calc(100vh-64px)]">
       <PageHeader
         title="Breakeven Analysis"
         description={`Profitability breakdown by SKU${dateDisplay ? ` • ${dateDisplay}` : ''}`}
@@ -497,7 +433,6 @@ export default function BreakevenAnalysis() {
 
       {/* ─── Toolbar ────────────────────────────────────── */}
       <div className="flex flex-wrap items-center gap-3">
-        {/* Search */}
         <div className="relative flex-1 min-w-[240px] max-w-[320px]">
           <svg
             className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted"
@@ -523,7 +458,6 @@ export default function BreakevenAnalysis() {
           />
         </div>
 
-        {/* 🗓️ Date Range Picker — RIGHT AFTER SEARCH */}
         <DateRangePicker
           value={dateRange}
           onChange={(range) => {
@@ -534,7 +468,6 @@ export default function BreakevenAnalysis() {
           placeholder="Select date range"
         />
 
-        {/* ─── NEW: Currency Select ─────────────────────── */}
         <div className="min-w-[100px]">
           <Select
             value={selectedCurrency}
@@ -543,7 +476,6 @@ export default function BreakevenAnalysis() {
           />
         </div>
 
-        {/* Status Filter — WIRED TO API, empty = all products */}
         <MultiSelectInput
           title="Status"
           options={STATUS_OPTIONS}
@@ -555,7 +487,6 @@ export default function BreakevenAnalysis() {
           placeholder="All Status"
         />
 
-        {/* Marketplace Filter */}
         <MultiSelectInput
           title="Marketplace"
           options={MARKETPLACES}
@@ -566,7 +497,6 @@ export default function BreakevenAnalysis() {
           placeholder="All Marketplaces"
         />
 
-        {/* FBA Filter */}
         <MultiSelectInput
           title="FBA"
           options={FBA_OPTIONS}
@@ -579,7 +509,6 @@ export default function BreakevenAnalysis() {
 
         <div className="flex-1" />
 
-        {/* Export CSV */}
         <Button
           variant="outline"
           size="sm"
@@ -599,7 +528,6 @@ export default function BreakevenAnalysis() {
       </div>
 
       <div className="flex">
-          {/* ─── NEW: Target SKU Margin % Input ───────────── */}
         <div className="flex items-center gap-2">
           <label className="text-sm text-white p-2.5 bg-primary-500 whitespace-nowrap">
             Target SKU Margin %
@@ -615,11 +543,10 @@ export default function BreakevenAnalysis() {
                        bg-surface-primary text-text-primary"
           />
         </div>
-
       </div>
 
       {/* ─── Summary Cards ──────────────────────────────── */}
-      {isFetching && !apiData?.summary ? (
+      {(isLoading || (isFetching && !apiData?.summary)) ? (
         <SummaryCardsSkeleton />
       ) : apiData?.summary ? (
         <div className="grid grid-cols-5 gap-4">
@@ -631,90 +558,22 @@ export default function BreakevenAnalysis() {
         </div>
       ) : null}
 
-      {/* ═══════════════════════════════════════════════════════════════
-          STICKY HEADER FIX: The table wrapper now has a fixed height
-          with overflow-x-auto AND overflow-y-auto, making it a scroll
-          container on both axes. The <TableHeader> gets position:sticky
-          and z-index so it sticks to the top of this container while
-          horizontal scroll still works.
-          ═══════════════════════════════════════════════════════════════ */}
-      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-        <div 
-          className="overflow-x-auto overflow-y-auto"
-          style={{ maxHeight: 'calc(100vh - 340px)' }}
-        >
-          {isFetching && !tableData.length ? (
-            <TableSkeleton rows={5} columns={COLUMNS.length} />
-          ) : (
-            <Table className="min-w-full">
-              <TableHeader className="sticky top-0 z-20 bg-white shadow-sm">
-                <TableRow>
-                  {COLUMNS.map((col) => (
-                    <TableHead
-                      key={col.key}
-                      className={`cursor-pointer hover:bg-surface-secondary select-none break-words leading-tight ${col.minWidth || ''} ${
-                        col.align === 'right' ? 'text-right' : ''
-                      } ${col.key === 'trueNetProfit' ? 'bg-success-50' : ''}`}
-                      onClick={() => handleSort(col.key)}
-                    >
-                      <div className="flex items-center gap-1">
-                        {col.label}
-                        <SortIcon column={col.key} />
-                      </div>
-                    </TableHead>
-                  ))}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {!paginatedData.length ? (
-                  <TableRow>
-                    <TableCell colSpan={COLUMNS.length} className="text-center py-12">
-                      <EmptyState
-                        title={error ? 'Failed to load data' : 'No products found'}
-                        description={error ? 'Please try again later.' : 'Try adjusting your filters or search query.'}
-                      />
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  paginatedData.map((item) => (
-                    <TableRow
-                      key={item.sku}
-                      className="hover:bg-surface-secondary transition-colors"
-                    >
-                      {COLUMNS.map((col) => {
-                        const val = (item as any)[col.key];
-                        const heatmapStyle = col.heatmap && col.heatmap !== 'neutral'
-                          ? getHeatmapColor(val, heatmapRanges[col.key], col.heatmap)
-                          : '';
-
-                        return (
-                          <TableCell
-                            key={col.key}
-                            className={`${cellClass(item, col)} ${col.minWidth || ''} py-6`}
-                            style={heatmapStyle ? { backgroundColor: heatmapStyle.split('background-color: ')[1].replace(';', '') } : undefined}
-                          >
-                            {renderCell(item, col)}
-                          </TableCell>
-                        );
-                      })}
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          )}
-        </div>
+      {/* ─── SplitTable ─────────────────────────────────── */}
+      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm flex flex-col" style={{ maxHeight: 'calc(100vh - 340px)' }}>
+        <SplitTable
+          columns={COLUMNS}
+          data={paginatedData}
+          rowKey="sku"
+          renderCell={renderCell}
+          isLoading={isLoading}
+          emptyState={emptyState}
+          pagination={paginationConfig}
+          sortColumn={sortColumn}
+          sortDirection={sortDirection}
+          onSort={handleSort}
+          wrapperClassName="flex-1 min-h-0"
+        />
       </div>
-
-      {/* ─── Pagination Footer ────────────────────────────── */}
-      <PaginationFooter
-        page={page}
-        pageSize={PAGE_SIZE}
-        totalItems={totalItems}
-        totalPages={totalPages}
-        onPageChange={setPage}
-        itemLabel="products"
-      />
     </div>
   );
 }
