@@ -1162,7 +1162,7 @@ export const ProfitDashboardScreen: React.FC = () => {
                 <div className="p-6">
                   {tableView === 'products' ? (
                     <SellerboardProductsTable
-                      products={productData}
+                      products={productData as any}
                       isLoading={productFetching}
                       isFetching={productFetching}
                       searchTerm={debouncedSearchTerm}

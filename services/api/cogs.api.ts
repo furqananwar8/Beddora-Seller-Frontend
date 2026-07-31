@@ -191,7 +191,7 @@ export const cogsApi = baseApi.injectEndpoints({
         method: 'POST',
         body,
       }),
-      invalidatesTags: ['Profit'],
+      invalidatesTags: [{ type: 'Products', id: 'LIST' }],
     }),
 
     /**

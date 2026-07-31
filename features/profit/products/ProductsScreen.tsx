@@ -5,19 +5,18 @@ import { Container } from '@/components/layout'
 import { Button } from '@/design-system/buttons'
 import { Input } from '@/design-system/inputs'
 import { Card, CardContent } from '@/design-system/cards'
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/design-system/tables'
 import { Badge } from '@/design-system/badges'
 import { useAppSelector, useAppDispatch } from '@/store/hooks'
-import { addNotification } from '@/store/ui.slice' // ← adjust path to your slice
+import { addNotification } from '@/store/ui.slice'
 import { useGetAccountsQuery } from '@/services/api/accounts.api'
-import { useGetProfitByProductQuery } from '@/services/api/profit.api'
+import { useGetAllProductsQuery } from '@/services/api/products.api'
 import { useUpdateCOGSPerSkuMutation } from '@/services/api/cogs.api'
-import { PaginationFooter } from '@/components/pagination-footer/PaginationFooter'
 import { formatNumber } from '@/utils/format'
-import { TableSkeleton } from '@/design-system/loaders'
+import { SplitTable, ColumnDef, PaginationConfig } from '@/components/split-table/SplitTable'
 
 type SortColumn = 'product' | 'cogs' | 'salesVelocity'
 type SortDirection = 'asc' | 'desc'
+type CogsFilterValue = 'all' | 'set' | 'notSet'
 
 interface EditedCOGS {
   [sku: string]: string
@@ -28,31 +27,41 @@ export const ProductsScreen: React.FC = () => {
   const dispatch = useAppDispatch()
   const { data: accountsData } = useGetAccountsQuery()
 
-  const [searchTerm, setSearchTerm] = useState('')
-  const [appliedSearch, setAppliedSearch] = useState('')
-  const [pendingCogsSet, setPendingCogsSet] = useState<'all' | 'set' | 'notSet'>('all')
-  const [appliedCogsSet, setAppliedCogsSet] = useState<'all' | 'set' | 'notSet'>('all')
+  /* ── filter / pagination state ── */
+  const [search, setSearch] = useState({ raw: '', applied: '' })
+  const [cogsFilter, setCogsFilter] = useState<{ raw: CogsFilterValue; applied: CogsFilterValue }>({
+    raw: 'all',
+    applied: 'all',
+  })
   const [page, setPage] = useState(1)
   const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set())
   const [sortColumn, setSortColumn] = useState<SortColumn>('product')
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
+
+  /* ── edit state ── */
   const [editedCOGS, setEditedCOGS] = useState<EditedCOGS>({})
+  // NEW: SKUs currently being saved to the API (row-level skeletons + locks)
+  const [pendingSkus, setPendingSkus] = useState<Set<string>>(new Set())
+  // NEW: Successfully saved values that override stale RTK cache so we never need to refetch
+  const [committedCOGS, setCommittedCOGS] = useState<Record<string, number>>({})
 
   const effectiveAccountId = profitFilters.accountId || accountsData?.[0]?.id
   const limit = 10
 
-  const { data: productsResponse, isLoading, isFetching } = useGetProfitByProductQuery(
+  const {
+    data: productsResponse,
+    isLoading,   // TRUE = initial load only. This is the ONLY signal for the table skeleton.
+    isFetching,  // TRUE = background refetch. We show a subtle badge, never the full skeleton.
+  } = useGetAllProductsQuery(
     {
-      accountId: effectiveAccountId,
+      accountId: effectiveAccountId!,
       page,
       limit,
-      cogsSet: appliedCogsSet,
-      search: appliedSearch,
+      cogsSet: cogsFilter.applied,
+      search: search.applied,
     },
     { skip: !effectiveAccountId }
   )
-
-  const isBusy = isLoading || isFetching
 
   const productsData = productsResponse?.data ?? []
   const totalRecords = productsResponse?.totalRecords ?? 0
@@ -64,9 +73,10 @@ export const ProductsScreen: React.FC = () => {
     dispatch(addNotification({ message, type }))
   }
 
-  const handleSort = (column: SortColumn) => {
+  const handleSort = (sortKey: string) => {
+    const column = sortKey as SortColumn
     if (sortColumn === column) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
+      setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'))
     } else {
       setSortColumn(column)
       setSortDirection('asc')
@@ -74,13 +84,10 @@ export const ProductsScreen: React.FC = () => {
   }
 
   const toggleProductSelection = (sku: string) => {
-    const newSet = new Set(selectedProducts)
-    if (newSet.has(sku)) {
-      newSet.delete(sku)
-    } else {
-      newSet.add(sku)
-    }
-    setSelectedProducts(newSet)
+    const next = new Set(selectedProducts)
+    if (next.has(sku)) next.delete(sku)
+    else next.add(sku)
+    setSelectedProducts(next)
   }
 
   const toggleSelectAll = () => {
@@ -98,48 +105,60 @@ export const ProductsScreen: React.FC = () => {
   }
 
   const handleApplyFilters = () => {
-    setAppliedCogsSet(pendingCogsSet)
-    setAppliedSearch(searchTerm.trim())
+    setCogsFilter((prev) => ({ ...prev, applied: prev.raw }))
+    setSearch((prev) => ({ ...prev, applied: prev.raw.trim() }))
     setPage(1)
     setSelectedProducts(new Set())
-  }
-
-  const handlePageChange = (newPage: number) => {
-    setPage(newPage)
+    // Clear local overrides when filters change so we don't fight fresh server data
+    setCommittedCOGS({})
   }
 
   const handleSave = async () => {
     const updates = Object.entries(editedCOGS)
-      .filter(([_, value]) => value !== '' && !isNaN(parseFloat(value)))
-      .map(([sku, value]) => ({ sku, cogs: parseFloat(value) }))
+      .filter(([_, v]) => v !== '' && !isNaN(parseFloat(v)))
+      .map(([sku, v]) => ({ sku, cogs: parseFloat(v) }))
 
     if (updates.length === 0) return
 
+    // Lock the affected rows. SplitTable will receive these as pendingRowKeys.
+    setPendingSkus(new Set(updates.map((u) => u.sku)))
+
     try {
-      await updateCOGS({ items: [...updates] }).unwrap()
-      showToast(
-        `COGS saved for ${updates.length} product${updates.length > 1 ? 's' : ''}`,
-        'success'
-      )
+      await updateCOGS({ items: updates }).unwrap()
+
+      // SUCCESS: persist locally, do NOT refetch.
+      // The inputs keep the exact numbers the user typed.
+      setCommittedCOGS((prev) => {
+        const next = { ...prev }
+        updates.forEach(({ sku, cogs }) => {
+          next[sku] = cogs
+        })
+        return next
+      })
+
       setEditedCOGS({})
+      showToast(`COGS saved for ${updates.length} product${updates.length > 1 ? 's' : ''}`, 'success')
     } catch (err: any) {
-      const message = err?.data?.message || err?.message || 'Failed to update COGS'
-      showToast(message, 'error')
+      const msg = err?.data?.message || err?.message || 'Failed to update COGS'
+      showToast(msg, 'error')
       console.error('Failed to update COGS:', err)
+      // Intentionally keep editedCOGS on error so user can retry without retyping.
+    } finally {
+      setPendingSkus(new Set())
     }
   }
 
   const handleDiscard = () => {
     setEditedCOGS({})
-    showToast('Changes discarded', 'info')
+    showToast('Changes discarded', 'success')
   }
 
   const hasEdits = Object.keys(editedCOGS).length > 0
+  const isGlobalSaving = isUpdatingCOGS || pendingSkus.size > 0
 
   const sortedProducts = useMemo(() => {
     const result = [...productsData]
-
-    result.sort((a, b) => {
+    result.sort((a: any, b: any) => {
       let aVal: any = 0
       let bVal: any = 0
 
@@ -156,20 +175,201 @@ export const ProductsScreen: React.FC = () => {
           aVal = a.salesVelocity || 0
           bVal = b.salesVelocity || 0
           break
-        default:
-          aVal = 0
-          bVal = 0
       }
 
       if (typeof aVal === 'string') {
         return sortDirection === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal)
       }
-
       return sortDirection === 'asc' ? aVal - bVal : bVal - aVal
     })
-
     return result
   }, [productsData, sortColumn, sortDirection])
+
+  const columns: ColumnDef[] = [
+    {
+      key: 'checkbox',
+      header: (
+        <input
+          type="checkbox"
+          checked={sortedProducts.length > 0 && selectedProducts.size === sortedProducts.length}
+          onChange={toggleSelectAll}
+          className="cursor-pointer"
+        />
+      ),
+      width: 'w-12',
+      align: 'center',
+    },
+    {
+      key: 'product',
+      header: 'Product',
+      width: 'min-w-[320px] w-[45%]',
+      align: 'center',
+      sortable: true,
+      sortKey: 'product',
+    },
+    {
+      key: 'tags',
+      header: 'Tags',
+      width: 'w-24',
+      align: 'center',
+    },
+    {
+      key: 'cogs',
+      header: 'COGS',
+      width: 'w-32',
+      align: 'center',
+      sortable: true,
+      sortKey: 'cogs',
+    },
+    {
+      key: 'salesVelocity',
+      header: 'Sales velocity',
+      width: 'w-36',
+      align: 'center',
+      sortable: true,
+      sortKey: 'salesVelocity',
+    },
+  ]
+
+  /* ── renderCell now receives meta.isPending from the updated SplitTable ── */
+  const renderCell = (
+    product: any,
+    col: ColumnDef,
+    _rowIndex: number,
+    meta?: { isPending: boolean }
+  ) => {
+    const isPending = meta?.isPending ?? false
+
+    switch (col.key) {
+      case 'checkbox':
+        return (
+          <input
+            type="checkbox"
+            checked={selectedProducts.has(product.sku)}
+            onChange={() => toggleProductSelection(product.sku)}
+            disabled={isPending || isGlobalSaving}
+            className="cursor-pointer disabled:opacity-40"
+          />
+        )
+
+      case 'product': {
+        const unitsSold = Math.round((product.salesVelocity || 0) * 30)
+        return (
+          <div className="flex items-start justify-center gap-3">
+            <div className="w-12 h-12 bg-surface-secondary flex items-center justify-center flex-shrink-0 overflow-hidden rounded">
+              {product.imageUrl ? (
+                <img
+                  src={product.imageUrl}
+                  alt={product.productTitle || product.sku}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <svg
+                  className="w-6 h-6 text-text-muted"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+                  />
+                </svg>
+              )}
+            </div>
+            <div className="flex-1 min-w-0 text-left">
+              {product.productId != null && (
+                <div className="text-xs text-text-muted mb-0.5 truncate">
+                  {product.productId}
+                </div>
+              )}
+              <div className="text-xs text-text-muted mb-1 truncate">SKU: {product.sku}</div>
+              <div className="font-medium text-text-primary text-sm mb-1 line-clamp-2 break-words">
+                {product.productTitle || 'Unnamed Product'}
+              </div>
+              <div className="text-xs text-text-muted">
+                Units sold: {formatNumber(unitsSold)} · FBA: 0
+              </div>
+            </div>
+          </div>
+        )
+      }
+
+      case 'tags':
+        return (
+          <Badge variant="secondary" size="sm">
+            #FBA
+          </Badge>
+        )
+
+      case 'cogs': {
+        // Row-level skeleton: the value the user typed stays in memory,
+        // but we show a pulse block so they know the row is working.
+        if (isPending) {
+          return (
+            <div className="flex items-center justify-center gap-1">
+              <span className="text-text-muted text-sm">C$</span>
+              <div className="h-8 w-14 animate-pulse rounded bg-surface-secondary" />
+            </div>
+          )
+        }
+
+        const editedValue = editedCOGS[product.sku]
+        const committedValue = committedCOGS[product.sku]
+
+        // Display priority: active edit → locally committed → server cache
+        let displayCOGS: string
+        if (editedValue !== undefined) {
+          displayCOGS = editedValue
+        } else if (committedValue !== undefined) {
+          displayCOGS = committedValue.toFixed(2)
+        } else if (product.cogsPerUnit > 0) {
+          displayCOGS = product.cogsPerUnit.toFixed(2)
+        } else {
+          displayCOGS = ''
+        }
+
+        return (
+          <div className="flex items-center justify-center gap-1">
+            <span className="text-text-muted text-sm">C$</span>
+            <input
+              type="text"
+              inputMode="decimal"
+              value={displayCOGS}
+              onChange={(e) => handleCOGSChange(product.sku, e.target.value)}
+              disabled={isGlobalSaving}
+              className="w-14 text-center text-sm border border-border rounded px-1 py-1 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary bg-surface disabled:opacity-50 disabled:cursor-not-allowed"
+              placeholder="—"
+            />
+          </div>
+        )
+      }
+
+      case 'salesVelocity':
+        return (
+          <>
+            <span className="text-text-primary font-medium">
+              {formatNumber(product.salesVelocity || 0)}
+            </span>
+            <span className="text-text-muted text-xs ml-1">units/day</span>
+          </>
+        )
+
+      default:
+        return null
+    }
+  }
+
+  const pagination: PaginationConfig = {
+    page,
+    pageSize: limit,
+    totalItems: totalRecords,
+    totalPages,
+    onPageChange: setPage,
+    itemLabel: 'products',
+  }
 
   return (
     <Container size="full" className="h-[calc(100vh-100px)] flex flex-col">
@@ -200,11 +400,9 @@ export const ProductsScreen: React.FC = () => {
                 <Input
                   type="text"
                   placeholder="Search by SKU, title, or ASIN..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleApplyFilters()
-                  }}
+                  value={search.raw}
+                  onChange={(e) => setSearch((prev) => ({ ...prev, raw: e.target.value }))}
+                  onKeyDown={(e) => e.key === 'Enter' && handleApplyFilters()}
                   className="pl-10 w-full"
                 />
               </div>
@@ -212,8 +410,13 @@ export const ProductsScreen: React.FC = () => {
 
             <div className="w-[30%] flex items-center justify-end gap-3">
               <select
-                value={pendingCogsSet}
-                onChange={(e) => setPendingCogsSet(e.target.value as 'all' | 'set' | 'notSet')}
+                value={cogsFilter.raw}
+                onChange={(e) =>
+                  setCogsFilter((prev) => ({
+                    ...prev,
+                    raw: e.target.value as CogsFilterValue,
+                  }))
+                }
                 className="h-9 w-40 px-3 text-sm border border-border rounded-md bg-surface text-text-primary focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary cursor-pointer"
               >
                 <option value="all">Any COGS</option>
@@ -221,11 +424,7 @@ export const ProductsScreen: React.FC = () => {
                 <option value="notSet">COGS not set</option>
               </select>
 
-              <Button
-                variant="primary"
-                onClick={handleApplyFilters}
-                isLoading={isFetching}
-              >
+              <Button variant="primary" onClick={handleApplyFilters} isLoading={isFetching}>
                 Filter
               </Button>
             </div>
@@ -233,171 +432,46 @@ export const ProductsScreen: React.FC = () => {
         </div>
       </div>
 
-      {/* Products Table */}
-      <Card className="flex-1 flex flex-col min-h-0">
+      {/* Table */}
+      <Card className="flex-1 flex flex-col min-h-0 relative">
+        {/* Subtle background-refetch badge — never replaces the table body */}
+        {isFetching && !isLoading && (
+          <div className="absolute top-2 right-4 z-30 flex items-center gap-2 text-xs text-text-muted bg-surface/90 px-2 py-1 rounded border border-border shadow-sm">
+            <svg
+              className="animate-spin h-3 w-3"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+              />
+            </svg>
+            Refreshing…
+          </div>
+        )}
+
         <CardContent className="p-0 flex flex-col h-full">
-          {isBusy ? (
-            <div className="p-6">
-              <TableSkeleton rows={10} columns={5} />
-            </div>
-          ) : (
-            <>
-              <div className="overflow-auto flex-1 min-h-0">
-                <Table className="w-full table-fixed">
-                  <TableHeader>
-                    <TableRow className="sticky top-0 z-20 bg-surface shadow-sm">
-                      <TableHead className="w-12 text-center">
-                        <input
-                          type="checkbox"
-                          checked={
-                            sortedProducts.length > 0 &&
-                            selectedProducts.size === sortedProducts.length
-                          }
-                          onChange={toggleSelectAll}
-                          className="cursor-pointer"
-                        />
-                      </TableHead>
-                      <TableHead
-                        className="min-w-[320px] w-[45%] cursor-pointer hover:bg-surface-secondary text-center"
-                        onClick={() => handleSort('product')}
-                      >
-                        Product {sortColumn === 'product' && (sortDirection === 'asc' ? '↑' : '↓')}
-                      </TableHead>
-                      <TableHead className="w-24 text-center">Tags</TableHead>
-                      <TableHead
-                        className="w-32 cursor-pointer hover:bg-surface-secondary text-center"
-                        onClick={() => handleSort('cogs')}
-                      >
-                        COGS {sortColumn === 'cogs' && (sortDirection === 'asc' ? '↑' : '↓')}
-                      </TableHead>
-                      <TableHead
-                        className="w-36 cursor-pointer hover:bg-surface-secondary text-center"
-                        onClick={() => handleSort('salesVelocity')}
-                      >
-                        Sales velocity {sortColumn === 'salesVelocity' && (sortDirection === 'asc' ? '↑' : '↓')}
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {sortedProducts.length > 0 ? (
-                      sortedProducts.map((product) => {
-                        const editedValue = editedCOGS[product.sku]
-                        const displayCOGS =
-                          editedValue !== undefined
-                            ? editedValue
-                            : product.cogsPerUnit > 0
-                            ? product.cogsPerUnit.toFixed(2)
-                            : ''
-
-                        return (
-                          <TableRow key={product.sku} className="hover:bg-surface-secondary">
-                            <TableCell className="w-12 text-center">
-                              <input
-                                type="checkbox"
-                                checked={selectedProducts.has(product.sku)}
-                                onChange={() => toggleProductSelection(product.sku)}
-                                className="cursor-pointer"
-                              />
-                            </TableCell>
-
-                            <TableCell className="min-w-[320px] w-[45%] text-center">
-                              <div className="flex items-start justify-center gap-3">
-                                <div className="w-12 h-12 bg-surface-secondary flex items-center justify-center flex-shrink-0 overflow-hidden rounded">
-                                  {product.imageUrl ? (
-                                    <img
-                                      src={product.imageUrl}
-                                      alt={product.productTitle || product.sku}
-                                      className="w-full h-full object-cover"
-                                    />
-                                  ) : (
-                                    <svg
-                                      className="w-6 h-6 text-text-muted"
-                                      fill="none"
-                                      stroke="currentColor"
-                                      viewBox="0 0 24 24"
-                                    >
-                                      <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth={2}
-                                        d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
-                                      />
-                                    </svg>
-                                  )}
-                                </div>
-                                <div className="flex-1 min-w-0 text-left">
-                                  {product.productId && (
-                                    <div className="text-xs text-text-muted mb-0.5 truncate">
-                                      {product.productId}
-                                    </div>
-                                  )}
-                                  <div className="text-xs text-text-muted mb-1 truncate">
-                                    SKU: {product.sku}
-                                  </div>
-                                  <div className="font-medium text-text-primary text-sm mb-1 line-clamp-2 break-words">
-                                    {product.productTitle || 'Unnamed Product'}
-                                  </div>
-                                  <div className="text-xs text-text-muted">
-                                    Units sold: {formatNumber(product.unitsSold)} · FBA: 0
-                                  </div>
-                                </div>
-                              </div>
-                            </TableCell>
-
-                            <TableCell className="w-24 text-center">
-                              <Badge variant="secondary" size="sm">
-                                #FBA
-                              </Badge>
-                            </TableCell>
-
-                            <TableCell className="w-32 text-center whitespace-nowrap">
-                              <div className="flex items-center justify-center gap-1">
-                                <span className="text-text-muted text-sm">C$</span>
-                                <input
-                                  type="text"
-                                  inputMode="decimal"
-                                  value={displayCOGS}
-                                  onChange={(e) => handleCOGSChange(product.sku, e.target.value)}
-                                  className="w-14 text-center text-sm border border-border rounded px-1 py-1 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary bg-surface"
-                                  placeholder="—"
-                                />
-                              </div>
-                            </TableCell>
-
-                            <TableCell className="w-36 text-center whitespace-nowrap">
-                              <span className="text-text-primary font-medium">
-                                {formatNumber(product.salesVelocity)}
-                              </span>
-                              <span className="text-text-muted text-xs ml-1">units/day</span>
-                            </TableCell>
-                          </TableRow>
-                        )
-                      })
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={5} className="text-center text-text-muted py-8">
-                          No products found
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-
-              {totalRecords > 0 && (
-                <div className="shrink-0 border-t border-border">
-                  <PaginationFooter
-                    page={page}
-                    pageSize={limit}
-                    totalItems={totalRecords}
-                    totalPages={totalPages}
-                    onPageChange={handlePageChange}
-                    itemLabel="products"
-                  />
-                </div>
-              )}
-            </>
-          )}
+          <SplitTable
+            columns={columns}
+            data={sortedProducts}
+            rowKey="sku"
+            renderCell={renderCell}
+            wrapperClassName="flex-1"
+            /* STRICT: initial load ONLY. Never true for background refetch. */
+            isLoading={isLoading}
+            /* NEW: row-level locks. Pending rows get opacity-60 + skeleton cells. */
+            pendingRowKeys={pendingSkus}
+            skeletonRows={10}
+            emptyMessage="No products found"
+            pagination={pagination}
+            sortColumn={sortColumn}
+            sortDirection={sortDirection}
+            onSort={handleSort}
+          />
         </CardContent>
       </Card>
 
@@ -405,12 +479,14 @@ export const ProductsScreen: React.FC = () => {
         <div className="shrink-0 mt-4 bg-surface border border-border rounded-lg px-6 py-3">
           <div className="flex items-center justify-end gap-4">
             <span className="text-sm text-text-muted">
-              {Object.keys(editedCOGS).length} product{Object.keys(editedCOGS).length > 1 ? 's' : ''} modified
+              {Object.keys(editedCOGS).length} product
+              {Object.keys(editedCOGS).length > 1 ? 's' : ''} modified
             </span>
             <Button
               variant="secondary"
               size="sm"
               onClick={handleDiscard}
+              disabled={isGlobalSaving}
             >
               Discard
             </Button>
@@ -418,7 +494,7 @@ export const ProductsScreen: React.FC = () => {
               variant="primary"
               size="sm"
               onClick={handleSave}
-              isLoading={isUpdatingCOGS}
+              isLoading={isGlobalSaving}
             >
               Save Changes
             </Button>

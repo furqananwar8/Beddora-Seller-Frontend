@@ -326,11 +326,12 @@ export const profitApi = baseApi.injectEndpoints({
       keepUnusedDataFor: 120,
     }),
 
-    getProfitByProduct: builder.query<ProductBreakdownResponse, ProfitFilters>({
+    getProfitByProduct: builder.query<ProductProfitBreakdown[], ProfitFilters>({
       query: (filters) => ({
         url: '/profit/by-product',
         params: filters,
       }),
+      transformResponse: (response: ProductBreakdownResponse) => response.data,
       providesTags: ['Profit'],
       keepUnusedDataFor: 180,
     }),

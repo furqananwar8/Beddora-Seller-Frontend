@@ -17,6 +17,7 @@ import { RootState } from '@/store/store'
 export const tagTypes = [
   'Auth',
   'Accounts',
+  'Products',
   'AmazonAccounts',
   'Campaigns',
   'ScheduledJobs',
