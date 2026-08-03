@@ -12,10 +12,12 @@ import { cn } from "@/utils";
 import {
   DashboardProvider,
   useDashboard,
-  Campaign,
 } from "@/lib/context/dashboard-context";
 import { useCampaigns } from "@/hooks/useCampaigns";
 import { toast } from "sonner";
+import { useAppDispatch } from '@/store/hooks';
+// Adjust this path to wherever your baseApi is defined
+import { baseApi } from '@/services/api/baseApi';
 
 import { CampaignSidebar } from "./components/campaign-sidebar/campaign-sidebar";
 import { Button } from "@/design-system/buttons";
@@ -35,6 +37,7 @@ const navigation = [
 function DashboardLayoutContent({ children }: { children: ReactNode }) {
   const { selectedCampaign, handleSave, isSaving, setIsSaving } = useDashboard();
   const [activeView, setActiveView] = useState<View>("dayparting");
+  const dispatch = useAppDispatch();
   
   const { isConnected, showAuthModal, handleAuthSuccess, handleAuthError, setShowAuthModal } = useAmazonAuth();
 
@@ -46,7 +49,6 @@ function DashboardLayoutContent({ children }: { children: ReactNode }) {
   const isScheduledPage = activeView === "scheduled";
   const isAuthReady = isConnected && !campaignsQuery.isLoading;
 
-  // Auto-switch to dayparting when a campaign is selected from sidebar
   const selectedCampaignId = selectedCampaign?.id || selectedCampaign?.campaignId;
   useEffect(() => {
     if (selectedCampaignId) {
@@ -55,7 +57,6 @@ function DashboardLayoutContent({ children }: { children: ReactNode }) {
   }, [selectedCampaignId]);
 
   useEffect(() => {
-    // SUCCESS: data arrived → mark connected, hide modal
     if (campaignsQuery.data && !campaignsQuery.isError) {
       if (!isConnected) {
         handleAuthSuccess()
@@ -64,8 +65,6 @@ function DashboardLayoutContent({ children }: { children: ReactNode }) {
       return
     }
 
-    // FAILURE: only show modal if we're NOT already connected
-    // (prevents overriding handleAuthSuccess() while refetch is in flight)
     if (campaignsQuery.isError && campaignsQuery.error && !isConnected) {
       const err = campaignsQuery.error as any
       
@@ -112,11 +111,14 @@ function DashboardLayoutContent({ children }: { children: ReactNode }) {
 
   const onAuthSuccess = () => {
     handleAuthSuccess()
-    campaignsQuery.refetch()
+    // Invalidate ALL campaign queries so CampaignSidebar refetches too
+    // If your endpoint uses a different tag, change 'Campaigns' below
+    // Common alternatives: ['AmazonAccounts'], ['Campaign'], ['SP']
+    dispatch(baseApi.util.invalidateTags(['Campaigns']))
   }
 
   return (
-    <div className="relative flex h-screen bg-[#F8FAFC] dark:bg-zinc-950">
+    <div className="relative flex h-full overflow-hidden bg-[#F8FAFC] dark:bg-zinc-950">
       
       {showAuthModal && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
@@ -166,11 +168,12 @@ function DashboardLayoutContent({ children }: { children: ReactNode }) {
 
       <CampaignSidebar />
 
-      <div className="flex flex-1 flex-col">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <main
-          className={`flex-1 overflow-auto bg-[#F8FAFC] dark:bg-zinc-950 p-8 ${
-            isSaving ? "pointer-events-none" : ""
-          }`}
+          className={cn(
+            "min-h-0 flex-1 overflow-auto bg-[#F8FAFC] dark:bg-zinc-950 p-8",
+            isSaving && "pointer-events-none"
+          )}
         >
           {activeView === "dayparting" ? <DaypartingPage /> : <ScheduledCampaignsPage />}
         </main>
