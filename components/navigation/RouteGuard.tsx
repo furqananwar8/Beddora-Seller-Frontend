@@ -10,6 +10,13 @@ import { Spinner } from '@/design-system/loaders'
 
 type GuardState = 'checking' | 'allowed' | 'redirecting'
 
+const DISABLED_ROUTE_PREFIXES = ['/dashboard/alerts']
+
+function isDisabledRoute(pathname: string | null): boolean {
+  if (!pathname) return false
+  return DISABLED_ROUTE_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(prefix + '/'))
+}
+
 export function RouteGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
@@ -40,32 +47,37 @@ export function RouteGuard({ children }: { children: React.ReactNode }) {
       return
     }
 
+    // Block disabled routes for authenticated users
+    if (isAuthenticated && isDisabledRoute(pathname)) {
+      setGuardState('redirecting')
+      router.replace(DEFAULT_PROTECTED_ROUTE)
+      return
+    }
+
     setGuardState('allowed')
   }, [isAuthLoading, isAuthenticated, isPublic, pathname, router])
 
-    if (guardState !== 'allowed') {
+  if (guardState !== 'allowed') {
     return (
-        <div className="min-h-screen flex flex-col items-center justify-center bg-surface">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-surface">
         <div className="mb-10">
-            <Logo variant="dark" />
+          <Logo variant="dark" />
         </div>
 
-        {/* Your Spinner component */}
         <Spinner className="mb-6" />
 
-        {/* Message — smooth fade using transition */}
         <p
-            className={`
+          className={`
             text-sm text-text-muted font-medium
             transition-all duration-500 ease-out
             ${guardState === 'checking' ? 'opacity-0 translate-y-1' : 'opacity-100 translate-y-0'}
-            `}
+          `}
         >
-            {guardState === 'redirecting' ? 'Taking you there...' : 'Getting things ready...'}
+          {guardState === 'redirecting' ? 'Taking you there...' : 'Getting things ready...'}
         </p>
-        </div>
+      </div>
     )
-    }
+  }
 
   return <>{children}</>
 }

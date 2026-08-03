@@ -17,6 +17,7 @@ export interface NavItem {
   href: string
   icon?: React.ReactNode
   badge?: string
+  disabled?: boolean
   children?: NavItem[]
 }
 
@@ -102,41 +103,51 @@ export const Sidebar: React.FC<SidebarProps> = ({ sections, user }) => {
                 {section.title && <div className="ds-sidebar-section">{section.title}</div>}
                 <div className="space-y-5">
                   {section.items.map((item) => {
+                    const isDisabled = item.disabled === true
+                    const itemKey = item.href || item.label
                     const isDashboardRoot = item.href === '/dashboard'
-                    const isActive = isDashboardRoot
+                    const isActive = !isDisabled && (isDashboardRoot
                       ? pathname === item.href
-                      : pathname === item.href || pathname?.startsWith(item.href + '/')
-                    const isChildActive = item.children?.some((child) =>
+                      : pathname === item.href || pathname?.startsWith(item.href + '/'))
+                    const isChildActive = !isDisabled && item.children?.some((child) =>
                       pathname === child.href || pathname?.startsWith(child.href + '/')
                     )
-                    const isOpen = openItems[item.href] ?? false
+                    const isOpen = !isDisabled && (openItems[item.href] ?? false)
+                    const disabledClasses = 'opacity-40 cursor-not-allowed pointer-events-none'
 
                     if (item.children?.length) {
                       return (
-                        <div key={item.href}>
-                          <button
-                            type="button"
-                            onClick={() => toggleItem(item.href)}
-                            className={cn(
-                              'ds-nav-item w-full',
-                              isChildActive ? 'ds-nav-item-active' : 'ds-nav-item-inactive'
-                            )}
-                            aria-expanded={isOpen}
-                          >
-                            {item.icon && <span className="w-5 h-5">{item.icon}</span>}
-                            <span className="flex-1 text-left">{item.label}</span>
-                            <svg
+                        <div key={itemKey}>
+                          {isDisabled ? (
+                            <div className={cn('ds-nav-item w-full', disabledClasses)}>
+                              {item.icon && <span className="w-5 h-5">{item.icon}</span>}
+                              <span className="flex-1 text-left">{item.label}</span>
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                              </svg>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => toggleItem(item.href)}
                               className={cn(
-                                'w-4 h-4 transition-transform',
-                                isOpen ? 'rotate-180' : 'rotate-0'
+                                'ds-nav-item w-full',
+                                isChildActive ? 'ds-nav-item-active' : 'ds-nav-item-inactive'
                               )}
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
+                              aria-expanded={isOpen}
                             >
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                            </svg>
-                          </button>
+                              {item.icon && <span className="w-5 h-5">{item.icon}</span>}
+                              <span className="flex-1 text-left">{item.label}</span>
+                              <svg
+                                className={cn('w-4 h-4 transition-transform', isOpen ? 'rotate-180' : 'rotate-0')}
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                              </svg>
+                            </button>
+                          )}
                           <div
                             className={cn(
                               'mt-1 space-y-1 overflow-hidden transition-all duration-300',
@@ -146,15 +157,31 @@ export const Sidebar: React.FC<SidebarProps> = ({ sections, user }) => {
                             {item.children.map((child) => {
                               const isChildItemActive =
                                 pathname === child.href || pathname?.startsWith(child.href + '/')
-                              return (
+                              const isChildDisabled = child.disabled === true
+
+                              return isChildDisabled ? (
+                                <div
+                                  key={child.href}
+                                  className={cn(
+                                    'ds-nav-item pl-10 text-sm',
+                                    disabledClasses,
+                                    isChildItemActive ? 'ds-nav-item-active-child' : 'ds-nav-item-inactive'
+                                  )}
+                                >
+                                  <span className="flex-1">{child.label}</span>
+                                  {child.badge && (
+                                    <span className="ml-auto rounded-full bg-danger-600 text-text-inverse text-xs px-2 py-0.5">
+                                      {child.badge}
+                                    </span>
+                                  )}
+                                </div>
+                              ) : (
                                 <Link
                                   key={child.href}
                                   href={child.href}
                                   className={cn(
                                     'ds-nav-item pl-10 text-sm',
-                                    isChildItemActive
-                                      ? 'ds-nav-item-active-child'
-                                      : 'ds-nav-item-inactive'
+                                    isChildItemActive ? 'ds-nav-item-active-child' : 'ds-nav-item-inactive'
                                   )}
                                 >
                                   <span className="flex-1">{child.label}</span>
@@ -171,28 +198,45 @@ export const Sidebar: React.FC<SidebarProps> = ({ sections, user }) => {
                       )
                     }
 
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        className={cn(
-                          'ds-nav-item',
-                          isActive ? 'ds-nav-item-active' : 'ds-nav-item-inactive'
-                        )}
-                      >
-                        {item.icon && <span className="w-5 h-5">{item.icon}</span>}
-                        <span className="flex-1">{item.label}</span>
-                        {item.badge && (
-                          <span className="ml-auto rounded-full bg-danger-600 text-text-inverse text-xs px-2 py-0.5">
-                            {item.badge}
-                          </span>
-                        )}
-                      </Link>
-                    )
-                  })}
-                </div>
-              </div>
-            ))}
+        return isDisabled ? (
+          <div
+            key={itemKey}
+            className={cn(
+              'ds-nav-item',
+              disabledClasses,
+              isActive ? 'ds-nav-item-active' : 'ds-nav-item-inactive'
+            )}
+          >
+            {item.icon && <span className="w-5 h-5">{item.icon}</span>}
+            <span className="flex-1">{item.label}</span>
+            {item.badge && (
+              <span className="ml-auto rounded-full bg-danger-600 text-text-inverse text-xs px-2 py-0.5">
+                {item.badge}
+              </span>
+            )}
+          </div>
+        ) : (
+          <Link
+            key={itemKey}
+            href={item.href}
+            className={cn(
+              'ds-nav-item',
+              isActive ? 'ds-nav-item-active' : 'ds-nav-item-inactive'
+            )}
+          >
+            {item.icon && <span className="w-5 h-5">{item.icon}</span>}
+            <span className="flex-1">{item.label}</span>
+            {item.badge && (
+              <span className="ml-auto rounded-full bg-danger-600 text-text-inverse text-xs px-2 py-0.5">
+                {item.badge}
+              </span>
+            )}
+          </Link>
+        )
+      })}
+    </div>
+  </div>
+))}
           </nav>
 
           {/* User footer */}

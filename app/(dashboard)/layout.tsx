@@ -100,6 +100,7 @@ export default function DashboardLayout({
           href: '/dashboard/alerts',
           icon: NavIcons.alerts,
           badge: '3',
+          disabled: true,
           children: [
             { label: 'Dashboard', href: '/dashboard/alerts/dashboard' },
             { label: 'Settings', href: '/dashboard/alerts/settings' },
