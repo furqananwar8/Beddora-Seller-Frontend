@@ -46,6 +46,14 @@ function DashboardLayoutContent({ children }: { children: ReactNode }) {
   const isScheduledPage = activeView === "scheduled";
   const isAuthReady = isConnected && !campaignsQuery.isLoading;
 
+  // Auto-switch to dayparting when a campaign is selected from sidebar
+  const selectedCampaignId = selectedCampaign?.id || selectedCampaign?.campaignId;
+  useEffect(() => {
+    if (selectedCampaignId) {
+      setActiveView("dayparting");
+    }
+  }, [selectedCampaignId]);
+
   useEffect(() => {
     // SUCCESS: data arrived → mark connected, hide modal
     if (campaignsQuery.data && !campaignsQuery.isError) {

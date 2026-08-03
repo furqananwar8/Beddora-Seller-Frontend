@@ -34,25 +34,17 @@ export function SchedulerGridHeader({
   return (
     <>
       <div className="grid grid-cols-[80px_repeat(24,1fr)] border-b dark:border-zinc-800">
-        <div className="flex items-center justify-center border-r p-3 text-[10px] font-bold text-zinc-400 dark:border-zinc-800 uppercase tracking-widest">
-          Day
-        </div>
-        <div className="col-span-24 relative flex items-center justify-between p-2 text-[10px] font-bold text-zinc-400 uppercase tracking-widest">
-          <span>Hours (00 - 23)</span>
-          <Button
-            size="sm"
-            onClick={clearWeeklyTemplate}
-            disabled={isClearing}
-          >
-            {isClearing ? (
-              <LoadingSpinner />
-            ) : (
-              <X className="h-4 w-4 mr-1" />
-            )}
-            {isClearing ? "Clearing..." : "Clear All"}
-          </Button>
-        </div>
+      <div className="flex items-center justify-center border-r p-3 text-[10px] font-bold text-zinc-400 dark:border-zinc-800 uppercase tracking-widest">
+        Day
       </div>
+      <div className="col-start-2 col-end-[-1] flex items-center justify-between p-2 text-[10px] font-bold text-zinc-400 uppercase tracking-widest">
+        <span>Hours (00 - 23)</span>
+        <Button size="sm" onClick={clearWeeklyTemplate} disabled={isClearing}>
+          {isClearing ? <LoadingSpinner /> : <X className="h-4 w-4 mr-1" />}
+          {isClearing ? "Clearing..." : "Clear All"}
+        </Button>
+      </div>
+    </div>
 
       <div className="grid grid-cols-[80px_repeat(24,1fr)] border-b dark:border-zinc-800">
         <div className="border-r dark:border-zinc-800" />
