@@ -66,6 +66,7 @@ interface BreakevenItem {
   totalExpensesInclMarketing: number;
   totalCogs: number;
   totalExpensesInclMarketingCogs: number;
+  totalExpensesInclAmazonCogs: number;   // ← NEW
   netAfterAmazon: number;
   netAfterAmazonMarketing: number;
   amazonMarginPct: number;
@@ -75,6 +76,7 @@ interface BreakevenItem {
   targetGap: number;
   status: string;
   breakevenPrice: number;
+  breakevenPriceExcMarketing: number;    // ← NEW
   avgSellingPrice: number;
   adsPerUnit: number;
   allocatedOpex: number;
@@ -96,6 +98,7 @@ type SortColumn =
   | 'totalExpensesInclMarketing'
   | 'totalCogs'
   | 'totalExpensesInclMarketingCogs'
+  | 'totalExpensesInclAmazonCogs'      // ← NEW
   | 'netAfterAmazon'
   | 'netAfterAmazonMarketing'
   | 'amazonMarginPct'
@@ -105,6 +108,7 @@ type SortColumn =
   | 'targetGap'
   | 'status'
   | 'breakevenPrice'
+  | 'breakevenPriceExcMarketing'       // ← NEW
   | 'avgSellingPrice'
   | 'adsPerUnit'
   | 'allocatedOpex'
@@ -126,6 +130,8 @@ const COLUMNS: ColumnDef<BreakevenItem>[] = [
   { key: 'totalExpensesInclMarketing', header: 'Total Expenses incl. Marketing', align: 'right', width: 'min-w-[220px]', sortable: true, sortKey: 'totalExpensesInclMarketing', heatmap: 'red', headerClassName: 'break-words leading-tight' },
   { key: 'totalCogs', header: 'Total COGS', align: 'right', width: 'min-w-[150px]', sortable: true, sortKey: 'totalCogs', heatmap: 'red', headerClassName: 'break-words leading-tight' },
   { key: 'totalExpensesInclMarketingCogs', header: 'Total Expenses incl. Marketing + COGS', align: 'right', width: 'min-w-[270px]', sortable: true, sortKey: 'totalExpensesInclMarketingCogs', heatmap: 'red', headerClassName: 'break-words leading-tight' },
+  { key: 'breakevenPrice', header: 'Breakeven Price', align: 'right', width: 'min-w-[170px]', sortable: true, sortKey: 'breakevenPrice', heatmap: 'neutral', headerClassName: 'break-words leading-tight' },
+  { key: 'breakevenPriceExcMarketing', header: 'Breakeven Price Exc. Marketing', align: 'right', width: 'min-w-[210px]', sortable: true, sortKey: 'breakevenPriceExcMarketing', heatmap: 'neutral', headerClassName: 'break-words leading-tight' },
   { key: 'netAfterAmazon', header: 'Net After Amazon', align: 'right', width: 'min-w-[180px]', sortable: true, sortKey: 'netAfterAmazon', heatmap: 'green', headerClassName: 'break-words leading-tight' },
   { key: 'netAfterAmazonMarketing', header: 'Net After Amazon + Marketing', align: 'right', width: 'min-w-[240px]', sortable: true, sortKey: 'netAfterAmazonMarketing', heatmap: 'green', headerClassName: 'break-words leading-tight' },
   { key: 'amazonMarginPct', header: 'Amazon Margin %', align: 'right', width: 'min-w-[170px]', sortable: true, sortKey: 'amazonMarginPct', heatmap: 'green', headerClassName: 'break-words leading-tight' },
@@ -134,7 +140,6 @@ const COLUMNS: ColumnDef<BreakevenItem>[] = [
   { key: 'targetProfitAtB6Pct', header: 'Target Profit @ B6', align: 'right', width: 'min-w-[190px]', sortable: true, sortKey: 'targetProfitAtB6Pct', heatmap: 'neutral', headerClassName: 'break-words leading-tight' },
   { key: 'targetGap', header: 'Target Gap / (Surplus)', align: 'right', width: 'min-w-[200px]', sortable: true, sortKey: 'targetGap', heatmap: 'neutral', headerClassName: 'break-words leading-tight' },
   { key: 'status', header: 'Status', align: 'left', width: 'min-w-[130px]', sortable: true, sortKey: 'status', headerClassName: 'break-words leading-tight' },
-  { key: 'breakevenPrice', header: 'Breakeven Price', align: 'right', width: 'min-w-[170px]', sortable: true, sortKey: 'breakevenPrice', heatmap: 'neutral', headerClassName: 'break-words leading-tight' },
   { key: 'avgSellingPrice', header: 'Avg Selling Price', align: 'right', width: 'min-w-[180px]', sortable: true, sortKey: 'avgSellingPrice', heatmap: 'neutral', headerClassName: 'break-words leading-tight' },
   { key: 'adsPerUnit', header: 'Ads/Unit', align: 'right', width: 'min-w-[130px]', sortable: true, sortKey: 'adsPerUnit', heatmap: 'red', headerClassName: 'break-words leading-tight' },
   { key: 'allocatedOpex', header: 'Allocated OPEX', align: 'right', width: 'min-w-[170px]', sortable: true, sortKey: 'allocatedOpex', heatmap: 'neutral', headerClassName: 'break-words leading-tight' },
@@ -184,8 +189,10 @@ const renderCell = (row: BreakevenItem, column: ColumnDef<BreakevenItem>): React
     'productSales', 'promoRebates', 'sellingFees', 'fbaFees', 'otherAmazonAdj',
     'totalAmazonExpenses', 'marketingExpense', 'allocatedNonSkuExpenses',
     'totalExpensesInclMarketing', 'totalCogs', 'totalExpensesInclMarketingCogs',
+    'totalExpensesInclAmazonCogs',        // ← NEW
     'netAfterAmazon', 'netAfterAmazonMarketing', 'targetProfitAtB6Pct',
-    'breakevenPrice', 'avgSellingPrice', 'adsPerUnit', 'allocatedOpex',
+    'breakevenPrice', 'breakevenPriceExcMarketing',   // ← NEW
+    'avgSellingPrice', 'adsPerUnit', 'allocatedOpex',
   ];
 
   if (currencyCols.includes(key)) {
@@ -293,6 +300,7 @@ export default function BreakevenAnalysis() {
       totalExpensesInclMarketing: item.totalExpenseInclMarketing,
       totalCogs: item.totalCogs,
       totalExpensesInclMarketingCogs: item.totalExpenseInclMarketingAndCogs,
+      totalExpensesInclAmazonCogs: item.totalExpenseInclAmazonAndCogs,   // ← NEW
       netAfterAmazon: item.netAfterAmazon,
       netAfterAmazonMarketing: item.netAfterAmazonAndMarketing,
       amazonMarginPct: item.amazonMarginPct,
@@ -302,6 +310,7 @@ export default function BreakevenAnalysis() {
       targetGap: item.targetGap,
       status: item.status.toUpperCase(),
       breakevenPrice: item.breakevenPrice,
+      breakevenPriceExcMarketing: item.breakevenPriceExcMarketing,       // ← NEW
       avgSellingPrice: item.avgSellingPrice,
       adsPerUnit: item.adsPerUnit,
       allocatedOpex: item.allocatedOpex,

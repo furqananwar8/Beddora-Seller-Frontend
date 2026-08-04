@@ -112,10 +112,10 @@ export const SellerboardProductsTable: React.FC<SellerboardProductsTableProps> =
           aVal = a.totalFees || 0
           bVal = b.totalFees || 0
           break
-        case 'cogs':
-          aVal = a.totalCOGS || 0
-          bVal = b.totalCOGS || 0
-          break
+        // case 'cogs':
+        //   aVal = a.totalCOGS || 0
+        //   bVal = b.totalCOGS || 0
+        //   break
         case 'grossProfit':
           aVal = a.grossProfit || 0
           bVal = b.grossProfit || 0
@@ -269,6 +269,7 @@ export const SellerboardProductsTable: React.FC<SellerboardProductsTableProps> =
           </TableHeader>
           <TableBody>
             {paginatedProducts.map((product: any) => {
+              console.log({product})
               const roi = product.totalCOGS > 0 ? (product.netProfit / product.totalCOGS) * 100 : 0
               const refundCount = product.totalRefunds || 0
               const avgOrderValue = product.unitsSold > 0 ? (product.salesRevenue || 0) / product.unitsSold : 0
@@ -319,7 +320,7 @@ export const SellerboardProductsTable: React.FC<SellerboardProductsTableProps> =
                           <div>
                             <span className="text-text-muted">COGS </span>
                             <span className="text-text-primary font-medium">
-                              {formatCurrency((product.totalCOGS || 0) / Math.max(product.unitsSold || 1, 1))}
+                              {formatCurrency((product.cogsRate || 0))}
                             </span>
                           </div>
                           <div className="flex items-center gap-1">
