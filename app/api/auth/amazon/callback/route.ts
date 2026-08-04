@@ -9,12 +9,13 @@ export async function GET(req: NextRequest) {
   );
   searchParams.forEach((value, key) => backendUrl.searchParams.set(key, value));
 
+  console.log("Callback route =>", backendUrl, process.env.NEXT_PUBLIC_API_BASE_URL)
   const response = await fetch(backendUrl.toString(), { method: 'GET' });
   const data = await response.json();
-
   if (!data.success || !data.sessionId) {
     const errorCode = data.error || 'auth_failed';
     const errorMessage = encodeURIComponent(data.message || 'Authentication failed');
+    console.log(`${process.env.NEXT_PUBLIC_FRONTEND_BASE_URL}/amazon/callback?error=${errorCode}&message=${errorMessage}`)
     return NextResponse.redirect(
       `${process.env.NEXT_PUBLIC_FRONTEND_BASE_URL}/amazon/callback?error=${errorCode}&message=${errorMessage}`,
       302

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(req: NextRequest) {
   const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL;
+  console.log("Base API =>", apiBase)
   if (!apiBase) {
     return NextResponse.json({ error: 'API base URL not configured' }, { status: 500 });
   }
@@ -32,6 +33,7 @@ export async function GET(req: NextRequest) {
     }
 
     const result = await response.json();
+    console.log("Successfull response login route", {result} )
     const url = result.data?.authorizationUrl;
     console.log("URL", url)
     if (!url) {
