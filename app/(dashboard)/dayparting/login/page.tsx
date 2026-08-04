@@ -121,6 +121,8 @@ export default function LoginPage() {
         credentials: "include",
       });
 
+      console.dir(res, { depth: null })
+
       if (!res.ok) {
         throw new Error(`Failed to initiate login: ${res.status}`);
       }
@@ -128,6 +130,7 @@ export default function LoginPage() {
       const { url } = await res.json();
       window.location.href = url;
     } catch (err) {
+      console.dir(err, { depth: null })
       toast.error("Failed to start login. Please try again.");
       setLoading(false);
     }
