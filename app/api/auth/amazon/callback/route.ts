@@ -5,11 +5,11 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
 
   const backendUrl = new URL(
-    `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/amazon/callback`
+    `${process.env.API_BASE_URL}/auth/amazon/callback`
   );
   searchParams.forEach((value, key) => backendUrl.searchParams.set(key, value));
 
-  console.log("Callback route =>", backendUrl, process.env.NEXT_PUBLIC_API_BASE_URL)
+  console.log("Callback route =>", backendUrl, process.env.API_BASE_URL)
   const response = await fetch(backendUrl.toString(), { method: 'GET' });
   const data = await response.json();
   if (!data.success || !data.sessionId) {

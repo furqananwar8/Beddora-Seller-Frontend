@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(req: NextRequest) {
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL;
+  const apiBase = process.env.API_BASE_URL;
   console.log("Base API =>", apiBase)
   if (!apiBase) {
     return NextResponse.json({ error: 'API base URL not configured' }, { status: 500 });

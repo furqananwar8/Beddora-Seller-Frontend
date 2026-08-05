@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 export async function POST(req: NextRequest) {
   // 1. Call backend to invalidate the session server-side
   try {
-    await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/logout`, {
+    await fetch(`${process.env.API_BASE_URL}/auth/logout`, {
       method: 'POST',
       headers: { cookie: req.headers.get('cookie') || '' },
     });

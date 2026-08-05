@@ -33,11 +33,12 @@ import { TileDetailsModal } from './components/TileDetailsModal'
 import { formatCurrency, formatPercentage, formatNumber } from '@/utils/format'
 
 // ── PST/PDT DATE UTILITIES (date-fns + date-fns-tz) ──
-import { format, addDays, addMonths, startOfMonth, endOfMonth, startOfWeek, endOfWeek } from 'date-fns'
+import { format, addDays, addMonths, startOfMonth, endOfMonth, startOfWeek, endOfWeek, subDays } from 'date-fns'
 import { toZonedTime, formatInTimeZone } from 'date-fns-tz'
 import SummaryTiles from './SummaryTiles'
 import { MultiSelectInput } from '@/components/multi-select-input/MultiSelectInput'
 import { MARKETPLACES } from '@/utils/marketplaces'
+import DateRangePicker, { DateRangeValue } from '@/components/date-range-picker/DateRangePicker'
 
 const TIMEZONE = 'America/Los_Angeles'
 const PRESET_STORAGE_KEY = 'profit-dashboard-preset'
@@ -122,6 +123,45 @@ interface TilePreset {
 // ============================================
 // TILE PRESETS
 // ============================================
+
+const chartPresets: any[] = [
+  {
+    id: 'last-12-months',
+    label: 'Last 12 months, by month',
+    getRange: () => {
+      const end = nowInPST()
+      const start = addMonths(end, -12)
+      return { startDate: toISODatePST(start), endDate: toISODatePST(end), periodicity: 'month' }
+    },
+  },
+  {
+    id: 'last-3-months',
+    label: 'Last 3 months, by week',
+    getRange: () => {
+      const end = nowInPST()
+      const start = addMonths(end, -3)
+      return { startDate: toISODatePST(start), endDate: toISODatePST(end), periodicity: 'week' }
+    },
+  },
+  {
+    id: 'last-30-days',
+    label: 'Last 30 days, by day',
+    getRange: () => {
+      const end = nowInPST()
+      const start = addDaysPST(end, -29)
+      return { startDate: toISODatePST(start), endDate: toISODatePST(end), periodicity: 'day' }
+    },
+  },
+  {
+    id: 'custom',
+    label: 'Custom range',
+    getRange: () => ({
+      startDate: toISODatePST(addDaysPST(nowInPST(), -29)),
+      endDate: toISODatePST(nowInPST()),
+      periodicity: 'day',
+    }),
+  },
+]
 
 const tilePresets: TilePreset[] = [
   {
@@ -480,6 +520,12 @@ export const ProfitDashboardScreen: React.FC = () => {
   const [selectedMarketplaces, setSelectedMarketplaces] = useState<string[]>(['Amazon.ca'])
   const [selectedCurrency, setSelectedCurrency] = useState<CurrencyCode>('CAD')
   const [selectedPeriodForDetails, setSelectedPeriodForDetails] = useState<string | null>(null)
+   const [dateRange, setDateRange] = useState<DateRangeValue>({
+      startDate: format(subDays(new Date(), 29), 'yyyy-MM-dd'),
+      endDate: format(new Date(), 'yyyy-MM-dd'),
+      presetId: 'last30',
+    });
+  const [page, setPage] = useState<number>(1);
 
   // ── Restore persisted preset on mount ──
   useEffect(() => {
@@ -731,15 +777,16 @@ export const ProfitDashboardScreen: React.FC = () => {
                   </div>
                   <div className="flex items-center gap-3 flex-1 justify-end">
                     <div className="min-w-[180px]">
-                      <Select
-                        value="last-12-months"
-                        onChange={() => undefined}
-                        options={[
-                          { value: 'last-12-months', label: 'Last 12 months, by month' },
-                          { value: 'last-30-days', label: 'Last 30 days, by day' },
-                          { value: 'last-90-days', label: 'Last 90 days, by day' },
-                        ]}
-                      />
+                      <DateRangePicker
+                          value={dateRange}
+                          presets={chartPresets}
+                          onChange={(range) => {
+                            setDateRange(range);
+                            setPage(1);
+                          }}
+                          displayFormat="MMM d, yyyy"
+                          placeholder="Select date range"
+                        />
                     </div>
                     <div className="min-w-[160px]">
                       <MultiSelectInput

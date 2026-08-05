@@ -129,16 +129,6 @@ export const ChartSummaryTable: React.FC<ChartSummaryTableProps> = ({
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="text-base">Summary</CardTitle>
-          <div className="min-w-[160px]">
-            <Select
-              value={selectedPeriod}
-              onChange={(e) => handlePeriodChange(e.target.value)}
-              options={[
-                { value: 'current', label: formatDateRangeDisplay(startDate, endDate) },
-                { value: 'last-12-months', label: 'Last 12 months' },
-              ]}
-            />
-          </div>
         </div>
       </CardHeader>
       <CardContent className="flex-1 flex flex-col min-h-0 overflow-y-auto py-2 px-4">
