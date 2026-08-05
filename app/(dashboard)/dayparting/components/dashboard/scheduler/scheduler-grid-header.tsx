@@ -6,6 +6,7 @@ import { DayKey, WeekTemplate } from "@/lib/context/dashboard-context";
 import { Button } from "@/design-system/buttons";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import { Switch } from "@/components/switch/Switch";
+import { Spinner } from "@/design-system/loaders";
 
 type SchedulerGridHeaderProps = {
   clearWeeklyTemplate: () => Promise<void>;
@@ -40,7 +41,7 @@ export function SchedulerGridHeader({
       <div className="col-start-2 col-end-[-1] flex items-center justify-between p-2 text-[10px] font-bold text-zinc-400 uppercase tracking-widest">
         <span>Hours (00 - 23)</span>
         <Button size="sm" onClick={clearWeeklyTemplate} disabled={isClearing}>
-          {isClearing ? <LoadingSpinner /> : <X className="h-4 w-4 mr-1" />}
+          {isClearing ? <Spinner /> : <X className="h-4 w-4 mr-1" />}
           {isClearing ? "Clearing..." : "Clear All"}
         </Button>
       </div>

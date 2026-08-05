@@ -5,8 +5,10 @@ import { useRouter } from 'next/navigation'
 import { useLoginMutation } from '@/services/api/auth.api'
 import { useAppDispatch } from '@/store/hooks'
 import { setCredentials } from '@/store/auth.slice'
+import { setPermissions } from '@/store/permissions.slice'
 import { Input } from '@/design-system/inputs'
 import { Button } from '@/design-system/buttons'
+import { getRedirectRoute } from '@/lib/route-permissions'
 import Link from 'next/link'
 
 /**
@@ -23,13 +25,13 @@ export const LoginForm: React.FC = () => {
   const [error, setError] = useState<string | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
-      router.push('/dashboard/profit/dashboard')
-
     e.preventDefault()
     setError(null)
 
     try {
       const result = await login(formData).unwrap()
+
+      // 1. Save auth credentials
       dispatch(
         setCredentials({
           user: result.user,
@@ -38,6 +40,16 @@ export const LoginForm: React.FC = () => {
           accountId: result.accountId,
         })
       )
+
+      // 2. Save permissions and redirect to first allowed route
+      if (result.permissions && result.permissions.length > 0) {
+        dispatch(setPermissions(result.permissions as any))
+        const redirectTo = getRedirectRoute(result.permissions as any)
+        router.push(redirectTo)
+        return
+      }
+
+      // Fallback
       router.push('/dashboard/profit/dashboard')
     } catch (err: any) {
       setError(err.data?.message || err.message || 'Login failed. Please try again.')
@@ -79,7 +91,7 @@ export const LoginForm: React.FC = () => {
       </Button>
 
       <p className="text-center text-sm text-secondary-600">
-        Don't have an account?{' '}
+        Don&apos;t have an account?{' '}
         <Link href="/register" className="text-primary-600 hover:text-primary-700">
           Sign up
         </Link>

@@ -7,16 +7,19 @@ import { ToastContainer } from '@/components/feedback'
 import { AuthInitializer } from '@/components/navigation/AuthInitializer'
 import { RouteGuard } from '@/components/navigation/RouteGuard'
 import { PersistGate } from 'redux-persist/integration/react'
+import { AbilityProvider } from '@/casl/AbilityProvider'
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <Provider store={store}>
       <PersistGate loading={null} persistor={persistor}>
         <AuthInitializer>
-          <RouteGuard>
-            {children}
-            <ToastContainer />
-          </RouteGuard>
+          <AbilityProvider>
+            <RouteGuard>
+              {children}
+              <ToastContainer />
+            </RouteGuard>
+          </AbilityProvider>
         </AuthInitializer>
       </PersistGate>
     </Provider>

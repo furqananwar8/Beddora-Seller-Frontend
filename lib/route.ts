@@ -1,5 +1,5 @@
 // lib/routes.ts
-export const PUBLIC_ROUTES = ['/', '/login'] as const
+export const PUBLIC_ROUTES = ['/', '/login', '/invite'] as const
 export const PROTECTED_ROUTE_PREFIXES = ['/dashboard'] as const
 export const DEFAULT_PUBLIC_ROUTE = '/login' as const
 export const DEFAULT_PROTECTED_ROUTE = '/dashboard/profit/dashboard' as const

@@ -48,14 +48,12 @@ export const invitesApi = baseApi.injectEndpoints({
       keepUnusedDataFor: 600,
     }),
 
-    // Backend returns raw array — no transformResponse needed
     getInvites: builder.query<Invite[], void>({
       query: () => '/invites',
       providesTags: ['Invites'],
       keepUnusedDataFor: 60,
     }),
 
-    // Backend returns raw object — no transformResponse needed
     createInvite: builder.mutation<CreateInviteResponse, CreateInvitePayload>({
       query: (payload) => ({
         url: '/invites',
@@ -64,6 +62,23 @@ export const invitesApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ['Invites'],
     }),
+
+    // Public: validate token before showing form
+    getInviteByToken: builder.query<{ email: string }, string>({
+      query: (token) => `/invites/${token}`,
+    }),
+
+    // Public: accept invite and create user
+    acceptInviteByToken: builder.mutation<
+      { userId: number },
+      { token: string; password: string; name?: string }
+    >({
+      query: ({ token, ...body }) => ({
+        url: `/invites/${token}/accept`,
+        method: 'POST',
+        body,
+      }),
+    }),
   }),
 })
 
@@ -71,4 +86,6 @@ export const {
   useGetPermissionsQuery,
   useGetInvitesQuery,
   useCreateInviteMutation,
+  useGetInviteByTokenQuery,
+  useAcceptInviteByTokenMutation,
 } = invitesApi

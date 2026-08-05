@@ -36,6 +36,7 @@ export interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ sections, user }) => {
+  console.log({sections, user})
   const pathname = usePathname()
   const sidebarOpen = useAppSelector((state) => state.ui.sidebarOpen)
   const dispatch = useAppDispatch()

@@ -1,57 +1,71 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit'
-import type { UserPermissions } from '@/services/api/permissions.api'
 
-/**
- * Permissions slice
- * 
- * Manages user permissions and roles
- */
+export interface CaslRule {
+  action: string
+  subject: string
+}
 
 interface PermissionsState {
-  permissions: Record<string, string>
+  rules: CaslRule[]
   roles: string[]
   isLoading: boolean
+  isLoaded: boolean // <-- NEW
 }
 
 const initialState: PermissionsState = {
-  permissions: {},
+  rules: [],
   roles: [],
   isLoading: false,
+  isLoaded: false,
 }
 
 const permissionsSlice = createSlice({
   name: 'permissions',
   initialState,
   reducers: {
-    setPermissions: (state, action: PayloadAction<UserPermissions>) => {
-      state.permissions = action.payload.permissions
-      state.roles = action.payload.roles
+    setPermissions: (state, action: PayloadAction<{ data?: CaslRule[]; rules?: CaslRule[]; roles?: string[] } | CaslRule[] | Record<string, string>>) => {
+      const payload = action.payload as any
+      state.isLoaded = true
+
+      if (Array.isArray(payload) && payload.length > 0 && payload[0].action) {
+        state.rules = payload
+      } else if (payload?.data && Array.isArray(payload.data)) {
+        state.rules = payload.data
+      } else if (payload?.rules && Array.isArray(payload.rules)) {
+        state.rules = payload.rules
+      } else {
+        state.rules = []
+      }
+
+      if (payload?.roles && Array.isArray(payload.roles)) {
+        state.roles = payload.roles
+      }
     },
     clearPermissions: (state) => {
-      state.permissions = {}
+      state.rules = []
       state.roles = []
+      state.isLoaded = false
     },
-    setLoading: (state, action: PayloadAction<boolean>) => {
+    setPermissionsLoading: (state, action: PayloadAction<boolean>) => {
       state.isLoading = action.payload
     },
   },
 })
 
-export const {
-  setPermissions,
-  clearPermissions,
-  setLoading: setPermissionsLoading,
-} = permissionsSlice.actions
+export const { setPermissions, clearPermissions, setPermissionsLoading } =
+  permissionsSlice.actions
 export default permissionsSlice.reducer
 
 /**
- * Helper function to check if user has permission
+ * Backward-compat helper — creates a temporary Ability to check.
+ * Prefer using useAppAbility() or <Can> in components.
  */
 export function hasPermission(
-  permissions: Record<string, string>,
-  resource: string,
-  action: string
+  rules: CaslRule[],
+  subject: string,
+  action: string = 'read'
 ): boolean {
-  const key = `${resource}.${action}`
-  return key in permissions && permissions[key] !== 'none'
+  // Lazy import so we don't bundle @casl/ability where not needed
+  const { Ability } = require('@casl/ability')
+  return new Ability(rules).can(action, subject)
 }

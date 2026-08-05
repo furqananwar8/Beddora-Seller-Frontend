@@ -2,6 +2,7 @@
 
 import { AddUserModal } from '@/components/add-user-modal/AddUserModal'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
+import { Spinner } from '@/design-system/loaders'
 import { useGetInvitesQuery } from '@/services/api/invites.api'
 import React, { useState } from 'react'
 
@@ -17,7 +18,7 @@ export default function UsersPage() {
 
       {isLoading ? (
         <div className="py-10 flex justify-center">
-          <LoadingSpinner />
+          <Spinner />
         </div>
       ) : (
         <div className="overflow-hidden rounded border border-gray-200">

@@ -37,6 +37,7 @@ export interface LoginResponse {
     isVerified: boolean
     roles: string[]
   }
+  permissions: Record<string, string>[]
   accessToken: string
   refreshToken?: string
   accountId?: string

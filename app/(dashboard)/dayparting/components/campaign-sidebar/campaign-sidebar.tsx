@@ -12,6 +12,7 @@ import { getTimezoneFromCountry } from "@/utils/getTimeZoneFromCountry";
 import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/design-system/buttons";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
+import { Spinner } from "@/design-system/loaders";
 
 type CampaignType = "SPONSORED_PRODUCTS" | "SPONSORED_BRANDS" | "SPONSORED_DISPLAY";
 
@@ -145,7 +146,7 @@ export function CampaignSidebar() {
         <div className="space-y-1 p-2">
           {isLoading && (
             <div className="flex items-center justify-center py-12">
-              <LoadingSpinner />
+              <Spinner />
             </div>
           )}
           {isError && (
