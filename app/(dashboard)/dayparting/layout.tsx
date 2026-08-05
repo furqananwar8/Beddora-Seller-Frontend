@@ -26,6 +26,7 @@ import DaypartingPage  from "./dayparting/page";
 import ScheduledCampaignsPage from "./scheduled/page";
 import { useAmazonAuth } from '@/hooks/user-amazon-auth'
 import { AmazonAuthModal } from '@/components/amazon-auth-modal/amazon-auth-modal'
+import { Spinner } from "@/design-system/loaders";
 
 type View = "dayparting" | "scheduled";
 
@@ -118,10 +119,10 @@ function DashboardLayoutContent({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="relative flex h-full overflow-hidden bg-[#F8FAFC] dark:bg-zinc-950">
+    <div className="relative flex bg-[#F8FAFC] dark:bg-zinc-950">
       
       {showAuthModal && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+        <div className="flex h-full absolute inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
           <AmazonAuthModal
             isOpen={showAuthModal}
             onSuccess={onAuthSuccess}
@@ -153,16 +154,6 @@ function DashboardLayoutContent({ children }: { children: ReactNode }) {
         </nav>
 
         <div className="mt-auto flex flex-col items-center space-y-4">
-          <button 
-            disabled={!isAuthReady}
-            className={cn(
-              "text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200",
-              !isAuthReady && "cursor-not-allowed opacity-40 hover:text-zinc-400"
-            )}
-          >
-            <Settings className="h-5 w-5" />
-          </button>
-          <div className={cn("h-8 w-8 rounded-full bg-zinc-200 dark:bg-zinc-800", !isAuthReady && "opacity-40")} />
         </div>
       </div>
 
@@ -179,14 +170,14 @@ function DashboardLayoutContent({ children }: { children: ReactNode }) {
         </main>
 
         {!isScheduledPage && (
-          <div className="fixed bottom-8 right-8 z-40">
+          <div className="fixed bottom-8 right-8 z-40 h-full">
             <Button
               className="bg-indigo-600 text-white disabled:opacity-70 disabled:cursor-not-allowed"
               onClick={onSave}
               disabled={isSaving}
             >
               {isSaving ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                <Spinner className="h-4 w-4 animate-spin mr-2" />
               ) : (
                 <Save className="h-4 w-4 mr-2" />
               )}

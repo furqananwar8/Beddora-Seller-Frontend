@@ -319,8 +319,7 @@ export default function DashboardLayout({
           sections={navSections as any}
           user={{
             name: user?.name,
-            email: user?.email || '',
-            planLabel: 'Pro Plan',
+            email: user?.email || ''
           }}
         />
         <div className="ds-main">

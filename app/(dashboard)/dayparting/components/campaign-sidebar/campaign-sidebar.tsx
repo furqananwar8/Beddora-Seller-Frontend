@@ -136,8 +136,8 @@ export function CampaignSidebar() {
       </div>
 
       {isRefetching && (
-        <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/60">
-          <Loader2 className="h-5 w-5 animate-spin text-primary-600" />
+        <div className="h-full absolute inset-0 z-10 flex items-center justify-center bg-white/60">
+          <Spinner/>
         </div>
       )}
 
@@ -145,7 +145,7 @@ export function CampaignSidebar() {
     <div className={`flex-1 min-h-0 overflow-y-auto ${isRefetching ? 'pointer-events-none opacity-50' : ''}`}>
         <div className="space-y-1 p-2">
           {isLoading && (
-            <div className="flex items-center justify-center py-12">
+            <div className="h-full flex items-center justify-center py-12">
               <Spinner />
             </div>
           )}

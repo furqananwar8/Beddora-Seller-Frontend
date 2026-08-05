@@ -166,10 +166,12 @@
 
   .ds-main {
     @apply lg:pl-sidebar;
+    height: 100vh;
   }
 
   .ds-content {
     @apply p-0;
+    height: 100vh;
   }
 
   /* Buttons */
