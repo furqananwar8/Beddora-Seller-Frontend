@@ -251,56 +251,23 @@ export interface MarketplacesResponse {
   data: Marketplace[]
 }
 
+// ── SINGLE, MERGED ProfitFilters ──
 export interface ProfitFilters {
-  startDate?: string
-  endDate?: string
-  accountId?: string
-  amazonAccountId?: string
-  marketplaceId?: string      // single (backward compat)
-  marketplaces?: string[]       // multi-select array
-  sku?: string
-  period?: 'day' | 'week' | 'month'
-  preset?: string
-  currency?: string
-}
-
-export interface ProductProfitBreakdown {
-  sku: string
-  productId: string | null
-  productTitle: string | null
-  asin: string | null
-  imageUrl: string | null
-  unitsSold: number
-  totalCOGS: number
-  totalCOGSQty: number
-  cogsPerUnit: number
-  salesVelocity: number
-}
-
-export interface ProductBreakdownResponse {
-  success: boolean
-  data: ProductProfitBreakdown[]
-  totalRecords: number
-  totalPages: number
-  page: number
-  limit: number
-}
-
-export interface ProfitFilters {
-  startDate?: string
-  endDate?: string
   accountId?: string
   amazonAccountId?: string
   marketplaceId?: string
   marketplaces?: string[]
   sku?: string
+  startDate?: string
+  endDate?: string
   period?: 'day' | 'week' | 'month'
-  preset?: string
+  preset?: 'last-12-months' | 'last-3-months' | 'last-30-days' | 'custom'
+  periodicity?: 'day' | 'week' | 'month'
   currency?: string
+  interval?: 'daily' | 'weekly' | 'monthly'
+  metric?: string
   page?: number
   limit?: number
-  cogsSet?: 'all' | 'set' | 'notSet'
-  search?: string
 }
 
 // ============================================
@@ -395,7 +362,7 @@ export const profitApi = baseApi.injectEndpoints({
 
     getProfitTrendsSimple: builder.query<
       ProfitTrendsSimpleResponse,
-      ProfitFilters & { interval?: 'daily' | 'weekly' | 'monthly' }
+      ProfitFilters
     >({
       query: (filters) => ({
         url: '/profit/trends/simple',
@@ -416,7 +383,7 @@ export const profitApi = baseApi.injectEndpoints({
 
     getProductTrends: builder.query<
       ProductTrendsResponse,
-      ProfitFilters & { metric?: string; periodicity?: string; page?: number; limit?: number }
+      ProfitFilters
     >({
       query: (filters) => ({
         url: '/profit/trends/products',
@@ -448,13 +415,12 @@ export const profitApi = baseApi.injectEndpoints({
     }),
 
     getProfitSummaryMultiplePeriods: builder.query<any, any>({
-       query: (filters) => ({
-        url: '/profit/trends/products-multiple-period'
+      query: () => ({
+        url: '/profit/trends/products-multiple-period',
       }),
       providesTags: ['Profit'],
       keepUnusedDataFor: 300,
-    })
-    
+    }),
   }),
 })
 
@@ -479,5 +445,5 @@ export const {
   useLazyGetProfitTrendsSimpleQuery,
   useLazyGetProductTrendsQuery,
   useLazyGetMarketplacesQuery,
-  useGetProfitSummaryMultiplePeriodsQuery
+  useGetProfitSummaryMultiplePeriodsQuery,
 } = profitApi

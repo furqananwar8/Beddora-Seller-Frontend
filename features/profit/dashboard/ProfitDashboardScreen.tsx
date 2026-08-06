@@ -20,7 +20,7 @@ import {
   PeriodSummary,
   PeriodSummaryPeriod,
 } from '@/services/api/profit.api'
-import { useGetDashboardChartQuery, ChartFilters } from '@/services/api/charts.api'
+import { useGetDashboardChartQuery, ChartPeriod } from '@/services/api/charts.api'
 import { SellerboardProductsTable } from './SellerboardProductsTable'
 import { OrderItemsTable } from './OrderItemsTable'
 import { DashboardChart } from './DashboardChart'
@@ -124,7 +124,7 @@ interface TilePreset {
 // TILE PRESETS
 // ============================================
 
-const chartPresets: any[] = [
+const chartPresets = [
   {
     id: 'last-12-months',
     label: 'Last 12 months, by month',
@@ -162,6 +162,17 @@ const chartPresets: any[] = [
     }),
   },
 ]
+
+// ── Helper: infer periodicity from custom range length ──
+const inferPeriodicity = (startDate: string, endDate: string): 'day' | 'week' | 'month' => {
+  const start = new Date(startDate)
+  const end = new Date(endDate)
+  const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24))
+  if (daysDiff <= 31) return 'day'
+  if (daysDiff <= 90) return 'week'
+  return 'month'
+}
+
 
 const tilePresets: TilePreset[] = [
   {
@@ -520,12 +531,16 @@ export const ProfitDashboardScreen: React.FC = () => {
   const [selectedMarketplaces, setSelectedMarketplaces] = useState<string[]>(['Amazon.ca'])
   const [selectedCurrency, setSelectedCurrency] = useState<CurrencyCode>('CAD')
   const [selectedPeriodForDetails, setSelectedPeriodForDetails] = useState<string | null>(null)
-   const [dateRange, setDateRange] = useState<DateRangeValue>({
-      startDate: format(subDays(new Date(), 29), 'yyyy-MM-dd'),
-      endDate: format(new Date(), 'yyyy-MM-dd'),
-      presetId: 'last30',
-    });
+  // ── State: dateRange now carries periodicity ──
+  const [dateRange, setDateRange] = useState<DateRangeValue & { periodicity?: string }>({
+    startDate: toISODatePST(addDaysPST(nowInPST(), -29)),
+    endDate: toISODatePST(nowInPST()),
+    presetId: 'last-30-days',
+    periodicity: 'day',
+  });
   const [page, setPage] = useState<number>(1);
+
+  
 
   // ── Restore persisted preset on mount ──
   useEffect(() => {
@@ -589,6 +604,8 @@ export const ProfitDashboardScreen: React.FC = () => {
     },
     { skip: !effectiveAccountId }
   )
+
+  
 
   const periodMap = useMemo(() => {
     if (!profitData?.periods) return new Map<PeriodSummaryPeriod, PeriodSummary>()
@@ -656,14 +673,28 @@ export const ProfitDashboardScreen: React.FC = () => {
       : getSingleDayPST(1)
   }, [selectedTileConfig])
 
-  // ── PRODUCT / ORDER ITEMS QUERIES ──
+  const chartRange = useMemo(() => ({
+    startDate: dateRange.startDate,
+    endDate: dateRange.endDate,
+  }), [dateRange])
+
+  const activeRange = useMemo(() => {
+    const range = activeTab === 'chart' || activeTab === 'pnl' ? chartRange : selectedTileRange
+    return {
+      startDate: range.startDate || undefined,
+      endDate: range.endDate || undefined,
+    }
+  }, [activeTab, chartRange, selectedTileRange])
+  
+    // ── PRODUCT / ORDER ITEMS QUERIES ──
   const { data: productData, isFetching: productFetching } = useGetProfitByProductQuery(
     {
       ...profitFilters,
       accountId: effectiveAccountId,
       marketplaces: selectedMarketplaces,
       currency: selectedCurrency,
-      ...selectedTileRange,
+      startDate: activeRange.startDate,
+      endDate: activeRange.endDate,
     },
     { skip: !effectiveAccountId || tableView === 'order-items' }
   )
@@ -674,34 +705,30 @@ export const ProfitDashboardScreen: React.FC = () => {
       accountId: effectiveAccountId,
       marketplaces: selectedMarketplaces,
       currency: selectedCurrency,
-      ...selectedTileRange,
+      startDate: activeRange.startDate,
+      endDate: activeRange.endDate,
     },
     { skip: !effectiveAccountId || tableView === 'products' }
   )
 
-  // ── CHART DATA (PST) ──
-  const chartDateRange = useMemo(() => {
-    const end = nowInPST()
-    const start = addMonths(end, -12)
-    return { startDate: toISODatePST(start), endDate: toISODatePST(end) }
-  }, [])
-
-  const chartFilters: ChartFilters = useMemo(
+  // ── Replace hardcoded chartDateRange/chartFilters with reactive ones ──
+  const chartFilters = useMemo(
     () => ({
       accountId: effectiveAccountId,
       marketplaces: selectedMarketplaces,
-      ...chartDateRange,
-      period: 'month',
+      startDate: dateRange.startDate,
+      endDate: dateRange.endDate,
+      period: (dateRange.periodicity || 'day') as ChartPeriod,
       currency: selectedCurrency,
     }),
-    [effectiveAccountId, selectedMarketplaces, chartDateRange, selectedCurrency]
+    [effectiveAccountId, selectedMarketplaces, dateRange, selectedCurrency]
   )
 
   const {
     data: chartData,
     isFetching: chartFetching,
     error: chartError,
-  } = useGetDashboardChartQuery(chartFilters, {
+  } = useGetDashboardChartQuery(chartFilters as any, {
     skip: !effectiveAccountId || activeTab !== 'chart',
   })
 
@@ -711,8 +738,12 @@ export const ProfitDashboardScreen: React.FC = () => {
       accountId: effectiveAccountId,
       marketplaces: selectedMarketplaces,
       currency: selectedCurrency,
+      startDate: dateRange.startDate ?? undefined,
+      endDate: dateRange.endDate ?? undefined,
+      periodicity: (dateRange.periodicity as 'day' | 'week' | 'month') ?? undefined,
+      preset: (dateRange.presetId as 'last-12-months' | 'last-3-months' | 'last-30-days' | 'custom') ?? undefined,
     }),
-    [effectiveAccountId, selectedMarketplaces, selectedCurrency]
+    [effectiveAccountId, selectedMarketplaces, selectedCurrency, dateRange]
   )
 
   const {
@@ -746,7 +777,8 @@ export const ProfitDashboardScreen: React.FC = () => {
     <div className="w-full">
       <Container size="full">
         {/* ── CHART VIEW ── */}
-        {activeTab === 'chart' && (
+        {activeTab === 'chart' 
+        && (
           <>
             <div className="bg-surface-secondary border-b border-border mb-6">
               <div className="px-6 py-4">
@@ -776,17 +808,21 @@ export const ProfitDashboardScreen: React.FC = () => {
                     </div>
                   </div>
                   <div className="flex items-center gap-3 flex-1 justify-end">
-                    <div className="min-w-[180px]">
+                    <div className="w-[220px]">
                       <DateRangePicker
-                          value={dateRange}
-                          presets={chartPresets}
-                          onChange={(range) => {
-                            setDateRange(range);
-                            setPage(1);
-                          }}
-                          displayFormat="MMM d, yyyy"
-                          placeholder="Select date range"
-                        />
+                        value={dateRange}
+                        presets={chartPresets}
+                        keepOpenPresetIds={['custom']}
+                        onChange={(range) => {
+                          const preset = chartPresets.find(p => p.id === range.presetId)
+                          const periodicity = preset?.getRange().periodicity 
+                            || inferPeriodicity(range.startDate as string, range.endDate as string)
+                          setDateRange({ ...range, periodicity })
+                          setPage(1)
+                        }}
+                        displayFormat="MMM d, yyyy"
+                        placeholder="Select date range"
+                      />
                     </div>
                     <div className="min-w-[160px]">
                       <MultiSelectInput
@@ -1224,16 +1260,13 @@ export const ProfitDashboardScreen: React.FC = () => {
         )}
 
         {/* ── P&L VIEW ── */}
-        {activeTab === 'pnl' && 
-        (
+        {activeTab === 'pnl' && (
           <>
-            <div className="mb-6">
-              <PLTable data={plData} isLoading={plFetching} error={plError} currency={selectedCurrency} />
-            </div>
+            {/* Toolbar */}
             <div className="bg-surface-secondary border-b border-border mb-6">
               <div className="px-6 py-4">
                 <div className="flex items-center gap-4">
-                  <div className="w-[55%]">
+                  <div className='basis-[50%]'>
                     <div className="relative">
                       <svg
                         className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted"
@@ -1258,6 +1291,21 @@ export const ProfitDashboardScreen: React.FC = () => {
                     </div>
                   </div>
                   <div className="flex items-center gap-3 flex-1 justify-end">
+                    <div>
+                      <DateRangePicker
+                        value={dateRange}
+                        presets={chartPresets}
+                        keepOpenPresetIds={['custom']}
+                        onChange={(range) => {
+                          const preset = chartPresets.find(p => p.id === range.presetId)
+                          const periodicity = preset?.getRange().periodicity
+                            || inferPeriodicity(range.startDate as string, range.endDate as string)
+                          setDateRange({ ...range, periodicity })
+                        }}
+                        displayFormat="MMM d, yyyy"
+                        placeholder="Select date range"
+                      />
+                    </div>
                     <div className="min-w-[160px]">
                       <MultiSelectInput
                         title="Marketplace"
@@ -1277,29 +1325,19 @@ export const ProfitDashboardScreen: React.FC = () => {
                         ]}
                       />
                     </div>
-                    <Button
-                      variant="ghost"
-                      onClick={handleReload}
-                      className="bg-surface border border-border hover:bg-surface-tertiary text-text-primary"
-                      title="Reload data"
-                    >
-                      <svg
-                        className="w-4 h-4"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                        />
-                      </svg>
-                    </Button>
                   </div>
                 </div>
               </div>
+            </div>
+
+            {/* P&L Table */}
+            <div className="mb-6">
+              <PLTable
+                data={plData}
+                isLoading={plFetching}
+                error={plError}
+                currency={selectedCurrency}
+              />
             </div>
             <Card>
               <CardContent className="p-0">

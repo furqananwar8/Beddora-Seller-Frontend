@@ -119,7 +119,7 @@ function DashboardLayoutContent({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="relative flex bg-[#F8FAFC] dark:bg-zinc-950">
+    <div className="h-full relative flex bg-[#F8FAFC] dark:bg-zinc-950">
       
       {showAuthModal && (
         <div className="flex h-full absolute inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">

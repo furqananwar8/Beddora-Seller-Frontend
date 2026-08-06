@@ -38,6 +38,7 @@ export interface DateRangeValue {
   startDate: string | null; // ISO date string YYYY-MM-DD
   endDate: string | null;   // ISO date string YYYY-MM-DD
   presetId?: string | null;
+  periodicity?: string | null;
 }
 
 export interface DateRangePickerProps {
@@ -65,6 +66,8 @@ export interface DateRangePickerProps {
   displayFormat?: string;
   /** Placeholder text when no range selected */
   placeholder?: string;
+
+  keepOpenPresetIds?: string[];
 }
 
 // ─── Default Presets ─────────────────────────────────────────────────────────
@@ -283,6 +286,7 @@ export default function DateRangePicker({
   disabledDate,
   displayFormat = 'MMM d, yyyy',
   placeholder = 'Select date range',
+  keepOpenPresetIds = [],
 }: DateRangePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedPreset, setSelectedPreset] = useState<string | null>(value?.presetId ?? null);
@@ -353,9 +357,13 @@ export default function DateRangePicker({
       setTempStartDate(startDate);
       setTempEndDate(endDate);
       onChange({ startDate, endDate, presetId });
-      setIsOpen(false);
+
+      // Only close for non-custom presets
+      if (!keepOpenPresetIds.includes(presetId)) {
+        setIsOpen(false);
+      }
     },
-    [activePresets, onChange]
+    [activePresets, onChange, keepOpenPresetIds]
   );
 
   const applyCustomRange = useCallback(() => {
@@ -384,7 +392,7 @@ export default function DateRangePicker({
       type="button"
       onClick={() => setIsOpen((o) => !o)}
       className={cn(
-        'flex items-center gap-2 px-3 py-2 text-sm border border-border rounded-lg bg-surface hover:bg-surface-secondary transition-colors',
+        'flex items-center gap-2 px-3 py-3 text-sm border border-border rounded-lg bg-surface hover:bg-surface-secondary transition-colors',
         isOpen && 'ring-2 ring-primary-500 border-primary-500'
       )}
     >
