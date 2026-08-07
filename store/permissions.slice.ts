@@ -10,6 +10,7 @@ interface PermissionsState {
   roles: string[]
   isLoading: boolean
   isLoaded: boolean // <-- NEW
+  permissions: any
 }
 
 const initialState: PermissionsState = {
@@ -17,6 +18,7 @@ const initialState: PermissionsState = {
   roles: [],
   isLoading: false,
   isLoaded: false,
+  permissions: []
 }
 
 const permissionsSlice = createSlice({
