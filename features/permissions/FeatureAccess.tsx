@@ -11,7 +11,7 @@ interface Props {
 }
 
 export const FeatureAccess: React.FC<Props> = ({ resource, action, children }) => {
-  const permissions = useAppSelector((s) => s.permissions.permissions)
+  const permissions = useAppSelector((s: any) => s.permissions.permissions)
   const allowed = hasPermissionSelector(permissions, resource, action)
   if (!allowed) return null
   return <>{children}</>

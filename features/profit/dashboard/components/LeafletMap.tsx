@@ -238,7 +238,7 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({ data, className, onCount
         },
         click: (e: any) => {
           if (code && onCountryClick) {
-            onCountryClick(code, e.originalEvent as any)  // ← pass native event
+            onCountryClick(e.originalEvent as any)  // ← pass native event
           }
         },
       })

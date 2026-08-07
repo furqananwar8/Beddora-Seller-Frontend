@@ -10,15 +10,17 @@ import {
   TableRow,
 } from '@/design-system/tables'
 import { Button } from '@/design-system/buttons'
-import { TableSkeleton } from '@/design-system/loaders'
+import { TableSkeleton, Spinner } from '@/design-system/loaders'
 import { ProductProfitBreakdown } from '@/services/api/profit.api'
+import { StatModal, StatModalData } from '@/components/stats/stats.modal'
 import { formatCurrency, formatNumber, formatPercentage } from '@/utils/format'
+import { cn } from '@/utils/cn'
 
 export interface SellerboardProductsTableProps {
   products?: ProductProfitBreakdown[]
   isLoading?: boolean
-  searchTerm?: string
   isFetching?: boolean
+  searchTerm?: string
   error?: any
 }
 
@@ -38,14 +40,124 @@ type SortColumn =
   | 'bsr'
 type SortDirection = 'asc' | 'desc'
 
-/**
- * Sellerboard-style Products Table
- * 
- * Comprehensive product table with all financial metrics
- */
+/* ── Build StatModal data from product ─────────────────── */
+
+const buildProductStatData = (p: ProductProfitBreakdown): StatModalData => {
+  const roi = p.totalCOGS > 0 ? (p.netProfit / p.totalCOGS) * 100 : 0
+
+  return {
+    title: p.productTitle || p.sku || 'Product',
+    sections: [
+      {
+        title: 'Sales',
+        value: p.salesRevenue,
+        currency: true,
+        defaultOpen: true,
+        children: [
+          { label: 'Organic', value: 0, currency: true },
+          { label: 'Sponsored Products (same day)', value: 0, currency: true },
+          { label: 'Sponsored Display (same day)', value: 0, currency: true },
+          { label: 'Direct sales', value: 0, currency: true },
+          { label: 'Subscription sales (est.)', value: 0, currency: true },
+        ],
+      },
+      {
+        title: 'Units',
+        value: p.unitsSold,
+        defaultOpen: true,
+        children: [
+          { label: 'Organic', value: 0, integer: true },
+          { label: 'Sponsored Products (same day)', value: 0, integer: true },
+          { label: 'Sponsored Display (same day)', value: 0, integer: true },
+          { label: 'Direct units', value: 0, integer: true },
+          { label: 'Subscription units (est.)', value: 0, integer: true },
+        ],
+      },
+      {
+        title: 'Advertising cost',
+        value: 0,
+        currency: true,
+        children: [
+          { label: 'Sponsored Products', value: 0, currency: true },
+          { label: 'Sponsored Brands Video', value: 0, currency: true },
+          { label: 'Sponsored Display', value: 0, currency: true },
+          { label: 'Sponsored Brands', value: 0, currency: true },
+        ],
+      },
+      {
+        title: 'Refund cost',
+        value: Math.abs(p.totalRefunds),
+        currency: true,
+        defaultOpen: true,
+        children: [
+          { label: 'Refunded amount', value: Math.abs(p.totalRefunds), currency: true },
+          { label: 'Refund commission', value: 0, currency: true },
+          { label: 'Goodwill/Principal', value: 0, currency: true },
+          { label: 'Promotion', value: 0, currency: true },
+          { label: 'Refunded referral fee', value: 0, currency: true },
+        ],
+      },
+      {
+        title: 'Amazon fees',
+        value: Math.abs(p.totalFees),
+        currency: true,
+        defaultOpen: true,
+        children: [
+          { label: 'FBA per unit fulfillment fee', value: 0, currency: true },
+          { label: 'Referral fee', value: Math.abs(p.totalFees), currency: true },
+          { label: 'FBA per unit fulfillment fee_tax', value: 0, currency: true },
+          { label: 'Commission_tax', value: 0, currency: true },
+          { label: 'Sales tax collection fee', value: 0, currency: true },
+          { label: 'FBA disposal fee', value: 0, currency: true },
+          { label: 'Sales tax collection fee_tax', value: 0, currency: true },
+          { label: 'Fba disposal fee_tax', value: 0, currency: true },
+          { label: 'Digital services fee', value: 0, currency: true },
+          { label: 'Adjustment FBA per unit fulfillment', value: 0, currency: true },
+          { label: 'Reversal reimbursement', value: 0, currency: true },
+        ],
+      },
+      {
+        title: 'Cost of goods',
+        value: Math.abs(p.totalCOGS),
+        currency: true,
+        defaultOpen: true,
+        children: [
+          { label: 'Cost of goods sold', value: Math.abs(p.totalCOGS), currency: true },
+          { label: 'Buying price', value: 0, currency: true },
+          { label: 'Shipping price', value: 0, currency: true },
+          { label: 'Import price', value: 0, currency: true },
+          { label: 'Disposal of sellable products', value: 0, currency: true },
+          { label: 'Lost/damaged by Amazon', value: 0, currency: true },
+          { label: 'Multi-channel', value: 0, currency: true },
+          { label: 'Missing returns', value: 0, currency: true },
+        ],
+      },
+    ],
+    summaryRows: [
+      { label: 'Refunds', value: p.totalRefunds, currency: true },
+      { label: 'Promo', value: 0, currency: true },
+      { label: 'VAT', value: 0, currency: true },
+      { label: 'Gross profit', value: p.grossProfit, currency: true },
+      { label: 'Indirect expenses', value: p.totalExpenses, currency: true },
+      { label: 'Net profit', value: p.netProfit, currency: true },
+      { label: 'Estimated payout', value: 0, currency: true },
+      { label: 'Real ACOS', value: 0, percentage: true },
+      { label: '% Refunds', value: 0, percentage: true },
+      { label: 'Sellable returns', value: 0, percentage: true },
+      { label: 'Margin', value: p.netMargin, percentage: true },
+      { label: 'ROI', value: roi, percentage: true },
+      { label: 'Active subscriptions (SnS)', value: 0, integer: true },
+      { label: 'Sessions', value: 0, integer: true },
+      { label: 'Unit session percentage', value: 0, percentage: true },
+    ],
+  }
+}
+
+/* ── Component ─────────────────────────────────────────── */
 
 export const SellerboardProductsTable: React.FC<SellerboardProductsTableProps> = React.memo(({
   products,
+  isLoading,
   isFetching,
   searchTerm = '',
   error,
@@ -54,6 +166,12 @@ export const SellerboardProductsTable: React.FC<SellerboardProductsTableProps> =
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 20
+
+  /* ── StatModal snapshot state ── */
+  const [productStat, setProductStat] = useState<{
+    data: StatModalData
+    anchorRect: DOMRect
+  } | null>(null)
 
   const handleSort = useCallback((column: SortColumn) => {
     if (sortColumn === column) {
@@ -68,7 +186,6 @@ export const SellerboardProductsTable: React.FC<SellerboardProductsTableProps> =
     if (!products) return []
     let result = [...products]
 
-    // Filter
     if (searchTerm) {
       const lower = searchTerm.toLowerCase()
       result = result.filter(
@@ -78,7 +195,6 @@ export const SellerboardProductsTable: React.FC<SellerboardProductsTableProps> =
       )
     }
 
-    // Sort
     result.sort((a, b) => {
       let aVal: number | string = 0
       let bVal: number | string = 0
@@ -105,19 +221,13 @@ export const SellerboardProductsTable: React.FC<SellerboardProductsTableProps> =
           bVal = 0
           break
         case 'ads':
-          // aVal = a.totalExpenses || 0
-          // bVal = b.totalExpenses || 0
-          aVal = 0;
-          bVal = 0;
+          aVal = 0
+          bVal = 0
           break
         case 'amazonFees':
           aVal = a.totalFees || 0
           bVal = b.totalFees || 0
           break
-        // case 'cogs':
-        //   aVal = a.totalCOGS || 0
-        //   bVal = b.totalCOGS || 0
-        //   break
         case 'grossProfit':
           aVal = a.grossProfit || 0
           bVal = b.grossProfit || 0
@@ -165,11 +275,7 @@ export const SellerboardProductsTable: React.FC<SellerboardProductsTableProps> =
     </span>
   )
 
-  // ── Skeleton on EVERY API call (first load + refetch) ──
-  if (isFetching) {
-    return <TableSkeleton rows={10} columns={14} />
-  }
-
+  if (isLoading) return <TableSkeleton rows={10} columns={15} />
   if (error) {
     return (
       <div className="text-center py-8 text-danger-600">
@@ -178,7 +284,7 @@ export const SellerboardProductsTable: React.FC<SellerboardProductsTableProps> =
     )
   }
 
-  if (!paginatedProducts.length) {
+  if (!paginatedProducts.length && !isFetching) {
     return (
       <div className="text-center py-8 text-text-muted">
         No products found for this period.
@@ -187,7 +293,23 @@ export const SellerboardProductsTable: React.FC<SellerboardProductsTableProps> =
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 relative">
+      {/* Fetching overlay */}
+      {isFetching && (
+        <div className="absolute inset-0 bg-surface/60 z-20 flex items-center justify-center">
+          <Spinner size="lg" />
+        </div>
+      )}
+
+      {/* StatModal — fixed position, does NOT scroll with table */}
+      <StatModal
+        isOpen={!!productStat}
+        onClose={() => setProductStat(null)}
+        data={productStat?.data || null}
+        currency="CAD"
+        anchorRect={productStat?.anchorRect || null}
+      />
+
       <div className="overflow-x-auto">
         <Table>
           <TableHeader>
@@ -196,74 +318,74 @@ export const SellerboardProductsTable: React.FC<SellerboardProductsTableProps> =
                 className="cursor-pointer hover:bg-surface-secondary max-w-[250px]"
                 onClick={() => handleSort('name')}
               >
-                Product
+                Product <SortIcon column="name" />
               </TableHead>
               <TableHead
                 className="cursor-pointer hover:bg-surface-secondary text-right"
                 onClick={() => handleSort('units')}
               >
-                Units sold
+                Units sold <SortIcon column="units" />
               </TableHead>
               <TableHead
                 className="cursor-pointer hover:bg-surface-secondary text-right"
                 onClick={() => handleSort('refunds')}
               >
-                Refunds
+                Refunds <SortIcon column="refunds" />
               </TableHead>
               <TableHead
                 className="cursor-pointer hover:bg-surface-secondary text-right"
                 onClick={() => handleSort('sales')}
               >
-                Sales
+                Sales <SortIcon column="sales" />
               </TableHead>
               <TableHead
                 className="cursor-pointer hover:bg-surface-secondary text-right"
                 onClick={() => handleSort('promo')}
               >
-                Promo
+                Promo <SortIcon column="promo" />
               </TableHead>
               <TableHead
                 className="cursor-pointer hover:bg-surface-secondary text-right"
                 onClick={() => handleSort('ads')}
               >
-                Ads
+                Ads <SortIcon column="ads" />
               </TableHead>
               <TableHead className="text-right">Refund cost</TableHead>
               <TableHead
                 className="cursor-pointer hover:bg-surface-secondary text-right"
                 onClick={() => handleSort('amazonFees')}
               >
-                Amazon fees
+                Amazon fees <SortIcon column="amazonFees" />
               </TableHead>
               <TableHead
                 className="cursor-pointer hover:bg-surface-secondary text-right"
                 onClick={() => handleSort('cogs')}
               >
-                Cost of goods
+                Cost of goods <SortIcon column="cogs" />
               </TableHead>
               <TableHead
                 className="cursor-pointer hover:bg-surface-secondary text-right"
                 onClick={() => handleSort('grossProfit')}
               >
-                Gross profit
+                Gross profit <SortIcon column="grossProfit" />
               </TableHead>
               <TableHead
                 className="cursor-pointer hover:bg-surface-secondary text-right"
                 onClick={() => handleSort('netProfit')}
               >
-                Net profit
+                Net profit <SortIcon column="netProfit" />
               </TableHead>
               <TableHead
                 className="cursor-pointer hover:bg-surface-secondary text-right"
                 onClick={() => handleSort('margin')}
               >
-                Margin
+                Margin <SortIcon column="margin" />
               </TableHead>
               <TableHead
                 className="cursor-pointer hover:bg-surface-secondary text-right"
                 onClick={() => handleSort('roi')}
               >
-                ROI
+                ROI <SortIcon column="roi" />
               </TableHead>
               <TableHead className="text-right">BSR</TableHead>
               <TableHead className="text-center">Info</TableHead>
@@ -271,7 +393,6 @@ export const SellerboardProductsTable: React.FC<SellerboardProductsTableProps> =
           </TableHeader>
           <TableBody>
             {paginatedProducts.map((product: any) => {
-              console.log({product})
               const roi = product.totalCOGS > 0 ? (product.netProfit / product.totalCOGS) * 100 : 0
               const refundCount = product.totalRefunds || 0
               const avgOrderValue = product.unitsSold > 0 ? (product.salesRevenue || 0) / product.unitsSold : 0
@@ -365,7 +486,16 @@ export const SellerboardProductsTable: React.FC<SellerboardProductsTableProps> =
                     <span className="text-text-muted">—</span>
                   </TableCell>
                   <TableCell className="text-center">
-                    <button className="text-primary-600 hover:text-primary-700 text-sm">
+                    <button
+                      onClick={(e) => {
+                        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+                        setProductStat({
+                          data: buildProductStatData(product),
+                          anchorRect: rect,
+                        })
+                      }}
+                      className="text-primary-600 hover:text-primary-700 text-sm font-medium"
+                    >
                       More
                     </button>
                   </TableCell>

@@ -151,7 +151,7 @@ export const RegionsTable: React.FC<RegionsTableProps> = ({
   const [sortColumn, setSortColumn] = useState<string>('unitsSold')
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
 
-  /* ── StatModal popover state (now fully self-contained) ── */
+  /* ── StatModal state: data + the rect of the button that opened it ── */
   const [statModal, setStatModal] = useState<{
     data: StatModalData
     anchorRect: DOMRect
@@ -227,20 +227,18 @@ export const RegionsTable: React.FC<RegionsTableProps> = ({
 
   return (
     <div className={cn('w-full overflow-x-auto relative', className)}>
-      {/* Fetching overlay */}
       {isFetching && (
         <div className="absolute inset-0 bg-surface/60 z-20 flex items-center justify-center">
           <Spinner size="lg" />
         </div>
       )}
 
-      {/* Reusable StatModal — popover mode when anchorRect is provided */}
       <StatModal
         isOpen={!!statModal}
         onClose={() => setStatModal(null)}
-        data={statModal?.data || null}
+        data={statModal?.data ?? null}
         currency={currency}
-        anchorRect={statModal?.anchorRect || null}
+        anchorRect={statModal?.anchorRect ?? null}
       />
 
       <Table>
