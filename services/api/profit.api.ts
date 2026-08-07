@@ -236,6 +236,20 @@ export interface CountryProfitBreakdown {
   costOfGoods: number
   refundCost: number
   grossProfit: number
+  // Detail breakdown fields
+  netProfit: number
+  margin: number
+  roi: number
+  indirectExpenses: number
+  promoRebates: number
+  sellingFees: number
+  fbaFees: number
+  otherAmazonAdj: number
+  cogsBuyingPrice: number
+  cogsShippingPrice: number
+  cogsImportPrice: number
+  sellableReturns: number
+  totalReturns: number
 }
 
 export interface Marketplace {
@@ -356,6 +370,7 @@ export const profitApi = baseApi.injectEndpoints({
           currency: filters.currency,
         },
       }),
+      transformResponse: (response: any) => response.data ?? [],  // ← add this
       providesTags: ['Profit'],
       keepUnusedDataFor: 300,
     }),

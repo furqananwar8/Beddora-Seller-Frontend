@@ -1413,8 +1413,6 @@ export const ProfitDashboardScreen: React.FC = () => {
         {activeTab === 'map' && (
           <MapComponent
             accountId={effectiveAccountId}
-            startDate={getRollingDateRangePST(30).startDate}
-            endDate={getRollingDateRangePST(30).endDate}
           />
         )}
 

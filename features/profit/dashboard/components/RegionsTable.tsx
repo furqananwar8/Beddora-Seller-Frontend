@@ -10,7 +10,7 @@ import {
   TableRow,
 } from '@/design-system/tables'
 import { Button } from '@/design-system/buttons'
-import { TableSkeleton } from '@/design-system/loaders'
+import { Spinner, TableSkeleton } from '@/design-system/loaders'
 import { CountryProfitBreakdown } from '@/services/api/profit.api'
 import { formatCurrency, formatNumber, formatPercentage } from '@/utils/format'
 import { cn } from '@/utils/cn'
@@ -30,7 +30,7 @@ export interface RegionData extends CountryProfitBreakdown {
   costOfGoods: any
   refundCost: any
   grossProfit: any
-  isExpandable: boolean
+  isExpandable?: boolean
   children?: RegionData[] // For nested regions (e.g., states within countries)
 }
 
@@ -39,7 +39,9 @@ export interface RegionsTableProps {
   isLoading?: boolean
   searchTerm?: string
   currency?: string
+  isFetching?: boolean  // ← add this
   className?: string
+  onRowClick?: (row: RegionData) => void
 }
 
 /**
@@ -75,6 +77,7 @@ export const RegionsTable: React.FC<RegionsTableProps> = ({
   searchTerm = '',
   currency = 'CAD',
   className,
+  isFetching
 }) => {
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
   const [sortColumn, setSortColumn] = useState<string>('unitsSold')
@@ -191,7 +194,12 @@ export const RegionsTable: React.FC<RegionsTableProps> = ({
   }
 
   return (
-    <div className={cn('w-full overflow-x-auto', className)}>
+    <div className={cn('w-full overflow-x-auto relative', className)}>
+      {isFetching && (
+        <div className="absolute inset-0 bg-surface/60 z-20 flex items-center justify-center">
+          <Spinner size="lg" />
+        </div>
+      )}
       <Table>
         <TableHeader>
           <TableRow>

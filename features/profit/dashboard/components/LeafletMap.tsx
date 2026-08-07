@@ -35,6 +35,7 @@ if (typeof window !== 'undefined') {
 export interface LeafletMapProps {
   data: CountryProfitBreakdown[]
   className?: string
+  onCountryClick?: (countryCode: string) => void
 }
 
 const ISO3_TO_ISO2: Record<string, string> = {
@@ -95,7 +96,7 @@ const getColorForProfit = (
   return `rgb(${red}, ${green}, ${blue})`
 }
 
-export const LeafletMap: React.FC<LeafletMapProps> = ({ data, className }) => {
+export const LeafletMap: React.FC<LeafletMapProps> = ({ data, className, onCountryClick }) => {
   const [isClient, setIsClient] = useState(false)
   const [geoJsonData, setGeoJsonData] = useState<any>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -199,54 +200,50 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({ data, className }) => {
     [countryDataMap, maxProfit, minProfit, getCountryCode]
   )
 
-  const onEachFeature = useCallback(
-    (feature: any, layer: any) => {
-      const code = getCountryCode(feature)
-      const countryData = code ? countryDataMap.get(code) : null
+ const onEachFeature = useCallback(
+  (feature: any, layer: any) => {
+    const code = getCountryCode(feature)
+    const countryData = code ? countryDataMap.get(code) : null
+    const name =
+      feature.properties?.NAME ||
+      feature.properties?.name ||
+      feature.properties?.ADMIN ||
+      code ||
+      'Unknown'
 
-      const name =
-        feature.properties?.NAME ||
-        feature.properties?.name ||
-        feature.properties?.ADMIN ||
-        code ||
-        'Unknown'
+    if (countryData) {
+      layer.bindPopup(
+        `<div style="padding:10px;font-family:sans-serif;min-width:180px;">
+          <div style="font-weight:600;font-size:15px;margin-bottom:6px;">${name}</div>
+          <div style="font-size:13px;color:#333;line-height:1.5;">
+            <div><strong>Profit:</strong> $${countryData.profit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+            <div><strong>Orders:</strong> ${countryData.orders}</div>
+          </div>
+        </div>`
+      )
 
-      if (countryData) {
-        // Popup on click
-        layer.bindPopup(
-          `<div style="padding:10px;font-family:sans-serif;min-width:180px;">
-            <div style="font-weight:600;font-size:15px;margin-bottom:6px;">${name}</div>
-            <div style="font-size:13px;color:#333;line-height:1.5;">
-              <div><strong>Profit:</strong> $${countryData.profit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-              <div><strong>Orders:</strong> ${countryData.orders}</div>
-            </div>
-          </div>`
-        )
+      layer.bindTooltip(name, {
+        permanent: true,
+        direction: 'center',
+        className: 'country-label',
+        opacity: 1,
+      })
 
-        // PERMANENT LABEL on the country itself
-        layer.bindTooltip(name, {
-          permanent: true,
-          direction: 'center',
-          className: 'country-label',
-          opacity: 1,
-        })
-
-        layer.on({
-          mouseover: (e: any) => {
-            e.target.setStyle({
-              weight: 2.5,
-              color: '#f59e0b',
-              fillOpacity: 0.9,
-            })
-          },
-          mouseout: (e: any) => {
-            e.target.setStyle(styleFeature(feature))
-          },
-        })
-      }
-    },
-    [countryDataMap, styleFeature, getCountryCode]
-  )
+      layer.on({
+        mouseover: (e: any) => {
+          e.target.setStyle({ weight: 2.5, color: '#f59e0b', fillOpacity: 0.9 })
+        },
+        mouseout: (e: any) => {
+          e.target.setStyle(styleFeature(feature))
+        },
+        click: () => {
+          if (code && onCountryClick) onCountryClick(code)  // ← pass the code
+        },
+      })
+    }
+  },
+  [countryDataMap, styleFeature, getCountryCode, onCountryClick]  // ← add dependency
+)
 
   useEffect(() => {
     if (!geoJsonData || !data.length) return
