@@ -105,8 +105,10 @@ export const SellerboardProductsTable: React.FC<SellerboardProductsTableProps> =
           bVal = 0
           break
         case 'ads':
-          aVal = a.totalExpenses || 0
-          bVal = b.totalExpenses || 0
+          // aVal = a.totalExpenses || 0
+          // bVal = b.totalExpenses || 0
+          aVal = 0;
+          bVal = 0;
           break
         case 'amazonFees':
           aVal = a.totalFees || 0
@@ -340,7 +342,7 @@ export const SellerboardProductsTable: React.FC<SellerboardProductsTableProps> =
                   </TableCell>
                   <TableCell className="text-right">{formatCurrency(0)}</TableCell>
                   <TableCell className="text-right text-danger-600">
-                    -{formatCurrency(product.totalExpenses || 0)}
+                    -{formatCurrency(0)}
                   </TableCell>
                   <TableCell className="text-right">{formatCurrency(refundCost)}</TableCell>
                   <TableCell className="text-right text-danger-600">

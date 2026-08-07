@@ -1,11 +1,12 @@
 'use client'
 
-import React from 'react'
+import React, { useEffect, useRef } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/dialog/Dialog'
 import { formatCurrency, formatPercentage, formatNumber } from '@/utils/format'
 import { cn } from '@/utils/cn'
 
-// Generic stat detail shape — not tied to countries
+/* ── Types ─────────────────────────────────────────────── */
+
 export interface StatDetailItem {
   label: string
   value: number
@@ -34,7 +35,12 @@ interface Props {
   onClose: () => void
   data: StatModalData | null
   currency: string
+  /** Pass a DOMRect to render as a popover above the trigger.
+   *  Omit or pass null to render as a centered dialog. */
+  anchorRect?: DOMRect | null
 }
+
+/* ── Shared presentational pieces ──────────────────────── */
 
 const Section: React.FC<{
   title: string
@@ -78,9 +84,12 @@ const Row: React.FC<{ label: string; value: React.ReactNode; className?: string 
   </div>
 )
 
-export const StatModal: React.FC<Props> = ({ isOpen, onClose, data, currency }) => {
-  if (!data) return null
-
+const StatModalBody: React.FC<{
+  data: StatModalData
+  currency: string
+  onClose: () => void
+  compact?: boolean
+}> = ({ data, currency, onClose, compact }) => {
   const fmt = (item: StatDetailItem) => {
     if (item.currency) return formatCurrency(item.value, currency)
     if (item.percentage) return formatPercentage(item.value)
@@ -88,6 +97,103 @@ export const StatModal: React.FC<Props> = ({ isOpen, onClose, data, currency }) 
     return formatNumber(item.value)
   }
 
+  const headerPadding = compact ? 'px-4 py-3' : 'px-6 py-4'
+  const titleSize = compact ? 'text-base' : 'text-lg'
+
+  return (
+    <>
+      <div className={cn('sticky top-0 bg-surface z-10 border-b border-border flex items-center justify-between', headerPadding)}>
+        <div className={cn('font-semibold flex items-center gap-2', titleSize)}>
+          {data.flag && <span>{data.flag}</span>}
+          <span>{data.title}</span>
+        </div>
+        <button onClick={onClose} className="p-1 hover:bg-surface-secondary rounded transition-colors">
+          <svg className="w-5 h-5 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <div className={compact ? 'px-3 py-2' : 'px-4 py-2'}>
+        {data.sections.map((section) => (
+          <Section
+            key={section.title}
+            title={section.title}
+            value={section.currency ? formatCurrency(section.value, currency) : formatNumber(section.value)}
+            defaultOpen={section.defaultOpen}
+          >
+            {section.children?.map((child) => (
+              <Row key={child.label} label={child.label} value={fmt(child)} />
+            ))}
+          </Section>
+        ))}
+
+        {data.summaryRows && (
+          <>
+            <div className="border-t-2 border-border my-2" />
+            {data.summaryRows.map((row) => (
+              <Row
+                key={row.label}
+                label={row.label}
+                value={fmt(row)}
+                className={
+                  row.label === 'Net profit'
+                    ? 'font-semibold text-primary-600'
+                    : row.label === 'Gross profit'
+                      ? 'font-semibold'
+                      : undefined
+                }
+              />
+            ))}
+          </>
+        )}
+      </div>
+    </>
+  )
+}
+
+/* ── Component ─────────────────────────────────────────── */
+
+export const StatModal: React.FC<Props> = ({
+  isOpen,
+  onClose,
+  data,
+  currency,
+  anchorRect = null,
+}) => {
+  const popoverRef = useRef<HTMLDivElement>(null)
+
+  /* Close popover on outside click */
+  useEffect(() => {
+    if (!isOpen || !anchorRect) return
+    const handleClick = (e: MouseEvent) => {
+      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
+        onClose()
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [isOpen, anchorRect, onClose])
+
+  if (!isOpen || !data) return null
+
+  /* ── Popover mode ── */
+  if (anchorRect) {
+    const left = Math.min(anchorRect.left, window.innerWidth - 440)
+    const bottom = window.innerHeight - anchorRect.top + 8
+
+    return (
+      <div
+        ref={popoverRef}
+        className="fixed z-50 w-[420px] max-h-[75vh] overflow-y-auto bg-surface border border-border rounded-lg shadow-2xl"
+        style={{ bottom: `${bottom}px`, left: `${left}px` }}
+      >
+        <StatModalBody data={data} currency={currency} onClose={onClose} compact />
+      </div>
+    )
+  }
+
+  /* ── Dialog mode (centered) ── */
   return (
     <Dialog open={isOpen} onOpenChange={(open: boolean) => !open && onClose()}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto p-0 gap-0">
@@ -107,34 +213,8 @@ export const StatModal: React.FC<Props> = ({ isOpen, onClose, data, currency }) 
             </button>
           </div>
         </DialogHeader>
-
         <div className="px-4 py-2">
-          {data.sections.map((section) => (
-            <Section
-              key={section.title}
-              title={section.title}
-              value={section.currency ? formatCurrency(section.value, currency) : formatNumber(section.value)}
-              defaultOpen={section.defaultOpen}
-            >
-              {section.children?.map((child) => (
-                <Row key={child.label} label={child.label} value={fmt(child)} />
-              ))}
-            </Section>
-          ))}
-
-          {data.summaryRows && (
-            <>
-              <div className="border-t-2 border-border my-2" />
-              {data.summaryRows.map((row) => (
-                <Row
-                  key={row.label}
-                  label={row.label}
-                  value={fmt(row)}
-                  className={row.label === 'Net profit' ? 'font-semibold text-primary-600' : row.label === 'Gross profit' ? 'font-semibold' : undefined}
-                />
-              ))}
-            </>
-          )}
+          <StatModalBody data={data} currency={currency} onClose={onClose} />
         </div>
       </DialogContent>
     </Dialog>

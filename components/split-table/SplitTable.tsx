@@ -18,6 +18,7 @@ export interface ColumnDef<T = any> {
   heatmap?: 'green' | 'red' | 'neutral'
   headerClassName?: string
   cellClassName?: string
+  style?: React.CSSProperties   // ← NEW — applied to both th and td
 }
 
 export interface PaginationConfig {
@@ -256,6 +257,7 @@ export function SplitTable<T = any>(props: GenericProps<T> | SimpleProps): React
                   {columns.map((col) => (
                     <TableHead
                       key={col.key}
+                      style={col.style}        // ← NEW
                       className={cn(
                         'h-full text-sm font-semibold text-text-primary',
                         col.width,
@@ -318,7 +320,7 @@ export function SplitTable<T = any>(props: GenericProps<T> | SimpleProps): React
                                 alignClass(col),
                                 col.cellClassName
                               )}
-                              style={heatmapBg ? { backgroundColor: heatmapBg } : undefined}
+                              style={heatmapBg ? { ...col.style, backgroundColor: heatmapBg } : col.style}
                             >
                               {renderCellContent(row, col, rowIndex, isPending)}
                             </TableCell>

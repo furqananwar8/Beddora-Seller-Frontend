@@ -100,8 +100,11 @@ export const MapComponent: React.FC<MapComponentProps> = ({
   const [viewMode, setViewMode] = useState<'sales' | 'stock'>('sales')
   const [selectedMarketplaces, setSelectedMarketplaces] = useState<string[]>(['Amazon.ca'])
   const [currency, setCurrency] = useState('CAD')
+    const [selectedStat, setSelectedStat] = useState<{
+    data: StatModalData
+    anchorRect: DOMRect | null
+  } | null>(null)
 
-  const [selectedStat, setSelectedStat] = useState<StatModalData | null>(null)
 
   const buildStatData = (d: CountryProfitBreakdown): StatModalData => {
     const flagMap: Record<string, string> = {
@@ -361,9 +364,20 @@ export const MapComponent: React.FC<MapComponentProps> = ({
             ) : countryDataForMap && countryDataForMap.length > 0 ? (
                <LeafletMap
                   data={countryDataForMap as any}
-                  onCountryClick={(countryCode: string) => {
-                    const found = countryData?.find(c => c.country === countryCode)
-                    if (found) setSelectedStat(buildStatData(found))
+                  onCountryClick={(countryCode: string, event?: MouseEvent) => {
+                    const found = countryData?.find((c) => c.country === countryCode)
+                    if (!found) return
+
+                    // Build a 0×0 DOMRect at the click coordinates so the popover
+                    // opens directly above the clicked country
+                    const clientX = event?.clientX ?? window.innerWidth / 2
+                    const clientY = event?.clientY ?? window.innerHeight / 2
+                    const rect = new DOMRect(clientX, clientY, 0, 0)
+
+                    setSelectedStat({
+                      data: buildStatData(found),
+                      anchorRect: rect,
+                    })
                   }}
                 />
             ) : (
@@ -401,13 +415,9 @@ export const MapComponent: React.FC<MapComponentProps> = ({
            <RegionsTable
               data={regionData}
               isLoading={isLoading}
-              isFetching={isFetching}  // ← add this
+              isFetching={isFetching}
               searchTerm={searchTerm}
               currency={currency}
-              onRowClick={(row) => {
-                const found = countryData?.find(c => c.country === row.country && c.region === row.region)
-                if (found) setSelectedStat(buildStatData(found))
-              }}
             />
           </div>
         </CardContent>
@@ -417,8 +427,9 @@ export const MapComponent: React.FC<MapComponentProps> = ({
       <StatModal
         isOpen={!!selectedStat}
         onClose={() => setSelectedStat(null)}
-        data={selectedStat}
+        data={selectedStat?.data || null}
         currency={currency}
+        anchorRect={selectedStat?.anchorRect || null}
       />
     </div>
   )

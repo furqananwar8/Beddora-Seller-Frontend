@@ -236,8 +236,10 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({ data, className, onCount
         mouseout: (e: any) => {
           e.target.setStyle(styleFeature(feature))
         },
-        click: () => {
-          if (code && onCountryClick) onCountryClick(code)  // ← pass the code
+        click: (e: any) => {
+          if (code && onCountryClick) {
+            onCountryClick(code, e.originalEvent as any)  // ← pass native event
+          }
         },
       })
     }
