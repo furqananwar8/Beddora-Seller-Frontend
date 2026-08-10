@@ -47,7 +47,7 @@ const SummaryTiles = ({ period, netProfitMargin, totalCosts, setSelectedPeriodFo
         <div className="min-w-0">
             <div className="text-text-muted break-words">Adv. cost</div>
             <div className="font-semibold text-danger-600 break-words">
-            -{formatCurrency(period.totalExpenses)}
+            -{formatCurrency(period.advertisingCost)}
             </div>
         </div>
         <div className="min-w-0">

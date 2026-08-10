@@ -170,7 +170,7 @@ function DashboardLayoutContent({ children }: { children: ReactNode }) {
         </main>
 
         {!isScheduledPage && (
-          <div className="fixed bottom-8 right-8 z-40 h-full">
+          <div className="fixed bottom-8 right-8 z-40">
             <Button
               className="bg-indigo-600 text-white disabled:opacity-70 disabled:cursor-not-allowed"
               onClick={onSave}

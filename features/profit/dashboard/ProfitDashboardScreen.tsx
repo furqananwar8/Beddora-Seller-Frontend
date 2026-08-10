@@ -600,70 +600,262 @@ export const ProfitDashboardScreen: React.FC = () => {
       accountId: effectiveAccountId,
       marketplaces: selectedMarketplaces,
       currency: selectedCurrency,
-      preset: selectedPresetId,
+      preset: selectedPresetId as any,
     },
     { skip: !effectiveAccountId }
   )
 
-  
+  console.log({profitData})
 
   const periodMap = useMemo(() => {
     if (!profitData?.periods) return new Map<PeriodSummaryPeriod, PeriodSummary>()
     return new Map(profitData.periods.map((p: any) => [p.period, p]))
   }, [profitData])
 
-  const getPeriodDetailData = useCallback(
-    (tileId: string) => {
-      const tile = currentPreset.tiles.find((t) => t.id === tileId)
-      if (!tile) return undefined
+const getPeriodDetailData = useCallback(
+  (tileId: string) => {
+    const tile = currentPreset.tiles.find(
+      (t) => t.id === tileId
+    )
 
-      const apiPeriod: any = periodMap.get(tile.apiPeriod)
-      if (!apiPeriod) return undefined
+    if (!tile) {
+      console.warn(
+        '[TileDetailsModal] Tile not found:',
+        tileId
+      )
+      return undefined
+    }
+    console.log({tile})
+    console.dir(periodMap, {depth: null})
+    const apiPeriod = periodMap.get(tile.apiPeriod)
+    console.log({apiPeriod})
+    if (!apiPeriod) {
+      console.warn(
+        '[TileDetailsModal] API period not found:',
+        tile.apiPeriod,
+        'Available periods:',
+        Array.from(periodMap.keys())
+      )
 
-      const grossProfit = apiPeriod.salesRevenue + apiPeriod.totalFees - apiPeriod.totalCOGS
+      return undefined
+    }
 
-      return {
-        salesRevenue: apiPeriod.salesRevenue,
-        salesCount: apiPeriod.salesCount,
-        ordersUnitCount: apiPeriod.ordersUnitCount,
-        totalFees: apiPeriod.totalFees,
-        totalRefunds: apiPeriod.totalRefunds,
-        totalCOGS: apiPeriod.totalCOGS,
-        totalExpenses: apiPeriod.totalExpenses,
-        netProfit: apiPeriod.netProfit,
-        netMargin: apiPeriod.netMargin,
-        grossProfit,
-        grossMargin:
-          apiPeriod.salesRevenue > 0 ? (grossProfit / apiPeriod.salesRevenue) * 100 : 0,
-        orderCount: apiPeriod.salesCount,
-      }
-    },
-    [currentPreset, periodMap]
-  )
+    console.log(
+      '[TileDetailsModal] Selected tile:',
+      tile
+    )
 
-  const periodCardsData = useMemo(() => {
-    const now = nowInPST()
-    return currentPreset.tiles.map((tile) => {
-      const period: any = periodMap.get(tile.apiPeriod)
-      const range = tile.getDateRange(now)
+    console.log(
+      '[TileDetailsModal] API period:',
+      apiPeriod
+    )
 
-      return {
-        id: tile.id,
-        label: tile.label,
-        dateRange: formatDateRangePST(range.startDate, range.endDate),
-        salesRevenue: period?.salesRevenue ?? 0,
-        salesCount: period?.salesCount ?? 0,
-        ordersUnitCount: period?.ordersUnitCount ?? 0,
-        totalFees: period?.totalFees ?? 0,
-        totalRefunds: period?.totalRefunds ?? 0,
-        totalCOGS: period?.totalCOGS ?? 0,
-        totalExpenses: period?.totalExpenses ?? 0,
-        netProfit: period?.netProfit ?? 0,
-        netMargin: period?.netMargin ?? 0,
-        isFetching: profitFetching,
-      }
-    })
-  }, [currentPreset, periodMap, profitFetching])
+    return {
+      currency: apiPeriod.currency || selectedCurrency,
+
+      // SALES
+      salesRevenue: Number(apiPeriod.salesRevenue ?? 0),
+      salesCount: Number(apiPeriod.salesCount ?? 0),
+      ordersUnitCount: Number(apiPeriod.ordersUnitCount ?? 0),
+
+      // PROMO
+      totalPromo: Number(apiPeriod.totalPromo ?? 0),
+
+      // ADVERTISING
+      advertisingCost: Number(
+        apiPeriod.advertisingCost ?? 0
+      ),
+
+      advertisingDetails: {
+        sponsoredProducts: Number(
+          apiPeriod.advertisingDetails?.sponsoredProducts ?? 0
+        ),
+        sponsoredBrandsVideo: Number(
+          apiPeriod.advertisingDetails?.sponsoredBrandsVideo ?? 0
+        ),
+        sponsoredDisplay: Number(
+          apiPeriod.advertisingDetails?.sponsoredDisplay ?? 0
+        ),
+        sponsoredBrands: Number(
+          apiPeriod.advertisingDetails?.sponsoredBrands ?? 0
+        ),
+      },
+
+      // REFUNDS
+      totalRefunds: Number(
+        apiPeriod.totalRefunds ?? 0
+      ),
+
+      totalRefundsCount: Number(
+        apiPeriod.totalRefundsCount ?? 0
+      ),
+
+      refundCost: Number(
+        apiPeriod.refundCost ?? 0
+      ),
+
+      refundDetails: {
+        refundedAmount: Number(
+          apiPeriod.refundDetails?.refundedAmount ?? 0
+        ),
+        refundCommission: Number(
+          apiPeriod.refundDetails?.refundCommission ?? 0
+        ),
+        promotion: Number(
+          apiPeriod.refundDetails?.promotion ?? 0
+        ),
+        valueOfReturnedItems: Number(
+          apiPeriod.refundDetails?.valueOfReturnedItems ?? 0
+        ),
+        refundedReferralFee: Number(
+          apiPeriod.refundDetails?.refundedReferralFee ?? 0
+        ),
+      },
+
+      // AMAZON FEES
+      totalFees: Number(
+        apiPeriod.totalFees ?? 0
+      ),
+
+      amazonFeeDetails: {
+        fbaStorageFee: Number(
+          apiPeriod.amazonFeeDetails?.fbaStorageFee ?? 0
+        ),
+        fbaPerUnitFulfillmentFee: Number(
+          apiPeriod.amazonFeeDetails?.fbaPerUnitFulfillmentFee ?? 0
+        ),
+        referralFee: Number(
+          apiPeriod.amazonFeeDetails?.referralFee ?? 0
+        ),
+        dealParticipationFee: Number(
+          apiPeriod.amazonFeeDetails?.dealParticipationFee ?? 0
+        ),
+        dealPerformanceFee: Number(
+          apiPeriod.amazonFeeDetails?.dealPerformanceFee ?? 0
+        ),
+        fbaDisposalFee: Number(
+          apiPeriod.amazonFeeDetails?.fbaDisposalFee ?? 0
+        ),
+        salesTaxCollectionFee: Number(
+          apiPeriod.amazonFeeDetails?.salesTaxCollectionFee ?? 0
+        ),
+        reversalReimbursement: Number(
+          apiPeriod.amazonFeeDetails?.reversalReimbursement ?? 0
+        ),
+        other: Number(
+          apiPeriod.amazonFeeDetails?.other ?? 0
+        ),
+      },
+
+      // COGS
+      totalCOGS: Number(
+        apiPeriod.totalCOGS ?? 0
+      ),
+
+      // EXPENSES
+      totalExpenses: Number(
+        apiPeriod.totalExpenses ?? 0
+      ),
+
+      // PROFIT
+      grossProfit: Number(
+        apiPeriod.grossProfit ?? 0
+      ),
+
+      grossMargin: Number(
+        apiPeriod.grossMargin ?? 0
+      ),
+
+      netProfit: Number(
+        apiPeriod.netProfit ?? 0
+      ),
+
+      netMargin: Number(
+        apiPeriod.netMargin ?? 0
+      ),
+
+      // Keep original API response
+      _apiPeriod: apiPeriod,
+    }
+  },
+  [
+    currentPreset,
+    periodMap,
+    selectedCurrency,
+  ]
+)
+
+const periodCardsData = useMemo(() => {
+  const now = nowInPST()
+
+  return currentPreset.tiles.map((tile) => {
+    const period = periodMap.get(tile.apiPeriod)
+    const range = tile.getDateRange(now)
+    return {
+      id: tile.id,
+      label: tile.label,
+
+      dateRange: formatDateRangePST(
+        range.startDate,
+        range.endDate
+      ),
+
+      salesRevenue: Number(
+        period?.salesRevenue ?? 0
+      ),
+
+      salesCount: Number(
+        period?.salesCount ?? 0
+      ),
+
+      ordersUnitCount: Number(
+        period?.ordersUnitCount ?? 0
+      ),
+
+      totalFees: Number(
+        period?.totalFees ?? 0
+      ),
+
+      totalRefunds: Number(
+        period?.totalRefunds ?? 0
+      ),
+
+      refundCost: Number(
+        period?.refundCost ?? 0
+      ),
+
+      totalCOGS: Number(
+        period?.totalCOGS ?? 0
+      ),
+
+      totalExpenses: Number(
+        period?.totalExpenses ?? 0
+      ),
+
+      totalPromo: Number(
+        period?.totalPromo ?? 0
+      ),
+
+      advertisingCost: Number(
+        period?.advertisingCost ?? 0
+      ),
+
+      netProfit: Number(
+        period?.netProfit ?? 0
+      ),
+
+      netMargin: Number(
+        period?.netMargin ?? 0
+      ),
+
+      isFetching: profitFetching,
+    }
+  })
+}, [
+  currentPreset,
+  periodMap,
+  profitFetching,
+])
 
   const selectedTileConfig = currentPreset.tiles.find((t) => t.id === selectedTileId)
   const selectedTileRange = useMemo(() => {
@@ -1168,7 +1360,12 @@ export const ProfitDashboardScreen: React.FC = () => {
                   )
                 }
 
-                const totalCosts = period.totalExpenses + period.totalFees + period.totalCOGS
+                const totalCosts =
+                Math.abs(period.totalFees) +
+                Math.abs(period.totalCOGS) +
+                Math.abs(period.totalExpenses) +
+                Math.abs(period.refundCost) +
+                Math.abs(period.advertisingCost)
                 const netProfitMargin = period.netMargin
 
                 return (

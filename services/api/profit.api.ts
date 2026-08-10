@@ -42,16 +42,51 @@ export interface PeriodSummary {
 
 export interface ProfitSummary {
   summary: {
+    currency?: string
+
     totalRevenue: number
     totalExpense: number
     totalProfit: number
     totalOrders: number
     totalUnits: number
     totalRefunds: number
+    totalRefundsCount?: number
     totalFees: number
     totalCOGS: number
     totalExpenses: number
+
+    refundCost?: number
+    refundDetails?: {
+      refundedAmount: number
+      refundCommission: number
+      promotion: number
+      valueOfReturnedItems: number
+      refundedReferralFee: number
+    }
+
+    advertisingCost?: number
+    advertisingDetails?: {
+      sponsoredProducts: number
+      sponsoredBrandsVideo: number
+      sponsoredDisplay: number
+      sponsoredBrands: number
+    }
+
+    totalPromo?: number
+
+    amazonFeeDetails?: {
+      fbaStorageFee: number
+      fbaPerUnitFulfillmentFee: number
+      referralFee: number
+      dealParticipationFee: number
+      dealPerformanceFee: number
+      fbaDisposalFee: number
+      salesTaxCollectionFee: number
+      reversalReimbursement: number
+      other: number
+    }
   }
+
   totalExpenses: number
   totalCOGS: number
   totalFees: number
@@ -74,8 +109,15 @@ export interface ProductProfitBreakdown {
   netProfit: number
   grossMargin: number
   netMargin: number
+  refundAmount: number
   unitsSold: number
+  promoRebates: number
   orderCount: number
+  imageUrl: string
+  cogsRate: number
+  product: {
+    imageUrl: string
+  }
 }
 
 export interface MarketplaceProfitBreakdown {
@@ -236,6 +278,7 @@ export interface CountryProfitBreakdown {
   costOfGoods: number
   refundCost: number
   grossProfit: number
+
   // Detail breakdown fields
   netProfit: number
   margin: number
@@ -265,21 +308,48 @@ export interface MarketplacesResponse {
   data: Marketplace[]
 }
 
-// ── SINGLE, MERGED ProfitFilters ──
+// ============================================
+// PROFIT FILTERS
+// ============================================
+
 export interface ProfitFilters {
   accountId?: string
   amazonAccountId?: string
+
   marketplaceId?: string
+  marketplace?: string
   marketplaces?: string[]
+
   sku?: string
+
   startDate?: string
   endDate?: string
-  period?: 'day' | 'week' | 'month'
-  preset?: 'last-12-months' | 'last-3-months' | 'last-30-days' | 'custom'
-  periodicity?: 'day' | 'week' | 'month'
+
+  period?:
+    | 'day'
+    | 'week'
+    | 'month'
+
+  preset?:
+    | 'last-12-months'
+    | 'last-3-months'
+    | 'last-30-days'
+    | 'custom'
+
+  periodicity?:
+    | 'day'
+    | 'week'
+    | 'month'
+
   currency?: string
-  interval?: 'daily' | 'weekly' | 'monthly'
+
+  interval?:
+    | 'daily'
+    | 'weekly'
+    | 'monthly'
+
   metric?: string
+
   page?: number
   limit?: number
 }
@@ -290,90 +360,192 @@ export interface ProfitFilters {
 
 export const profitApi = baseApi.injectEndpoints({
   overrideExisting: true,
+
   endpoints: (builder) => ({
-    getProfitSummary: builder.query<any, any>({
+    // ============================================================
+    // PROFIT SUMMARY
+    // ============================================================
+
+    getProfitSummary: builder.query<
+      ProfitSummary,
+      ProfitFilters
+    >({
       query: (filters) => ({
         url: '/profit/summary',
-        params: filters,
+        params: {
+          period: filters.period,
+          preset: filters.preset,
+
+          // IMPORTANT:
+          // Custom date range is sent directly to backend.
+          startDate: filters.startDate,
+          endDate: filters.endDate,
+
+          accountId: filters.accountId,
+          amazonAccountId: filters.amazonAccountId,
+
+          marketplaceId: filters.marketplaceId,
+          marketplace: filters.marketplace,
+          marketplaces: filters.marketplaces,
+
+          sku: filters.sku,
+          currency: filters.currency,
+        },
       }),
-      transformResponse: (response: any): any => {
-        console.log('API response shape:', Object.keys(response))
-        return {
-          summary: response.summary,
-          periods: response.periods,
-        }
-      },
+
+      transformResponse: (
+  response: any
+): ProfitSummary => {
+  return response as ProfitSummary
+},
+
       providesTags: ['Profit'],
       keepUnusedDataFor: 120,
     }),
 
-    getProfitByProduct: builder.query<ProductProfitBreakdown[], ProfitFilters>({
+    // ============================================================
+    // PROFIT BY PRODUCT
+    // ============================================================
+
+    getProfitByProduct: builder.query<
+      ProductProfitBreakdown[],
+      ProfitFilters
+    >({
       query: (filters) => ({
         url: '/profit/by-product',
         params: filters,
       }),
-      transformResponse: (response: ProductBreakdownResponse) => response.data,
+
+      transformResponse: (
+        response: ProductBreakdownResponse
+      ) => response.data,
+
       providesTags: ['Profit'],
       keepUnusedDataFor: 180,
     }),
 
-    getProfitByMarketplace: builder.query<MarketplaceProfitBreakdown[], ProfitFilters>({
+    // ============================================================
+    // PROFIT BY MARKETPLACE
+    // ============================================================
+
+    getProfitByMarketplace: builder.query<
+      MarketplaceProfitBreakdown[],
+      ProfitFilters
+    >({
       query: (filters) => ({
         url: '/profit/by-marketplace',
         params: filters,
       }),
-      transformResponse: (response: MarketplaceBreakdownResponse) => response.data,
+
+      transformResponse: (
+        response: MarketplaceBreakdownResponse
+      ) => response.data,
+
       providesTags: ['Profit'],
       keepUnusedDataFor: 180,
     }),
 
-    getProfitTrends: builder.query<ProfitTrendsResponse, ProfitFilters>({
+    // ============================================================
+    // PROFIT TRENDS
+    // ============================================================
+
+    getProfitTrends: builder.query<
+      ProfitTrendsResponse,
+      ProfitFilters
+    >({
       query: (filters) => ({
         url: '/profit/trends',
         params: filters,
       }),
-      transformResponse: (response: ProfitTrendsApiResponse) => response.data,
+
+      transformResponse: (
+        response: ProfitTrendsApiResponse
+      ) => response.data,
+
       providesTags: ['Profit'],
       keepUnusedDataFor: 300,
     }),
 
-    getProfitByOrderItems: builder.query<OrderItemProfitBreakdown[], ProfitFilters>({
+    // ============================================================
+    // PROFIT BY ORDER ITEMS
+    // ============================================================
+
+    getProfitByOrderItems: builder.query<
+      OrderItemProfitBreakdown[],
+      ProfitFilters
+    >({
       query: (filters) => ({
         url: '/profit/by-order-items',
         params: filters,
       }),
-      transformResponse: (response: OrderItemsBreakdownResponse) => response.data,
+
+      transformResponse: (
+        response: OrderItemsBreakdownResponse
+      ) => response.data,
+
       providesTags: ['Profit'],
       keepUnusedDataFor: 120,
     }),
 
-    getPLByPeriods: builder.query<PLResponse, ProfitFilters>({
+    // ============================================================
+    // P&L
+    // ============================================================
+
+    getPLByPeriods: builder.query<
+      PLResponse,
+      ProfitFilters
+    >({
       query: (filters) => ({
         url: '/profit/pl',
         params: filters,
       }),
-      transformResponse: (response: PLResponseApi) => response.data,
+
+      transformResponse: (
+        response: PLResponseApi
+      ) => response.data,
+
       providesTags: ['Profit'],
       keepUnusedDataFor: 300,
     }),
 
-    getProfitByCountry: builder.query<CountryProfitBreakdown[], ProfitFilters>({
+    // ============================================================
+    // PROFIT BY COUNTRY
+    // ============================================================
+
+    getProfitByCountry: builder.query<
+      CountryProfitBreakdown[],
+      ProfitFilters
+    >({
       query: (filters) => ({
         url: '/profit/map',
         params: {
           startDate: filters.startDate,
           endDate: filters.endDate,
+
           accountId: filters.accountId,
           amazonAccountId: filters.amazonAccountId,
+
           marketplaceId: filters.marketplaceId,
           marketplaces: filters.marketplaces,
+
           currency: filters.currency,
         },
       }),
-      transformResponse: (response: any) => response.data ?? [],  // ← add this
+
+      transformResponse: (
+        response: {
+          success?: boolean
+          data?: CountryProfitBreakdown[]
+        }
+      ) => response.data ?? [],
+
       providesTags: ['Profit'],
       keepUnusedDataFor: 300,
     }),
+
+    // ============================================================
+    // SIMPLE PROFIT TRENDS
+    // ============================================================
 
     getProfitTrendsSimple: builder.query<
       ProfitTrendsSimpleResponse,
@@ -384,17 +556,32 @@ export const profitApi = baseApi.injectEndpoints({
         params: {
           startDate: filters.startDate,
           endDate: filters.endDate,
-          interval: filters.interval || 'daily',
+
+          interval:
+            filters.interval || 'daily',
+
           accountId: filters.accountId,
-          amazonAccountId: filters.amazonAccountId,
-          marketplaceId: filters.marketplaceId,
-          marketplaces: filters.marketplaces,
-          currency: filters.currency,
+          amazonAccountId:
+            filters.amazonAccountId,
+
+          marketplaceId:
+            filters.marketplaceId,
+
+          marketplaces:
+            filters.marketplaces,
+
+          currency:
+            filters.currency,
         },
       }),
+
       providesTags: ['Profit'],
       keepUnusedDataFor: 300,
     }),
+
+    // ============================================================
+    // PRODUCT TRENDS
+    // ============================================================
 
     getProductTrends: builder.query<
       ProductTrendsResponse,
@@ -405,39 +592,82 @@ export const profitApi = baseApi.injectEndpoints({
         params: {
           startDate: filters.startDate,
           endDate: filters.endDate,
-          metric: filters.metric || 'sales',
-          periodicity: filters.periodicity || 'day',
-          accountId: filters.accountId,
-          marketplaceId: filters.marketplaceId,
-          marketplaces: filters.marketplaces,
-          currency: filters.currency,
-          page: filters.page,
-          limit: filters.limit,
+
+          metric:
+            filters.metric || 'sales',
+
+          periodicity:
+            filters.periodicity || 'day',
+
+          accountId:
+            filters.accountId,
+
+          amazonAccountId:
+            filters.amazonAccountId,
+
+          marketplaceId:
+            filters.marketplaceId,
+
+          marketplaces:
+            filters.marketplaces,
+
+          currency:
+            filters.currency,
+
+          page:
+            filters.page,
+
+          limit:
+            filters.limit,
         },
       }),
+
       providesTags: ['Profit'],
       keepUnusedDataFor: 300,
     }),
 
-    getMarketplaces: builder.query<Marketplace[], { accountId?: string }>({
+    // ============================================================
+    // MARKETPLACES
+    // ============================================================
+
+    getMarketplaces: builder.query<
+      Marketplace[],
+      { accountId?: string }
+    >({
       query: ({ accountId }) => ({
         url: '/marketplaces',
-        params: { accountId },
+        params: {
+          accountId,
+        },
       }),
-      transformResponse: (response: MarketplacesResponse) => response.data,
+
+      transformResponse: (
+        response: MarketplacesResponse
+      ) => response.data,
+
       providesTags: ['Marketplaces'],
       keepUnusedDataFor: 3600,
     }),
 
-    getProfitSummaryMultiplePeriods: builder.query<any, any>({
-      query: () => ({
-        url: '/profit/trends/products-multiple-period',
+    // ============================================================
+    // MULTIPLE PERIOD PRODUCT TRENDS
+    // ============================================================
+
+    getProfitSummaryMultiplePeriods:
+      builder.query<any, void>({
+        query: () => ({
+          url: '/profit/trends/products-multiple-period',
+        }),
+
+        providesTags: ['Profit'],
+        keepUnusedDataFor: 300,
       }),
-      providesTags: ['Profit'],
-      keepUnusedDataFor: 300,
-    }),
   }),
 })
+
+// ============================================
+// HOOKS
+// ============================================
 
 export const {
   useGetProfitSummaryQuery,
