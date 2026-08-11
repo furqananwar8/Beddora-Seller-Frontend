@@ -625,10 +625,9 @@ const getPeriodDetailData = useCallback(
       )
       return undefined
     }
-    console.log({tile})
-    console.dir(periodMap, {depth: null})
+
     const apiPeriod = periodMap.get(tile.apiPeriod)
-    console.log({apiPeriod})
+
     if (!apiPeriod) {
       console.warn(
         '[TileDetailsModal] API period not found:',
@@ -636,19 +635,8 @@ const getPeriodDetailData = useCallback(
         'Available periods:',
         Array.from(periodMap.keys())
       )
-
       return undefined
     }
-
-    console.log(
-      '[TileDetailsModal] Selected tile:',
-      tile
-    )
-
-    console.log(
-      '[TileDetailsModal] API period:',
-      apiPeriod
-    )
 
     return {
       currency: apiPeriod.currency || selectedCurrency,
@@ -662,9 +650,7 @@ const getPeriodDetailData = useCallback(
       totalPromo: Number(apiPeriod.totalPromo ?? 0),
 
       // ADVERTISING
-      advertisingCost: Number(
-        apiPeriod.advertisingCost ?? 0
-      ),
+      advertisingCost: Number(apiPeriod.advertisingCost ?? 0),
 
       advertisingDetails: {
         sponsoredProducts: Number(
@@ -682,99 +668,50 @@ const getPeriodDetailData = useCallback(
       },
 
       // REFUNDS
-      totalRefunds: Number(
-        apiPeriod.totalRefunds ?? 0
-      ),
-
-      totalRefundsCount: Number(
-        apiPeriod.totalRefundsCount ?? 0
-      ),
-
-      refundCost: Number(
-        apiPeriod.refundCost ?? 0
-      ),
+      totalRefunds: Number(apiPeriod.totalRefunds ?? 0),
+      totalRefundsCount: Number(apiPeriod.totalRefundsCount ?? 0),
+      refundCost: Number(apiPeriod.refundCost ?? 0),
+      refundPercentage: Number(apiPeriod.refundPercentage ?? 0),
 
       refundDetails: {
-        refundedAmount: Number(
-          apiPeriod.refundDetails?.refundedAmount ?? 0
-        ),
-        refundCommission: Number(
-          apiPeriod.refundDetails?.refundCommission ?? 0
-        ),
-        promotion: Number(
-          apiPeriod.refundDetails?.promotion ?? 0
-        ),
-        valueOfReturnedItems: Number(
-          apiPeriod.refundDetails?.valueOfReturnedItems ?? 0
-        ),
-        refundedReferralFee: Number(
-          apiPeriod.refundDetails?.refundedReferralFee ?? 0
-        ),
+        refundedAmount: Number(apiPeriod.refundDetails?.refundedAmount ?? 0),
+        refundCommission: Number(apiPeriod.refundDetails?.refundCommission ?? 0),
+        promotion: Number(apiPeriod.refundDetails?.promotion ?? 0),
+        valueOfReturnedItems: Number(apiPeriod.refundDetails?.valueOfReturnedItems ?? 0),
+        refundedReferralFee: Number(apiPeriod.refundDetails?.refundedReferralFee ?? 0),
       },
 
       // AMAZON FEES
-      totalFees: Number(
-        apiPeriod.totalFees ?? 0
-      ),
+      totalFees: Number(apiPeriod.totalFees ?? 0),
 
       amazonFeeDetails: {
-        fbaStorageFee: Number(
-          apiPeriod.amazonFeeDetails?.fbaStorageFee ?? 0
-        ),
-        fbaPerUnitFulfillmentFee: Number(
-          apiPeriod.amazonFeeDetails?.fbaPerUnitFulfillmentFee ?? 0
-        ),
-        referralFee: Number(
-          apiPeriod.amazonFeeDetails?.referralFee ?? 0
-        ),
-        dealParticipationFee: Number(
-          apiPeriod.amazonFeeDetails?.dealParticipationFee ?? 0
-        ),
-        dealPerformanceFee: Number(
-          apiPeriod.amazonFeeDetails?.dealPerformanceFee ?? 0
-        ),
-        fbaDisposalFee: Number(
-          apiPeriod.amazonFeeDetails?.fbaDisposalFee ?? 0
-        ),
-        salesTaxCollectionFee: Number(
-          apiPeriod.amazonFeeDetails?.salesTaxCollectionFee ?? 0
-        ),
-        reversalReimbursement: Number(
-          apiPeriod.amazonFeeDetails?.reversalReimbursement ?? 0
-        ),
-        other: Number(
-          apiPeriod.amazonFeeDetails?.other ?? 0
-        ),
+        fbaStorageFee: Number(apiPeriod.amazonFeeDetails?.fbaStorageFee ?? 0),
+        fbaPerUnitFulfillmentFee: Number(apiPeriod.amazonFeeDetails?.fbaPerUnitFulfillmentFee ?? 0),
+        referralFee: Number(apiPeriod.amazonFeeDetails?.referralFee ?? 0),
+        dealParticipationFee: Number(apiPeriod.amazonFeeDetails?.dealParticipationFee ?? 0),
+        dealPerformanceFee: Number(apiPeriod.amazonFeeDetails?.dealPerformanceFee ?? 0),
+        fbaDisposalFee: Number(apiPeriod.amazonFeeDetails?.fbaDisposalFee ?? 0),
+        salesTaxCollectionFee: Number(apiPeriod.amazonFeeDetails?.salesTaxCollectionFee ?? 0),
+        reversalReimbursement: Number(apiPeriod.amazonFeeDetails?.reversalReimbursement ?? 0),
+        other: Number(apiPeriod.amazonFeeDetails?.other ?? 0),
       },
 
       // COGS
-      totalCOGS: Number(
-        apiPeriod.totalCOGS ?? 0
-      ),
+      totalCOGS: Number(apiPeriod.totalCOGS ?? 0),
 
       // EXPENSES
-      totalExpenses: Number(
-        apiPeriod.totalExpenses ?? 0
-      ),
+      totalExpenses: Number(apiPeriod.totalExpenses ?? 0),
 
       // PROFIT
-      grossProfit: Number(
-        apiPeriod.grossProfit ?? 0
-      ),
+      grossProfit: Number(apiPeriod.grossProfit ?? 0),
+      estimatedPayout: Number(apiPeriod.estimatedPayout ?? 0),
+      netProfit: Number(apiPeriod.netProfit ?? 0),
 
-      grossMargin: Number(
-        apiPeriod.grossMargin ?? 0
-      ),
+      // PERFORMANCE
+      margin: Number(apiPeriod.margin ?? 0),
+      realACOS: Number(apiPeriod.realACOS ?? 0),
+      roi: Number(apiPeriod.roi ?? 0),
 
-      netProfit: Number(
-        apiPeriod.netProfit ?? 0
-      ),
-
-      netMargin: Number(
-        apiPeriod.netMargin ?? 0
-      ),
-
-      // Keep original API response
       _apiPeriod: apiPeriod,
     }
   },
@@ -820,6 +757,10 @@ const periodCardsData = useMemo(() => {
         period?.totalRefunds ?? 0
       ),
 
+      totalRefundsCount: Number(
+        period?.totalRefundsCount ?? 0
+      ),
+
       refundCost: Number(
         period?.refundCost ?? 0
       ),
@@ -840,12 +781,32 @@ const periodCardsData = useMemo(() => {
         period?.advertisingCost ?? 0
       ),
 
+      grossProfit: Number(
+        period?.grossProfit ?? 0
+      ),
+
+      estimatedPayout: Number(
+        period?.estimatedPayout ?? 0
+      ),
+
       netProfit: Number(
         period?.netProfit ?? 0
       ),
 
-      netMargin: Number(
-        period?.netMargin ?? 0
+      margin: Number(
+        period?.margin ?? 0
+      ),
+
+      realACOS: Number(
+        period?.realACOS ?? 0
+      ),
+
+      roi: Number(
+        period?.roi ?? 0
+      ),
+
+      refundPercentage: Number(
+        period?.refundPercentage ?? 0
       ),
 
       isFetching: profitFetching,
@@ -1348,7 +1309,38 @@ const periodCardsData = useMemo(() => {
             </div>
 
             {/* Period Cards */}
+            {/* Period Cards */}
             <div className={`grid grid-cols-1 md:grid-cols-2 ${gridColsClass[Math.min(currentPreset.tiles.length, 5)]} gap-4 mb-6`}>
+              {periodCardsData.map((period) => {
+                if (period.isFetching) {
+                  return (
+                    <Card key={period.id} className="bg-surface border border-border min-h-[400px] min-w-0 flex flex-col">
+                      <CardContent className="p-4 flex-1">
+                        <KpiCardSkeleton />
+                      </CardContent>
+                    </Card>
+                  )
+                }
+
+                return (
+                  <Card
+                    key={period.id}
+                    className={`bg-surface border border-border cursor-pointer transition-shadow hover:shadow-md min-h-[400px] min-w-0 flex flex-col ${
+                      selectedTileId === period.id ? 'ring-2 ring-primary-200' : ''
+                    }`}
+                    onClick={() => setSelectedTileId(period.id)}
+                  >
+                    <CardContent className="p-4 break-words min-w-0 flex-1 flex flex-col">
+                      <SummaryTiles 
+                        setSelectedPeriodForDetails={setSelectedPeriodForDetails} 
+                        period={period}
+                      />
+                    </CardContent>
+                  </Card>
+                )
+              })}
+            </div>
+            {/* <div className={`grid grid-cols-1 md:grid-cols-2 ${gridColsClass[Math.min(currentPreset.tiles.length, 5)]} gap-4 mb-6`}>
               {periodCardsData.map((period) => {
                 if (period.isFetching) {
                   return (
@@ -1387,7 +1379,7 @@ const periodCardsData = useMemo(() => {
                 </Card>
                 )
               })}
-            </div>
+            </div> */}
 
             {/* Table Section */}
             <Card>

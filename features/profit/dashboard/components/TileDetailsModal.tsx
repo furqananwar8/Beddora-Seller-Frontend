@@ -156,109 +156,47 @@ export const TileDetailsModal: React.FC<
   const refunds =
     data.refundDetails || {}
 
-  // IMPORTANT:
-  //
-  // The API returns all values already converted into the
-  // requested target currency.
-  //
-  // Prefer the currency returned by the API.
-  //
   const displayCurrency =
     data.currency || currency
 
   // ============================================================
   // BASE VALUES
   // ============================================================
-// ============================================================
-// BASE VALUES
-// ============================================================
 
-const salesRevenue = Number(data.salesRevenue ?? 0)
+  const salesRevenue = Number(data.salesRevenue ?? 0)
+  const totalFees = Number(data.totalFees ?? 0)
+  const totalRefunds = Number(data.totalRefunds ?? 0)
+  const refundCost = Number(data.refundCost ?? 0)
+  const totalCOGS = Number(data.totalCOGS ?? 0)
+  const totalExpenses = Number(data.totalExpenses ?? 0)
+  const advertisingCost = Number(data.advertisingCost ?? 0)
+  const totalPromo = Number(data.totalPromo ?? 0)
+  const unitsSold = Number(data.ordersUnitCount ?? 0)
+  const refundCount = Number(data.totalRefundsCount ?? 0)
 
-const totalFees = Number(data.totalFees ?? 0)
+  // ============================================================
+  // USE API CALCULATED VALUES (single source of truth)
+  // ============================================================
 
-const totalRefunds = Number(
-  data.totalRefunds ?? 0
-)
+  const grossProfit = Number(data.grossProfit ?? 0)
+  const estimatedPayout = Number(data.estimatedPayout ?? 0)
+  const netProfit = Number(data.netProfit ?? 0)
+  const margin = Number(data.margin ?? 0)
+  const realACOS = Number(data.realACOS ?? 0)
+  const roi = Number(data.roi ?? 0)
+  const refundPercentage = Number(data.refundPercentage ?? 0)
 
-const refundCost = Number(
-  data.refundCost ?? 0
-)
+  // ============================================================
+  // DERIVED VALUES (not provided by API)
+  // ============================================================
 
-const totalCOGS = Number(data.totalCOGS ?? 0)
-
-const totalExpenses = Number(data.totalExpenses ?? 0)
-
-const advertisingCost = Number(
-  data.advertisingCost ?? 0
-)
-
-const totalPromo = Number(
-  data.totalPromo ?? 0
-)
-
-const unitsSold = Number(
-  data.ordersUnitCount ?? 0
-)
-
-const refundCount = Number(
-  data.refundCount ??
-  data.totalRefundsCount ??
-  0
-)
-
-// ============================================================
-// USE API CALCULATED VALUES
-// ============================================================
-
-const grossProfit = Number(
-  data.grossProfit ?? 0
-)
-
-const grossMargin = Number(
-  data.grossMargin ?? 0
-)
-
-const netProfit = Number(
-  data.netProfit ?? 0
-)
-
-const netMargin = Number(
-  data.netMargin ?? 0
-)
-
-// ============================================================
-// DERIVED VALUES
-// ============================================================
-
-const estimatedPayout =
-  salesRevenue -
-  totalFees -
-  totalRefunds -
-  totalCOGS -
-  totalExpenses -
-  advertisingCost
-
-const realACOS =
-  salesRevenue > 0
-    ? (advertisingCost / salesRevenue) * 100
-    : 0
-
-const refundsPercent =
-  salesRevenue > 0
-    ? (totalRefunds / salesRevenue) * 100
-    : 0
-
-const sellableReturns = 0
-
-const activeSubscriptions = 0
-
-const sessions = 0
-
-const unitSessionPercentage =
-  sessions > 0
-    ? (unitsSold / sessions) * 100
-    : 0
+  const sellableReturns = 0
+  const activeSubscriptions = 0
+  const sessions = 0
+  const unitSessionPercentage =
+    sessions > 0
+      ? (unitsSold / sessions) * 100
+      : 0
 
   // ============================================================
   // METRICS
@@ -268,30 +206,21 @@ const unitSessionPercentage =
     {
       key: 'sales',
       label: 'Sales',
-      value: formatCurrency(
-        salesRevenue,
-        displayCurrency
-      ),
+      value: formatCurrency(salesRevenue, displayCurrency),
       expandable: false,
     },
 
     {
       key: 'units',
       label: 'Units',
-      value: formatNumber(
-        unitsSold,
-        0
-      ),
+      value: formatNumber(unitsSold, 0),
       expandable: false,
     },
 
     {
       key: 'promo',
       label: 'Promo',
-      value: formatCurrency(
-        -totalPromo,
-        displayCurrency
-      ),
+      value: formatCurrency(-totalPromo, displayCurrency),
       expandable: false,
     },
 
@@ -302,30 +231,21 @@ const unitSessionPercentage =
     {
       key: 'advertising',
       label: 'Advertising cost',
-      value: formatCurrency(
-        -advertisingCost,
-        displayCurrency
-      ),
+      value: formatCurrency(-advertisingCost, displayCurrency),
       expandable: true,
     },
 
     {
       key: 'shipping',
       label: 'Shipping costs',
-      value: formatCurrency(
-        0,
-        displayCurrency
-      ),
+      value: formatCurrency(0, displayCurrency),
       expandable: false,
     },
 
     {
       key: 'giftwrap',
       label: 'Giftwrap',
-      value: formatCurrency(
-        0,
-        displayCurrency
-      ),
+      value: formatCurrency(0, displayCurrency),
       expandable: false,
     },
 
@@ -336,10 +256,7 @@ const unitSessionPercentage =
     {
       key: 'refund',
       label: 'Refund cost',
-      value: formatCurrency(
-        -refundCost,
-        displayCurrency
-      ),
+      value: formatCurrency(-refundCost, displayCurrency),
       expandable: true,
     },
 
@@ -350,10 +267,7 @@ const unitSessionPercentage =
     {
       key: 'amazon-fees',
       label: 'Amazon fees',
-      value: formatCurrency(
-        -totalFees,
-        displayCurrency
-      ),
+      value: formatCurrency(-totalFees, displayCurrency),
       expandable: true,
     },
 
@@ -364,10 +278,7 @@ const unitSessionPercentage =
     {
       key: 'cogs',
       label: 'Cost of goods',
-      value: formatCurrency(
-        -totalCOGS,
-        displayCurrency
-      ),
+      value: formatCurrency(-totalCOGS, displayCurrency),
       expandable: false,
     },
 
@@ -378,10 +289,7 @@ const unitSessionPercentage =
     {
       key: 'gross-profit',
       label: 'Gross profit',
-      value: formatCurrency(
-        grossProfit,
-        displayCurrency
-      ),
+      value: formatCurrency(grossProfit, displayCurrency),
       expandable: false,
       bold: true,
     },
@@ -393,10 +301,7 @@ const unitSessionPercentage =
     {
       key: 'indirect-expenses',
       label: 'Indirect expenses',
-      value: formatCurrency(
-        -totalExpenses,
-        displayCurrency
-      ),
+      value: formatCurrency(-totalExpenses, displayCurrency),
       expandable: false,
     },
 
@@ -407,10 +312,7 @@ const unitSessionPercentage =
     {
       key: 'net-profit',
       label: 'Net profit',
-      value: formatCurrency(
-        netProfit,
-        displayCurrency
-      ),
+      value: formatCurrency(netProfit, displayCurrency),
       expandable: false,
       bold: true,
     },
@@ -422,10 +324,7 @@ const unitSessionPercentage =
     {
       key: 'estimated-payout',
       label: 'Estimated payout',
-      value: formatCurrency(
-        estimatedPayout,
-        displayCurrency
-      ),
+      value: formatCurrency(estimatedPayout, displayCurrency),
       expandable: false,
     },
 
@@ -436,76 +335,56 @@ const unitSessionPercentage =
     {
       key: 'real-acos',
       label: 'Real ACOS',
-      value: formatPercentage(
-        realACOS
-      ),
+      value: formatPercentage(realACOS),
       expandable: false,
     },
 
     {
       key: 'refund-percent',
       label: '% Refunds',
-      value: formatPercentage(
-        refundsPercent
-      ),
+      value: formatPercentage(refundPercentage),
       expandable: false,
     },
 
     {
       key: 'sellable-returns',
       label: 'Sellable returns',
-      value: formatPercentage(
-        sellableReturns
-      ),
+      value: formatPercentage(sellableReturns),
       expandable: false,
     },
 
     {
       key: 'margin',
       label: 'Margin',
-      value: formatPercentage(
-        netMargin
-      ),
+      value: formatPercentage(margin),
       expandable: false,
     },
 
     {
       key: 'roi',
       label: 'ROI',
-      value: formatPercentage(
-        grossMargin
-      ),
+      value: formatPercentage(roi),
       expandable: false,
     },
 
     {
       key: 'subscriptions',
-      label:
-        'Active subscriptions (SnS)',
-      value: formatNumber(
-        activeSubscriptions,
-        0
-      ),
+      label: 'Active subscriptions (SnS)',
+      value: formatNumber(activeSubscriptions, 0),
       expandable: false,
     },
 
     {
       key: 'sessions',
       label: 'Sessions',
-      value: formatNumber(
-        sessions,
-        0
-      ),
+      value: formatNumber(sessions, 0),
       expandable: true,
     },
 
     {
       key: 'unit-session',
-      label:
-        'Unit session percentage',
-      value: formatPercentage(
-        unitSessionPercentage
-      ),
+      label: 'Unit session percentage',
+      value: formatPercentage(unitSessionPercentage),
       expandable: false,
     },
   ]
