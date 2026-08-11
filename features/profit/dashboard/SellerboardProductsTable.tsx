@@ -50,56 +50,64 @@ type SortDirection = 'asc' | 'desc'
 const buildProductStatData = (
   p: ProductProfitBreakdown
 ): StatModalData => {
-  const roi =
-    p.totalCOGS > 0
-      ? (p.netProfit / p.totalCOGS) * 100
-      : 0
+  const refundAmount =
+    Math.abs(p.refundAmount || 0)
 
-  const refundAmount = Math.abs(
-    p.refundAmount || 0
-  )
+  const refundCount =
+    p.totalRefunds || 0
 
-  const refundCount = p.totalRefunds || 0
+  const refundCost =
+    Math.abs(p.refundCost || 0)
 
-  const totalFees = Math.abs(
-    p.totalFees || 0
-  )
+  const totalFees =
+    Math.abs(p.totalFees || 0)
 
-  const fbaFees = Math.abs(
-    p.fbaFees || 0
-  )
+  const fbaFees =
+    Math.abs(p.fbaFees || 0)
 
-  const fbaFulfillmentFee = Math.abs(
-    p.fbaFulfillmentFee || 0
-  )
+  const fbaFulfillmentFee =
+    Math.abs(
+      p.fbaFulfillmentFee || 0
+    )
 
-  const salesTaxServiceFees = Math.abs(
-    p.salesTaxServiceFees || 0
-  )
+  const salesTaxServiceFees =
+    Math.abs(
+      p.salesTaxServiceFees || 0
+    )
 
-  const promoRebates = Math.abs(
-    p.promoRebates || 0
-  )
+  const promoRebates =
+    Math.abs(
+      p.promoRebates || 0
+    )
 
-  const reversalReimbursements = Math.abs(
-    p.reversalReimbursements || 0
-  )
+  const reversalReimbursements =
+    Math.abs(
+      p.reversalReimbursements || 0
+    )
 
-  const sellingFees = Math.abs(
-    p.sellingFees || 0
-  )
+  const sellingFees =
+    Math.abs(
+      p.sellingFees || 0
+    )
 
-  const otherAmazonAdjustments = Math.abs(
-    p.otherAmazonAdjustments || 0
-  )
+  const otherAmazonAdjustments =
+    Math.abs(
+      p.otherAmazonAdjustments || 0
+    )
 
-  const refundPercentage =
-    p.salesRevenue > 0
-      ? (refundAmount / p.salesRevenue) * 100
-      : 0
+  const advertisingCost =
+    Math.abs(
+      p.advertisingCost || 0
+    )
+
+  const totalCOGS =
+    Math.abs(p.totalCOGS || 0)
 
   return {
-    title: p.productTitle || p.sku || 'Product',
+    title:
+      p.productTitle ||
+      p.sku ||
+      'Product',
 
     sections: [
       {
@@ -110,28 +118,8 @@ const buildProductStatData = (
 
         children: [
           {
-            label: 'Organic',
-            value: 0,
-            currency: true,
-          },
-          {
-            label: 'Sponsored Products (same day)',
-            value: 0,
-            currency: true,
-          },
-          {
-            label: 'Sponsored Display (same day)',
-            value: 0,
-            currency: true,
-          },
-          {
-            label: 'Direct sales',
-            value: 0,
-            currency: true,
-          },
-          {
-            label: 'Subscription sales (est.)',
-            value: 0,
+            label: 'Sales',
+            value: p.salesRevenue,
             currency: true,
           },
         ],
@@ -144,28 +132,8 @@ const buildProductStatData = (
 
         children: [
           {
-            label: 'Organic',
-            value: 0,
-            integer: true,
-          },
-          {
-            label: 'Sponsored Products (same day)',
-            value: 0,
-            integer: true,
-          },
-          {
-            label: 'Sponsored Display (same day)',
-            value: 0,
-            integer: true,
-          },
-          {
-            label: 'Direct units',
-            value: 0,
-            integer: true,
-          },
-          {
-            label: 'Subscription units (est.)',
-            value: 0,
+            label: 'Units sold',
+            value: p.unitsSold,
             integer: true,
           },
         ],
@@ -173,28 +141,13 @@ const buildProductStatData = (
 
       {
         title: 'Advertising cost',
-        value: 0,
+        value: advertisingCost,
         currency: true,
 
         children: [
           {
-            label: 'Sponsored Products',
-            value: 0,
-            currency: true,
-          },
-          {
-            label: 'Sponsored Brands Video',
-            value: 0,
-            currency: true,
-          },
-          {
-            label: 'Sponsored Display',
-            value: 0,
-            currency: true,
-          },
-          {
-            label: 'Sponsored Brands',
-            value: 0,
+            label: 'Advertising cost',
+            value: advertisingCost,
             currency: true,
           },
         ],
@@ -202,7 +155,7 @@ const buildProductStatData = (
 
       {
         title: 'Refund cost',
-        value: refundAmount,
+        value: refundCost,
         currency: true,
         defaultOpen: true,
 
@@ -216,26 +169,6 @@ const buildProductStatData = (
             label: 'Refund count',
             value: refundCount,
             integer: true,
-          },
-          {
-            label: 'Refund commission',
-            value: 0,
-            currency: true,
-          },
-          {
-            label: 'Goodwill/Principal',
-            value: 0,
-            currency: true,
-          },
-          {
-            label: 'Promotion',
-            value: 0,
-            currency: true,
-          },
-          {
-            label: 'Refunded referral fee',
-            value: 0,
-            currency: true,
           },
         ],
       },
@@ -253,7 +186,8 @@ const buildProductStatData = (
             currency: true,
           },
           {
-            label: 'FBA per unit fulfillment fee',
+            label:
+              'FBA per unit fulfillment fee',
             value: fbaFulfillmentFee,
             currency: true,
           },
@@ -263,7 +197,8 @@ const buildProductStatData = (
             currency: true,
           },
           {
-            label: 'Sales tax collection fee',
+            label:
+              'Sales tax collection fee',
             value: salesTaxServiceFees,
             currency: true,
           },
@@ -273,13 +208,17 @@ const buildProductStatData = (
             currency: true,
           },
           {
-            label: 'Reversal reimbursement',
-            value: reversalReimbursements,
+            label:
+              'Reversal reimbursement',
+            value:
+              reversalReimbursements,
             currency: true,
           },
           {
-            label: 'Other Amazon adjustments',
-            value: otherAmazonAdjustments,
+            label:
+              'Other Amazon adjustments',
+            value:
+              otherAmazonAdjustments,
             currency: true,
           },
         ],
@@ -287,14 +226,14 @@ const buildProductStatData = (
 
       {
         title: 'Cost of goods',
-        value: Math.abs(p.totalCOGS),
+        value: totalCOGS,
         currency: true,
         defaultOpen: true,
 
         children: [
           {
             label: 'Cost of goods sold',
-            value: Math.abs(p.totalCOGS),
+            value: totalCOGS,
             currency: true,
           },
           {
@@ -312,26 +251,6 @@ const buildProductStatData = (
             value: 0,
             currency: true,
           },
-          {
-            label: 'Disposal of sellable products',
-            value: 0,
-            currency: true,
-          },
-          {
-            label: 'Lost/damaged by Amazon',
-            value: 0,
-            currency: true,
-          },
-          {
-            label: 'Multi-channel',
-            value: 0,
-            currency: true,
-          },
-          {
-            label: 'Missing returns',
-            value: 0,
-            currency: true,
-          },
         ],
       },
     ],
@@ -339,7 +258,7 @@ const buildProductStatData = (
     summaryRows: [
       {
         label: 'Refunds',
-        value: refundAmount,
+        value: refundCost,
         currency: true,
       },
 
@@ -381,13 +300,18 @@ const buildProductStatData = (
 
       {
         label: 'Real ACOS',
-        value: 0,
+        value: p.realACOS,
         percentage: true,
       },
 
       {
         label: '% Refunds',
-        value: refundPercentage,
+        value:
+          p.salesRevenue > 0
+            ? (refundAmount /
+                p.salesRevenue) *
+              100
+            : 0,
         percentage: true,
       },
 
@@ -399,13 +323,13 @@ const buildProductStatData = (
 
       {
         label: 'Margin',
-        value: p.netMargin,
+        value: p.margin,
         percentage: true,
       },
 
       {
         label: 'ROI',
-        value: roi,
+        value: p.roi,
         percentage: true,
       },
 
@@ -525,8 +449,8 @@ export const SellerboardProductsTable: React.FC<
           break
 
         case 'ads':
-          aVal = 0
-          bVal = 0
+          aVal = a.advertisingCost || 0
+          bVal = b.advertisingCost || 0
           break
 
         case 'amazonFees':
@@ -550,21 +474,13 @@ export const SellerboardProductsTable: React.FC<
           break
 
         case 'margin':
-          aVal = a.netMargin || 0
-          bVal = b.netMargin || 0
+          aVal = a.margin || 0
+          bVal = b.margin || 0
           break
 
         case 'roi':
-          aVal =
-            a.totalCOGS > 0
-              ? (a.netProfit / a.totalCOGS) * 100
-              : 0
-
-          bVal =
-            b.totalCOGS > 0
-              ? (b.netProfit / b.totalCOGS) * 100
-              : 0
-
+          aVal = a.roi || 0
+          bVal = b.roi || 0
           break
 
         case 'bsr':
@@ -983,13 +899,15 @@ export const SellerboardProductsTable: React.FC<
 
                     {/* Ads */}
                     <TableCell className="text-right text-danger-600">
-                      -{formatCurrency(0)}
+                      -{formatCurrency(
+                        Math.abs(product.advertisingCost || 0)
+                      )}
                     </TableCell>
 
                     {/* Refund cost */}
-                    <TableCell className="text-right">
+                   <TableCell className="text-right">
                       {formatCurrency(
-                        refundCost
+                        Math.abs(product.refundCost || 0)
                       )}
                     </TableCell>
 
@@ -1026,15 +944,17 @@ export const SellerboardProductsTable: React.FC<
                     </TableCell>
 
                     {/* Margin */}
-                    <TableCell className="text-right">
+                   <TableCell className="text-right">
                       {formatPercentage(
-                        product.netMargin || 0
+                        product.margin || 0
                       )}
                     </TableCell>
 
                     {/* ROI */}
                     <TableCell className="text-right">
-                      {formatPercentage(roi)}
+                      {formatPercentage(
+                        product.roi || 0
+                      )}
                     </TableCell>
 
                     {/* BSR */}

@@ -98,26 +98,52 @@ export interface ProfitSummary {
 
 export interface ProductProfitBreakdown {
   sku: string
+
   productId: string | null
   productTitle: string | null
+  asin: string | null
+  imageUrl: string | null
+
+  // Sales
+  unitsSold: number
   salesRevenue: number
-  totalExpenses: number
-  totalFees: number
+
+  // Refunds
   totalRefunds: number
+  refundAmount: number
+  refundCost: number
+
+  // Promo
+  promoRebates: number
+
+  // Ads
+  advertisingCost: number
+
+  // Amazon fees
+  totalFees: number
+  fbaFees: number
+  fbaFulfillmentFee: number
+  salesTaxServiceFees: number
+  reversalReimbursements: number
+  sellingFees: number
+  otherAmazonAdjustments: number
+
+  // COGS
+  cogsRate: number
   totalCOGS: number
+
+  // Profit
+  totalExpenses: number
   grossProfit: number
   netProfit: number
-  grossMargin: number
+
+  // Performance
+  realACOS: number
+  roi: number
+  margin: number
   netMargin: number
-  refundAmount: number
-  unitsSold: number
-  promoRebates: number
-  orderCount: number
-  imageUrl: string
-  cogsRate: number
-  product: {
-    imageUrl: string
-  }
+
+  avgProfitPerUnit: number
 }
 
 export interface MarketplaceProfitBreakdown {
