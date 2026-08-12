@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useMemo } from 'react'
+import React, { useState } from 'react'
 import { Card, CardContent } from '@/design-system/cards'
 import {
   Table,
@@ -11,8 +11,15 @@ import {
   TableRow,
 } from '@/design-system/tables'
 import { Spinner } from '@/design-system/loaders'
-import { PLResponse, PLMetricRow } from '@/services/api/profit.api'
-import { formatCurrency, formatNumber, formatPercentage } from '@/utils/format'
+import {
+  PLResponse,
+  PLMetricRow,
+} from '@/services/api/profit.api'
+import {
+  formatCurrency,
+  formatNumber,
+  formatPercentage,
+} from '@/utils/format'
 
 export interface PLTableProps {
   data?: PLResponse
@@ -22,12 +29,13 @@ export interface PLTableProps {
 }
 
 /**
- * P&L Table Component
- * 
- * Displays financial metrics in a table format with:
- * - Parameter/Date column on the left
- * - Period columns (current month-to-date, past 12 months, Total)
- * - Expandable rows for certain metrics
+ * P&L Table
+ *
+ * Important:
+ * - The API is the source of truth for expandable children.
+ * - The frontend does not maintain Amazon fee definitions.
+ * - Refunds is a COUNT, not a currency value.
+ * - Refund cost is the currency-based expandable refund row.
  */
 export const PLTable: React.FC<PLTableProps> = ({
   data,
@@ -35,126 +43,175 @@ export const PLTable: React.FC<PLTableProps> = ({
   error,
   currency = 'CAD',
 }) => {
-  // Default expanded rows: Sales, Units, and Advertising cost
+  /**
+   * Default expanded rows.
+   */
   const [expandedRows, setExpandedRows] = useState<Set<string>>(
-    new Set(['Sales', 'Units', 'Advertising cost'])
-  )
-
-  const toggleRow = (parameter: string) => {
-    const newExpanded = new Set(expandedRows)
-    if (newExpanded.has(parameter)) {
-      newExpanded.delete(parameter)
-    } else {
-      newExpanded.add(parameter)
-    }
-    setExpandedRows(newExpanded)
-  }
-
-  const formatValue = (parameter: string, value: number, parentParameter?: string): string => {
-    // Parameters that should be formatted as currency
-    const currencyParams = [
+    new Set([
       'Sales',
-      'Promo',
+      'Units',
       'Advertising cost',
-      'Shipping costs',
-      'Giftwrap',
       'Refund cost',
       'Amazon fees',
       'Cost of goods',
-      'Gross profit',
-      'Indirect expenses',
-      'Net profit',
-      'Estimated payout',
-      // Child parameters that are currency
-      'Organic',
-      'Sponsored Products (same day)',
-      'Sponsored Display (same day)',
-      'Direct sales',
-      'Subscription sales (est.)',
-      'Sponsored Products',
-      'Sponsored Brands Video',
-      'Sponsored Brands',
-      'Sponsored Display',
-      'FBA shipping chargeback',
-      'Value of returned items',
-      'Refunded referral fee',
-      'Promotion',
-      'Ship Promotion',
-      'DigitalServicesFee',
-      'Refunded shipping',
-      'Refund commission',
-      'Unsellable products costs',
-      'Refunded amount',
-      // Amazon fees children
-      'FBA per unit fulfilment fee',
-      'Referral fee',
-      'FBA storage fee',
-      'FBA removal fee',
-      'Vine fee',
-      'Vine enrollment fee',
-      'Coupon redemption fee',
-      'FBA disposal fee',
-      'Subscription',
-      'Lightning deal fee',
-      'Digital services fee',
-      'Coupon performance fee rollup',
-      'Deal participation fee rollup',
-      'Sales tax collection fee',
-      'Coupon participation fee rollup',
-      'Coupon performance fee',
-      'Deal performance fee rollup',
-      'Coupon participation fee',
-      'Compensated clawback',
-      'Long term storage fee',
-      'Deal participation fee',
-      'Deal performance fee',
-      'Micro Deposit',
-      'Micro deposit (failed)',
-      'Warehouse damage',
-      'Warehouse lost',
-      'Adjustment FBA per unit fulfillment fee',
-      'Reversal reimbursement',
-      // Cost of goods children
-      'Cost of goods sold',
-      'Disposal of sellable products',
-      'Lost/damaged by Amazon',
-      'Missing returns',
-    ]
+    ])
+  )
 
-    // Parameters that should be formatted as percentage
-    const percentageParams = [
-      'Real ACOS',
-      '% Refunds',
-      'Sellable returns',
-      'Margin',
-      'ROI',
-      'Unit session percentage',
-    ]
+  const toggleRow = (parameter: string) => {
+    setExpandedRows((previous) => {
+      const next = new Set(previous)
 
-    // If it's a child of Sales, Advertising cost, Shipping costs, Refund cost, Amazon fees, or Cost of goods, format as currency
-    if (parentParameter === 'Sales' || parentParameter === 'Advertising cost' || 
-        parentParameter === 'Shipping costs' || parentParameter === 'Refund cost' || 
-        parentParameter === 'Amazon fees' || parentParameter === 'Cost of goods') {
-      if (currencyParams.includes(parameter)) {
-        return formatCurrency(value, currency)
+      if (next.has(parameter)) {
+        next.delete(parameter)
+      } else {
+        next.add(parameter)
       }
-    }
 
-    // If it's a child of Units or Sessions, format as number
-    if (parentParameter === 'Units' || parentParameter === 'Sessions') {
-      return formatNumber(value, 0)
-    }
-
-    if (currencyParams.includes(parameter)) {
-      return formatCurrency(value, currency)
-    } else if (percentageParams.includes(parameter)) {
-      return formatPercentage(value)
-    } else {
-      // Numbers (Units, Refunds, Sessions, Active subscriptions)
-      return formatNumber(value, 0)
-    }
+      return next
+    })
   }
 
+  /**
+   * Main currency rows.
+   *
+   * Giftwrap intentionally removed.
+   */
+  const currencyRows = new Set([
+    'Sales',
+    'Promo',
+    'Advertising cost',
+    'Shipping costs',
+    'Refund cost',
+    'Amazon fees',
+    'Cost of goods',
+    'Gross profit',
+    'Indirect expenses',
+    'Net profit',
+    'Estimated payout',
+  ])
+
+  /**
+   * Rows whose values are percentages.
+   */
+  const percentageRows = new Set([
+    'Real ACOS',
+    '% Refunds',
+    'Sellable returns',
+    'Margin',
+    'ROI',
+    'Unit session percentage',
+  ])
+
+  /**
+   * Rows whose values are plain numbers/counts.
+   *
+   * Refunds is intentionally here because the parent
+   * represents the NUMBER OF REFUNDS.
+   */
+  const numberRows = new Set([
+    'Refunds',
+  ])
+
+  /**
+   * Parent rows whose children are counts/units.
+   */
+  const numericParentRows = new Set([
+    'Units',
+    'Sessions',
+  ])
+
+  /**
+   * Format metric values.
+   */
+  const formatValue = (
+    parameter: string,
+    value: number,
+    parentParameter?: string
+  ): string => {
+    const safeValue = Number.isFinite(Number(value))
+      ? Number(value)
+      : 0
+
+    /**
+     * Refund count.
+     *
+     * Refunds is NOT money.
+     */
+    if (numberRows.has(parameter)) {
+      return formatNumber(safeValue, 0)
+    }
+
+    /**
+     * Children of Units / Sessions are counts.
+     */
+    if (
+      parentParameter &&
+      numericParentRows.has(parentParameter)
+    ) {
+      return formatNumber(safeValue, 0)
+    }
+
+    /**
+     * Percentage metrics.
+     */
+    if (
+      percentageRows.has(parameter)
+    ) {
+      return formatPercentage(safeValue)
+    }
+
+    /**
+     * Main financial rows.
+     */
+    if (
+      currencyRows.has(parameter)
+    ) {
+      return formatCurrency(
+        safeValue,
+        currency
+      )
+    }
+
+    /**
+     * Children of financial rows.
+     *
+     * The API controls which children exist.
+     */
+    if (
+      parentParameter &&
+      currencyRows.has(parentParameter)
+    ) {
+      return formatCurrency(
+        safeValue,
+        currency
+      )
+    }
+
+    /**
+     * Standalone percentage fallback.
+     */
+    if (
+      parameter.toLowerCase().includes('%') ||
+      parameter.toLowerCase().includes('margin') ||
+      parameter.toLowerCase().includes('roi') ||
+      parameter.toLowerCase().includes('acos') ||
+      parameter.toLowerCase().includes('percentage')
+    ) {
+      return formatPercentage(safeValue)
+    }
+
+    /**
+     * Standalone count/number fallback.
+     */
+    return formatNumber(
+      safeValue,
+      0
+    )
+  }
+
+  /**
+   * Loading state.
+   */
   if (isLoading) {
     return (
       <Card>
@@ -167,133 +224,400 @@ export const PLTable: React.FC<PLTableProps> = ({
     )
   }
 
+  /**
+   * Error state.
+   */
   if (error) {
     return (
       <Card>
         <CardContent className="p-6">
-          <div className="text-sm text-danger-600">Failed to load P&L data</div>
+          <div className="text-sm text-danger-600">
+            Failed to load P&L data
+          </div>
         </CardContent>
       </Card>
     )
   }
 
-  if (!data || !data.metrics || data.metrics.length === 0) {
+  /**
+   * Empty state.
+   */
+  if (
+    !data ||
+    !data.metrics ||
+    data.metrics.length === 0
+  ) {
     return (
       <Card>
         <CardContent className="p-6">
-          <div className="text-sm text-text-muted">No P&L data available</div>
+          <div className="text-sm text-text-muted">
+            No P&L data available
+          </div>
         </CardContent>
       </Card>
     )
   }
-
-  // The periods array from the API should match the order of periods in each metric
-  // Each metric.periods array has the same length and order as data.periods
 
   return (
     <Card>
       <CardContent className="p-0">
         <div className="overflow-x-auto relative">
           <Table>
+
+            {/* ===================================================== */}
+            {/* HEADER */}
+            {/* ===================================================== */}
+
             <TableHeader>
               <TableRow>
-                <TableHead className="min-w-[200px] max-w-[250px] sticky left-0 bg-surface z-10">
+                <TableHead
+                  className="
+                    min-w-[220px]
+                    max-w-[280px]
+                    sticky
+                    left-0
+                    bg-surface
+                    z-10
+                  "
+                >
                   Parameter/Date
                 </TableHead>
-                      {data.periods.map((period, index) => (
-                        <TableHead key={`period-${index}`} className="min-w-[120px] text-right whitespace-nowrap">
-                          {period}
-                        </TableHead>
-                      ))}
-                <TableHead className="min-w-[120px] text-right font-semibold">
+
+                {data.periods.map(
+                  (period, index) => (
+                    <TableHead
+                      key={`period-${index}`}
+                      className="
+                        min-w-[120px]
+                        text-right
+                        whitespace-nowrap
+                      "
+                    >
+                      {period}
+                    </TableHead>
+                  )
+                )}
+
+                <TableHead
+                  className="
+                    min-w-[130px]
+                    text-right
+                    font-semibold
+                    whitespace-nowrap
+                  "
+                >
                   Total
                 </TableHead>
               </TableRow>
             </TableHeader>
-            <TableBody>
-              {data.metrics.map((metric, rowIndex) => {
-                const isExpanded = expandedRows.has(metric.parameter)
-                const hasValue = metric.periods.some((p) => p.value !== 0) || metric.total !== 0
 
-                return (
-                  <React.Fragment key={metric.parameter}>
-                    <TableRow
-                      className={`hover:bg-surface-secondary cursor-pointer ${!hasValue ? 'opacity-50' : ''}`}
-                      onClick={() => metric.isExpandable && toggleRow(metric.parameter)}
+            {/* ===================================================== */}
+            {/* BODY */}
+            {/* ===================================================== */}
+
+            <TableBody>
+              {data.metrics.map(
+                (
+                  metric: PLMetricRow,
+                  rowIndex
+                ) => {
+                  const isExpanded =
+                    expandedRows.has(
+                      metric.parameter
+                    )
+
+                  const hasValue =
+                    metric.periods?.some(
+                      (period) =>
+                        Number(period.value || 0) !== 0
+                    ) ||
+                    Number(metric.total || 0) !== 0
+
+                  const hasChildren =
+                    Boolean(
+                      metric.isExpandable &&
+                      metric.children &&
+                      metric.children.length > 0
+                    )
+
+                  return (
+                    <React.Fragment
+                      key={`${metric.parameter}-${rowIndex}`}
                     >
-                      <TableCell className="sticky left-0 bg-surface z-10 min-w-[200px] max-w-[250px]">
-                        <div className="flex items-center gap-2">
-                          {metric.isExpandable && (
-                            <svg
-                              className={`w-4 h-4 text-text-muted transition-transform flex-shrink-0 ${
-                                isExpanded ? 'rotate-90' : ''
-                              }`}
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
+
+                      {/* ================================================= */}
+                      {/* PARENT ROW */}
+                      {/* ================================================= */}
+
+                      <TableRow
+                        className={`
+                          hover:bg-surface-secondary
+                          ${
+                            metric.isExpandable
+                              ? 'cursor-pointer'
+                              : ''
+                          }
+                          ${
+                            !hasValue
+                              ? 'opacity-50'
+                              : ''
+                          }
+                        `}
+                        onClick={() => {
+                          if (
+                            metric.isExpandable
+                          ) {
+                            toggleRow(
+                              metric.parameter
+                            )
+                          }
+                        }}
+                      >
+                        <TableCell
+                          className="
+                            sticky
+                            left-0
+                            bg-surface
+                            z-10
+                            min-w-[220px]
+                            max-w-[280px]
+                          "
+                        >
+                          <div className="flex items-center gap-2">
+
+                            {metric.isExpandable && (
+                              <svg
+                                className={`
+                                  w-4
+                                  h-4
+                                  text-text-muted
+                                  transition-transform
+                                  flex-shrink-0
+                                  ${
+                                    isExpanded
+                                      ? 'rotate-90'
+                                      : ''
+                                  }
+                                `}
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                                aria-hidden="true"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M9 5l7 7-7 7"
+                                />
+                              </svg>
+                            )}
+
+                            <span
+                              className="
+                                font-medium
+                                break-words
+                              "
                             >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M9 5l7 7-7 7"
-                              />
-                            </svg>
+                              {metric.parameter}
+                            </span>
+
+                          </div>
+                        </TableCell>
+
+                        {data.periods.map(
+                          (
+                            periodLabel,
+                            periodIndex
+                          ) => {
+                            const periodValue =
+                              Number(
+                                metric.periods?.[
+                                  periodIndex
+                                ]?.value || 0
+                              )
+
+                            return (
+                              <TableCell
+                                key={`
+                                  ${metric.parameter}
+                                  -${periodIndex}
+                                `}
+                                className="
+                                  text-right
+                                  whitespace-nowrap
+                                "
+                              >
+                                {formatValue(
+                                  metric.parameter,
+                                  periodValue
+                                )}
+                              </TableCell>
+                            )
+                          }
+                        )}
+
+                        <TableCell
+                          className="
+                            text-right
+                            font-semibold
+                            whitespace-nowrap
+                          "
+                        >
+                          {formatValue(
+                            metric.parameter,
+                            Number(
+                              metric.total || 0
+                            )
                           )}
-                          <span className="font-medium break-words">{metric.parameter}</span>
-                        </div>
-                      </TableCell>
-                      {data.periods.map((periodLabel, periodIndex) => {
-                        const periodValue = metric.periods[periodIndex]?.value || 0
-                        return (
-                          <TableCell key={`${metric.parameter}-${periodIndex}`} className="text-right whitespace-nowrap">
-                            {formatValue(metric.parameter, periodValue)}
-                          </TableCell>
-                        )
-                      })}
-                      <TableCell className="text-right font-semibold">
-                        {formatValue(metric.parameter, metric.total)}
-                      </TableCell>
-                    </TableRow>
-                    {/* Child rows */}
-                    {isExpanded && metric.isExpandable && metric.children && metric.children.length > 0 && (
-                      <>
-                        {metric.children.map((child) => {
-                          const childHasValue = child.periods.some((p) => p.value !== 0) || child.total !== 0
-                          return (
-                            <TableRow
-                              key={`${metric.parameter}-${child.parameter}`}
-                              className={`bg-surface-secondary hover:bg-surface-tertiary ${!childHasValue ? 'opacity-50' : ''}`}
-                            >
-                              <TableCell className="sticky left-0 bg-surface-secondary z-10 pl-8 min-w-[200px] max-w-[250px]">
-                                <span className="text-sm break-words">{child.parameter}</span>
-                              </TableCell>
-                              {data.periods.map((periodLabel, periodIndex) => {
-                                const periodValue = child.periods[periodIndex]?.value || 0
-                                return (
-                                  <TableCell
-                                    key={`${child.parameter}-${periodIndex}`}
-                                    className="text-right whitespace-nowrap text-sm"
-                                  >
-                                    {formatValue(child.parameter, periodValue, metric.parameter)}
-                                  </TableCell>
-                                )
-                              })}
-                              <TableCell className="text-right font-semibold text-sm">
-                                {formatValue(child.parameter, child.total, metric.parameter)}
-                              </TableCell>
-                            </TableRow>
-                          )
-                        })}
-                      </>
-                    )}
-                  </React.Fragment>
-                )
-              })}
+                        </TableCell>
+                      </TableRow>
+
+                      {/* ================================================= */}
+                      {/* CHILD ROWS */}
+                      {/* ================================================= */}
+
+                      {isExpanded &&
+                        hasChildren &&
+                        metric.children!.map(
+                          (
+                            child,
+                            childIndex
+                          ) => {
+                            const childHasValue =
+                              child.periods?.some(
+                                (period) =>
+                                  Number(
+                                    period.value || 0
+                                  ) !== 0
+                              ) ||
+                              Number(
+                                child.total || 0
+                              ) !== 0
+
+                            return (
+                              <TableRow
+                                key={`
+                                  ${metric.parameter}
+                                  -${child.parameter}
+                                  -${childIndex}
+                                `}
+                                className={`
+                                  bg-surface-secondary
+                                  hover:bg-surface-tertiary
+                                  ${
+                                    !childHasValue
+                                      ? 'opacity-50'
+                                      : ''
+                                  }
+                                `}
+                              >
+
+                                <TableCell
+                                  className="
+                                    sticky
+                                    left-0
+                                    bg-surface-secondary
+                                    z-10
+                                    pl-8
+                                    min-w-[220px]
+                                    max-w-[280px]
+                                  "
+                                >
+                                  <div className="flex items-center gap-2">
+
+                                    <span
+                                      className="
+                                        w-1
+                                        h-1
+                                        rounded-full
+                                        bg-text-muted
+                                        flex-shrink-0
+                                      "
+                                    />
+
+                                    <span
+                                      className="
+                                        text-sm
+                                        break-words
+                                        text-text-secondary
+                                      "
+                                    >
+                                      {child.parameter}
+                                    </span>
+
+                                  </div>
+                                </TableCell>
+
+                                {data.periods.map(
+                                  (
+                                    periodLabel,
+                                    periodIndex
+                                  ) => {
+                                    const periodValue =
+                                      Number(
+                                        child
+                                          .periods?.[
+                                          periodIndex
+                                        ]?.value || 0
+                                      )
+
+                                    return (
+                                      <TableCell
+                                        key={`
+                                          ${metric.parameter}
+                                          -${child.parameter}
+                                          -${periodIndex}
+                                        `}
+                                        className="
+                                          text-right
+                                          whitespace-nowrap
+                                          text-sm
+                                        "
+                                      >
+                                        {formatValue(
+                                          child.parameter,
+                                          periodValue,
+                                          metric.parameter
+                                        )}
+                                      </TableCell>
+                                    )
+                                  }
+                                )}
+
+                                <TableCell
+                                  className="
+                                    text-right
+                                    font-semibold
+                                    text-sm
+                                    whitespace-nowrap
+                                  "
+                                >
+                                  {formatValue(
+                                    child.parameter,
+                                    Number(
+                                      child.total || 0
+                                    ),
+                                    metric.parameter
+                                  )}
+                                </TableCell>
+
+                              </TableRow>
+                            )
+                          }
+                        )}
+
+                    </React.Fragment>
+                  )
+                }
+              )}
             </TableBody>
+
           </Table>
         </div>
       </CardContent>
     </Card>
   )
 }
+
+export default PLTable
