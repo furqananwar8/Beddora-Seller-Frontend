@@ -105,22 +105,34 @@ export const DashboardChart: React.FC<DashboardChartProps> = ({
   }
 
   const formatPeriodLabel = (period: string) => {
-    if (period.match(/^\d{4}-\d{2}$/)) {
+    if (/^\d{4}-\d{2}$/.test(period)) {
       const [year, month] = period.split('-')
-      const date = new Date(parseInt(year), parseInt(month) - 1)
-      return date.toLocaleDateString('en-US', {
+
+      return new Date(
+        Number(year),
+        Number(month) - 1,
+        1
+      ).toLocaleDateString('en-US', {
         month: 'short',
         year: 'numeric',
       })
     }
-    if (period.match(/^\d{4}-\d{2}-\d{2}$/)) {
-      const date = new Date(period)
-      return date.toLocaleDateString('en-US', {
+
+    if (/^\d{4}-\d{2}-\d{2}$/.test(period)) {
+      const [year, month, day] = period
+        .split('-')
+        .map(Number)
+
+      return new Date(
+        year,
+        month - 1,
+        day
+      ).toLocaleDateString('en-US', {
         day: 'numeric',
         month: 'short',
-        year: 'numeric',
       })
     }
+
     return period
   }
 
@@ -157,12 +169,18 @@ export const DashboardChart: React.FC<DashboardChartProps> = ({
                 name: 'Units sold',
                 color: '#3b82f6',
                 yAxisId: 'right',
+                type: 'line',
+                showDots: false,
+                strokeWidth: 2.5,
               },
               {
                 key: 'Refunds',
                 name: 'Refunds',
                 color: '#ec4899',
                 yAxisId: 'left',
+                type: 'line',
+                showDots: false,
+                strokeWidth: 2,
               },
             ]}
             barSeries={[
@@ -171,12 +189,14 @@ export const DashboardChart: React.FC<DashboardChartProps> = ({
                 name: 'Advertising cost',
                 color: '#ef4444',
                 yAxisId: 'left',
+                opacity: 0.65,
               },
               {
                 key: 'Net profit',
                 name: 'Net profit',
                 color: '#60a5fa',
                 yAxisId: 'left',
+                opacity: 0.85,
               },
             ]}
             className="h-full"

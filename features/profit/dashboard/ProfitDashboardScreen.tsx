@@ -40,7 +40,7 @@ import { MultiSelectInput } from '@/components/multi-select-input/MultiSelectInp
 import { MARKETPLACES } from '@/utils/marketplaces'
 import DateRangePicker, { DateRangeValue } from '@/components/date-range-picker/DateRangePicker'
 
-const TIMEZONE = 'America/Los_Angeles'
+export const TIMEZONE = 'America/Los_Angeles'
 const PRESET_STORAGE_KEY = 'profit-dashboard-preset'
 
 /** Current instant shifted so local getters reflect PST/PDT */
@@ -1030,8 +1030,8 @@ const periodCardsData = useMemo(() => {
                   data={chartData?.summary}
                   isLoading={chartFetching}
                   currency={selectedCurrency}
-                  startDate={getRollingDateRangePST(30).startDate}
-                  endDate={getRollingDateRangePST(30).endDate}
+                  startDate={chartData?.startDate || ''}
+                  endDate={chartData?.endDate || ''}
                 />
               </div>
             </div>

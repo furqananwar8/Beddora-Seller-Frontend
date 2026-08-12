@@ -63,7 +63,7 @@ export interface DashboardChartResponse {
   period: ChartPeriod
   startDate: string
   endDate: string
-  summary?: string
+  summary?: Record<string, any>
   data: DashboardChartData[]
 }
 
