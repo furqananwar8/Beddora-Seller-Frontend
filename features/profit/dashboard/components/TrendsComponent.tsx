@@ -460,9 +460,30 @@ export const TrendsComponent: React.FC<TrendsComponentProps> = ({
   const showTable = !showLoading && !showError && hasData
 
   const currentPresetLabel = useMemo(() => {
-    const preset = trendPresets.find((p) => p.id === selectedPreset)
-    return preset?.label || 'Custom range'
-  }, [selectedPreset])
+      if (selectedPreset === 'custom') {
+        if (startDate && endDate) {
+          return `${format(
+            parseISO(startDate),
+            'MMM d, yyyy'
+          )} - ${format(
+            parseISO(endDate),
+            'MMM d, yyyy'
+          )}`
+        }
+
+        return 'Custom range'
+      }
+
+      const preset = trendPresets.find(
+        p => p.id === selectedPreset
+      )
+
+      return preset?.label || 'Custom range'
+    }, [
+      selectedPreset,
+      startDate,
+      endDate,
+  ])
 
   const month1 = calendarViewDate
   const month2 = addMonths(calendarViewDate, 1)
@@ -502,7 +523,37 @@ export const TrendsComponent: React.FC<TrendsComponentProps> = ({
               <div className="relative shrink-0" ref={presetRef}>
                 <button
                   type="button"
-                  onClick={() => setIsPresetOpen((v) => !v)}
+                  onClick={() => {
+                    setIsPresetOpen(prev => {
+                      const next = !prev
+
+                      if (next) {
+                        if (selectedPreset === 'custom') {
+                          setDropdownMode('custom')
+                          setTempStartDate(startDate)
+                          setTempEndDate(endDate)
+                          setTempPeriodicity(periodicity)
+
+                          setCalendarViewDate(
+                            startOfMonth(
+                              parseISO(
+                                startDate ||
+                                  toISODatePST(
+                                    nowInPST()
+                                  )
+                              )
+                            )
+                          )
+
+                          pickingDateRef.current = 'start'
+                        } else {
+                          setDropdownMode('simple')
+                        }
+                      }
+
+                      return next
+                    })
+                  }}
                   className={cn(
                     'flex items-center gap-2 px-3 py-2.5 rounded-lg border transition-colors min-w-[200px]',
                     isPresetOpen
