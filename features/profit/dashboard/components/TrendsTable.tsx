@@ -1,8 +1,13 @@
 // ── TrendsTable.tsx ──
 'use client'
 
-import React, { useState, useMemo } from 'react'
-import { BarChart, Bar, ResponsiveContainer, Cell } from 'recharts'
+import React, { useMemo, useState } from 'react'
+import {
+  BarChart,
+  Bar,
+  ResponsiveContainer,
+  Cell,
+} from 'recharts'
 import { format, parseISO } from 'date-fns'
 import { cn } from '@/utils/cn'
 import { Button } from '@/design-system/buttons'
@@ -50,6 +55,12 @@ export interface TrendsTableProps {
   onPageChange: (page: number) => void
 }
 
+/*
+ * ---------------------------------------------------------------------------
+ * METRIC TYPES
+ * ---------------------------------------------------------------------------
+ */
+
 const MONETARY_METRICS = [
   'sales',
   'promo',
@@ -77,13 +88,37 @@ const COUNT_METRICS = [
   'refunds',
 ]
 
+/*
+ * ---------------------------------------------------------------------------
+ * CURRENCY FORMATTING
+ * ---------------------------------------------------------------------------
+ *
+ * Currency is ALWAYS rendered as:
+ *
+ * CAD $1,234
+ * USD $1,234
+ * EUR €1,234
+ *
+ * Never:
+ *
+ * $ CAD 1,234
+ * CAD
+ * $1,234
+ *
+ * Negative:
+ *
+ * -CAD $1,234
+ *
+ * ---------------------------------------------------------------------------
+ */
+
 const getCurrencyPrefix = (currency: string) => {
   switch (currency) {
     case 'CAD':
       return 'CAD $'
 
     case 'USD':
-      return 'US $'
+      return 'USD $'
 
     case 'EUR':
       return 'EUR €'
@@ -113,6 +148,16 @@ const formatPercentage = (val: number) => {
   return `${val.toFixed(1)}%`
 }
 
+const formatCount = (val: number) => {
+  return val.toLocaleString()
+}
+
+/*
+ * ---------------------------------------------------------------------------
+ * COMPONENT
+ * ---------------------------------------------------------------------------
+ */
+
 export const TrendsTable: React.FC<TrendsTableProps> = ({
   data,
   isLoading,
@@ -137,6 +182,12 @@ export const TrendsTable: React.FC<TrendsTableProps> = ({
   const pagination = data?.pagination
   const totalPages = pagination?.totalPages || 1
 
+  /*
+   * -------------------------------------------------------------------------
+   * FILTER PRODUCTS
+   * -------------------------------------------------------------------------
+   */
+
   const filteredProducts = useMemo(() => {
     if (!searchTerm) {
       return products
@@ -145,11 +196,17 @@ export const TrendsTable: React.FC<TrendsTableProps> = ({
     const term = searchTerm.toLowerCase()
 
     return products.filter(
-      (p) =>
-        p.sku?.toLowerCase().includes(term) ||
-        p.productTitle?.toLowerCase().includes(term)
+      (product) =>
+        product.sku?.toLowerCase().includes(term) ||
+        product.productTitle?.toLowerCase().includes(term)
     )
   }, [products, searchTerm])
+
+  /*
+   * -------------------------------------------------------------------------
+   * HEATMAP VALUES
+   * -------------------------------------------------------------------------
+   */
 
   const allValues = useMemo(() => {
     if (!heatmapEnabled) {
@@ -157,8 +214,8 @@ export const TrendsTable: React.FC<TrendsTableProps> = ({
     }
 
     return filteredProducts.flatMap(
-      (p) =>
-        p.dailyValues?.map((d) => d.value) || []
+      (product) =>
+        product.dailyValues?.map((dailyValue) => dailyValue.value) || []
     )
   }, [filteredProducts, heatmapEnabled])
 
@@ -172,7 +229,9 @@ export const TrendsTable: React.FC<TrendsTableProps> = ({
     }
 
     const vals = allValues.filter(
-      (v) => v !== 0 && v != null
+      (item) =>
+        item !== 0 &&
+        item != null
     )
 
     if (vals.length === 0) {
@@ -211,49 +270,86 @@ export const TrendsTable: React.FC<TrendsTableProps> = ({
     return 'bg-gray-100 text-gray-600'
   }
 
+  /*
+   * -------------------------------------------------------------------------
+   * CELL VALUE FORMATTING
+   * -------------------------------------------------------------------------
+   */
+
   const formatCellValue = (val: number) => {
     if (val == null) {
       return '-'
     }
 
-    // ---------------------------------------------------------------
-    // PERCENTAGES
-    // ---------------------------------------------------------------
+    /*
+     * Percentage metrics
+     *
+     * Margin
+     * Refund %
+     * Sellable Returns
+     * Real ACOS
+     * ROI
+     *
+     * Example:
+     *
+     * 18.7%
+     * 142.3%
+     */
 
     if (PERCENTAGE_METRICS.includes(metric)) {
       return formatPercentage(val)
     }
 
-    // ---------------------------------------------------------------
-    // COUNTS
-    // ---------------------------------------------------------------
+    /*
+     * Count metrics
+     *
+     * Orders
+     * Units
+     * Refunds
+     */
 
     if (COUNT_METRICS.includes(metric)) {
-      return val.toLocaleString()
+      return formatCount(val)
     }
 
-    // ---------------------------------------------------------------
-    // MONETARY
-    // ---------------------------------------------------------------
+    /*
+     * Monetary metrics
+     *
+     * CAD $1,234
+     * -CAD $1,234
+     */
 
     if (MONETARY_METRICS.includes(metric)) {
-      return formatMonetary(val, currency)
+      return formatMonetary(
+        val,
+        currency
+      )
     }
 
-    // ---------------------------------------------------------------
-    // UNKNOWN METRIC
-    // ---------------------------------------------------------------
+    /*
+     * Safe fallback for unknown metrics.
+     *
+     * Do NOT assume an unknown metric is monetary.
+     */
 
-    // Don't silently assume an unknown metric is monetary.
-    return val.toLocaleString(undefined, {
-      maximumFractionDigits: 2,
-    })
+    return val.toLocaleString(
+      undefined,
+      {
+        maximumFractionDigits: 2,
+      }
+    )
   }
+
+  /*
+   * -------------------------------------------------------------------------
+   * HEADER DATE FORMATTING
+   * -------------------------------------------------------------------------
+   */
 
   const formatHeaderDate = (dateStr: string) => {
     if (periodicity === 'month') {
       return format(
-        parseISO(dateStr + '-01'),
+        parseISO(`${dateStr}-01`),
         'MMM yyyy'
       )
     }
@@ -271,13 +367,20 @@ export const TrendsTable: React.FC<TrendsTableProps> = ({
     )
   }
 
+  /*
+   * -------------------------------------------------------------------------
+   * SKELETON
+   * -------------------------------------------------------------------------
+   */
+
   const skeletonCols =
     dates.length > 0
       ? dates
       : Array.from({ length: 12 })
 
-  const skeletonRows =
-    Array.from({ length: 10 })
+  const skeletonRows = Array.from({
+    length: 10,
+  })
 
   if (isLoading || isFetching) {
     return (
@@ -286,62 +389,98 @@ export const TrendsTable: React.FC<TrendsTableProps> = ({
           <table className="w-full">
             <thead>
               <tr className="border-b border-border">
-                <th className="text-left px-3 py-2 text-xs font-medium text-text-muted w-[260px] sticky left-0 bg-surface z-10">
+                <th
+                  className="
+                    text-left
+                    px-3
+                    py-2
+                    text-xs
+                    font-medium
+                    text-text-muted
+                    w-[260px]
+                    min-w-[260px]
+                    sticky
+                    left-0
+                    bg-surface
+                    z-10
+                  "
+                >
                   Product
                 </th>
 
-                <th className="text-left px-3 py-2 text-xs font-medium text-text-muted w-[90px]">
+                <th
+                  className="
+                    text-left
+                    px-3
+                    py-2
+                    text-xs
+                    font-medium
+                    text-text-muted
+                    w-[90px]
+                    min-w-[90px]
+                  "
+                >
                   Trend
                 </th>
 
-                {skeletonCols.map(
-                  (_: any, i: number) => (
-                    <th
-                      key={i}
-                      className="px-2 py-2 text-xs font-medium text-text-muted text-center min-w-[56px]"
-                    >
-                      <div className="h-3 bg-border rounded animate-pulse w-8 mx-auto" />
-                    </th>
-                  )
-                )}
+                {skeletonCols.map((_, index) => (
+                  <th
+                    key={index}
+                    className="
+                      px-2
+                      py-2
+                      text-xs
+                      font-medium
+                      text-text-muted
+                      text-center
+                      min-w-[110px]
+                      w-[110px]
+                    "
+                  >
+                    <div className="h-3 bg-border rounded animate-pulse w-8 mx-auto" />
+                  </th>
+                ))}
               </tr>
             </thead>
 
             <tbody>
-              {skeletonRows.map(
-                (_, ridx: number) => (
-                  <tr
-                    key={ridx}
-                    className="border-b border-border"
-                  >
-                    <td className="px-3 py-3 sticky left-0 bg-surface z-10">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-border rounded animate-pulse" />
+              {skeletonRows.map((_, rowIndex) => (
+                <tr
+                  key={rowIndex}
+                  className="border-b border-border"
+                >
+                  <td className="px-3 py-3 sticky left-0 bg-surface z-10">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-border rounded animate-pulse" />
 
-                        <div className="space-y-1.5">
-                          <div className="h-3 bg-border rounded animate-pulse w-32" />
-                          <div className="h-2.5 bg-border rounded animate-pulse w-20" />
-                        </div>
+                      <div className="space-y-1.5">
+                        <div className="h-3 bg-border rounded animate-pulse w-32" />
+
+                        <div className="h-2.5 bg-border rounded animate-pulse w-20" />
                       </div>
-                    </td>
+                    </div>
+                  </td>
 
-                    <td className="px-3 py-3">
-                      <div className="h-8 bg-border rounded animate-pulse w-full" />
-                    </td>
+                  <td className="px-3 py-3">
+                    <div className="h-8 bg-border rounded animate-pulse w-full" />
+                  </td>
 
-                    {skeletonCols.map(
-                      (_: any, cidx: number) => (
-                        <td
-                          key={cidx}
-                          className="px-2 py-3 text-center"
-                        >
-                          <div className="h-3 bg-border rounded animate-pulse w-10 mx-auto" />
-                        </td>
-                      )
-                    )}
-                  </tr>
-                )
-              )}
+                  {skeletonCols.map((_, columnIndex) => (
+                    <td
+                      key={columnIndex}
+                      className="
+                        px-2
+                        py-3
+                        text-center
+                        min-w-[110px]
+                        w-[110px]
+                      "
+                    >
+                      <div className="h-3 bg-border rounded animate-pulse w-10 mx-auto" />
+                    </td>
+                  ))}
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
@@ -349,24 +488,72 @@ export const TrendsTable: React.FC<TrendsTableProps> = ({
     )
   }
 
+  /*
+   * -------------------------------------------------------------------------
+   * TABLE
+   * -------------------------------------------------------------------------
+   */
+
   return (
     <div className="relative min-h-[520px]">
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
             <tr className="border-b border-border">
-              <th className="text-left px-3 py-2 text-xs font-medium text-text-muted uppercase tracking-wider w-[260px] sticky left-0 bg-surface z-10">
+              <th
+                className="
+                  text-left
+                  px-3
+                  py-2
+                  text-xs
+                  font-medium
+                  text-text-muted
+                  uppercase
+                  tracking-wider
+                  w-[260px]
+                  min-w-[260px]
+                  sticky
+                  left-0
+                  bg-surface
+                  z-10
+                "
+              >
                 Product
               </th>
 
-              <th className="text-left px-3 py-2 text-xs font-medium text-text-muted uppercase tracking-wider w-[90px]">
+              <th
+                className="
+                  text-left
+                  px-3
+                  py-2
+                  text-xs
+                  font-medium
+                  text-text-muted
+                  uppercase
+                  tracking-wider
+                  w-[90px]
+                  min-w-[90px]
+                "
+              >
                 Trend
               </th>
 
               {dates.map((date: string) => (
                 <th
                   key={date}
-                  className="px-2 py-2 text-xs font-medium text-text-muted uppercase tracking-wider text-center min-w-[56px]"
+                  className="
+                    px-2
+                    py-2
+                    text-xs
+                    font-medium
+                    text-text-muted
+                    uppercase
+                    tracking-wider
+                    text-center
+                    min-w-[110px]
+                    w-[110px]
+                    whitespace-nowrap
+                  "
                 >
                   {formatHeaderDate(date)}
                 </th>
@@ -376,48 +563,68 @@ export const TrendsTable: React.FC<TrendsTableProps> = ({
 
           <tbody>
             {filteredProducts.map(
-              (
-                product: ProductTrend,
-                rowIdx: number
-              ) => {
+              (product: ProductTrend, rowIdx: number) => {
                 const chartData =
-                  product.dailyValues?.map(
-                    (d) => ({
-                      value: d.value,
-                    })
-                  ) || []
+                  product.dailyValues?.map((dailyValue) => ({
+                    value: dailyValue.value,
+                  })) || []
 
                 const title =
-                  product.productTitle?.trim() ||
-                  '-'
+                  product.productTitle?.trim() || '-'
 
                 return (
                   <tr
-                    key={
-                      product.sku || rowIdx
-                    }
-                    className="border-b border-border hover:bg-surface-secondary/50 transition-colors"
+                    key={product.sku || rowIdx}
+                    className="
+                      border-b
+                      border-border
+                      hover:bg-surface-secondary/50
+                      transition-colors
+                    "
                   >
+                    {/* Product */}
                     <td className="px-3 py-3 sticky left-0 bg-surface z-10">
                       <div className="flex items-center gap-3">
                         {product.productImageUrl ? (
                           <img
-                            src={
-                              product.productImageUrl
-                            }
+                            src={product.productImageUrl}
                             alt=""
-                            className="w-10 h-10 rounded object-cover bg-surface-secondary"
+                            className="
+                              w-10
+                              h-10
+                              rounded
+                              object-cover
+                              bg-surface-secondary
+                            "
                             loading="lazy"
                           />
                         ) : (
-                          <div className="w-10 h-10 rounded bg-surface-secondary flex items-center justify-center text-xs text-text-muted">
+                          <div
+                            className="
+                              w-10
+                              h-10
+                              rounded
+                              bg-surface-secondary
+                              flex
+                              items-center
+                              justify-center
+                              text-xs
+                              text-text-muted
+                            "
+                          >
                             N/A
                           </div>
                         )}
 
                         <div className="min-w-0">
                           <div
-                            className="text-sm font-medium text-text-primary truncate max-w-[160px]"
+                            className="
+                              text-sm
+                              font-medium
+                              text-text-primary
+                              truncate
+                              max-w-[160px]
+                            "
                             title={title}
                           >
                             {title}
@@ -430,15 +637,14 @@ export const TrendsTable: React.FC<TrendsTableProps> = ({
                       </div>
                     </td>
 
-                    <td className="px-3 py-3">
+                    {/* Trend */}
+                    <td className="px-3 py-3 w-[90px] min-w-[90px]">
                       <div className="w-[80px] h-[32px]">
                         <ResponsiveContainer
                           width="100%"
                           height="100%"
                         >
-                          <BarChart
-                            data={chartData}
-                          >
+                          <BarChart data={chartData}>
                             <Bar
                               dataKey="value"
                               radius={[
@@ -448,61 +654,80 @@ export const TrendsTable: React.FC<TrendsTableProps> = ({
                                 0,
                               ]}
                             >
-                              {chartData.map(
-                                (_, i) => (
-                                  <Cell
-                                    key={i}
-                                    fill={
-                                      MONETARY_METRICS.includes(
-                                        metric
-                                      )
-                                        ? '#10b981'
-                                        : '#f59e0b'
-                                    }
-                                  />
-                                )
-                              )}
+                              {chartData.map((_, index) => (
+                                <Cell
+                                  key={index}
+                                  fill={
+                                    MONETARY_METRICS.includes(
+                                      metric
+                                    )
+                                      ? '#10b981'
+                                      : '#f59e0b'
+                                  }
+                                />
+                              ))}
                             </Bar>
                           </BarChart>
                         </ResponsiveContainer>
                       </div>
                     </td>
 
+                    {/* Period values */}
                     {product.dailyValues?.map(
-                      (
-                        dv: DailyValue,
-                        colIdx: number
-                      ) => (
+                      (dailyValue: DailyValue) => (
                         <td
-                          key={`${product.sku}-${dv.date}`}
+                          key={`${product.sku}-${dailyValue.date}`}
                           className={cn(
-                            'px-7 py-5 text-center text-xs tabular-nums cursor-default transition-colors',
+                            /*
+                             * Keep every currency value on ONE line.
+                             *
+                             * Example:
+                             *
+                             * CAD $1,234
+                             *
+                             * Never:
+                             *
+                             * CAD
+                             * $1,234
+                             *
+                             * 110px is the minimum width.
+                             * The table is allowed to grow horizontally.
+                             */
+                            `
+                              px-3
+                              py-5
+                              text-center
+                              text-xs
+                              tabular-nums
+                              whitespace-nowrap
+                              min-w-[110px]
+                              w-[110px]
+                              cursor-default
+                              transition-colors
+                            `,
                             getHeatmapClass(
-                              dv.value
+                              dailyValue.value
                             )
                           )}
-                          onMouseEnter={(e) => {
-                            const rect = (
-                              e.target as HTMLElement
-                            ).getBoundingClientRect()
+                          onMouseEnter={(event) => {
+                            const rect =
+                              event.currentTarget.getBoundingClientRect()
 
                             setHoveredCell({
                               x:
                                 rect.left +
                                 rect.width / 2,
                               y: rect.top,
-                              value: dv,
+                              value: dailyValue,
                               periodicity,
                             })
                           }}
-                          onMouseLeave={() =>
-                            setHoveredCell(
-                              null
-                            )
-                          }
+                          onMouseLeave={() => {
+                            setHoveredCell(null)
+                          }}
                         >
                           {formatCellValue(
-                            dv.value
+                            dailyValue.value
                           )}
                         </td>
                       )
@@ -515,10 +740,12 @@ export const TrendsTable: React.FC<TrendsTableProps> = ({
             {filteredProducts.length === 0 && (
               <tr>
                 <td
-                  colSpan={
-                    2 + dates.length
-                  }
-                  className="text-center py-12 text-text-muted"
+                  colSpan={2 + dates.length}
+                  className="
+                    text-center
+                    py-12
+                    text-text-muted
+                  "
                 >
                   No products found
                 </td>
@@ -528,36 +755,49 @@ export const TrendsTable: React.FC<TrendsTableProps> = ({
         </table>
       </div>
 
+      {/* ----------------------------------------------------------------- */}
       {/* Hover Tooltip */}
+      {/* ----------------------------------------------------------------- */}
+
       {hoveredCell && (
         <div
-          className="fixed z-50 bg-surface border border-border rounded-lg shadow-lg px-3 py-2 pointer-events-none"
+          className="
+            fixed
+            z-50
+            bg-surface
+            border
+            border-border
+            rounded-lg
+            shadow-lg
+            px-3
+            py-2
+            pointer-events-none
+            whitespace-nowrap
+          "
           style={{
             left: hoveredCell.x,
             top: hoveredCell.y - 70,
-            transform:
-              'translateX(-50%)',
+            transform: 'translateX(-50%)',
           }}
         >
           <div className="text-xs text-text-muted mb-0.5">
-            {hoveredCell.periodicity ===
-            'month'
-              ? format(
-                  parseISO(
-                    hoveredCell.value.date +
-                      '-01'
-                  ),
-                  'MMMM yyyy'
-                )
-              : hoveredCell.periodicity ===
-                'week'
-              ? `Week of ${hoveredCell.value.date}`
-              : format(
-                  parseISO(
-                    hoveredCell.value.date
-                  ),
-                  'EEEE, MMM d, yyyy'
-                )}
+            {hoveredCell.periodicity === 'month' ? (
+              format(
+                parseISO(
+                  `${hoveredCell.value.date}-01`
+                ),
+                'MMMM yyyy'
+              )
+            ) : hoveredCell.periodicity === 'week' ? (
+              `Week of ${hoveredCell.value.date}`
+            ) : (
+              format(
+                parseISO(
+                  hoveredCell.value.date
+                ),
+                'EEEE, MMM d, yyyy'
+              )
+            )}
           </div>
 
           <div className="text-sm font-semibold text-text-primary">
@@ -566,24 +806,20 @@ export const TrendsTable: React.FC<TrendsTableProps> = ({
             )}
           </div>
 
-          {hoveredCell.value
-            .changePercent !== 0 && (
+          {hoveredCell.value.changePercent !== 0 && (
             <div
               className={cn(
                 'text-xs',
-                hoveredCell.value
-                  .changePercent > 0
+                hoveredCell.value.changePercent > 0
                   ? 'text-green-600'
                   : 'text-red-600'
               )}
             >
-              {hoveredCell.value
-                .changePercent > 0
+              {hoveredCell.value.changePercent > 0
                 ? '+'
                 : ''}
               {(
-                hoveredCell.value
-                  .changePercent ?? 0
+                hoveredCell.value.changePercent ?? 0
               ).toFixed(1)}
               %
             </div>
@@ -591,23 +827,21 @@ export const TrendsTable: React.FC<TrendsTableProps> = ({
         </div>
       )}
 
+      {/* ----------------------------------------------------------------- */}
       {/* Pagination */}
+      {/* ----------------------------------------------------------------- */}
+
       {totalPages > 1 && (
         <div className="flex items-center justify-between mt-6 px-2">
           <div className="text-sm text-text-muted">
             Showing{' '}
-            {((pagination?.page ||
-              page) -
-              1) *
-              (pagination?.limit ||
-                20) +
+            {((pagination?.page || page) - 1) *
+              (pagination?.limit || 20) +
               1}{' '}
             to{' '}
             {Math.min(
-              (pagination?.page ||
-                page) *
-                (pagination?.limit ||
-                  20),
+              (pagination?.page || page) *
+                (pagination?.limit || 20),
               pagination?.total || 0
             )}{' '}
             of{' '}
@@ -619,9 +853,7 @@ export const TrendsTable: React.FC<TrendsTableProps> = ({
             <Button
               variant="outline"
               size="sm"
-              onClick={() =>
-                onPageChange(page - 1)
-              }
+              onClick={() => onPageChange(page - 1)}
               disabled={page <= 1}
             >
               Previous
@@ -635,41 +867,45 @@ export const TrendsTable: React.FC<TrendsTableProps> = ({
                     totalPages
                   ),
                 },
-                (_, i) => {
+                (_, index) => {
                   let pageNum: number
 
                   if (totalPages <= 5) {
-                    pageNum = i + 1
+                    pageNum = index + 1
                   } else if (page <= 3) {
-                    pageNum = i + 1
+                    pageNum = index + 1
                   } else if (
-                    page >=
-                    totalPages - 2
+                    page >= totalPages - 2
                   ) {
                     pageNum =
-                      totalPages -
-                      4 +
-                      i
+                      totalPages - 4 + index
                   } else {
                     pageNum =
-                      page -
-                      2 +
-                      i
+                      page - 2 + index
                   }
 
                   return (
                     <button
                       key={pageNum}
                       onClick={() =>
-                        onPageChange(
-                          pageNum
-                        )
+                        onPageChange(pageNum)
                       }
                       className={cn(
-                        'w-8 h-8 rounded text-sm font-medium transition-colors',
+                        `
+                          w-8
+                          h-8
+                          rounded
+                          text-sm
+                          font-medium
+                          transition-colors
+                        `,
                         page === pageNum
                           ? 'bg-primary-600 text-white'
-                          : 'text-text-muted hover:bg-surface-secondary hover:text-text-primary'
+                          : `
+                              text-text-muted
+                              hover:bg-surface-secondary
+                              hover:text-text-primary
+                            `
                       )}
                     >
                       {pageNum}
@@ -685,9 +921,7 @@ export const TrendsTable: React.FC<TrendsTableProps> = ({
               onClick={() =>
                 onPageChange(page + 1)
               }
-              disabled={
-                page >= totalPages
-              }
+              disabled={page >= totalPages}
             >
               Next
             </Button>
