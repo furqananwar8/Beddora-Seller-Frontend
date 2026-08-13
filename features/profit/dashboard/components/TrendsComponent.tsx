@@ -697,13 +697,45 @@ export const TrendsComponent: React.FC<TrendsComponentProps> = ({
           <div className="min-w-0 max-w-full overflow-visible">
             <MetricTabs value={metric} onChange={(m) => { setMetric(m); setPage(1); }} />
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-text-muted">Heatmap</span>
-            <button onClick={() => setHeatmapEnabled(!heatmapEnabled)} className={cn('relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-300 focus:ring-offset-2', heatmapEnabled ? 'bg-primary-600' : 'bg-surface-tertiary')}>
-              <span className={cn('inline-block h-4 w-4 transform rounded-full bg-white transition-transform', heatmapEnabled ? 'translate-x-6' : 'translate-x-1')} />
-            </button>
-            <span className={cn('text-sm', heatmapEnabled ? 'text-primary-600' : 'text-text-muted')}>{heatmapEnabled ? 'on' : 'off'}</span>
-          </div>
+          <div className="flex items-center gap-2.5">
+  <span className="text-sm font-medium text-text-primary">
+    Heatmap
+  </span>
+
+  <button
+    type="button"
+    role="switch"
+    aria-checked={heatmapEnabled}
+    aria-label="Toggle heatmap"
+    onClick={() => setHeatmapEnabled(!heatmapEnabled)}
+    className={cn(
+      'relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full',
+      'border transition-all duration-200 ease-in-out',
+      'focus:outline-none focus:ring-2 focus:ring-primary-300 focus:ring-offset-2',
+      heatmapEnabled
+        ? 'border-primary-600 bg-primary-600 hover:bg-primary-700'
+        : 'border-border-strong bg-surface-secondary hover:border-text-muted hover:bg-surface-tertiary'
+    )}
+  >
+    <span
+      className={cn(
+        'pointer-events-none inline-block h-4 w-4 rounded-full',
+        'bg-white shadow-sm ring-1 ring-black/10',
+        'transition-transform duration-200 ease-in-out',
+        heatmapEnabled ? 'translate-x-6' : 'translate-x-1'
+      )}
+    />
+  </button>
+
+  <span
+    className={cn(
+      'min-w-[24px] text-xs font-semibold uppercase tracking-wide transition-colors',
+      heatmapEnabled ? 'text-primary-600' : 'text-text-muted'
+    )}
+  >
+    {heatmapEnabled ? 'On' : 'Off'}
+  </span>
+</div>
         </div>
       </div>
 
