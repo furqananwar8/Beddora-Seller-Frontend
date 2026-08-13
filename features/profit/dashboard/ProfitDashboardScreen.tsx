@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react'
+import React, { useEffect, useMemo, useState, useCallback } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Container } from '@/components/layout'
 import { Button } from '@/design-system/buttons'
@@ -28,12 +28,11 @@ import { PLTable } from './PLTable'
 import { MapComponent } from './components/MapComponent'
 import { TrendsComponent } from './components/TrendsComponent'
 import { ChartSummaryTable } from './components/ChartSummaryTable'
-import { SandboxOrdersTest } from './components'
 import { TileDetailsModal } from './components/TileDetailsModal'
-import { formatCurrency, formatPercentage, formatNumber } from '@/utils/format'
+import { formatCurrency } from '@/utils/format'
 
 // ── PST/PDT DATE UTILITIES (date-fns + date-fns-tz) ──
-import { format, addDays, addMonths, startOfMonth, endOfMonth, startOfWeek, endOfWeek, subDays } from 'date-fns'
+import { format, addDays, addMonths, startOfMonth, endOfMonth, startOfWeek, endOfWeek } from 'date-fns'
 import { toZonedTime, formatInTimeZone } from 'date-fns-tz'
 import SummaryTiles from './SummaryTiles'
 import { MultiSelectInput } from '@/components/multi-select-input/MultiSelectInput'
@@ -97,8 +96,6 @@ const getSingleDayPST = (daysAgo: number) => {
   return { startDate: ymd, endDate: ymd }
 }
 
-
-
 // ============================================
 // TYPES
 // ============================================
@@ -121,7 +118,7 @@ interface TilePreset {
 }
 
 // ============================================
-// TILE PRESETS
+// CHART / P&L PRESETS (unchanged)
 // ============================================
 
 const chartPresets = [
@@ -173,6 +170,9 @@ const inferPeriodicity = (startDate: string, endDate: string): 'day' | 'week' | 
   return 'month'
 }
 
+// ============================================
+// TILE PRESETS (unchanged — same 6 you already have)
+// ============================================
 
 const tilePresets: TilePreset[] = [
   {
@@ -500,6 +500,29 @@ const tilePresets: TilePreset[] = [
   },
 ]
 
+const tileDatePresets = [
+  ...tilePresets.map((preset) => ({
+    id: preset.id,
+    label: preset.label,
+    getRange: () => {
+      const now = nowInPST()
+      const ranges = preset.tiles.map((t) => t.getDateRange(now))
+      const starts = ranges.map((r) => r.startDate).sort()
+      const ends = ranges.map((r) => r.endDate).sort()
+      return { startDate: starts[0], endDate: ends[ends.length - 1], periodicity: 'day' }
+    },
+  })),
+  {
+    id: 'custom',
+    label: 'Custom range',
+    getRange: () => ({
+      startDate: toISODatePST(addDaysPST(nowInPST(), -29)),
+      endDate: toISODatePST(nowInPST()),
+      periodicity: 'day',
+    }),
+  },
+]
+
 const gridColsClass: Record<number, string> = {
   1: 'lg:grid-cols-1',
   2: 'lg:grid-cols-2',
@@ -523,30 +546,29 @@ export const ProfitDashboardScreen: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const debouncedSearchTerm = useDebounce(searchTerm, 300)
 
-  const [isPresetOpen, setIsPresetOpen] = useState(false)
-  const presetDropdownRef = useRef<HTMLDivElement>(null)
-
   const [selectedPresetId, setSelectedPresetId] = useState<string>(tilePresets[2].id)
   const [selectedTileId, setSelectedTileId] = useState<string>('yesterday')
   const [selectedMarketplaces, setSelectedMarketplaces] = useState<string[]>(['Amazon.ca'])
   const [selectedCurrency, setSelectedCurrency] = useState<CurrencyCode>('CAD')
   const [selectedPeriodForDetails, setSelectedPeriodForDetails] = useState<string | null>(null)
-  // ── State: dateRange now carries periodicity ──
+
+  // ── Custom range picked for the Tiles tab (separate from the Chart/P&L dateRange below) ──
+  const [customTileRange, setCustomTileRange] = useState<{ startDate: string; endDate: string } | null>(null)
+
+  // ── dateRange used by Chart / P&L tabs (unchanged) ──
   const [dateRange, setDateRange] = useState<DateRangeValue & { periodicity?: string }>({
     startDate: toISODatePST(addDaysPST(nowInPST(), -29)),
     endDate: toISODatePST(nowInPST()),
     presetId: 'last-30-days',
     periodicity: 'day',
-  });
-  const [page, setPage] = useState<number>(1);
-
-  
+  })
+  const [page, setPage] = useState<number>(1)
 
   // ── Restore persisted preset on mount ──
   useEffect(() => {
     try {
       const saved = localStorage.getItem(PRESET_STORAGE_KEY)
-      if (saved && tilePresets.some((p) => p.id === saved)) {
+      if (saved && (tilePresets.some((p) => p.id === saved) || saved === 'custom')) {
         setSelectedPresetId(saved)
       }
     } catch {
@@ -554,9 +576,29 @@ export const ProfitDashboardScreen: React.FC = () => {
     }
   }, [])
 
+  // ── Synthetic single-tile preset used when selectedPresetId === 'custom' ──
+  const customPreset: TilePreset = useMemo(() => {
+    const range = customTileRange || getRollingDateRangePST(7)
+    return {
+      id: 'custom',
+      label: `Custom range (${formatDateRangePST(range.startDate, range.endDate)})`,
+      tiles: [
+        {
+          id: 'custom-range',
+          label: formatDateRangePST(range.startDate, range.endDate),
+          apiPeriod: 'CUSTOM' as PeriodSummaryPeriod,
+          getDateRange: () => range,
+        },
+      ],
+    }
+  }, [customTileRange])
+
   const currentPreset = useMemo(
-    () => tilePresets.find((p) => p.id === selectedPresetId) || tilePresets[0],
-    [selectedPresetId]
+    () =>
+      selectedPresetId === 'custom'
+        ? customPreset
+        : tilePresets.find((p) => p.id === selectedPresetId) || tilePresets[0],
+    [selectedPresetId, customPreset]
   )
 
   // Default account (still used for API calls, just not shown)
@@ -572,28 +614,10 @@ export const ProfitDashboardScreen: React.FC = () => {
     setSelectedTileId(currentPreset.tiles[0].id)
   }, [currentPreset])
 
-  // ── Click outside to close preset dropdown ──
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        presetDropdownRef.current &&
-        !presetDropdownRef.current.contains(event.target as Node)
-      ) {
-        setIsPresetOpen(false)
-      }
-    }
-    if (isPresetOpen) {
-      document.addEventListener('mousedown', handleClickOutside)
-      return () => document.removeEventListener('mousedown', handleClickOutside)
-    }
-  }, [isPresetOpen])
-
-  // ── PROFIT SUMMARY QUERY ──
+  // ── PROFIT SUMMARY QUERY (named presets) ──
   const {
     data: profitData,
     isFetching: profitFetching,
-    isLoading: profitLoading,
-    error: profitError,
     refetch: refetchProfit,
   } = useGetProfitSummaryQuery(
     {
@@ -602,234 +626,185 @@ export const ProfitDashboardScreen: React.FC = () => {
       currency: selectedCurrency,
       preset: selectedPresetId as any,
     },
-    { skip: !effectiveAccountId }
+    { skip: !effectiveAccountId || selectedPresetId === 'custom' }
   )
 
-  console.log({profitData})
+  // ── PROFIT SUMMARY QUERY (custom range) ──
+  const {
+    data: customSummaryData,
+    isFetching: customSummaryFetching,
+    refetch: refetchCustomSummary,
+  } = useGetProfitSummaryQuery(
+    {
+      accountId: effectiveAccountId,
+      marketplaces: selectedMarketplaces,
+      currency: selectedCurrency,
+      startDate: customTileRange?.startDate,
+      endDate: customTileRange?.endDate,
+    } as any,
+    { skip: !effectiveAccountId || selectedPresetId !== 'custom' || !customTileRange }
+  )
+
+  const isFetchingActive = selectedPresetId === 'custom' ? customSummaryFetching : profitFetching
+  const activeSummaryData = selectedPresetId === 'custom' ? customSummaryData : profitData
 
   const periodMap = useMemo(() => {
+    if (selectedPresetId === 'custom') {
+      const map = new Map<PeriodSummaryPeriod, PeriodSummary>()
+      if (customSummaryData) {
+        // If getProfitSummary returns { periods: [...] } even for a single custom
+        // range, take periods[0]; otherwise treat the payload itself as the period.
+        const raw: any = customSummaryData
+        const single = Array.isArray(raw?.periods) ? raw.periods[0] : raw
+        if (single) {
+          map.set('CUSTOM' as PeriodSummaryPeriod, single)
+        }
+      }
+      return map
+    }
     if (!profitData?.periods) return new Map<PeriodSummaryPeriod, PeriodSummary>()
     return new Map(profitData.periods.map((p: any) => [p.period, p]))
-  }, [profitData])
+  }, [profitData, selectedPresetId, customSummaryData])
 
-const getPeriodDetailData = useCallback(
-  (tileId: string) => {
-    const tile = currentPreset.tiles.find(
-      (t) => t.id === tileId
-    )
+  const getPeriodDetailData = useCallback(
+    (tileId: string) => {
+      const tile = currentPreset.tiles.find((t) => t.id === tileId)
 
-    if (!tile) {
-      console.warn(
-        '[TileDetailsModal] Tile not found:',
-        tileId
-      )
-      return undefined
-    }
+      if (!tile) {
+        console.warn('[TileDetailsModal] Tile not found:', tileId)
+        return undefined
+      }
 
-    const apiPeriod = periodMap.get(tile.apiPeriod)
+      const apiPeriod = periodMap.get(tile.apiPeriod)
 
-    if (!apiPeriod) {
-      console.warn(
-        '[TileDetailsModal] API period not found:',
-        tile.apiPeriod,
-        'Available periods:',
-        Array.from(periodMap.keys())
-      )
-      return undefined
-    }
+      if (!apiPeriod) {
+        console.warn(
+          '[TileDetailsModal] API period not found:',
+          tile.apiPeriod,
+          'Available periods:',
+          Array.from(periodMap.keys())
+        )
+        return undefined
+      }
 
-    return {
-      currency: apiPeriod.currency || selectedCurrency,
+      return {
+        currency: apiPeriod.currency || selectedCurrency,
 
-      // SALES
-      salesRevenue: Number(apiPeriod.salesRevenue ?? 0),
-      salesCount: Number(apiPeriod.salesCount ?? 0),
-      ordersUnitCount: Number(apiPeriod.ordersUnitCount ?? 0),
+        // SALES
+        salesRevenue: Number(apiPeriod.salesRevenue ?? 0),
+        salesCount: Number(apiPeriod.salesCount ?? 0),
+        ordersUnitCount: Number(apiPeriod.ordersUnitCount ?? 0),
 
-      // PROMO
-      totalPromo: Number(apiPeriod.totalPromo ?? 0),
+        // PROMO
+        totalPromo: Number(apiPeriod.totalPromo ?? 0),
 
-      // ADVERTISING
-      advertisingCost: Number(apiPeriod.advertisingCost ?? 0),
+        // ADVERTISING
+        advertisingCost: Number(apiPeriod.advertisingCost ?? 0),
 
-      advertisingDetails: {
-        sponsoredProducts: Number(
-          apiPeriod.advertisingDetails?.sponsoredProducts ?? 0
-        ),
-        sponsoredBrandsVideo: Number(
-          apiPeriod.advertisingDetails?.sponsoredBrandsVideo ?? 0
-        ),
-        sponsoredDisplay: Number(
-          apiPeriod.advertisingDetails?.sponsoredDisplay ?? 0
-        ),
-        sponsoredBrands: Number(
-          apiPeriod.advertisingDetails?.sponsoredBrands ?? 0
-        ),
-      },
+        advertisingDetails: {
+          sponsoredProducts: Number(apiPeriod.advertisingDetails?.sponsoredProducts ?? 0),
+          sponsoredBrandsVideo: Number(apiPeriod.advertisingDetails?.sponsoredBrandsVideo ?? 0),
+          sponsoredDisplay: Number(apiPeriod.advertisingDetails?.sponsoredDisplay ?? 0),
+          sponsoredBrands: Number(apiPeriod.advertisingDetails?.sponsoredBrands ?? 0),
+        },
 
-      // REFUNDS
-      totalRefunds: Number(apiPeriod.totalRefunds ?? 0),
-      totalRefundsCount: Number(apiPeriod.totalRefundsCount ?? 0),
-      refundCost: Number(apiPeriod.refundCost ?? 0),
-      refundPercentage: Number(apiPeriod.refundPercentage ?? 0),
+        // REFUNDS
+        totalRefunds: Number(apiPeriod.totalRefunds ?? 0),
+        totalRefundsCount: Number(apiPeriod.totalRefundsCount ?? 0),
+        refundCost: Number(apiPeriod.refundCost ?? 0),
+        refundPercentage: Number(apiPeriod.refundPercentage ?? 0),
 
-      refundDetails: {
-        refundedAmount: Number(apiPeriod.refundDetails?.refundedAmount ?? 0),
-        refundCommission: Number(apiPeriod.refundDetails?.refundCommission ?? 0),
-        promotion: Number(apiPeriod.refundDetails?.promotion ?? 0),
-        valueOfReturnedItems: Number(apiPeriod.refundDetails?.valueOfReturnedItems ?? 0),
-        refundedReferralFee: Number(apiPeriod.refundDetails?.refundedReferralFee ?? 0),
-      },
+        refundDetails: {
+          refundedAmount: Number(apiPeriod.refundDetails?.refundedAmount ?? 0),
+          refundCommission: Number(apiPeriod.refundDetails?.refundCommission ?? 0),
+          promotion: Number(apiPeriod.refundDetails?.promotion ?? 0),
+          valueOfReturnedItems: Number(apiPeriod.refundDetails?.valueOfReturnedItems ?? 0),
+          refundedReferralFee: Number(apiPeriod.refundDetails?.refundedReferralFee ?? 0),
+        },
 
-      // AMAZON FEES
-      totalFees: Number(apiPeriod.totalFees ?? 0),
+        // AMAZON FEES
+        totalFees: Number(apiPeriod.totalFees ?? 0),
 
-      amazonFeeDetails: {
-        fbaStorageFee: Number(apiPeriod.amazonFeeDetails?.fbaStorageFee ?? 0),
-        fbaPerUnitFulfillmentFee: Number(apiPeriod.amazonFeeDetails?.fbaPerUnitFulfillmentFee ?? 0),
-        referralFee: Number(apiPeriod.amazonFeeDetails?.referralFee ?? 0),
-        dealParticipationFee: Number(apiPeriod.amazonFeeDetails?.dealParticipationFee ?? 0),
-        dealPerformanceFee: Number(apiPeriod.amazonFeeDetails?.dealPerformanceFee ?? 0),
-        fbaDisposalFee: Number(apiPeriod.amazonFeeDetails?.fbaDisposalFee ?? 0),
-        salesTaxCollectionFee: Number(apiPeriod.amazonFeeDetails?.salesTaxCollectionFee ?? 0),
-        reversalReimbursement: Number(apiPeriod.amazonFeeDetails?.reversalReimbursement ?? 0),
-        other: Number(apiPeriod.amazonFeeDetails?.other ?? 0),
-      },
+        amazonFeeDetails: {
+          fbaStorageFee: Number(apiPeriod.amazonFeeDetails?.fbaStorageFee ?? 0),
+          fbaPerUnitFulfillmentFee: Number(apiPeriod.amazonFeeDetails?.fbaPerUnitFulfillmentFee ?? 0),
+          referralFee: Number(apiPeriod.amazonFeeDetails?.referralFee ?? 0),
+          dealParticipationFee: Number(apiPeriod.amazonFeeDetails?.dealParticipationFee ?? 0),
+          dealPerformanceFee: Number(apiPeriod.amazonFeeDetails?.dealPerformanceFee ?? 0),
+          fbaDisposalFee: Number(apiPeriod.amazonFeeDetails?.fbaDisposalFee ?? 0),
+          salesTaxCollectionFee: Number(apiPeriod.amazonFeeDetails?.salesTaxCollectionFee ?? 0),
+          reversalReimbursement: Number(apiPeriod.amazonFeeDetails?.reversalReimbursement ?? 0),
+          other: Number(apiPeriod.amazonFeeDetails?.other ?? 0),
+        },
 
-      // COGS
-      totalCOGS: Number(apiPeriod.totalCOGS ?? 0),
+        // COGS
+        totalCOGS: Number(apiPeriod.totalCOGS ?? 0),
 
-      // EXPENSES
-      totalExpenses: Number(apiPeriod.totalExpenses ?? 0),
+        // EXPENSES
+        totalExpenses: Number(apiPeriod.totalExpenses ?? 0),
 
-      // PROFIT
-      grossProfit: Number(apiPeriod.grossProfit ?? 0),
-      estimatedPayout: Number(apiPeriod.estimatedPayout ?? 0),
-      netProfit: Number(apiPeriod.netProfit ?? 0),
+        // PROFIT
+        grossProfit: Number(apiPeriod.grossProfit ?? 0),
+        estimatedPayout: Number(apiPeriod.estimatedPayout ?? 0),
+        netProfit: Number(apiPeriod.netProfit ?? 0),
 
-      // PERFORMANCE
-      margin: Number(apiPeriod.margin ?? 0),
-      realACOS: Number(apiPeriod.realACOS ?? 0),
-      roi: Number(apiPeriod.roi ?? 0),
+        // PERFORMANCE
+        margin: Number(apiPeriod.margin ?? 0),
+        realACOS: Number(apiPeriod.realACOS ?? 0),
+        roi: Number(apiPeriod.roi ?? 0),
 
-      _apiPeriod: apiPeriod,
-    }
-  },
-  [
-    currentPreset,
-    periodMap,
-    selectedCurrency,
-  ]
-)
+        _apiPeriod: apiPeriod,
+      }
+    },
+    [currentPreset, periodMap, selectedCurrency]
+  )
 
-const periodCardsData = useMemo(() => {
-  const now = nowInPST()
+  const periodCardsData = useMemo(() => {
+    const now = nowInPST()
 
-  return currentPreset.tiles.map((tile) => {
-    const period = periodMap.get(tile.apiPeriod)
-    const range = tile.getDateRange(now)
-    return {
-      id: tile.id,
-      label: tile.label,
-
-      dateRange: formatDateRangePST(
-        range.startDate,
-        range.endDate
-      ),
-
-      salesRevenue: Number(
-        period?.salesRevenue ?? 0
-      ),
-
-      salesCount: Number(
-        period?.salesCount ?? 0
-      ),
-
-      ordersUnitCount: Number(
-        period?.ordersUnitCount ?? 0
-      ),
-
-      totalFees: Number(
-        period?.totalFees ?? 0
-      ),
-
-      totalRefunds: Number(
-        period?.totalRefunds ?? 0
-      ),
-
-      totalRefundsCount: Number(
-        period?.totalRefundsCount ?? 0
-      ),
-
-      refundCost: Number(
-        period?.refundCost ?? 0
-      ),
-
-      totalCOGS: Number(
-        period?.totalCOGS ?? 0
-      ),
-
-      totalExpenses: Number(
-        period?.totalExpenses ?? 0
-      ),
-
-      totalPromo: Number(
-        period?.totalPromo ?? 0
-      ),
-
-      advertisingCost: Number(
-        period?.advertisingCost ?? 0
-      ),
-
-      grossProfit: Number(
-        period?.grossProfit ?? 0
-      ),
-
-      estimatedPayout: Number(
-        period?.estimatedPayout ?? 0
-      ),
-
-      netProfit: Number(
-        period?.netProfit ?? 0
-      ),
-
-      margin: Number(
-        period?.margin ?? 0
-      ),
-
-      realACOS: Number(
-        period?.realACOS ?? 0
-      ),
-
-      roi: Number(
-        period?.roi ?? 0
-      ),
-
-      refundPercentage: Number(
-        period?.refundPercentage ?? 0
-      ),
-
-      isFetching: profitFetching,
-    }
-  })
-}, [
-  currentPreset,
-  periodMap,
-  profitFetching,
-])
+    return currentPreset.tiles.map((tile) => {
+      const period = periodMap.get(tile.apiPeriod)
+      const range = tile.getDateRange(now)
+      return {
+        id: tile.id,
+        label: tile.label,
+        dateRange: formatDateRangePST(range.startDate, range.endDate),
+        salesRevenue: Number(period?.salesRevenue ?? 0),
+        salesCount: Number(period?.salesCount ?? 0),
+        ordersUnitCount: Number(period?.ordersUnitCount ?? 0),
+        totalFees: Number(period?.totalFees ?? 0),
+        totalRefunds: Number(period?.totalRefunds ?? 0),
+        totalRefundsCount: Number(period?.totalRefundsCount ?? 0),
+        refundCost: Number(period?.refundCost ?? 0),
+        totalCOGS: Number(period?.totalCOGS ?? 0),
+        totalExpenses: Number(period?.totalExpenses ?? 0),
+        totalPromo: Number(period?.totalPromo ?? 0),
+        advertisingCost: Number(period?.advertisingCost ?? 0),
+        grossProfit: Number(period?.grossProfit ?? 0),
+        estimatedPayout: Number(period?.estimatedPayout ?? 0),
+        netProfit: Number(period?.netProfit ?? 0),
+        margin: Number(period?.margin ?? 0),
+        realACOS: Number(period?.realACOS ?? 0),
+        roi: Number(period?.roi ?? 0),
+        refundPercentage: Number(period?.refundPercentage ?? 0),
+        isFetching: isFetchingActive,
+      }
+    })
+  }, [currentPreset, periodMap, isFetchingActive])
 
   const selectedTileConfig = currentPreset.tiles.find((t) => t.id === selectedTileId)
   const selectedTileRange = useMemo(() => {
     const now = nowInPST()
-    return selectedTileConfig
-      ? selectedTileConfig.getDateRange(now)
-      : getSingleDayPST(1)
+    return selectedTileConfig ? selectedTileConfig.getDateRange(now) : getSingleDayPST(1)
   }, [selectedTileConfig])
 
-  const chartRange = useMemo(() => ({
-    startDate: dateRange.startDate,
-    endDate: dateRange.endDate,
-  }), [dateRange])
+  const chartRange = useMemo(
+    () => ({
+      startDate: dateRange.startDate,
+      endDate: dateRange.endDate,
+    }),
+    [dateRange]
+  )
 
   const activeRange = useMemo(() => {
     const range = activeTab === 'chart' || activeTab === 'pnl' ? chartRange : selectedTileRange
@@ -838,8 +813,8 @@ const periodCardsData = useMemo(() => {
       endDate: range.endDate || undefined,
     }
   }, [activeTab, chartRange, selectedTileRange])
-  
-    // ── PRODUCT / ORDER ITEMS QUERIES ──
+
+  // ── PRODUCT / ORDER ITEMS QUERIES ──
   const { data: productData, isFetching: productFetching } = useGetProfitByProductQuery(
     {
       ...profitFilters,
@@ -864,7 +839,7 @@ const periodCardsData = useMemo(() => {
     { skip: !effectiveAccountId || tableView === 'products' }
   )
 
-  // ── Replace hardcoded chartDateRange/chartFilters with reactive ones ──
+  // ── Chart filters ──
   const chartFilters = useMemo(
     () => ({
       accountId: effectiveAccountId,
@@ -908,30 +883,81 @@ const periodCardsData = useMemo(() => {
   })
 
   const handleReload = useCallback(() => {
-    refetchProfit()
-  }, [refetchProfit])
+    if (selectedPresetId === 'custom') {
+      refetchCustomSummary()
+    } else {
+      refetchProfit()
+    }
+  }, [selectedPresetId, refetchProfit, refetchCustomSummary])
 
   const handleMarketplacesChange = (value: string[]) => {
     setSelectedMarketplaces(value)
     dispatch(setFilters({ ...profitFilters, marketplaces: value }))
   }
 
-  const handlePresetSelect = (presetId: string) => {
-    setSelectedPresetId(presetId)
-    setIsPresetOpen(false)
-    try {
-      localStorage.setItem(PRESET_STORAGE_KEY, presetId)
-    } catch {
-      // ignore storage errors
+  // ── Presets reshaped for DateRangePicker (Tiles tab) ──
+  const tileDatePresets = useMemo(
+    () => [
+      ...tilePresets.map((preset) => ({
+        id: preset.id,
+        label: preset.label,
+        getRange: () => {
+          const now = nowInPST()
+          const ranges = preset.tiles.map((t) => t.getDateRange(now))
+          const starts = ranges.map((r) => r.startDate).sort()
+          const ends = ranges.map((r) => r.endDate).sort()
+          return { startDate: starts[0], endDate: ends[ends.length - 1], periodicity: 'day' }
+        },
+      })),
+      {
+        id: 'custom',
+        label: 'Custom range',
+        getRange: () => ({
+          startDate: customTileRange?.startDate || toISODatePST(addDaysPST(nowInPST(), -6)),
+          endDate: customTileRange?.endDate || toISODatePST(nowInPST()),
+          periodicity: 'day',
+        }),
+      },
+    ],
+    [customTileRange]
+  )
+
+  const tileDateRangeValue = useMemo((): DateRangeValue => {
+    const preset = tileDatePresets.find((p) => p.id === selectedPresetId)
+    const range =
+      selectedPresetId === 'custom' && customTileRange
+        ? customTileRange
+        : preset?.getRange()
+
+    return {
+      startDate: range?.startDate ?? null,
+      endDate: range?.endDate ?? null,
+      presetId: selectedPresetId,
     }
-  }
+  }, [selectedPresetId, customTileRange, tileDatePresets])
+
+  const handleTileDateRangeChange = useCallback((range: DateRangeValue) => {
+    if (range.presetId && range.presetId !== 'custom') {
+      setSelectedPresetId(range.presetId)
+      setCustomTileRange(null)
+      try {
+        localStorage.setItem(PRESET_STORAGE_KEY, range.presetId)
+      } catch {}
+      return
+    }
+    if (!range.startDate || !range.endDate) return
+    setCustomTileRange({ startDate: range.startDate, endDate: range.endDate })
+    setSelectedPresetId('custom')
+    try {
+      localStorage.setItem(PRESET_STORAGE_KEY, 'custom')
+    } catch {}
+  }, [])
 
   return (
     <div className="w-full">
       <Container size="full">
         {/* ── CHART VIEW ── */}
-        {activeTab === 'chart' 
-        && (
+        {activeTab === 'chart' && (
           <>
             <div className="bg-surface-secondary border-b border-border mb-6">
               <div className="px-6 py-4">
@@ -961,15 +987,16 @@ const periodCardsData = useMemo(() => {
                     </div>
                   </div>
                   <div className="flex items-center gap-3 flex-1 justify-end">
-                    <div className="w-[220px]">
+                    <div className="w-[220px] shrink-0">
                       <DateRangePicker
                         value={dateRange}
                         presets={chartPresets}
                         keepOpenPresetIds={['custom']}
                         onChange={(range) => {
-                          const preset = chartPresets.find(p => p.id === range.presetId)
-                          const periodicity = preset?.getRange().periodicity 
-                            || inferPeriodicity(range.startDate as string, range.endDate as string)
+                          const preset = chartPresets.find((p) => p.id === range.presetId)
+                          const periodicity =
+                            preset?.getRange().periodicity ||
+                            inferPeriodicity(range.startDate as string, range.endDate as string)
                           setDateRange({ ...range, periodicity })
                           setPage(1)
                         }}
@@ -977,7 +1004,7 @@ const periodCardsData = useMemo(() => {
                         placeholder="Select date range"
                       />
                     </div>
-                    <div className="min-w-[160px]">
+                    <div className="min-w-[160px] shrink-0">
                       <MultiSelectInput
                         title="Marketplace"
                         options={MARKETPLACES}
@@ -985,7 +1012,7 @@ const periodCardsData = useMemo(() => {
                         onChange={handleMarketplacesChange}
                       />
                     </div>
-                    <div className="min-w-[100px]">
+                    <div className="min-w-[100px] shrink-0">
                       <Select
                         value={selectedCurrency}
                         onChange={(e) => setSelectedCurrency(e.target.value as CurrencyCode)}
@@ -1002,12 +1029,7 @@ const periodCardsData = useMemo(() => {
                       className="bg-surface border border-border hover:bg-surface-tertiary text-text-primary"
                       title="Reload data"
                     >
-                      <svg
-                        className="w-4 h-4"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path
                           strokeLinecap="round"
                           strokeLinejoin="round"
@@ -1051,7 +1073,12 @@ const periodCardsData = useMemo(() => {
                         }`}
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+                          />
                         </svg>
                         Products
                       </button>
@@ -1064,7 +1091,12 @@ const periodCardsData = useMemo(() => {
                         }`}
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
+                          />
                         </svg>
                         Order items
                       </button>
@@ -1081,14 +1113,30 @@ const periodCardsData = useMemo(() => {
                       ]}
                       className="min-w-[160px]"
                     />
-                    <button className="p-1.5 text-text-muted hover:text-text-primary hover:bg-surface-secondary rounded transition-colors" title="Download">
+                    <button
+                      className="p-1.5 text-text-muted hover:text-text-primary hover:bg-surface-secondary rounded transition-colors"
+                      title="Download"
+                    >
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                        />
                       </svg>
                     </button>
-                    <button className="p-1.5 text-text-muted hover:text-text-primary hover:bg-surface-secondary rounded transition-colors" title="Copy to clipboard">
+                    <button
+                      className="p-1.5 text-text-muted hover:text-text-primary hover:bg-surface-secondary rounded transition-colors"
+                      title="Copy to clipboard"
+                    >
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                        />
                       </svg>
                     </button>
                   </div>
@@ -1114,7 +1162,7 @@ const periodCardsData = useMemo(() => {
         {activeTab === 'tiles' && (
           <>
             {/* Summary banner */}
-            {profitFetching && (
+            {isFetchingActive && (
               <div className="bg-surface-secondary border border-border rounded-xl p-6 mb-6 animate-pulse">
                 <div className="h-6 bg-border rounded w-1/3 mb-4"></div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 items-center">
@@ -1125,26 +1173,30 @@ const periodCardsData = useMemo(() => {
               </div>
             )}
 
-            {profitData?.summary && !profitFetching && (
+            {activeSummaryData?.summary && !isFetchingActive && (
               <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl p-6 text-white mb-6">
                 <h2 className="text-lg font-semibold mb-4">Profit Overview ({currentPreset.label})</h2>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div>
-                    <div className="text-3xl font-bold">{formatCurrency(profitData.summary.totalRevenue)}</div>
+                    <div className="text-3xl font-bold">{formatCurrency(activeSummaryData.summary.totalRevenue)}</div>
                     <div className="text-blue-100 text-sm">Total Revenue</div>
                   </div>
                   <div>
-                    <div className={`text-3xl font-bold ${profitData.summary.totalProfit >= 0 ? 'text-green-300' : 'text-red-300'}`}>
-                      {formatCurrency(profitData.summary.totalProfit)}
+                    <div
+                      className={`text-3xl font-bold ${
+                        activeSummaryData.summary.totalProfit >= 0 ? 'text-green-300' : 'text-red-300'
+                      }`}
+                    >
+                      {formatCurrency(activeSummaryData.summary.totalProfit)}
                     </div>
                     <div className="text-blue-100 text-sm">Total Net Profit</div>
                   </div>
                   <div>
-                    <div className="text-3xl font-bold">{profitData.summary.totalOrders}</div>
+                    <div className="text-3xl font-bold">{activeSummaryData.summary.totalOrders}</div>
                     <div className="text-blue-100 text-sm">Total Orders</div>
                   </div>
                   <div>
-                    <div className="text-3xl font-bold">{profitData.summary.totalUnits}</div>
+                    <div className="text-3xl font-bold">{activeSummaryData.summary.totalUnits}</div>
                     <div className="text-blue-100 text-sm">Total Units</div>
                   </div>
                 </div>
@@ -1183,84 +1235,20 @@ const periodCardsData = useMemo(() => {
 
                   {/* Right side controls */}
                   <div className="flex items-center gap-3 flex-1 justify-end">
-                    {/* Compact Preset Picker */}
-                    <div className="relative" ref={presetDropdownRef}>
-                      <button
-                        onClick={() => setIsPresetOpen((v) => !v)}
-                        className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border transition-colors ${
-                          isPresetOpen
-                            ? 'border-2 border-primary-100 text-primary-700'
-                            : 'bg-surface border-border text-text-primary hover:bg-surface-tertiary'
-                        }`}
-                        title="Change period preset"
-                      >
-                        <svg
-                          className="w-5 h-5"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                          />
-                        </svg>
-                        <svg
-                          className={`w-4 h-4 transition-transform ${isPresetOpen ? 'rotate-180' : ''}`}
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M19 9l-7 7-7-7"
-                          />
-                        </svg>
-                      </button>
-
-                      {isPresetOpen && (
-                        <div className="absolute right-0 mt-2 w-72 bg-surface border border-border rounded-lg shadow-lg z-50 py-1 max-h-80 overflow-auto">
-                          <div className="px-3 py-2 text-xs font-semibold text-text-muted uppercase tracking-wider border-b border-border">
-                            Period Presets
-                          </div>
-                          { tilePresets.map((preset) => (
-                            <button
-                              key={preset.id}
-                              onClick={() => handlePresetSelect(preset.id)}
-                              className={`w-full text-left px-4 py-2.5 text-sm transition-colors flex items-center justify-between ${
-                                selectedPresetId === preset.id
-                                  ? 'bg-primary-700 text-white font-medium'
-                                  : 'text-text-primary hover:bg-surface-secondary'
-                              }`}
-                            >
-                              <span>{preset.label}</span>
-                              {selectedPresetId === preset.id && (
-                                <svg
-                                  className="w-7 h-7 text-primary-600"
-                                  fill="none"
-                                  stroke="white"
-                                  viewBox="0 0 24 24"
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M5 13l4 4L19 7"
-                                  />
-                                </svg>
-                              )}
-                            </button>
-                          ))}
-                        </div>
-                      )}
+                    {/* Date range picker: named tile presets + custom */}
+                    <div className="w-[220px] shrink-0">
+                      <DateRangePicker
+                        value={tileDateRangeValue}
+                        presets={tileDatePresets}
+                        keepOpenPresetIds={['custom']}
+                        onChange={handleTileDateRangeChange}
+                        displayFormat="MMM d, yyyy"
+                        placeholder="Select date range"
+                      />
                     </div>
 
                     {/* Marketplace */}
-                    <div className="min-w-[160px]">
+                    <div className="min-w-[160px] shrink-0">
                       <MultiSelectInput
                         title="Marketplace"
                         options={MARKETPLACES}
@@ -1270,7 +1258,7 @@ const periodCardsData = useMemo(() => {
                     </div>
 
                     {/* Currency */}
-                    <div className="min-w-[100px]">
+                    <div className="min-w-[100px] shrink-0">
                       <Select
                         value={selectedCurrency}
                         onChange={(e) => setSelectedCurrency(e.target.value as CurrencyCode)}
@@ -1289,12 +1277,7 @@ const periodCardsData = useMemo(() => {
                       className="bg-surface border border-border hover:bg-surface-tertiary text-text-primary"
                       title="Reload data"
                     >
-                      <svg
-                        className="w-4 h-4"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path
                           strokeLinecap="round"
                           strokeLinejoin="round"
@@ -1308,9 +1291,14 @@ const periodCardsData = useMemo(() => {
               </div>
             </div>
 
-            {/* Period Cards */}
-            {/* Period Cards */}
-            <div className={`grid grid-cols-1 md:grid-cols-2 ${gridColsClass[Math.min(currentPreset.tiles.length, 5)]} gap-4 mb-6`}>
+            {/* Period Cards — single card for custom range, grid for named presets */}
+            <div
+              className={
+                selectedPresetId === 'custom'
+                  ? 'grid grid-cols-1 gap-4 mb-6 max-w-md'
+                  : `grid grid-cols-1 md:grid-cols-2 ${gridColsClass[Math.min(currentPreset.tiles.length, 5)]} gap-4 mb-6`
+              }
+            >
               {periodCardsData.map((period) => {
                 if (period.isFetching) {
                   return (
@@ -1331,64 +1319,19 @@ const periodCardsData = useMemo(() => {
                     onClick={() => setSelectedTileId(period.id)}
                   >
                     <CardContent className="p-4 break-words min-w-0 flex-1 flex flex-col">
-                      <SummaryTiles 
-                        setSelectedPeriodForDetails={setSelectedPeriodForDetails} 
-                        period={period}
-                      />
+                      <SummaryTiles setSelectedPeriodForDetails={setSelectedPeriodForDetails} period={period} />
                     </CardContent>
                   </Card>
                 )
               })}
             </div>
-            {/* <div className={`grid grid-cols-1 md:grid-cols-2 ${gridColsClass[Math.min(currentPreset.tiles.length, 5)]} gap-4 mb-6`}>
-              {periodCardsData.map((period) => {
-                if (period.isFetching) {
-                  return (
-                   <Card key={period.id} className="bg-surface border border-border min-h-[400px] min-w-0 flex flex-col">
-                    <CardContent className="p-4 flex-1">
-                      <KpiCardSkeleton />
-                    </CardContent>
-                  </Card>
-                  )
-                }
-
-                const totalCosts =
-                Math.abs(period.totalFees) +
-                Math.abs(period.totalCOGS) +
-                Math.abs(period.totalExpenses) +
-                Math.abs(period.refundCost) +
-                Math.abs(period.advertisingCost)
-                const netProfitMargin = period.netMargin
-
-                return (
-                 <Card
-                  key={period.id}
-                  className={`bg-surface border border-border cursor-pointer transition-shadow hover:shadow-md min-h-[400px] min-w-0 flex flex-col ${
-                    selectedTileId === period.id ? 'ring-2 ring-primary-200' : ''
-                  }`}
-                  onClick={() => setSelectedTileId(period.id)}
-                >
-                  <CardContent className="p-4 break-words min-w-0 flex-1 flex flex-col">
-                    <SummaryTiles 
-                      setSelectedPeriodForDetails={setSelectedPeriodForDetails} 
-                      totalCosts={totalCosts} 
-                      netProfitMargin={netProfitMargin} 
-                      period={period}
-                    />
-                  </CardContent>
-                </Card>
-                )
-              })}
-            </div> */}
 
             {/* Table Section */}
             <Card>
               <CardContent className="p-0">
                 <div className="flex items-center justify-between px-6 pt-4 pb-2 border-b border-border flex-wrap gap-3">
                   <div className="flex items-center gap-4">
-                    <h2 className="text-lg font-semibold text-text-primary">
-                      {selectedTileConfig?.label || 'Period'}
-                    </h2>
+                    <h2 className="text-lg font-semibold text-text-primary">{selectedTileConfig?.label || 'Period'}</h2>
                     <div className="flex gap-2">
                       <button
                         onClick={() => setTableView('products')}
@@ -1399,7 +1342,12 @@ const periodCardsData = useMemo(() => {
                         }`}
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+                          />
                         </svg>
                         Products
                       </button>
@@ -1412,7 +1360,12 @@ const periodCardsData = useMemo(() => {
                         }`}
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
+                          />
                         </svg>
                         Order items
                       </button>
@@ -1426,7 +1379,12 @@ const periodCardsData = useMemo(() => {
                     </select>
                     <button disabled className="opacity-.5 p-1.5 text-text-muted  rounded transition-colors" title="Download">
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                        />
                       </svg>
                     </button>
                   </div>
@@ -1455,7 +1413,8 @@ const periodCardsData = useMemo(() => {
             <div className="bg-surface-secondary border-b border-border mb-6">
               <div className="px-6 py-4">
                 <div className="flex items-center gap-4">
-                  <div className='basis-[50%]'>
+                  {/* Search — 50% */}
+                  <div className="basis-[50%] min-w-0">
                     <div className="relative">
                       <svg
                         className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted"
@@ -1470,6 +1429,7 @@ const periodCardsData = useMemo(() => {
                           d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
                         />
                       </svg>
+
                       <input
                         type="text"
                         placeholder="Search"
@@ -1479,23 +1439,34 @@ const periodCardsData = useMemo(() => {
                       />
                     </div>
                   </div>
+
+                  {/* Filters */}
                   <div className="flex items-center gap-3 flex-1 justify-end">
-                    <div>
+                    {/* Date Range */}
+                    <div className="shrink-0">
                       <DateRangePicker
                         value={dateRange}
                         presets={chartPresets}
                         keepOpenPresetIds={['custom']}
                         onChange={(range) => {
-                          const preset = chartPresets.find(p => p.id === range.presetId)
-                          const periodicity = preset?.getRange().periodicity
-                            || inferPeriodicity(range.startDate as string, range.endDate as string)
-                          setDateRange({ ...range, periodicity })
+                          const preset = chartPresets.find((p) => p.id === range.presetId)
+
+                          const periodicity =
+                            preset?.getRange().periodicity ||
+                            inferPeriodicity(range.startDate as string, range.endDate as string)
+
+                          setDateRange({
+                            ...range,
+                            periodicity,
+                          })
                         }}
                         displayFormat="MMM d, yyyy"
                         placeholder="Select date range"
                       />
                     </div>
-                    <div className="min-w-[160px]">
+
+                    {/* Marketplace */}
+                    <div className="min-w-[160px] shrink-0">
                       <MultiSelectInput
                         title="Marketplace"
                         options={MARKETPLACES}
@@ -1503,7 +1474,9 @@ const periodCardsData = useMemo(() => {
                         onChange={handleMarketplacesChange}
                       />
                     </div>
-                    <div className="min-w-[100px]">
+
+                    {/* Currency */}
+                    <div className="min-w-[100px] shrink-0">
                       <Select
                         value={selectedCurrency}
                         onChange={(e) => setSelectedCurrency(e.target.value as CurrencyCode)}
@@ -1521,20 +1494,13 @@ const periodCardsData = useMemo(() => {
 
             {/* P&L Table */}
             <div className="mb-6">
-              <PLTable
-                data={plData}
-                isLoading={plFetching}
-                error={plError}
-                currency={selectedCurrency}
-              />
+              <PLTable data={plData} isLoading={plFetching} error={plError} currency={selectedCurrency} />
             </div>
             <Card>
               <CardContent className="p-0">
                 <div className="flex items-center justify-between px-6 pt-4 pb-2 border-b border-border flex-wrap gap-3">
                   <div className="flex items-center gap-4">
-                    <h2 className="text-lg font-semibold text-text-primary">
-                      {selectedTileConfig?.label || 'Period'}
-                    </h2>
+                    <h2 className="text-lg font-semibold text-text-primary">{selectedTileConfig?.label || 'Period'}</h2>
                     <div className="flex gap-2">
                       <button
                         onClick={() => setTableView('products')}
@@ -1545,7 +1511,12 @@ const periodCardsData = useMemo(() => {
                         }`}
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+                          />
                         </svg>
                         Products
                       </button>
@@ -1558,7 +1529,12 @@ const periodCardsData = useMemo(() => {
                         }`}
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
+                          />
                         </svg>
                         Order items
                       </button>
@@ -1570,14 +1546,30 @@ const periodCardsData = useMemo(() => {
                       <option>Group by product</option>
                       <option>Group by category</option>
                     </select>
-                    <button className="p-1.5 text-text-muted hover:text-text-primary hover:bg-surface-secondary rounded transition-colors" title="Download">
+                    <button
+                      className="p-1.5 text-text-muted hover:text-text-primary hover:bg-surface-secondary rounded transition-colors"
+                      title="Download"
+                    >
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                        />
                       </svg>
                     </button>
-                    <button className="p-1.5 text-text-muted hover:text-text-primary hover:bg-surface-secondary rounded transition-colors" title="Copy to clipboard">
+                    <button
+                      className="p-1.5 text-text-muted hover:text-text-primary hover:bg-surface-secondary rounded transition-colors"
+                      title="Copy to clipboard"
+                    >
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                        />
                       </svg>
                     </button>
                   </div>
@@ -1599,18 +1591,10 @@ const periodCardsData = useMemo(() => {
           </>
         )}
 
-        {activeTab === 'map' && (
-          <MapComponent
-            accountId={effectiveAccountId}
-          />
-        )}
+        {activeTab === 'map' && <MapComponent accountId={effectiveAccountId} />}
 
         {activeTab === 'trends' && (
-          <TrendsComponent
-            accountId={effectiveAccountId}
-            marketplaces={selectedMarketplaces}
-            currency={selectedCurrency}
-          />
+          <TrendsComponent accountId={effectiveAccountId} marketplaces={selectedMarketplaces} currency={selectedCurrency} />
         )}
 
         {/* Tile Details Modal */}
