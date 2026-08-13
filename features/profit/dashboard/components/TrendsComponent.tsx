@@ -153,7 +153,7 @@ const MarketplaceMultiSelect: React.FC<{
       </button>
 
       {open && (
-        <div className="absolute z-50 mt-1 w-full min-w-[200px] bg-surface border border-border rounded-lg shadow-lg py-1">
+        <div className="absolute z-50 mt-1 w-full w-[220px] max-w-[calc(100vw-2rem)] bg-surface border border-border rounded-lg shadow-lg py-1">
           <label className="flex items-center gap-2.5 px-3 py-2.5 border-b border-border cursor-pointer hover:bg-surface-secondary">
             <input
               ref={allRef}
@@ -225,7 +225,7 @@ const CalendarGrid: React.FC<{
   const isEdge = (date: string) => date === selectedStart || date === selectedEnd
 
   const isInHover = (date: string) => {
-    if (!selectedStart || selectedEnd || !hoverDate || pickingDate !== 'end') return false
+    if (!selectedStart || selectedEnd || !hoverDate || pickingDateRef.current !== 'end') return false
     return date >= selectedStart && date <= hoverDate
   }
 
@@ -264,7 +264,7 @@ const CalendarGrid: React.FC<{
   )
 }
 
-let pickingDate: 'start' | 'end' = 'start'
+const pickingDateRef = { current: 'start' as 'start' | 'end' }
 
 export interface TrendsComponentProps {
   startDate?: string
@@ -364,7 +364,7 @@ export const TrendsComponent: React.FC<TrendsComponentProps> = ({
         setTempStartDate(startDate)
         setTempEndDate(endDate)
         setCalendarViewDate(startOfMonth(parseISO(startDate || toISODatePST(nowInPST()))))
-        pickingDate = 'start'
+        pickingDateRef.current = 'start'
       }
     },
     [startDate, endDate, periodicity]
@@ -372,18 +372,18 @@ export const TrendsComponent: React.FC<TrendsComponentProps> = ({
 
   const handleDateClick = useCallback(
     (date: string) => {
-      if (pickingDate === 'start') {
+      if (pickingDateRef.current === 'start') {
         setTempStartDate(date)
         setTempEndDate('')
-        pickingDate = 'end'
+        pickingDateRef.current = 'end'
       } else {
         if (date < tempStartDate) {
           setTempStartDate(date)
           setTempEndDate('')
-          pickingDate = 'end'
+          pickingDateRef.current = 'end'
         } else {
           setTempEndDate(date)
-          pickingDate = 'start'
+          pickingDateRef.current = 'start'
         }
       }
     },
@@ -420,16 +420,17 @@ export const TrendsComponent: React.FC<TrendsComponentProps> = ({
       setTempStartDate(startDate)
       setTempEndDate(endDate)
       setCalendarViewDate(startOfMonth(parseISO(startDate || toISODatePST(nowInPST()))))
-      pickingDate = 'start'
+      pickingDateRef.current = 'start'
     }
   }, [isPresetOpen, dropdownMode, periodicity, startDate, endDate])
 
-  const filters = useMemo<ProfitFilters & { metric?: string; periodicity?: Periodicity; page?: number; limit?: number }>(
+  const filters = useMemo<ProfitFilters & { metric?: string; periodicity?: Periodicity; page?: number; limit?: number; marketplaceId?: string; marketplaces?: string[] }>(
     () => ({
       startDate,
       endDate,
       accountId: effectiveAccountId,
       marketplaceId: selectedMarketplaces[0],
+      marketplaces: selectedMarketplaces,
       metric,
       periodicity,
       currency: selectedCurrency,
@@ -471,8 +472,8 @@ export const TrendsComponent: React.FC<TrendsComponentProps> = ({
       {/* Toolbar */}
       <div className="bg-surface-secondary border-b border-border mb-6">
         <div className="px-6 py-4">
-          <div className="flex items-center gap-4">
-            <div className="w-[55%]">
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
+            <div className="w-full min-w-0 xl:flex-1">
               <div className="relative">
                 <svg
                   className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted"
@@ -497,8 +498,8 @@ export const TrendsComponent: React.FC<TrendsComponentProps> = ({
               </div>
             </div>
 
-            <div className="flex items-center gap-3 flex-1 justify-end">
-              <div className="relative" ref={presetRef}>
+            <div className="flex flex-wrap items-center gap-2 xl:flex-none xl:justify-end">
+              <div className="relative shrink-0" ref={presetRef}>
                 <button
                   type="button"
                   onClick={() => setIsPresetOpen((v) => !v)}
@@ -519,7 +520,7 @@ export const TrendsComponent: React.FC<TrendsComponentProps> = ({
                 </button>
 
                 {isPresetOpen && dropdownMode === 'simple' && (
-                  <div className="absolute right-0 mt-2 w-72 bg-surface border border-border rounded-lg shadow-lg z-50 py-1">
+                  <div className="absolute right-0 top-full mt-2 w-[min(22rem,calc(100vw-2rem))] max-h-[min(28rem,calc(100vh-7rem))] overflow-y-auto bg-surface border border-border rounded-xl shadow-xl z-[100] py-1">
                     <div className="px-3 py-2 text-xs font-semibold text-text-muted uppercase tracking-wider border-b border-border">Period Presets</div>
                     {trendPresets.map((preset) => (
                       <button
@@ -543,7 +544,7 @@ export const TrendsComponent: React.FC<TrendsComponentProps> = ({
                 )}
 
                 {isPresetOpen && dropdownMode === 'custom' && (
-                  <div className="absolute right-0 mt-2 w-[640px] bg-surface border border-border rounded-lg shadow-lg z-50 overflow-hidden flex">
+                  <div className="absolute right-0 top-full mt-2 w-[min(640px,calc(100vw-2rem))] max-h-[min(36rem,calc(100vh-7rem))] bg-surface border border-border rounded-xl shadow-xl z-[100] overflow-auto flex">
                     <div className="w-[38%] border-r border-border p-2">
                       <div className="px-3 py-2 text-xs font-semibold text-text-muted uppercase tracking-wider">Presets</div>
                       {trendPresets.map((preset) => (
@@ -617,11 +618,11 @@ export const TrendsComponent: React.FC<TrendsComponentProps> = ({
                 )}
               </div>
 
-              <div className="min-w-[160px]">
+              <div className="w-[180px] shrink-0">
                 <MarketplaceMultiSelect options={MARKETPLACES} value={selectedMarketplaces} onChange={setSelectedMarketplaces} />
               </div>
 
-              <div className="min-w-[100px]">
+              <div className="w-[100px] shrink-0">
                 <select value={selectedCurrency} onChange={(e) => setSelectedCurrency(e.target.value)} className="w-full px-3 py-2.5 bg-surface border border-border rounded-lg text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-200 focus:border-primary-600">
                   <option value="CAD">CAD</option>
                   <option value="USD">USD</option>
@@ -641,8 +642,10 @@ export const TrendsComponent: React.FC<TrendsComponentProps> = ({
 
       {/* Metric Tabs */}
       <div className="mb-4 pt-2 overflow-visible">
-        <div className="flex items-center justify-between gap-4">
-          <MetricTabs value={metric} onChange={(m) => { setMetric(m); setPage(1); }} />
+        <div className="flex flex-col gap-3 overflow-visible lg:flex-row lg:items-center lg:justify-between">
+          <div className="min-w-0 max-w-full overflow-visible">
+            <MetricTabs value={metric} onChange={(m) => { setMetric(m); setPage(1); }} />
+          </div>
           <div className="flex items-center gap-2">
             <span className="text-sm text-text-muted">Heatmap</span>
             <button onClick={() => setHeatmapEnabled(!heatmapEnabled)} className={cn('relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-300 focus:ring-offset-2', heatmapEnabled ? 'bg-primary-600' : 'bg-surface-tertiary')}>
