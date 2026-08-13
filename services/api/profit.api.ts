@@ -294,31 +294,78 @@ export interface ProductTrendsResponse {
 export interface CountryProfitBreakdown {
   country: string
   region: string
+
   profit: number
   orders: number
   stock: number
   unitsSold: number
   sales: number
-  amazonFees: number
-  sellableReturnsPercent: number
-  costOfGoods: number
-  refundCost: number
-  grossProfit: number
 
-  // Detail breakdown fields
+  totalFees: number
+  totalPromo: number
+  totalCOGS: number
+  totalExpenses: number
+
+  // Backward-compatible fields
+  amazonFees?: number
+  promoRebates?: number
+  costOfGoods?: number
+  indirectExpenses?: number
+
+  grossProfit: number
+  estimatedPayout: number
   netProfit: number
+
   margin: number
   roi: number
-  indirectExpenses: number
-  promoRebates: number
+  realACOS: number
+
   sellingFees: number
   fbaFees: number
   otherAmazonAdj: number
+
   cogsBuyingPrice: number
   cogsShippingPrice: number
   cogsImportPrice: number
+
+  advertisingCost: number
+
+  advertisingDetails: {
+    sponsoredProducts: number
+    sponsoredBrandsVideo: number
+    sponsoredDisplay: number
+    sponsoredBrands: number
+  }
+
+  totalRefunds: number
+  totalRefundsCount: number
+  refundedUnits: number
+  refundPercentage: number
+  refundCost: number
+
+  refundDetails: {
+    refundedAmount: number
+    refundCommission: number
+    promotion: number
+    valueOfReturnedItems: number
+    refundedReferralFee: number
+  }
+
+  amazonFeeDetails: {
+    fbaStorageFee: number
+    fbaPerUnitFulfillmentFee: number
+    referralFee: number
+    dealParticipationFee: number
+    dealPerformanceFee: number
+    fbaDisposalFee: number
+    salesTaxCollectionFee: number
+    reversalReimbursement: number
+    other: number
+  }
+
   sellableReturns: number
   totalReturns: number
+  sellableReturnsPercent: number
 }
 
 export interface Marketplace {

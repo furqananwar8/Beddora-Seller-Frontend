@@ -162,7 +162,7 @@ export const TileDetailsModal: React.FC<
   // ============================================================
   // BASE VALUES
   // ============================================================
-
+console.log({data})
   const salesRevenue = Number(data.salesRevenue ?? 0)
   const totalFees = Number(data.totalFees ?? 0)
   const totalRefunds = Number(data.totalRefunds ?? 0)
