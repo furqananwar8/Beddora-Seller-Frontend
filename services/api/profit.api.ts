@@ -103,7 +103,7 @@ export interface ProductProfitBreakdown {
   productTitle: string | null
   asin: string | null
   imageUrl: string | null
-
+  grossMargin: number
   // Sales
   unitsSold: number
   salesRevenue: number
