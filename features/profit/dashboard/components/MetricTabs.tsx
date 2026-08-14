@@ -21,7 +21,7 @@ export type TrendMetric =
   | 'realACOS'
   | 'roi'
 
-interface MetricTabsProps {
+export interface MetricTabsProps {
   value: TrendMetric
   onChange: (metric: TrendMetric) => void
 }

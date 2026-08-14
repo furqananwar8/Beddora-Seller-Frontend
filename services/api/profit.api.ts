@@ -291,6 +291,12 @@ export interface ProductTrendsResponse {
   metric: string
 }
 
+interface ProfitSummaryMultiplePeriodsArgs {
+  accountId?: string
+  amazonAccountId?: string
+  marketplaceId?: string
+}
+
 export interface CountryProfitBreakdown {
   country: string
   region: string
@@ -727,7 +733,7 @@ export const profitApi = baseApi.injectEndpoints({
     // ============================================================
 
     getProfitSummaryMultiplePeriods:
-      builder.query<any, void>({
+      builder.query<any, ProfitSummaryMultiplePeriodsArgs>({
         query: () => ({
           url: '/profit/trends/products-multiple-period',
         }),
