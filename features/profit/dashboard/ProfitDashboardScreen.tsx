@@ -2063,7 +2063,7 @@ export const ProfitDashboardScreen: React.FC =
                 <div className="px-6 py-4">
                   <div className="flex items-center gap-4">
 
-                    <div className="w-[55%]">
+                    <div className="w-[45%]">
                       <div className="relative">
                         <svg
                           className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted"
@@ -2288,7 +2288,7 @@ export const ProfitDashboardScreen: React.FC =
                           Products
                         </button>
 
-                        <button
+                        {/* <button
                           onClick={() =>
                             setTableView(
                               'order-items'
@@ -2302,13 +2302,13 @@ export const ProfitDashboardScreen: React.FC =
                           }`}
                         >
                           Order items
-                        </button>
+                        </button> */}
                       </div>
                     </div>
 
                     <div className="flex items-center gap-2">
 
-                      <Select
+                      {/* <Select
                         value="group-by-product"
                         onChange={() =>
                           undefined
@@ -2348,7 +2348,7 @@ export const ProfitDashboardScreen: React.FC =
                         title="Copy to clipboard"
                       >
                         ⧉
-                      </button>
+                      </button> */}
 
                     </div>
                   </div>
@@ -2543,7 +2543,7 @@ export const ProfitDashboardScreen: React.FC =
                     <div className="flex items-center gap-3 flex-1 justify-end">
 
                       {/* FIXED DATE PICKER */}
-                      <div className="w-[220px] shrink-0">
+                      <div>
                         <DateRangePicker
                           value={
                             tileDateRangeValue
@@ -2751,7 +2751,7 @@ export const ProfitDashboardScreen: React.FC =
                           Products
                         </button>
 
-                        <button
+                        {/* <button
                           onClick={() =>
                             setTableView(
                               'order-items'
@@ -2765,13 +2765,13 @@ export const ProfitDashboardScreen: React.FC =
                           }`}
                         >
                           Order items
-                        </button>
+                        </button> */}
 
                       </div>
                     </div>
 
                     <div className="flex items-center gap-2">
-
+{/* 
                       <select className="px-3 py-1.5 text-sm border border-border rounded-md bg-surface text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-200 focus:border-primary-600">
                         <option>
                           Group by parent
@@ -2792,7 +2792,7 @@ export const ProfitDashboardScreen: React.FC =
                         title="Download"
                       >
                         ↓
-                      </button>
+                      </button> */}
 
                     </div>
                   </div>
@@ -3024,7 +3024,7 @@ export const ProfitDashboardScreen: React.FC =
                           Products
                         </button>
 
-                        <button
+                        {/* <button
                           onClick={() =>
                             setTableView(
                               'order-items'
@@ -3038,14 +3038,14 @@ export const ProfitDashboardScreen: React.FC =
                           }`}
                         >
                           Order items
-                        </button>
+                        </button> */}
 
                       </div>
                     </div>
 
                     <div className="flex items-center gap-2">
 
-                      <select className="px-3 py-1.5 text-sm border border-border rounded-md bg-surface text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-200 focus:border-primary-600">
+                      {/* <select className="px-3 py-1.5 text-sm border border-border rounded-md bg-surface text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-200 focus:border-primary-600">
                         <option>
                           Group by parent
                         </option>
@@ -3071,7 +3071,7 @@ export const ProfitDashboardScreen: React.FC =
                         title="Copy to clipboard"
                       >
                         ⧉
-                      </button>
+                      </button> */}
 
                     </div>
                   </div>
