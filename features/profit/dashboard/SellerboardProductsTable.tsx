@@ -1,7 +1,10 @@
-
 'use client'
 
-import React, { useMemo, useState, useCallback } from 'react'
+import React, {
+  useMemo,
+  useState,
+  useCallback,
+} from 'react'
 import {
   Table,
   TableBody,
@@ -11,14 +14,26 @@ import {
   TableRow,
 } from '@/design-system/tables'
 import { Button } from '@/design-system/buttons'
-import { TableSkeleton, Spinner } from '@/design-system/loaders'
-import { ProductProfitBreakdown } from '@/services/api/profit.api'
-import { StatModal, StatModalData } from '@/components/stats/stats.modal'
+import {
+  TableSkeleton,
+  Spinner,
+} from '@/design-system/loaders'
+import {
+  ProductProfitBreakdown,
+} from '@/services/api/profit.api'
+import {
+  StatModal,
+  StatModalData,
+} from '@/components/stats/stats.modal'
 import {
   formatCurrency,
   formatNumber,
   formatPercentage,
 } from '@/utils/format'
+
+/* ──────────────────────────────────────────────────────
+ * Types
+ * ────────────────────────────────────────────────────── */
 
 export interface SellerboardProductsTableProps {
   products?: ProductProfitBreakdown[]
@@ -45,7 +60,20 @@ type SortColumn =
 
 type SortDirection = 'asc' | 'desc'
 
-/* ── Build StatModal data from product ─────────────────── */
+/*
+ * We intentionally don't require children to exist on
+ * ProductProfitBreakdown itself.
+ *
+ * This allows the component to work immediately even
+ * if the API type hasn't been updated yet.
+ */
+type ProductWithChildren = ProductProfitBreakdown & {
+  children?: ProductProfitBreakdown[]
+}
+
+/* ──────────────────────────────────────────────────────
+ * Build StatModal data
+ * ────────────────────────────────────────────────────── */
 
 const buildProductStatData = (
   p: ProductProfitBreakdown
@@ -354,7 +382,9 @@ const buildProductStatData = (
   }
 }
 
-/* ── Component ─────────────────────────────────────────── */
+/* ──────────────────────────────────────────────────────
+ * Component
+ * ────────────────────────────────────────────────────── */
 
 export const SellerboardProductsTable: React.FC<
   SellerboardProductsTableProps
@@ -376,12 +406,46 @@ export const SellerboardProductsTable: React.FC<
 
   const itemsPerPage = 20
 
-  /* ── StatModal snapshot state ── */
+  /*
+   * Expanded rows.
+   *
+   * We use SKU as the row identifier.
+   */
+  const [expandedRows, setExpandedRows] =
+    useState<Set<string>>(new Set())
 
-  const [productStat, setProductStat] = useState<{
-    data: StatModalData
-    anchorRect: DOMRect
-  } | null>(null)
+  /* ── StatModal state ── */
+
+  const [productStat, setProductStat] =
+    useState<{
+      data: StatModalData
+      anchorRect: DOMRect
+    } | null>(null)
+
+  /* ────────────────────────────────────────────────
+   * Expand / collapse
+   * ──────────────────────────────────────────────── */
+
+  const toggleRow = useCallback(
+    (sku: string) => {
+      setExpandedRows((previous) => {
+        const next = new Set(previous)
+
+        if (next.has(sku)) {
+          next.delete(sku)
+        } else {
+          next.add(sku)
+        }
+
+        return next
+      })
+    },
+    []
+  )
+
+  /* ────────────────────────────────────────────────
+   * Sorting
+   * ──────────────────────────────────────────────── */
 
   const handleSort = useCallback(
     (column: SortColumn) => {
@@ -399,122 +463,137 @@ export const SellerboardProductsTable: React.FC<
     [sortColumn, sortDirection]
   )
 
-  const filteredAndSortedProducts = useMemo(() => {
-    if (!products) return []
+  /* ────────────────────────────────────────────────
+   * Filter + sort
+   * ──────────────────────────────────────────────── */
 
-    let result = [...products]
+  const filteredAndSortedProducts =
+    useMemo(() => {
+      if (!products) return []
 
-    if (searchTerm) {
-      const lower = searchTerm.toLowerCase()
+      let result = [
+        ...products,
+      ] as ProductWithChildren[]
 
-      result = result.filter(
-        (product) =>
-          product.productTitle
-            ?.toLowerCase()
-            .includes(lower) ||
-          product.sku
-            ?.toLowerCase()
-            .includes(lower)
-      )
-    }
+      if (searchTerm) {
+        const lower =
+          searchTerm.toLowerCase()
 
-    result.sort((a, b) => {
-      let aVal: number | string = 0
-      let bVal: number | string = 0
-
-      switch (sortColumn) {
-        case 'name':
-          aVal = a.productTitle || ''
-          bVal = b.productTitle || ''
-          break
-
-        case 'units':
-          aVal = a.unitsSold || 0
-          bVal = b.unitsSold || 0
-          break
-
-        case 'refunds':
-          aVal = a.totalRefunds || 0
-          bVal = b.totalRefunds || 0
-          break
-
-        case 'sales':
-          aVal = a.salesRevenue || 0
-          bVal = b.salesRevenue || 0
-          break
-
-        case 'promo':
-          aVal = a.promoRebates || 0
-          bVal = b.promoRebates || 0
-          break
-
-        case 'ads':
-          aVal = a.advertisingCost || 0
-          bVal = b.advertisingCost || 0
-          break
-
-        case 'amazonFees':
-          aVal = a.totalFees || 0
-          bVal = b.totalFees || 0
-          break
-
-        case 'cogs':
-          aVal = a.totalCOGS || 0
-          bVal = b.totalCOGS || 0
-          break
-
-        case 'grossProfit':
-          aVal = a.grossProfit || 0
-          bVal = b.grossProfit || 0
-          break
-
-        case 'netProfit':
-          aVal = a.netProfit || 0
-          bVal = b.netProfit || 0
-          break
-
-        case 'margin':
-          aVal = a.margin || 0
-          bVal = b.margin || 0
-          break
-
-        case 'roi':
-          aVal = a.roi || 0
-          bVal = b.roi || 0
-          break
-
-        case 'bsr':
-          aVal = 0
-          bVal = 0
-          break
+        result = result.filter(
+          (product) =>
+            product.productTitle
+              ?.toLowerCase()
+              .includes(lower) ||
+            product.sku
+              ?.toLowerCase()
+              .includes(lower)
+        )
       }
 
-      if (aVal < bVal) {
-        return sortDirection === 'asc'
-          ? -1
-          : 1
-      }
+      result.sort((a, b) => {
+        let aVal: number | string = 0
+        let bVal: number | string = 0
 
-      if (aVal > bVal) {
-        return sortDirection === 'asc'
-          ? 1
-          : -1
-      }
+        switch (sortColumn) {
+          case 'name':
+            aVal = a.productTitle || ''
+            bVal = b.productTitle || ''
+            break
 
-      return 0
-    })
+          case 'units':
+            aVal = a.unitsSold || 0
+            bVal = b.unitsSold || 0
+            break
 
-    return result
-  }, [
-    products,
-    searchTerm,
-    sortColumn,
-    sortDirection,
-  ])
+          case 'refunds':
+            aVal = a.totalRefunds || 0
+            bVal = b.totalRefunds || 0
+            break
+
+          case 'sales':
+            aVal = a.salesRevenue || 0
+            bVal = b.salesRevenue || 0
+            break
+
+          case 'promo':
+            aVal = a.promoRebates || 0
+            bVal = b.promoRebates || 0
+            break
+
+          case 'ads':
+            aVal =
+              a.advertisingCost || 0
+            bVal =
+              b.advertisingCost || 0
+            break
+
+          case 'amazonFees':
+            aVal = a.totalFees || 0
+            bVal = b.totalFees || 0
+            break
+
+          case 'cogs':
+            aVal = a.totalCOGS || 0
+            bVal = b.totalCOGS || 0
+            break
+
+          case 'grossProfit':
+            aVal = a.grossProfit || 0
+            bVal = b.grossProfit || 0
+            break
+
+          case 'netProfit':
+            aVal = a.netProfit || 0
+            bVal = b.netProfit || 0
+            break
+
+          case 'margin':
+            aVal = a.margin || 0
+            bVal = b.margin || 0
+            break
+
+          case 'roi':
+            aVal = a.roi || 0
+            bVal = b.roi || 0
+            break
+
+          case 'bsr':
+            aVal = 0
+            bVal = 0
+            break
+        }
+
+        if (aVal < bVal) {
+          return sortDirection === 'asc'
+            ? -1
+            : 1
+        }
+
+        if (aVal > bVal) {
+          return sortDirection === 'asc'
+            ? 1
+            : -1
+        }
+
+        return 0
+      })
+
+      return result
+    }, [
+      products,
+      searchTerm,
+      sortColumn,
+      sortDirection,
+    ])
+
+  /* ────────────────────────────────────────────────
+   * Pagination
+   * ──────────────────────────────────────────────── */
 
   const paginatedProducts = useMemo(() => {
     const startIndex =
-      (currentPage - 1) * itemsPerPage
+      (currentPage - 1) *
+      itemsPerPage
 
     return filteredAndSortedProducts.slice(
       startIndex,
@@ -529,6 +608,10 @@ export const SellerboardProductsTable: React.FC<
     filteredAndSortedProducts.length /
       itemsPerPage
   )
+
+  /* ────────────────────────────────────────────────
+   * Sort icon
+   * ──────────────────────────────────────────────── */
 
   const SortIcon: React.FC<{
     column: SortColumn
@@ -546,6 +629,356 @@ export const SellerboardProductsTable: React.FC<
     </span>
   )
 
+  /* ────────────────────────────────────────────────
+   * Product row renderer
+   * ──────────────────────────────────────────────── */
+
+  const renderProductRow = (
+    product: ProductWithChildren,
+    isChild = false
+  ) => {
+    const isExpanded =
+      expandedRows.has(product.sku)
+
+    const refundCount =
+      product.totalRefunds || 0
+
+    const refundCost =
+      Math.abs(
+        product.refundCost || 0
+      )
+
+    return (
+      <React.Fragment key={product.sku}>
+
+        {/* ───────────────────────────────
+         * Product row
+         * ─────────────────────────────── */}
+
+        <TableRow
+          className={`
+            hover:bg-surface-secondary
+            transition-colors
+            ${isChild ? 'bg-surface-secondary/30' : ''}
+          `}
+        >
+
+          {/* Product */}
+          <TableCell>
+            <div
+              className={`
+                flex items-start
+                ${isChild ? 'pl-7' : ''}
+              `}
+            >
+
+              {/* Expand arrow */}
+              {/* Expand arrow — only for parent rows */}
+              {!isChild && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    toggleRow(product.sku)
+                  }
+                  className="
+                    mt-1
+                    mr-1
+                    w-5
+                    h-5
+                    flex
+                    items-center
+                    justify-center
+                    flex-shrink-0
+                    rounded
+                    text-text-muted
+                    hover:text-text-primary
+                    hover:bg-surface-secondary
+                    transition-colors
+                  "
+                  aria-label={
+                    isExpanded
+                      ? 'Collapse row'
+                      : 'Expand row'
+                  }
+                >
+                  <svg
+                    className={`
+                      w-4
+                      h-4
+                      transition-transform
+                      duration-200
+                      ${
+                        isExpanded
+                          ? 'rotate-90'
+                          : ''
+                      }
+                    `}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 5l7 7-7 7"
+                    />
+                  </svg>
+                </button>
+              )}
+
+              <div className="flex items-start gap-3 max-w-[250px]">
+
+                {/* Product image */}
+                <div className="w-12 h-12 bg-surface-secondary rounded flex items-center justify-center flex-shrink-0 overflow-hidden">
+                  {product.imageUrl ? (
+                    <img
+                      src={product.imageUrl}
+                      alt={
+                        product.productTitle ||
+                        product.sku ||
+                        'Product'
+                      }
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <svg
+                      className="w-6 h-6 text-text-muted"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                      />
+                    </svg>
+                  )}
+                </div>
+
+                <div className="min-w-0 flex-1 max-w-[200px]">
+
+                  <div className="text-xs text-text-muted mb-1 truncate">
+                    {product.sku}
+                  </div>
+
+                  <div className="font-medium text-text-primary text-sm mb-1.5 line-clamp-2 break-words">
+                    {product.productTitle ||
+                      '-'}
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+
+                    <div>
+                      <span className="text-text-primary font-medium">
+                        {formatCurrency(
+                          (product.salesRevenue ||
+                            0) /
+                            Math.max(
+                              product.unitsSold ||
+                                1,
+                              1
+                            )
+                        )}
+                      </span>
+                    </div>
+
+                    <div>
+                      <span className="text-text-muted">
+                        COGS{' '}
+                      </span>
+
+                      <span className="text-text-primary font-medium">
+                        {formatCurrency(
+                          product.cogsRate ||
+                            0
+                        )}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-1">
+                      <span className="text-text-primary font-medium">
+                        {formatCurrency(
+                          Math.abs(
+                            product.promoRebates ||
+                              0
+                          )
+                        )}
+                      </span>
+
+                      <svg
+                        className="w-3 h-3 text-danger-600"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 01-1-1 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                    </div>
+
+                  </div>
+                </div>
+              </div>
+            </div>
+          </TableCell>
+
+          {/* Units */}
+          <TableCell className="text-right">
+            {formatNumber(
+              product.unitsSold || 0,
+              0
+            )}
+          </TableCell>
+
+          {/* Refunds */}
+          <TableCell className="text-right">
+            {formatNumber(
+              refundCount,
+              0
+            )}
+          </TableCell>
+
+          {/* Sales */}
+          <TableCell className="text-right font-medium">
+            {formatCurrency(
+              product.salesRevenue || 0
+            )}
+          </TableCell>
+
+          {/* Promo */}
+          <TableCell className="text-right">
+            {formatCurrency(
+              Math.abs(
+                product.promoRebates || 0
+              )
+            )}
+          </TableCell>
+
+          {/* Ads */}
+          <TableCell className="text-right text-danger-600">
+            -
+            {formatCurrency(
+              Math.abs(
+                product.advertisingCost || 0
+              )
+            )}
+          </TableCell>
+
+          {/* Refund cost */}
+          <TableCell className="text-right">
+            {formatCurrency(
+              Math.abs(
+                product.refundCost || 0
+              )
+            )}
+          </TableCell>
+
+          {/* Amazon fees */}
+          <TableCell className="text-right text-danger-600">
+            -
+            {formatCurrency(
+              Math.abs(
+                product.totalFees || 0
+              )
+            )}
+          </TableCell>
+
+          {/* COGS */}
+          <TableCell className="text-right text-danger-600">
+            -
+            {formatCurrency(
+              Math.abs(
+                product.totalCOGS || 0
+              )
+            )}
+          </TableCell>
+
+          {/* Gross profit */}
+          <TableCell className="text-right font-medium text-success-600">
+            {formatCurrency(
+              product.grossProfit || 0
+            )}
+          </TableCell>
+
+          {/* Net profit */}
+          <TableCell className="text-right font-semibold text-success-600">
+            {formatCurrency(
+              product.netProfit || 0
+            )}
+          </TableCell>
+
+          {/* Margin */}
+          <TableCell className="text-right">
+            {formatPercentage(
+              product.margin || 0
+            )}
+          </TableCell>
+
+          {/* ROI */}
+          <TableCell className="text-right">
+            {formatPercentage(
+              product.roi || 0
+            )}
+          </TableCell>
+
+          {/* BSR */}
+          <TableCell className="text-right">
+            <span className="text-text-muted">
+              —
+            </span>
+          </TableCell>
+
+          {/* Info */}
+          <TableCell className="text-center">
+            <button
+              onClick={(e) => {
+                const rect =
+                  (
+                    e.currentTarget as HTMLElement
+                  ).getBoundingClientRect()
+
+                setProductStat({
+                  data:
+                    buildProductStatData(
+                      product
+                    ),
+                  anchorRect: rect,
+                })
+              }}
+              className="text-primary-600 hover:text-primary-700 text-sm font-medium"
+            >
+              More
+            </button>
+          </TableCell>
+
+        </TableRow>
+
+        {/* ───────────────────────────────
+         * Children
+         * ─────────────────────────────── */}
+
+        {isExpanded &&
+          product.children?.map(
+            (child) =>
+              renderProductRow(
+                child,
+                true
+              )
+          )}
+
+      </React.Fragment>
+    )
+  }
+
+  /* ──────────────────────────────────────────────────────
+   * Loading
+   * ────────────────────────────────────────────────────── */
+
   if (isLoading) {
     return (
       <TableSkeleton
@@ -555,6 +988,10 @@ export const SellerboardProductsTable: React.FC<
     )
   }
 
+  /* ──────────────────────────────────────────────────────
+   * Error
+   * ────────────────────────────────────────────────────── */
+
   if (error) {
     return (
       <div className="text-center py-8 text-danger-600">
@@ -562,6 +999,10 @@ export const SellerboardProductsTable: React.FC<
       </div>
     )
   }
+
+  /* ──────────────────────────────────────────────────────
+   * Empty
+   * ────────────────────────────────────────────────────── */
 
   if (
     !paginatedProducts.length &&
@@ -574,6 +1015,10 @@ export const SellerboardProductsTable: React.FC<
     )
   }
 
+  /* ──────────────────────────────────────────────────────
+   * Render
+   * ────────────────────────────────────────────────────── */
+
   return (
     <div className="space-y-4 relative">
 
@@ -584,19 +1029,30 @@ export const SellerboardProductsTable: React.FC<
         </div>
       )}
 
-      {/* StatModal — fixed position, does NOT scroll with table */}
+      {/* Stat modal */}
       <StatModal
         isOpen={!!productStat}
-        onClose={() => setProductStat(null)}
-        data={productStat?.data || null}
+        onClose={() =>
+          setProductStat(null)
+        }
+        data={
+          productStat?.data || null
+        }
         currency="CAD"
         anchorRect={
-          productStat?.anchorRect || null
+          productStat?.anchorRect ||
+          null
         }
       />
 
       <div className="overflow-x-auto">
+
         <Table>
+
+          {/* ─────────────────────────────
+           * Header
+           * ───────────────────────────── */}
+
           <TableHeader>
             <TableRow>
 
@@ -735,267 +1191,24 @@ export const SellerboardProductsTable: React.FC<
             </TableRow>
           </TableHeader>
 
+          {/* ─────────────────────────────
+           * Body
+           * ───────────────────────────── */}
+
           <TableBody>
             {paginatedProducts.map(
-              (product: ProductProfitBreakdown) => {
-                const roi =
-                  product.totalCOGS > 0
-                    ? (product.netProfit /
-                        product.totalCOGS) *
-                      100
-                    : 0
-
-                const refundCount =
-                  product.totalRefunds || 0
-
-                /*
-                 * Use the actual refund amount from
-                 * the backend instead of calculating:
-                 *
-                 * refundCount × averageOrderValue
-                 */
-                const refundCost =
-                  Math.abs(
-                    product.refundAmount || 0
-                  )
-
-                return (
-                  <TableRow
-                    key={product.sku}
-                    className="hover:bg-surface-secondary transition-colors"
-                  >
-
-                    {/* Product */}
-                    <TableCell>
-                      <div className="flex items-start gap-3 max-w-[250px]">
-
-                        <div className="w-12 h-12 bg-surface-secondary rounded flex items-center justify-center flex-shrink-0 overflow-hidden">
-                          {product.imageUrl ? (
-                            <img
-                              src={product.imageUrl}
-                              alt={
-                                product.productTitle ||
-                                product.sku ||
-                                'Product'
-                              }
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <svg
-                              className="w-6 h-6 text-text-muted"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                              />
-                            </svg>
-                          )}
-                        </div>
-
-                        <div className="min-w-0 flex-1 max-w-[200px]">
-
-                          <div className="text-xs text-text-muted mb-1 truncate">
-                            {product.sku}
-                          </div>
-
-                          <div className="font-medium text-text-primary text-sm mb-1.5 line-clamp-2 break-words">
-                            {product.productTitle ||
-                              '-'}
-                          </div>
-
-                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-
-                            <div>
-                              <span className="text-text-primary font-medium">
-                                {formatCurrency(
-                                  (product.salesRevenue ||
-                                    0) /
-                                    Math.max(
-                                      product.unitsSold ||
-                                        1,
-                                      1
-                                    )
-                                )}
-                              </span>
-                            </div>
-
-                            <div>
-                              <span className="text-text-muted">
-                                COGS{' '}
-                              </span>
-
-                              <span className="text-text-primary font-medium">
-                                {formatCurrency(
-                                  product.cogsRate ||
-                                    0
-                                )}
-                              </span>
-                            </div>
-
-                            <div className="flex items-center gap-1">
-                              <span className="text-text-primary font-medium">
-                                {formatCurrency(
-                                  Math.abs(
-                                    product.promoRebates ||
-                                      0
-                                  )
-                                )}
-                              </span>
-
-                              <svg
-                                className="w-3 h-3 text-danger-600"
-                                fill="currentColor"
-                                viewBox="0 0 20 20"
-                              >
-                                <path
-                                  fillRule="evenodd"
-                                  d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
-                                  clipRule="evenodd"
-                                />
-                              </svg>
-                            </div>
-
-                          </div>
-                        </div>
-                      </div>
-                    </TableCell>
-
-                    {/* Units sold */}
-                    <TableCell className="text-right">
-                      {formatNumber(
-                        product.unitsSold || 0,
-                        0
-                      )}
-                    </TableCell>
-
-                    {/* Refund count */}
-                    <TableCell className="text-right">
-                      {formatNumber(
-                        refundCount,
-                        0
-                      )}
-                    </TableCell>
-
-                    {/* Sales */}
-                    <TableCell className="text-right font-medium">
-                      {formatCurrency(
-                        product.salesRevenue || 0
-                      )}
-                    </TableCell>
-
-                    {/* Promo */}
-                    <TableCell className="text-right">
-                      {formatCurrency(
-                        Math.abs(
-                          product.promoRebates || 0
-                        )
-                      )}
-                    </TableCell>
-
-                    {/* Ads */}
-                    <TableCell className="text-right text-danger-600">
-                      -{formatCurrency(
-                        Math.abs(product.advertisingCost || 0)
-                      )}
-                    </TableCell>
-
-                    {/* Refund cost */}
-                   <TableCell className="text-right">
-                      {formatCurrency(
-                        Math.abs(product.refundCost || 0)
-                      )}
-                    </TableCell>
-
-                    {/* Amazon fees */}
-                    <TableCell className="text-right text-danger-600">
-                      -{formatCurrency(
-                        Math.abs(
-                          product.totalFees || 0
-                        )
-                      )}
-                    </TableCell>
-
-                    {/* Cost of goods */}
-                    <TableCell className="text-right text-danger-600">
-                      -{formatCurrency(
-                        Math.abs(
-                          product.totalCOGS || 0
-                        )
-                      )}
-                    </TableCell>
-
-                    {/* Gross profit */}
-                    <TableCell className="text-right font-medium text-success-600">
-                      {formatCurrency(
-                        product.grossProfit || 0
-                      )}
-                    </TableCell>
-
-                    {/* Net profit */}
-                    <TableCell className="text-right font-semibold text-success-600">
-                      {formatCurrency(
-                        product.netProfit || 0
-                      )}
-                    </TableCell>
-
-                    {/* Margin */}
-                   <TableCell className="text-right">
-                      {formatPercentage(
-                        product.margin || 0
-                      )}
-                    </TableCell>
-
-                    {/* ROI */}
-                    <TableCell className="text-right">
-                      {formatPercentage(
-                        product.roi || 0
-                      )}
-                    </TableCell>
-
-                    {/* BSR */}
-                    <TableCell className="text-right">
-                      <span className="text-text-muted">
-                        —
-                      </span>
-                    </TableCell>
-
-                    {/* Info */}
-                    <TableCell className="text-center">
-                      <button
-                        onClick={(e) => {
-                          const rect =
-                            (
-                              e.currentTarget as HTMLElement
-                            ).getBoundingClientRect()
-
-                          setProductStat({
-                            data:
-                              buildProductStatData(
-                                product
-                              ),
-                            anchorRect: rect,
-                          })
-                        }}
-                        className="text-primary-600 hover:text-primary-700 text-sm font-medium"
-                      >
-                        More
-                      </button>
-                    </TableCell>
-
-                  </TableRow>
-                )
-              }
+              (product) =>
+                renderProductRow(product)
             )}
           </TableBody>
+
         </Table>
       </div>
 
-      {/* Pagination */}
+      {/* ────────────────────────────────────────────────
+       * Pagination
+       * ──────────────────────────────────────────────── */}
+
       {totalPages > 1 && (
         <div className="flex items-center justify-between">
 
@@ -1006,7 +1219,8 @@ export const SellerboardProductsTable: React.FC<
               1}{' '}
             to{' '}
             {Math.min(
-              currentPage * itemsPerPage,
+              currentPage *
+                itemsPerPage,
               filteredAndSortedProducts.length
             )}{' '}
             of{' '}
@@ -1021,15 +1235,21 @@ export const SellerboardProductsTable: React.FC<
               size="sm"
               onClick={() =>
                 setCurrentPage((p) =>
-                  Math.max(1, p - 1)
+                  Math.max(
+                    1,
+                    p - 1
+                  )
                 )
               }
-              disabled={currentPage === 1}
+              disabled={
+                currentPage === 1
+              }
             >
               Previous
             </Button>
 
             <div className="flex items-center gap-1">
+
               {Array.from(
                 {
                   length: Math.min(
@@ -1040,7 +1260,9 @@ export const SellerboardProductsTable: React.FC<
                 (_, i) => {
                   let pageNum
 
-                  if (totalPages <= 5) {
+                  if (
+                    totalPages <= 5
+                  ) {
                     pageNum = i + 1
                   } else if (
                     currentPage <= 3
@@ -1051,10 +1273,14 @@ export const SellerboardProductsTable: React.FC<
                     totalPages - 2
                   ) {
                     pageNum =
-                      totalPages - 4 + i
+                      totalPages -
+                      4 +
+                      i
                   } else {
                     pageNum =
-                      currentPage - 2 + i
+                      currentPage -
+                      2 +
+                      i
                   }
 
                   return (
@@ -1065,17 +1291,27 @@ export const SellerboardProductsTable: React.FC<
                           pageNum
                         )
                       }
-                      className={`w-8 h-8 rounded text-sm font-medium transition-colors ${
-                        currentPage === pageNum
-                          ? 'bg-primary-600 text-white'
-                          : 'text-text-muted hover:bg-surface-secondary hover:text-text-primary'
-                      }`}
+                      className={`
+                        w-8
+                        h-8
+                        rounded
+                        text-sm
+                        font-medium
+                        transition-colors
+                        ${
+                          currentPage ===
+                          pageNum
+                            ? 'bg-primary-600 text-white'
+                            : 'text-text-muted hover:bg-surface-secondary hover:text-text-primary'
+                        }
+                      `}
                     >
                       {pageNum}
                     </button>
                   )
                 }
               )}
+
             </div>
 
             <Button
@@ -1090,7 +1326,8 @@ export const SellerboardProductsTable: React.FC<
                 )
               }
               disabled={
-                currentPage === totalPages
+                currentPage ===
+                totalPages
               }
             >
               Next
@@ -1099,6 +1336,7 @@ export const SellerboardProductsTable: React.FC<
           </div>
         </div>
       )}
+
     </div>
   )
 })
