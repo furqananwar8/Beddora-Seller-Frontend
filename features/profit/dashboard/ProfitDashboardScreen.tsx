@@ -1,16 +1,36 @@
 'use client'
 
-import React, { useEffect, useMemo, useState, useCallback } from 'react'
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react'
+
 import { useSearchParams } from 'next/navigation'
+
 import { Container } from '@/components/layout'
 import { Button } from '@/design-system/buttons'
 import { Select, Input } from '@/design-system/inputs'
-import { Card, CardContent } from '@/design-system/cards'
+import {
+  Card,
+  CardContent,
+} from '@/design-system/cards'
 import { KpiCardSkeleton } from '@/design-system/loaders'
-import { useAppDispatch, useAppSelector } from '@/store/hooks'
+
+import {
+  useAppDispatch,
+  useAppSelector,
+} from '@/store/hooks'
+
 import { setFilters } from '@/store/profit.slice'
-import { useGetAccountsQuery } from '@/services/api/accounts.api'
+
+import {
+  useGetAccountsQuery,
+} from '@/services/api/accounts.api'
+
 import { useDebounce } from '@/utils/debounce'
+
 import {
   useGetProfitSummaryQuery,
   useGetProfitByProductQuery,
@@ -20,897 +40,276 @@ import {
   PeriodSummary,
   PeriodSummaryPeriod,
 } from '@/services/api/profit.api'
+
 import {
   useGetDashboardChartQuery,
   ChartPeriod,
 } from '@/services/api/charts.api'
+
 import { SellerboardProductsTable } from './SellerboardProductsTable'
 import { OrderItemsTable } from './OrderItemsTable'
 import { DashboardChart } from './DashboardChart'
 import { PLTable } from './PLTable'
+
 import { MapComponent } from './components/MapComponent'
 import { TrendsComponent } from './components/TrendsComponent'
 import { ChartSummaryTable } from './components/ChartSummaryTable'
 import { TileDetailsModal } from './components/TileDetailsModal'
+
 import { formatCurrency } from '@/utils/format'
 
-import {
-  format,
-  addDays,
-  addMonths,
-  startOfMonth,
-  endOfMonth,
-  startOfWeek,
-  endOfWeek,
-} from 'date-fns'
-import { toZonedTime, formatInTimeZone } from 'date-fns-tz'
-
 import SummaryTiles from './SummaryTiles'
-import { MultiSelectInput } from '@/components/multi-select-input/MultiSelectInput'
+
 import { MARKETPLACES } from '@/utils/marketplaces'
+
 import DateRangePicker, {
   DateRangeValue,
 } from '@/components/date-range-picker/DateRangePicker'
 
-export const TIMEZONE = 'America/Los_Angeles'
-
-const PRESET_STORAGE_KEY = 'profit-dashboard-preset'
-
-// ============================================
-// PST / PDT DATE UTILITIES
-// ============================================
-
-const nowInPST = () => toZonedTime(new Date(), TIMEZONE)
-
-const toISODatePST = (date: Date) => format(date, 'yyyy-MM-dd')
-
-const formatDateRangePST = (
-  startDate: string,
-  endDate: string
-) => {
-  const startInstant = new Date(`${startDate}T12:00:00Z`)
-  const endInstant = new Date(`${endDate}T12:00:00Z`)
-
-  if (startDate === endDate) {
-    return formatInTimeZone(
-      startInstant,
-      TIMEZONE,
-      'MMMM d, yyyy'
-    )
-  }
-
-  const startYear = formatInTimeZone(
-    startInstant,
-    TIMEZONE,
-    'yyyy'
-  )
-
-  const endYear = formatInTimeZone(
-    endInstant,
-    TIMEZONE,
-    'yyyy'
-  )
-
-  if (startYear === endYear) {
-    return `${formatInTimeZone(
-      startInstant,
-      TIMEZONE,
-      'MMM d'
-    )} - ${formatInTimeZone(
-      endInstant,
-      TIMEZONE,
-      'MMM d, yyyy'
-    )}`
-  }
-
-  return `${formatInTimeZone(
-    startInstant,
-    TIMEZONE,
-    'MMM d, yyyy'
-  )} - ${formatInTimeZone(
-    endInstant,
-    TIMEZONE,
-    'MMM d, yyyy'
-  )}`
-}
-
-const addDaysPST = (date: Date, days: number) =>
-  addDays(date, days)
-
-const startOfMonthPST = (date: Date) =>
-  startOfMonth(date)
-
-const endOfMonthPST = (date: Date) =>
-  endOfMonth(date)
-
-const startOfWeekPST = (
-  date: Date,
-  weekStartsOn: 0 | 1 = 1
-) =>
-  startOfWeek(date, {
-    weekStartsOn,
-  })
-
-const endOfWeekPST = (
-  date: Date,
-  weekStartsOn: 0 | 1 = 1
-) =>
-  endOfWeek(date, {
-    weekStartsOn,
-  })
-
-const getRollingDateRangePST = (days: number) => {
-  const end = nowInPST()
-  const start = addDaysPST(
-    end,
-    -(days - 1)
-  )
-
-  return {
-    startDate: toISODatePST(start),
-    endDate: toISODatePST(end),
-  }
-}
-
-const getSingleDayPST = (daysAgo: number) => {
-  const d = addDaysPST(
-    nowInPST(),
-    -daysAgo
-  )
-
-  const ymd = toISODatePST(d)
-
-  return {
-    startDate: ymd,
-    endDate: ymd,
-  }
-}
-
-// ============================================
-// TYPES
-// ============================================
-
-type DashboardTab =
-  | 'tiles'
-  | 'chart'
-  | 'pnl'
-  | 'map'
-  | 'trends'
-  | 'sandbox'
-
-type TableView =
-  | 'products'
-  | 'order-items'
-
-type CurrencyCode =
-  | 'CAD'
-  | 'USD'
-  | 'EUR'
-
-interface TileConfig {
-  id: string
-  label: string
-  apiPeriod: PeriodSummaryPeriod
-  getDateRange: (
-    nowPST: Date
-  ) => {
-    startDate: string
-    endDate: string
-  }
-}
-
-interface TilePreset {
-  id: string
-  label: string
-  tiles: TileConfig[]
-}
-
-// ============================================
-// CHART PRESETS
-// ============================================
-
-const chartPresets = [
-  {
-    id: 'last-12-months',
-    label: 'Last 12 months, by month',
-    getRange: () => {
-      const end = nowInPST()
-      const start = addMonths(end, -12)
-
-      return {
-        startDate: toISODatePST(start),
-        endDate: toISODatePST(end),
-        periodicity: 'month',
-      }
-    },
-  },
-
-  {
-    id: 'last-3-months',
-    label: 'Last 3 months, by week',
-    getRange: () => {
-      const end = nowInPST()
-      const start = addMonths(end, -3)
-
-      return {
-        startDate: toISODatePST(start),
-        endDate: toISODatePST(end),
-        periodicity: 'week',
-      }
-    },
-  },
-
-  {
-    id: 'last-30-days',
-    label: 'Last 30 days, by day',
-    getRange: () => {
-      const end = nowInPST()
-      const start = addDaysPST(end, -29)
-
-      return {
-        startDate: toISODatePST(start),
-        endDate: toISODatePST(end),
-        periodicity: 'day',
-      }
-    },
-  },
-
-  {
-    id: 'custom',
-    label: 'Custom range',
-    getRange: () => ({
-      startDate: toISODatePST(
-        addDaysPST(nowInPST(), -29)
-      ),
-      endDate: toISODatePST(nowInPST()),
-      periodicity: 'day',
-    }),
-  },
-]
-
-// ============================================
-// CHART PERIODICITY
-// ============================================
-
-const inferPeriodicity = (
-  startDate: string,
-  endDate: string
-): 'day' | 'week' | 'month' => {
-  const start = new Date(startDate)
-  const end = new Date(endDate)
-
-  const daysDiff = Math.ceil(
-    (end.getTime() - start.getTime()) /
-      (1000 * 60 * 60 * 24)
-  )
-
-  if (daysDiff <= 31) {
-    return 'day'
-  }
-
-  if (daysDiff <= 90) {
-    return 'week'
-  }
-
-  return 'month'
-}
-
-// ============================================
-// TILE PRESETS
-// ============================================
-
-const tilePresets: TilePreset[] = [
-  {
-    id: 'today-yesterday-mtd-forecast-lastmonth',
-    label: 'Today / Yesterday / MTD / Forecast / Last Month',
-    tiles: [
-      {
-        id: 'today',
-        label: 'Today',
-        apiPeriod: 'TODAY',
-        getDateRange: (now) => {
-          const ymd = toISODatePST(now)
-
-          return {
-            startDate: ymd,
-            endDate: ymd,
-          }
-        },
-      },
-
-      {
-        id: 'yesterday',
-        label: 'Yesterday',
-        apiPeriod: 'YESTERDAY',
-        getDateRange: (now) => {
-          const ymd = toISODatePST(
-            addDaysPST(now, -1)
-          )
-
-          return {
-            startDate: ymd,
-            endDate: ymd,
-          }
-        },
-      },
-
-      {
-        id: 'month-to-date',
-        label: 'Month to date',
-        apiPeriod: 'MONTH_TO_DATE',
-        getDateRange: (now) => ({
-          startDate: toISODatePST(
-            startOfMonthPST(now)
-          ),
-          endDate: toISODatePST(now),
-        }),
-      },
-
-      {
-        id: 'this-month-forecast',
-        label: 'This month',
-        apiPeriod: 'THIS_MONTH_FORECAST',
-        getDateRange: (now) => ({
-          startDate: toISODatePST(
-            startOfMonthPST(now)
-          ),
-          endDate: toISODatePST(
-            endOfMonthPST(now)
-          ),
-        }),
-      },
-
-      {
-        id: 'last-month',
-        label: 'Last month',
-        apiPeriod: 'LAST_MONTH',
-        getDateRange: (now) => {
-          const start = startOfMonthPST(
-            addMonths(now, -1)
-          )
-
-          const end = endOfMonthPST(start)
-
-          return {
-            startDate: toISODatePST(start),
-            endDate: toISODatePST(end),
-          }
-        },
-      },
-    ],
-  },
-
-  {
-    id: 'today-yesterday-mtd-lastmonth',
-    label: 'Today / Yesterday / MTD / Last Month',
-    tiles: [
-      {
-        id: 'today',
-        label: 'Today',
-        apiPeriod: 'TODAY',
-        getDateRange: (now) => {
-          const ymd = toISODatePST(now)
-
-          return {
-            startDate: ymd,
-            endDate: ymd,
-          }
-        },
-      },
-
-      {
-        id: 'yesterday',
-        label: 'Yesterday',
-        apiPeriod: 'YESTERDAY',
-        getDateRange: (now) => {
-          const ymd = toISODatePST(
-            addDaysPST(now, -1)
-          )
-
-          return {
-            startDate: ymd,
-            endDate: ymd,
-          }
-        },
-      },
-
-      {
-        id: 'month-to-date',
-        label: 'Month to date',
-        apiPeriod: 'MONTH_TO_DATE',
-        getDateRange: (now) => ({
-          startDate: toISODatePST(
-            startOfMonthPST(now)
-          ),
-          endDate: toISODatePST(now),
-        }),
-      },
-
-      {
-        id: 'last-month',
-        label: 'Last month',
-        apiPeriod: 'LAST_MONTH',
-        getDateRange: (now) => {
-          const start = startOfMonthPST(
-            addMonths(now, -1)
-          )
-
-          const end = endOfMonthPST(start)
-
-          return {
-            startDate: toISODatePST(start),
-            endDate: toISODatePST(end),
-          }
-        },
-      },
-    ],
-  },
-
-  {
-    id: 'today-yesterday-7-14-30',
-    label: 'Today / Yesterday / 7 / 14 / 30 Days',
-    tiles: [
-      {
-        id: 'today',
-        label: 'Today',
-        apiPeriod: 'TODAY',
-        getDateRange: (now) => {
-          const ymd = toISODatePST(now)
-
-          return {
-            startDate: ymd,
-            endDate: ymd,
-          }
-        },
-      },
-
-      {
-        id: 'yesterday',
-        label: 'Yesterday',
-        apiPeriod: 'YESTERDAY',
-        getDateRange: (now) => {
-          const ymd = toISODatePST(
-            addDaysPST(now, -1)
-          )
-
-          return {
-            startDate: ymd,
-            endDate: ymd,
-          }
-        },
-      },
-
-      {
-        id: '7days',
-        label: '7 days',
-        apiPeriod: '7DAYS',
-        getDateRange: (now) => {
-          const end = now
-          const start = addDaysPST(end, -6)
-
-          return {
-            startDate: toISODatePST(start),
-            endDate: toISODatePST(end),
-          }
-        },
-      },
-
-      {
-        id: '14days',
-        label: '14 days',
-        apiPeriod: '14DAYS',
-        getDateRange: (now) => {
-          const end = now
-          const start = addDaysPST(end, -13)
-
-          return {
-            startDate: toISODatePST(start),
-            endDate: toISODatePST(end),
-          }
-        },
-      },
-
-      {
-        id: '30days',
-        label: '30 days',
-        apiPeriod: '30DAYS',
-        getDateRange: (now) => {
-          const end = now
-          const start = addDaysPST(end, -29)
-
-          return {
-            startDate: toISODatePST(start),
-            endDate: toISODatePST(end),
-          }
-        },
-      },
-    ],
-  },
-
-  {
-    id: 'thisweek-lastweek-2w-3w',
-    label: 'This Week / Last Week / 2W / 3W',
-    tiles: [
-      {
-        id: 'this-week',
-        label: 'This week',
-        apiPeriod: 'THIS_WEEK',
-        getDateRange: (now) => ({
-          startDate: toISODatePST(
-            startOfWeekPST(now)
-          ),
-          endDate: toISODatePST(
-            endOfWeekPST(now)
-          ),
-        }),
-      },
-
-      {
-        id: 'last-week',
-        label: 'Last week',
-        apiPeriod: 'LAST_WEEK',
-        getDateRange: (now) => {
-          const start = addDaysPST(
-            startOfWeekPST(now),
-            -7
-          )
-
-          const end = endOfWeekPST(start)
-
-          return {
-            startDate: toISODatePST(start),
-            endDate: toISODatePST(end),
-          }
-        },
-      },
-
-      {
-        id: '2-weeks-ago',
-        label: '2 weeks ago',
-        apiPeriod: '2WEEKSAGO',
-        getDateRange: (now) => {
-          const start = addDaysPST(
-            startOfWeekPST(now),
-            -14
-          )
-
-          const end = endOfWeekPST(start)
-
-          return {
-            startDate: toISODatePST(start),
-            endDate: toISODatePST(end),
-          }
-        },
-      },
-
-      {
-        id: '3-weeks-ago',
-        label: '3 weeks ago',
-        apiPeriod: '3WEEKSAGO',
-        getDateRange: (now) => {
-          const start = addDaysPST(
-            startOfWeekPST(now),
-            -21
-          )
-
-          const end = endOfWeekPST(start)
-
-          return {
-            startDate: toISODatePST(start),
-            endDate: toISODatePST(end),
-          }
-        },
-      },
-    ],
-  },
-
-  {
-    id: 'mtd-lastmonth-2m-3m',
-    label: 'MTD / Last Month / 2M / 3M',
-    tiles: [
-      {
-        id: 'month-to-date',
-        label: 'Month to date',
-        apiPeriod: 'MONTH_TO_DATE',
-        getDateRange: (now) => ({
-          startDate: toISODatePST(
-            startOfMonthPST(now)
-          ),
-          endDate: toISODatePST(now),
-        }),
-      },
-
-      {
-        id: 'last-month',
-        label: 'Last month',
-        apiPeriod: 'LAST_MONTH',
-        getDateRange: (now) => {
-          const start = startOfMonthPST(
-            addMonths(now, -1)
-          )
-
-          const end = endOfMonthPST(start)
-
-          return {
-            startDate: toISODatePST(start),
-            endDate: toISODatePST(end),
-          }
-        },
-      },
-
-      {
-        id: '2-months-ago',
-        label: '2 months ago',
-        apiPeriod: '2MONTHSAGO',
-        getDateRange: (now) => {
-          const start = startOfMonthPST(
-            addMonths(now, -2)
-          )
-
-          const end = endOfMonthPST(start)
-
-          return {
-            startDate: toISODatePST(start),
-            endDate: toISODatePST(end),
-          }
-        },
-      },
-
-      {
-        id: '3-months-ago',
-        label: '3 months ago',
-        apiPeriod: '3MONTHSAGO',
-        getDateRange: (now) => {
-          const start = startOfMonthPST(
-            addMonths(now, -3)
-          )
-
-          const end = endOfMonthPST(start)
-
-          return {
-            startDate: toISODatePST(start),
-            endDate: toISODatePST(end),
-          }
-        },
-      },
-    ],
-  },
-
-  {
-    id: 'today-yesterday-2d-3d',
-    label: 'Today / Yesterday / 2D / 3D',
-    tiles: [
-      {
-        id: 'today',
-        label: 'Today',
-        apiPeriod: 'TODAY',
-        getDateRange: (now) => {
-          const ymd = toISODatePST(now)
-
-          return {
-            startDate: ymd,
-            endDate: ymd,
-          }
-        },
-      },
-
-      {
-        id: 'yesterday',
-        label: 'Yesterday',
-        apiPeriod: 'YESTERDAY',
-        getDateRange: (now) => {
-          const ymd = toISODatePST(
-            addDaysPST(now, -1)
-          )
-
-          return {
-            startDate: ymd,
-            endDate: ymd,
-          }
-        },
-      },
-
-      {
-        id: '2-days-ago',
-        label: '2 days ago',
-        apiPeriod: '2DAYSAGO',
-        getDateRange: (now) => {
-          const ymd = toISODatePST(
-            addDaysPST(now, -2)
-          )
-
-          return {
-            startDate: ymd,
-            endDate: ymd,
-          }
-        },
-      },
-
-      {
-        id: '3-days-ago',
-        label: '3 days ago',
-        apiPeriod: '3DAYSAGO',
-        getDateRange: (now) => {
-          const ymd = toISODatePST(
-            addDaysPST(now, -3)
-          )
-
-          return {
-            startDate: ymd,
-            endDate: ymd,
-          }
-        },
-      },
-    ],
-  },
-
-  {
-    id: 'today-yesterday-7d-8d',
-    label: 'Today / Yesterday / 7D / 8D',
-    tiles: [
-      {
-        id: 'today',
-        label: 'Today',
-        apiPeriod: 'TODAY',
-        getDateRange: (now) => {
-          const ymd = toISODatePST(now)
-
-          return {
-            startDate: ymd,
-            endDate: ymd,
-          }
-        },
-      },
-
-      {
-        id: 'yesterday',
-        label: 'Yesterday',
-        apiPeriod: 'YESTERDAY',
-        getDateRange: (now) => {
-          const ymd = toISODatePST(
-            addDaysPST(now, -1)
-          )
-
-          return {
-            startDate: ymd,
-            endDate: ymd,
-          }
-        },
-      },
-
-      {
-        id: '7-days-ago',
-        label: '7 days ago',
-        apiPeriod: '7DAYSAGO',
-        getDateRange: (now) => {
-          const ymd = toISODatePST(
-            addDaysPST(now, -7)
-          )
-
-          return {
-            startDate: ymd,
-            endDate: ymd,
-          }
-        },
-      },
-
-      {
-        id: '8-days-ago',
-        label: '8 days ago',
-        apiPeriod: '8DAYSAGO',
-        getDateRange: (now) => {
-          const ymd = toISODatePST(
-            addDaysPST(now, -8)
-          )
-
-          return {
-            startDate: ymd,
-            endDate: ymd,
-          }
-        },
-      },
-    ],
-  },
-]
-
-// ============================================
-// GRID
-// ============================================
-
-const gridColsClass: Record<number, string> = {
-  1: 'lg:grid-cols-1',
-  2: 'lg:grid-cols-2',
-  3: 'lg:grid-cols-3',
-  4: 'xl:grid-cols-4 lg:grid-cols-3',
-  5: 'xl:grid-cols-5 lg:grid-cols-3',
-}
-
-// ============================================
-// COMPONENT
-// ============================================
+import ProfitDashboardHeader from '../dashboard/components/ProfitDashboardHeader'
+
+import { MultiSelectInput } from '@/components/multi-select-input/MultiSelectInput'
+
+import {
+  TIMEZONE,
+  ALL_MARKETPLACES,
+  PRESET_STORAGE_KEY,
+
+  tilePresets,
+  chartPresets,
+  gridColsClass,
+
+  nowInPST,
+  toISODatePST,
+  formatDateRangePST,
+
+  addDaysPST,
+  startOfMonthPST,
+  endOfMonthPST,
+  startOfWeekPST,
+  endOfWeekPST,
+
+  getRollingDateRangePST,
+  getSingleDayPST,
+
+  inferPeriodicity,
+
+  type CurrencyCode,
+  type DashboardTab,
+  type TableView,
+  type TilePreset,
+} from '@/utils/profitDashboard.util'
 
 export const ProfitDashboardScreen: React.FC =
   () => {
-    const dispatch = useAppDispatch()
+    const dispatch =
+      useAppDispatch()
 
-    const profitFilters = useAppSelector(
-      (state) => state.profit.filters
-    )
+    const profitFilters =
+      useAppSelector(
+        (state) =>
+          state.profit.filters
+      )
 
-    const { data: accountsData } =
+    const {
+      data: accountsData,
+    } =
       useGetAccountsQuery()
 
-    const searchParams = useSearchParams()
+    const searchParams =
+      useSearchParams()
 
     const activeTab =
       (searchParams?.get(
         'tab'
-      ) as DashboardTab) || 'tiles'
+      ) as DashboardTab) ||
+      'tiles'
 
-    const [tableView, setTableView] =
-      useState<TableView>('products')
+    // ============================================
+    // TABLE
+    // ============================================
 
-    const [searchTerm, setSearchTerm] =
+    const [
+      tableView,
+      setTableView,
+    ] =
+      useState<TableView>(
+        'products'
+      )
+
+    // ============================================
+    // SEARCH
+    // ============================================
+
+    const [
+      searchTerm,
+      setSearchTerm,
+    ] =
       useState('')
 
     const debouncedSearchTerm =
-      useDebounce(searchTerm, 300)
+      useDebounce(
+        searchTerm,
+        300
+      )
 
-    const [selectedPresetId, setSelectedPresetId] =
+    // ============================================
+    // APPLIED TILE FILTERS
+    // ============================================
+
+    const [
+      appliedPresetId,
+      setAppliedPresetId,
+    ] =
       useState<string>(
         tilePresets[2].id
       )
 
-    const [selectedTileId, setSelectedTileId] =
-      useState<string>('yesterday')
-
     const [
-      selectedMarketplaces,
-      setSelectedMarketplaces,
-    ] = useState<string[]>([
-      'Amazon.ca',
-    ])
-
-    const [selectedCurrency, setSelectedCurrency] =
-      useState<CurrencyCode>('CAD')
-
-    const [
-      selectedPeriodForDetails,
-      setSelectedPeriodForDetails,
-    ] = useState<string | null>(null)
-
-    // ============================================
-    // CUSTOM TILE RANGE
-    // ============================================
-
-    const [customTileRange, setCustomTileRange] =
+      appliedCustomTileRange,
+      setAppliedCustomTileRange,
+    ] =
       useState<{
         startDate: string
         endDate: string
       } | null>(null)
 
+    const [
+      appliedMarketplaces,
+      setAppliedMarketplaces,
+    ] =
+      useState<string[]>([
+        'Amazon.ca',
+      ])
+
+    const [
+      appliedCurrency,
+      setAppliedCurrency,
+    ] =
+      useState<CurrencyCode>(
+        'CAD'
+      )
+
     // ============================================
-    // CHART / P&L DATE RANGE
+    // DRAFT TILE FILTERS
     // ============================================
 
-    const [dateRange, setDateRange] =
+    const [
+      draftPresetId,
+      setDraftPresetId,
+    ] =
+      useState<string>(
+        tilePresets[2].id
+      )
+
+    const [
+      draftCustomTileRange,
+      setDraftCustomTileRange,
+    ] =
+      useState<{
+        startDate: string
+        endDate: string
+      } | null>(null)
+
+    const [
+      draftMarketplaces,
+      setDraftMarketplaces,
+    ] =
+      useState<string[]>([
+        'Amazon.ca',
+      ])
+
+    const [
+      draftCurrency,
+      setDraftCurrency,
+    ] =
+      useState<CurrencyCode>(
+        'CAD'
+      )
+
+    // ============================================
+    // CUSTOM DATE PICKER INSTANCE
+    //
+    // DateRangePicker can retain internal custom
+    // range state after the first apply.
+    //
+    // Incrementing this key after Apply forces a
+    // fresh picker instance for the next selection.
+    // ============================================
+
+    const [
+      tileDatePickerKey,
+      setTileDatePickerKey,
+    ] =
+      useState(0)
+
+    // ============================================
+    // TILE SELECTION
+    // ============================================
+
+    const [
+      selectedTileId,
+      setSelectedTileId,
+    ] =
+      useState<string>(
+        'yesterday'
+      )
+
+    const [
+      selectedPeriodForDetails,
+      setSelectedPeriodForDetails,
+    ] =
+      useState<string | null>(
+        null
+      )
+
+    // ============================================
+    // CHART / P&L RANGE
+    // ============================================
+
+    const [
+      dateRange,
+      setDateRange,
+    ] =
       useState<
         DateRangeValue & {
           periodicity?: string
         }
       >({
-        startDate: toISODatePST(
-          addDaysPST(nowInPST(), -29)
-        ),
-        endDate: toISODatePST(
-          nowInPST()
-        ),
-        presetId: 'last-30-days',
-        periodicity: 'day',
+        startDate:
+          toISODatePST(
+            addDaysPST(
+              nowInPST(),
+              -29
+            )
+          ),
+
+        endDate:
+          toISODatePST(
+            nowInPST()
+          ),
+
+        presetId:
+          'last-30-days',
+
+        periodicity:
+          'day',
       })
 
-    const [page, setPage] =
+    const [
+      page,
+      setPage,
+    ] =
       useState<number>(1)
+
+    // Keep these imported/declared values available
+    // for the existing dashboard behavior.
+    void TIMEZONE
+    void page
+    void startOfMonthPST
+    void endOfMonthPST
+    void startOfWeekPST
+    void endOfWeekPST
 
     // ============================================
     // RESTORE TILE PRESET
@@ -928,69 +327,24 @@ export const ProfitDashboardScreen: React.FC =
           (
             tilePresets.some(
               (preset) =>
-                preset.id === saved
+                preset.id ===
+                saved
             ) ||
             saved === 'custom'
           )
         ) {
-          setSelectedPresetId(saved)
+          setDraftPresetId(
+            saved
+          )
+
+          setAppliedPresetId(
+            saved
+          )
         }
       } catch {
-        // Ignore storage errors
+        // Ignore localStorage errors.
       }
     }, [])
-
-    // ============================================
-    // CUSTOM PRESET
-    // ============================================
-
-    const customPreset: TilePreset =
-      useMemo(() => {
-        const range =
-          customTileRange ||
-          getRollingDateRangePST(7)
-
-        return {
-          id: 'custom',
-          label: 'Custom range',
-
-          tiles: [
-            {
-              id: 'custom-range',
-              label: formatDateRangePST(
-                range.startDate,
-                range.endDate
-              ),
-              apiPeriod:
-                'CUSTOM' as PeriodSummaryPeriod,
-
-              getDateRange: () => range,
-            },
-          ],
-        }
-      }, [customTileRange])
-
-    // ============================================
-    // CURRENT PRESET
-    // ============================================
-
-    const currentPreset =
-      useMemo(
-        () =>
-          selectedPresetId ===
-          'custom'
-            ? customPreset
-            : tilePresets.find(
-                (preset) =>
-                  preset.id ===
-                  selectedPresetId
-              ) ||
-              tilePresets[0],
-        [
-          selectedPresetId,
-          customPreset,
-        ]
-      )
 
     // ============================================
     // DEFAULT ACCOUNT
@@ -1020,49 +374,195 @@ export const ProfitDashboardScreen: React.FC =
       accountsData?.[0]?.id
 
     // ============================================
-    // SELECT FIRST TILE WHEN PRESET CHANGES
+    // CUSTOM APPLIED PRESET
+    // ============================================
+
+    const appliedCustomPreset =
+      useMemo<TilePreset>(
+        () => {
+          const range =
+            appliedCustomTileRange ||
+            getRollingDateRangePST(
+              7
+            )
+
+          return {
+            id: 'custom',
+
+            label:
+              'Custom range',
+
+            tiles: [
+              {
+                id:
+                  'custom-range',
+
+                label:
+                  formatDateRangePST(
+                    range.startDate,
+                    range.endDate
+                  ),
+
+                apiPeriod:
+                  'CUSTOM' as PeriodSummaryPeriod,
+
+                getDateRange:
+                  () =>
+                    range,
+              },
+            ],
+          }
+        },
+        [
+          appliedCustomTileRange,
+        ]
+      )
+
+    // ============================================
+    // CUSTOM DRAFT PRESET
+    // ============================================
+
+    const draftCustomPreset =
+      useMemo<TilePreset>(
+        () => {
+          const range =
+            draftCustomTileRange ||
+            getRollingDateRangePST(
+              7
+            )
+
+          return {
+            id: 'custom',
+
+            label:
+              'Custom range',
+
+            tiles: [
+              {
+                id:
+                  'custom-range',
+
+                label:
+                  formatDateRangePST(
+                    range.startDate,
+                    range.endDate
+                  ),
+
+                apiPeriod:
+                  'CUSTOM' as PeriodSummaryPeriod,
+
+                getDateRange:
+                  () =>
+                    range,
+              },
+            ],
+          }
+        },
+        [
+          draftCustomTileRange,
+        ]
+      )
+
+    // ============================================
+    // CURRENT APPLIED PRESET
+    // ============================================
+
+    const currentPreset =
+      useMemo(
+        () =>
+          appliedPresetId ===
+          'custom'
+            ? appliedCustomPreset
+            : tilePresets.find(
+                (preset) =>
+                  preset.id ===
+                  appliedPresetId
+              ) ||
+              tilePresets[0],
+        [
+          appliedPresetId,
+          appliedCustomPreset,
+        ]
+      )
+
+    // ============================================
+    // CURRENT DRAFT PRESET
+    // ============================================
+
+    const currentDraftPreset =
+      useMemo(
+        () =>
+          draftPresetId ===
+          'custom'
+            ? draftCustomPreset
+            : tilePresets.find(
+                (preset) =>
+                  preset.id ===
+                  draftPresetId
+              ) ||
+              tilePresets[0],
+        [
+          draftPresetId,
+          draftCustomPreset,
+        ]
+      )
+
+    void currentDraftPreset
+
+    // ============================================
+    // SELECT FIRST TILE WHEN APPLIED PRESET CHANGES
     // ============================================
 
     useEffect(() => {
       setSelectedTileId(
         currentPreset.tiles[0].id
       )
-    }, [currentPreset])
+    }, [
+      currentPreset,
+    ])
 
     // ============================================
-    // PROFIT SUMMARY - NAMED PRESETS
+    // PROFIT SUMMARY
     // ============================================
 
     const {
       data: profitData,
-      isFetching: profitFetching,
-      refetch: refetchProfit,
+      isFetching:
+        profitFetching,
+      refetch:
+        refetchProfit,
     } =
       useGetProfitSummaryQuery(
         {
           accountId:
             effectiveAccountId,
+
           marketplaces:
-            selectedMarketplaces,
+            appliedMarketplaces.length
+              ? appliedMarketplaces
+              : ALL_MARKETPLACES,
+
           currency:
-            selectedCurrency,
+            appliedCurrency,
+
           preset:
-            selectedPresetId as any,
+            appliedPresetId as any,
         },
         {
           skip:
             !effectiveAccountId ||
-            selectedPresetId ===
+            appliedPresetId ===
               'custom',
         }
       )
 
     // ============================================
-    // PROFIT SUMMARY - CUSTOM
+    // CUSTOM PROFIT SUMMARY
     // ============================================
 
     const {
-      data: customSummaryData,
+      data:
+        customSummaryData,
       isFetching:
         customSummaryFetching,
       refetch:
@@ -1072,31 +572,41 @@ export const ProfitDashboardScreen: React.FC =
         {
           accountId:
             effectiveAccountId,
+
           marketplaces:
-            selectedMarketplaces,
+            appliedMarketplaces.length
+              ? appliedMarketplaces
+              : ALL_MARKETPLACES,
+
           currency:
-            selectedCurrency,
+            appliedCurrency,
+
           startDate:
-            customTileRange?.startDate,
+            appliedCustomTileRange
+              ?.startDate,
+
           endDate:
-            customTileRange?.endDate,
+            appliedCustomTileRange
+              ?.endDate,
         } as any,
         {
           skip:
             !effectiveAccountId ||
-            selectedPresetId !==
+            appliedPresetId !==
               'custom' ||
-            !customTileRange,
+            !appliedCustomTileRange,
         }
       )
 
     const isFetchingActive =
-      selectedPresetId === 'custom'
+      appliedPresetId ===
+      'custom'
         ? customSummaryFetching
         : profitFetching
 
     const activeSummaryData =
-      selectedPresetId === 'custom'
+      appliedPresetId ===
+      'custom'
         ? customSummaryData
         : profitData
 
@@ -1104,59 +614,66 @@ export const ProfitDashboardScreen: React.FC =
     // PERIOD MAP
     // ============================================
 
-    const periodMap = useMemo(() => {
-      if (
-        selectedPresetId ===
-        'custom'
-      ) {
-        const map =
-          new Map<
+    const periodMap =
+      useMemo(() => {
+        if (
+          appliedPresetId ===
+          'custom'
+        ) {
+          const map =
+            new Map<
+              PeriodSummaryPeriod,
+              PeriodSummary
+            >()
+
+          if (
+            customSummaryData
+          ) {
+            const raw: any =
+              customSummaryData
+
+            const single =
+              Array.isArray(
+                raw?.periods
+              )
+                ? raw.periods[0]
+                : raw
+
+            if (single) {
+              map.set(
+                'CUSTOM' as PeriodSummaryPeriod,
+                single
+              )
+            }
+          }
+
+          return map
+        }
+
+        if (
+          !profitData?.periods
+        ) {
+          return new Map<
             PeriodSummaryPeriod,
             PeriodSummary
           >()
-
-        if (customSummaryData) {
-          const raw: any =
-            customSummaryData
-
-          const single =
-            Array.isArray(
-              raw?.periods
-            )
-              ? raw.periods[0]
-              : raw
-
-          if (single) {
-            map.set(
-              'CUSTOM' as PeriodSummaryPeriod,
-              single
-            )
-          }
         }
 
-        return map
-      }
-
-      if (!profitData?.periods) {
-        return new Map<
-          PeriodSummaryPeriod,
-          PeriodSummary
-        >()
-      }
-
-      return new Map(
-        profitData.periods.map(
-          (period: any) => [
-            period.period,
-            period,
-          ]
+        return new Map(
+          profitData.periods.map(
+            (
+              period: any
+            ) => [
+              period.period,
+              period,
+            ]
+          )
         )
-      )
-    }, [
-      profitData,
-      selectedPresetId,
-      customSummaryData,
-    ])
+      }, [
+        profitData,
+        appliedPresetId,
+        customSummaryData,
+      ])
 
     // ============================================
     // TILE DETAIL DATA
@@ -1164,19 +681,17 @@ export const ProfitDashboardScreen: React.FC =
 
     const getPeriodDetailData =
       useCallback(
-        (tileId: string) => {
+        (
+          tileId: string
+        ) => {
           const tile =
             currentPreset.tiles.find(
               (item) =>
-                item.id === tileId
+                item.id ===
+                tileId
             )
 
           if (!tile) {
-            console.warn(
-              '[TileDetailsModal] Tile not found:',
-              tileId
-            )
-
             return undefined
           }
 
@@ -1186,47 +701,43 @@ export const ProfitDashboardScreen: React.FC =
             )
 
           if (!apiPeriod) {
-            console.warn(
-              '[TileDetailsModal] API period not found:',
-              tile.apiPeriod,
-              'Available periods:',
-              Array.from(
-                periodMap.keys()
-              )
-            )
-
             return undefined
           }
 
           return {
             currency:
               apiPeriod.currency ||
-              selectedCurrency,
+              appliedCurrency,
 
-            salesRevenue: Number(
-              apiPeriod.salesRevenue ??
-                0
-            ),
+            salesRevenue:
+              Number(
+                apiPeriod.salesRevenue ??
+                  0
+              ),
 
-            salesCount: Number(
-              apiPeriod.salesCount ??
-                0
-            ),
+            salesCount:
+              Number(
+                apiPeriod.salesCount ??
+                  0
+              ),
 
-            ordersUnitCount: Number(
-              apiPeriod.ordersUnitCount ??
-                0
-            ),
+            ordersUnitCount:
+              Number(
+                apiPeriod.ordersUnitCount ??
+                  0
+              ),
 
-            totalPromo: Number(
-              apiPeriod.totalPromo ??
-                0
-            ),
+            totalPromo:
+              Number(
+                apiPeriod.totalPromo ??
+                  0
+              ),
 
-            advertisingCost: Number(
-              apiPeriod.advertisingCost ??
-                0
-            ),
+            advertisingCost:
+              Number(
+                apiPeriod.advertisingCost ??
+                  0
+              ),
 
             advertisingDetails: {
               sponsoredProducts:
@@ -1262,10 +773,11 @@ export const ProfitDashboardScreen: React.FC =
                 ),
             },
 
-            totalRefunds: Number(
-              apiPeriod.totalRefunds ??
-                0
-            ),
+            totalRefunds:
+              Number(
+                apiPeriod.totalRefunds ??
+                  0
+              ),
 
             totalRefundsCount:
               Number(
@@ -1273,10 +785,11 @@ export const ProfitDashboardScreen: React.FC =
                   0
               ),
 
-            refundCost: Number(
-              apiPeriod.refundCost ??
-                0
-            ),
+            refundCost:
+              Number(
+                apiPeriod.refundCost ??
+                  0
+              ),
 
             refundPercentage:
               Number(
@@ -1301,11 +814,13 @@ export const ProfitDashboardScreen: React.FC =
                     0
                 ),
 
-              promotion: Number(
-                apiPeriod
-                  .refundDetails
-                  ?.promotion ?? 0
-              ),
+              promotion:
+                Number(
+                  apiPeriod
+                    .refundDetails
+                    ?.promotion ??
+                    0
+                ),
 
               valueOfReturnedItems:
                 Number(
@@ -1324,17 +839,20 @@ export const ProfitDashboardScreen: React.FC =
                 ),
             },
 
-            totalFees: Number(
-              apiPeriod.totalFees ??
-                0
-            ),
+            totalFees:
+              Number(
+                apiPeriod.totalFees ??
+                  0
+              ),
 
             amazonFeeDetails: {
-              fbaStorageFee: Number(
-                apiPeriod
-                  .amazonFeeDetails
-                  ?.fbaStorageFee ?? 0
-              ),
+              fbaStorageFee:
+                Number(
+                  apiPeriod
+                    .amazonFeeDetails
+                    ?.fbaStorageFee ??
+                    0
+                ),
 
               fbaPerUnitFulfillmentFee:
                 Number(
@@ -1344,11 +862,13 @@ export const ProfitDashboardScreen: React.FC =
                     0
                 ),
 
-              referralFee: Number(
-                apiPeriod
-                  .amazonFeeDetails
-                  ?.referralFee ?? 0
-              ),
+              referralFee:
+                Number(
+                  apiPeriod
+                    .amazonFeeDetails
+                    ?.referralFee ??
+                    0
+                ),
 
               dealParticipationFee:
                 Number(
@@ -1366,11 +886,13 @@ export const ProfitDashboardScreen: React.FC =
                     0
                 ),
 
-              fbaDisposalFee: Number(
-                apiPeriod
-                  .amazonFeeDetails
-                  ?.fbaDisposalFee ?? 0
-              ),
+              fbaDisposalFee:
+                Number(
+                  apiPeriod
+                    .amazonFeeDetails
+                    ?.fbaDisposalFee ??
+                    0
+                ),
 
               salesTaxCollectionFee:
                 Number(
@@ -1388,27 +910,32 @@ export const ProfitDashboardScreen: React.FC =
                     0
                 ),
 
-              other: Number(
-                apiPeriod
-                  .amazonFeeDetails
-                  ?.other ?? 0
-              ),
+              other:
+                Number(
+                  apiPeriod
+                    .amazonFeeDetails
+                    ?.other ??
+                    0
+                ),
             },
 
-            totalCOGS: Number(
-              apiPeriod.totalCOGS ??
-                0
-            ),
+            totalCOGS:
+              Number(
+                apiPeriod.totalCOGS ??
+                  0
+              ),
 
-            totalExpenses: Number(
-              apiPeriod.totalExpenses ??
-                0
-            ),
+            totalExpenses:
+              Number(
+                apiPeriod.totalExpenses ??
+                  0
+              ),
 
-            grossProfit: Number(
-              apiPeriod.grossProfit ??
-                0
-            ),
+            grossProfit:
+              Number(
+                apiPeriod.grossProfit ??
+                  0
+              ),
 
             estimatedPayout:
               Number(
@@ -1416,30 +943,38 @@ export const ProfitDashboardScreen: React.FC =
                   0
               ),
 
-            netProfit: Number(
-              apiPeriod.netProfit ??
-                0
-            ),
+            netProfit:
+              Number(
+                apiPeriod.netProfit ??
+                  0
+              ),
 
-            margin: Number(
-              apiPeriod.margin ?? 0
-            ),
+            margin:
+              Number(
+                apiPeriod.margin ??
+                  0
+              ),
 
-            realACOS: Number(
-              apiPeriod.realACOS ?? 0
-            ),
+            realACOS:
+              Number(
+                apiPeriod.realACOS ??
+                  0
+              ),
 
-            roi: Number(
-              apiPeriod.roi ?? 0
-            ),
+            roi:
+              Number(
+                apiPeriod.roi ??
+                  0
+              ),
 
-            _apiPeriod: apiPeriod,
+            _apiPeriod:
+              apiPeriod,
           }
         },
         [
           currentPreset,
           periodMap,
-          selectedCurrency,
+          appliedCurrency,
         ]
       )
 
@@ -1449,7 +984,8 @@ export const ProfitDashboardScreen: React.FC =
 
     const periodCardsData =
       useMemo(() => {
-        const now = nowInPST()
+        const now =
+          nowInPST()
 
         return currentPreset.tiles.map(
           (tile) => {
@@ -1459,12 +995,15 @@ export const ProfitDashboardScreen: React.FC =
               )
 
             const range =
-              tile.getDateRange(now)
+              tile.getDateRange(
+                now
+              )
 
             return {
               id: tile.id,
 
-              label: tile.label,
+              label:
+                tile.label,
 
               dateRange:
                 formatDateRangePST(
@@ -1472,14 +1011,17 @@ export const ProfitDashboardScreen: React.FC =
                   range.endDate
                 ),
 
-              salesRevenue: Number(
-                period?.salesRevenue ??
-                  0
-              ),
+              salesRevenue:
+                Number(
+                  period?.salesRevenue ??
+                    0
+                ),
 
-              salesCount: Number(
-                period?.salesCount ?? 0
-              ),
+              salesCount:
+                Number(
+                  period?.salesCount ??
+                    0
+                ),
 
               ordersUnitCount:
                 Number(
@@ -1487,14 +1029,17 @@ export const ProfitDashboardScreen: React.FC =
                     0
                 ),
 
-              totalFees: Number(
-                period?.totalFees ?? 0
-              ),
+              totalFees:
+                Number(
+                  period?.totalFees ??
+                    0
+                ),
 
-              totalRefunds: Number(
-                period?.totalRefunds ??
-                  0
-              ),
+              totalRefunds:
+                Number(
+                  period?.totalRefunds ??
+                    0
+                ),
 
               totalRefundsCount:
                 Number(
@@ -1502,22 +1047,29 @@ export const ProfitDashboardScreen: React.FC =
                     0
                 ),
 
-              refundCost: Number(
-                period?.refundCost ?? 0
-              ),
+              refundCost:
+                Number(
+                  period?.refundCost ??
+                    0
+                ),
 
-              totalCOGS: Number(
-                period?.totalCOGS ?? 0
-              ),
+              totalCOGS:
+                Number(
+                  period?.totalCOGS ??
+                    0
+                ),
 
-              totalExpenses: Number(
-                period?.totalExpenses ??
-                  0
-              ),
+              totalExpenses:
+                Number(
+                  period?.totalExpenses ??
+                    0
+                ),
 
-              totalPromo: Number(
-                period?.totalPromo ?? 0
-              ),
+              totalPromo:
+                Number(
+                  period?.totalPromo ??
+                    0
+                ),
 
               advertisingCost:
                 Number(
@@ -1525,9 +1077,11 @@ export const ProfitDashboardScreen: React.FC =
                     0
                 ),
 
-              grossProfit: Number(
-                period?.grossProfit ?? 0
-              ),
+              grossProfit:
+                Number(
+                  period?.grossProfit ??
+                    0
+                ),
 
               estimatedPayout:
                 Number(
@@ -1535,21 +1089,29 @@ export const ProfitDashboardScreen: React.FC =
                     0
                 ),
 
-              netProfit: Number(
-                period?.netProfit ?? 0
-              ),
+              netProfit:
+                Number(
+                  period?.netProfit ??
+                    0
+                ),
 
-              margin: Number(
-                period?.margin ?? 0
-              ),
+              margin:
+                Number(
+                  period?.margin ??
+                    0
+                ),
 
-              realACOS: Number(
-                period?.realACOS ?? 0
-              ),
+              realACOS:
+                Number(
+                  period?.realACOS ??
+                    0
+                ),
 
-              roi: Number(
-                period?.roi ?? 0
-              ),
+              roi:
+                Number(
+                  period?.roi ??
+                    0
+                ),
 
               refundPercentage:
                 Number(
@@ -1581,17 +1143,20 @@ export const ProfitDashboardScreen: React.FC =
 
     const selectedTileRange =
       useMemo(() => {
-        const now = nowInPST()
+        const now =
+          nowInPST()
 
         return selectedTileConfig
           ? selectedTileConfig.getDateRange(
               now
             )
           : getSingleDayPST(1)
-      }, [selectedTileConfig])
+      }, [
+        selectedTileConfig,
+      ])
 
     // ============================================
-    // CHART RANGE
+    // ACTIVE RANGE
     // ============================================
 
     const chartRange =
@@ -1599,6 +1164,7 @@ export const ProfitDashboardScreen: React.FC =
         () => ({
           startDate:
             dateRange.startDate,
+
           endDate:
             dateRange.endDate,
         }),
@@ -1634,19 +1200,27 @@ export const ProfitDashboardScreen: React.FC =
 
     const {
       data: productData,
-      isFetching: productFetching,
+      isFetching:
+        productFetching,
     } =
       useGetProfitByProductQuery(
         {
           ...profitFilters,
+
           accountId:
             effectiveAccountId,
+
           marketplaces:
-            selectedMarketplaces,
+            appliedMarketplaces.length
+              ? appliedMarketplaces
+              : ALL_MARKETPLACES,
+
           currency:
-            selectedCurrency,
+            appliedCurrency,
+
           startDate:
             activeRange.startDate,
+
           endDate:
             activeRange.endDate,
         },
@@ -1670,171 +1244,31 @@ export const ProfitDashboardScreen: React.FC =
       useGetProfitByOrderItemsQuery(
         {
           ...profitFilters,
+
           accountId:
             effectiveAccountId,
+
           marketplaces:
-            selectedMarketplaces,
+            appliedMarketplaces.length
+              ? appliedMarketplaces
+              : ALL_MARKETPLACES,
+
           currency:
-            selectedCurrency,
+            appliedCurrency,
+
           startDate:
             activeRange.startDate,
+
           endDate:
             activeRange.endDate,
         },
         {
           skip:
             !effectiveAccountId ||
-            tableView === 'products',
+            tableView ===
+              'products',
         }
       )
-
-    // ============================================
-    // CHART FILTERS
-    // ============================================
-
-    const chartFilters =
-      useMemo(
-        () => ({
-          accountId:
-            effectiveAccountId,
-
-          marketplaces:
-            selectedMarketplaces,
-
-          startDate:
-            dateRange.startDate,
-
-          endDate:
-            dateRange.endDate,
-
-          period:
-            (dateRange.periodicity ||
-              'day') as ChartPeriod,
-
-          currency:
-            selectedCurrency,
-        }),
-        [
-          effectiveAccountId,
-          selectedMarketplaces,
-          dateRange,
-          selectedCurrency,
-        ]
-      )
-
-    const {
-      data: chartData,
-      isFetching:
-        chartFetching,
-      error: chartError,
-    } =
-      useGetDashboardChartQuery(
-        chartFilters as any,
-        {
-          skip:
-            !effectiveAccountId ||
-            activeTab !== 'chart',
-        }
-      )
-
-    // ============================================
-    // P&L FILTERS
-    // ============================================
-
-    const plFilters: ProfitFilters =
-      useMemo(
-        () => ({
-          accountId:
-            effectiveAccountId,
-
-          marketplaces:
-            selectedMarketplaces,
-
-          currency:
-            selectedCurrency,
-
-          startDate:
-            dateRange.startDate ??
-            undefined,
-
-          endDate:
-            dateRange.endDate ??
-            undefined,
-
-          periodicity:
-            (dateRange.periodicity as
-              | 'day'
-              | 'week'
-              | 'month') ??
-            undefined,
-
-          preset:
-            (dateRange.presetId as
-              | 'last-12-months'
-              | 'last-3-months'
-              | 'last-30-days'
-              | 'custom') ??
-            undefined,
-        }),
-        [
-          effectiveAccountId,
-          selectedMarketplaces,
-          selectedCurrency,
-          dateRange,
-        ]
-      )
-
-    const {
-      data: plData,
-      isFetching: plFetching,
-      error: plError,
-    } =
-      useGetPLByPeriodsQuery(
-        plFilters,
-        {
-          skip:
-            !effectiveAccountId ||
-            activeTab !== 'pnl',
-        }
-      )
-
-    // ============================================
-    // RELOAD
-    // ============================================
-
-    const handleReload =
-      useCallback(() => {
-        if (
-          selectedPresetId ===
-          'custom'
-        ) {
-          refetchCustomSummary()
-        } else {
-          refetchProfit()
-        }
-      }, [
-        selectedPresetId,
-        refetchProfit,
-        refetchCustomSummary,
-      ])
-
-    // ============================================
-    // MARKETPLACE CHANGE
-    // ============================================
-
-    const handleMarketplacesChange =
-      (value: string[]) => {
-        setSelectedMarketplaces(
-          value
-        )
-
-        dispatch(
-          setFilters({
-            ...profitFilters,
-            marketplaces: value,
-          })
-        )
-      }
 
     // ============================================
     // TILE DATE PRESETS
@@ -1847,7 +1281,8 @@ export const ProfitDashboardScreen: React.FC =
             (preset) => ({
               id: preset.id,
 
-              label: preset.label,
+              label:
+                preset.label,
 
               getRange: () => {
                 const now =
@@ -1855,7 +1290,9 @@ export const ProfitDashboardScreen: React.FC =
 
                 const ranges =
                   preset.tiles.map(
-                    (tile) =>
+                    (
+                      tile
+                    ) =>
                       tile.getDateRange(
                         now
                       )
@@ -1864,7 +1301,9 @@ export const ProfitDashboardScreen: React.FC =
                 const starts =
                   ranges
                     .map(
-                      (range) =>
+                      (
+                        range
+                      ) =>
                         range.startDate
                     )
                     .sort()
@@ -1872,7 +1311,9 @@ export const ProfitDashboardScreen: React.FC =
                 const ends =
                   ranges
                     .map(
-                      (range) =>
+                      (
+                        range
+                      ) =>
                         range.endDate
                     )
                     .sort()
@@ -1883,7 +1324,8 @@ export const ProfitDashboardScreen: React.FC =
 
                   endDate:
                     ends[
-                      ends.length - 1
+                      ends.length -
+                        1
                     ],
                 }
               },
@@ -1892,26 +1334,31 @@ export const ProfitDashboardScreen: React.FC =
 
           {
             id: 'custom',
-            label: 'Custom range',
 
-            getRange: () => {
-              const range =
-                customTileRange ||
-                getRollingDateRangePST(
-                  7
-                )
+            label:
+              'Custom range',
 
-              return {
-                startDate:
-                  range.startDate,
+            getRange:
+              () => {
+                const range =
+                  draftCustomTileRange ||
+                  getRollingDateRangePST(
+                    7
+                  )
 
-                endDate:
-                  range.endDate,
-              }
-            },
+                return {
+                  startDate:
+                    range.startDate,
+
+                  endDate:
+                    range.endDate,
+                }
+              },
           },
         ],
-        [customTileRange]
+        [
+          draftCustomTileRange,
+        ]
       )
 
     // ============================================
@@ -1922,11 +1369,11 @@ export const ProfitDashboardScreen: React.FC =
       useMemo<DateRangeValue>(
         () => {
           if (
-            selectedPresetId ===
+            draftPresetId ===
             'custom'
           ) {
             const range =
-              customTileRange ||
+              draftCustomTileRange ||
               getRollingDateRangePST(
                 7
               )
@@ -1938,9 +1385,11 @@ export const ProfitDashboardScreen: React.FC =
               endDate:
                 range.endDate,
 
-              presetId: 'custom',
+              presetId:
+                'custom',
 
-              periodicity: 'day',
+              periodicity:
+                'day',
             }
           }
 
@@ -1948,7 +1397,7 @@ export const ProfitDashboardScreen: React.FC =
             tileDatePresets.find(
               (item) =>
                 item.id ===
-                selectedPresetId
+                draftPresetId
             )
 
           const range =
@@ -1964,14 +1413,15 @@ export const ProfitDashboardScreen: React.FC =
               null,
 
             presetId:
-              selectedPresetId,
+              draftPresetId,
 
-            periodicity: 'day',
+            periodicity:
+              'day',
           }
         },
         [
-          selectedPresetId,
-          customTileRange,
+          draftPresetId,
+          draftCustomTileRange,
           tileDatePresets,
         ]
       )
@@ -1985,69 +1435,367 @@ export const ProfitDashboardScreen: React.FC =
         (
           range: DateRangeValue
         ) => {
-          // -----------------------------
-          // Named preset
-          // -----------------------------
-
+          /*
+           * Named preset selected.
+           */
           if (
             range.presetId &&
             range.presetId !==
               'custom'
           ) {
-            setSelectedPresetId(
+            setDraftPresetId(
               range.presetId
             )
 
-            setCustomTileRange(
+            setDraftCustomTileRange(
               null
             )
 
-            try {
-              localStorage.setItem(
-                PRESET_STORAGE_KEY,
-                range.presetId
-              )
-            } catch {
-              // Ignore storage errors
-            }
-
             return
           }
 
-          // -----------------------------
-          // Custom range
-          // -----------------------------
-
+          /*
+           * Custom range.
+           *
+           * Always store the actual selected
+           * dates in draft state.
+           *
+           * Do not depend on presetId alone because
+           * the DateRangePicker can stay on "custom"
+           * while the user changes the dates.
+           */
           if (
-            !range.startDate ||
-            !range.endDate
+            range.startDate &&
+            range.endDate
           ) {
-            return
-          }
+            setDraftCustomTileRange({
+              startDate:
+                range.startDate,
 
-          setCustomTileRange({
-            startDate:
-              range.startDate,
+              endDate:
+                range.endDate,
+            })
 
-            endDate:
-              range.endDate,
-          })
-
-          setSelectedPresetId(
-            'custom'
-          )
-
-          try {
-            localStorage.setItem(
-              PRESET_STORAGE_KEY,
+            setDraftPresetId(
               'custom'
             )
-          } catch {
-            // Ignore storage errors
           }
         },
         []
       )
+
+    // ============================================
+    // DRAFT MARKETPLACE CHANGE
+    // ============================================
+
+    const handleDraftMarketplacesChange =
+      useCallback(
+        (
+          value: string[]
+        ) => {
+          setDraftMarketplaces(
+            value
+          )
+        },
+        []
+      )
+
+    // ============================================
+    // APPLY TILE FILTERS
+    // ============================================
+
+ const handleApplyTileFilters =
+  useCallback(() => {
+    /*
+     * IMPORTANT:
+     *
+     * MultiSelectInput works with MARKETPLACES[].id.
+     *
+     * Therefore, when the user clears every marketplace,
+     * we must restore the exact same IDs that the dropdown
+     * uses, rather than relying on a potentially differently
+     * shaped ALL_MARKETPLACES constant.
+     */
+    const normalizedMarketplaces =
+      draftMarketplaces.length > 0
+        ? [...draftMarketplaces]
+        : MARKETPLACES.map(
+            (marketplace) =>
+              marketplace.id
+          )
+
+    /*
+     * Applied state.
+     */
+    setAppliedMarketplaces(
+      normalizedMarketplaces
+    )
+
+    /*
+     * Draft state.
+     *
+     * This is the important part for the UI:
+     * after clicking Apply Filters with nothing selected,
+     * the dropdown receives every marketplace ID again.
+     */
+    setDraftMarketplaces(
+      normalizedMarketplaces
+    )
+
+    /*
+     * Currency.
+     */
+    setAppliedCurrency(
+      draftCurrency
+    )
+
+    /*
+     * Preset.
+     */
+    setAppliedPresetId(
+      draftPresetId
+    )
+
+    /*
+     * Custom range.
+     */
+    setAppliedCustomTileRange(
+      draftPresetId === 'custom'
+        ? draftCustomTileRange
+        : null
+    )
+
+    /*
+     * Redux.
+     *
+     * Send the normalized marketplace list.
+     *
+     * NEVER send [] when Apply Filters is clicked.
+     */
+    dispatch(
+      setFilters({
+        ...profitFilters,
+        marketplaces:
+          normalizedMarketplaces,
+        currency:
+          draftCurrency,
+      })
+    )
+
+    /*
+     * Reset the date picker instance.
+     */
+    setTileDatePickerKey(
+      (key) => key + 1
+    )
+
+    try {
+      localStorage.setItem(
+        PRESET_STORAGE_KEY,
+        draftPresetId
+      )
+    } catch {
+      // Ignore localStorage errors.
+    }
+  }, [
+    draftMarketplaces,
+    draftCurrency,
+    draftPresetId,
+    draftCustomTileRange,
+    dispatch,
+    profitFilters,
+  ])
+
+    // ============================================
+    // RELOAD
+    // ============================================
+
+    const handleReload =
+      useCallback(() => {
+        if (
+          appliedPresetId ===
+          'custom'
+        ) {
+          refetchCustomSummary()
+        } else {
+          refetchProfit()
+        }
+      }, [
+        appliedPresetId,
+        refetchProfit,
+        refetchCustomSummary,
+      ])
+
+    // ============================================
+    // MARKETPLACE CHANGE FOR CHART/P&L
+    // ============================================
+
+    const handleMarketplacesChange =
+  useCallback(
+    (value: string[]) => {
+      /*
+       * For chart/P&L, clearing everything also means
+       * all marketplaces.
+       *
+       * Use the exact IDs from MARKETPLACES because those
+       * are the IDs MultiSelectInput operates on.
+       */
+      const marketplaces =
+        value.length > 0
+          ? [...value]
+          : MARKETPLACES.map(
+              (marketplace) =>
+                marketplace.id
+            )
+
+      setAppliedMarketplaces(
+        marketplaces
+      )
+
+      setDraftMarketplaces(
+        marketplaces
+      )
+
+      dispatch(
+        setFilters({
+          ...profitFilters,
+          marketplaces,
+        })
+      )
+    },
+    [
+      dispatch,
+      profitFilters,
+    ]
+  )
+
+    // ============================================
+    // CHART FILTERS
+    // ============================================
+
+    const chartFilters =
+      useMemo(
+        () => ({
+          accountId:
+            effectiveAccountId,
+
+          marketplaces:
+            appliedMarketplaces.length
+              ? appliedMarketplaces
+              : ALL_MARKETPLACES,
+
+          startDate:
+            dateRange.startDate,
+
+          endDate:
+            dateRange.endDate,
+
+          period:
+            (
+              dateRange.periodicity ||
+              'day'
+            ) as ChartPeriod,
+
+          currency:
+            appliedCurrency,
+        }),
+        [
+          effectiveAccountId,
+          appliedMarketplaces,
+          dateRange,
+          appliedCurrency,
+        ]
+      )
+
+    const {
+      data: chartData,
+      isFetching:
+        chartFetching,
+      error: chartError,
+    } =
+      useGetDashboardChartQuery(
+        chartFilters as any,
+        {
+          skip:
+            !effectiveAccountId ||
+            activeTab !==
+              'chart',
+        }
+      )
+
+    // ============================================
+    // P&L FILTERS
+    // ============================================
+
+    const plFilters:
+      ProfitFilters =
+      useMemo(
+        () => ({
+          accountId:
+            effectiveAccountId,
+
+          marketplaces:
+            appliedMarketplaces.length
+              ? appliedMarketplaces
+              : ALL_MARKETPLACES,
+
+          currency:
+            appliedCurrency,
+
+          startDate:
+            dateRange.startDate ??
+            undefined,
+
+          endDate:
+            dateRange.endDate ??
+            undefined,
+
+          periodicity:
+            (
+              dateRange.periodicity as
+                | 'day'
+                | 'week'
+                | 'month'
+            ) ??
+            undefined,
+
+          preset:
+            (
+              dateRange.presetId as
+                | 'last-12-months'
+                | 'last-3-months'
+                | 'last-30-days'
+                | 'custom'
+            ) ??
+            undefined,
+        }),
+        [
+          effectiveAccountId,
+          appliedMarketplaces,
+          appliedCurrency,
+          dateRange,
+        ]
+      )
+
+    const {
+      data: plData,
+      isFetching:
+        plFetching,
+      error: plError,
+    } =
+      useGetPLByPeriodsQuery(
+        plFilters,
+        {
+          skip:
+            !effectiveAccountId ||
+            activeTab !==
+              'pnl',
+        }
+      )
+
+    // ============================================
+    // RETURN
+    // ============================================
 
     return (
       <div className="w-full">
@@ -2057,13 +1805,14 @@ export const ProfitDashboardScreen: React.FC =
           {/* CHART VIEW */}
           {/* ======================================== */}
 
-          {activeTab === 'chart' && (
+          {activeTab ===
+            'chart' && (
             <>
               <div className="bg-surface-secondary border-b border-border mb-6">
                 <div className="px-6 py-4">
                   <div className="flex items-center gap-4">
 
-                    <div className="w-[55%]">
+                    <div className="w-[45%]">
                       <div className="relative">
                         <svg
                           className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted"
@@ -2085,7 +1834,9 @@ export const ProfitDashboardScreen: React.FC =
                           value={
                             searchTerm
                           }
-                          onChange={(e) =>
+                          onChange={(
+                            e
+                          ) =>
                             setSearchTerm(
                               e.target.value
                             )
@@ -2147,7 +1898,7 @@ export const ProfitDashboardScreen: React.FC =
                             MARKETPLACES
                           }
                           value={
-                            selectedMarketplaces
+                            appliedMarketplaces
                           }
                           onChange={
                             handleMarketplacesChange
@@ -2158,14 +1909,26 @@ export const ProfitDashboardScreen: React.FC =
                       <div className="min-w-[100px] shrink-0">
                         <Select
                           value={
-                            selectedCurrency
+                            appliedCurrency
                           }
-                          onChange={(e) =>
-                            setSelectedCurrency(
+                          onChange={(
+                            e
+                          ) => {
+                            const currency =
                               e.target
                                 .value as CurrencyCode
+
+                            setAppliedCurrency(
+                              currency
                             )
-                          }
+
+                            dispatch(
+                              setFilters({
+                                ...profitFilters,
+                                currency,
+                              })
+                            )
+                          }}
                           options={[
                             {
                               value:
@@ -2197,19 +1960,7 @@ export const ProfitDashboardScreen: React.FC =
                         className="bg-surface border border-border hover:bg-surface-tertiary text-text-primary"
                         title="Reload data"
                       >
-                        <svg
-                          className="w-4 h-4"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                          />
-                        </svg>
+                        ↻
                       </Button>
                     </div>
                   </div>
@@ -2225,7 +1976,9 @@ export const ProfitDashboardScreen: React.FC =
               >
                 <div className="lg:col-span-2 h-full">
                   <DashboardChart
-                    data={chartData}
+                    data={
+                      chartData
+                    }
                     isLoading={
                       chartFetching
                     }
@@ -2233,7 +1986,7 @@ export const ProfitDashboardScreen: React.FC =
                       chartError
                     }
                     currency={
-                      selectedCurrency
+                      appliedCurrency
                     }
                   />
                 </div>
@@ -2247,7 +2000,7 @@ export const ProfitDashboardScreen: React.FC =
                       chartFetching
                     }
                     currency={
-                      selectedCurrency
+                      appliedCurrency
                     }
                     startDate={
                       chartData?.startDate ||
@@ -2263,9 +2016,7 @@ export const ProfitDashboardScreen: React.FC =
 
               <Card>
                 <CardContent className="p-0">
-
                   <div className="flex items-center justify-between px-6 pt-4 pb-2 border-b border-border flex-wrap gap-3">
-
                     <div className="flex items-center gap-4">
                       <h2 className="text-lg font-semibold text-text-primary">
                         All Periods
@@ -2278,7 +2029,7 @@ export const ProfitDashboardScreen: React.FC =
                               'products'
                             )
                           }
-                          className={`px-4 py-1.5 text-sm font-medium rounded transition-colors flex items-center gap-1.5 ${
+                          className={`px-4 py-1.5 text-sm font-medium rounded transition-colors ${
                             tableView ===
                             'products'
                               ? 'bg-primary-600 text-white'
@@ -2287,69 +2038,7 @@ export const ProfitDashboardScreen: React.FC =
                         >
                           Products
                         </button>
-
-                        <button
-                          onClick={() =>
-                            setTableView(
-                              'order-items'
-                            )
-                          }
-                          className={`px-4 py-1.5 text-sm font-medium rounded transition-colors flex items-center gap-1.5 ${
-                            tableView ===
-                            'order-items'
-                              ? 'bg-primary-600 text-white'
-                              : 'text-text-muted hover:text-text-primary hover:bg-surface-secondary'
-                          }`}
-                        >
-                          Order items
-                        </button>
                       </div>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-
-                      <Select
-                        value="group-by-product"
-                        onChange={() =>
-                          undefined
-                        }
-                        options={[
-                          {
-                            value:
-                              'group-by-parent',
-                            label:
-                              'Group by parent',
-                          },
-                          {
-                            value:
-                              'group-by-product',
-                            label:
-                              'Group by product',
-                          },
-                          {
-                            value:
-                              'group-by-category',
-                            label:
-                              'Group by category',
-                          },
-                        ]}
-                        className="min-w-[160px]"
-                      />
-
-                      <button
-                        className="p-1.5 text-text-muted hover:text-text-primary hover:bg-surface-secondary rounded transition-colors"
-                        title="Download"
-                      >
-                        ↓
-                      </button>
-
-                      <button
-                        className="p-1.5 text-text-muted hover:text-text-primary hover:bg-surface-secondary rounded transition-colors"
-                        title="Copy to clipboard"
-                      >
-                        ⧉
-                      </button>
-
                     </div>
                   </div>
 
@@ -2384,7 +2073,6 @@ export const ProfitDashboardScreen: React.FC =
                       />
                     )}
                   </div>
-
                 </CardContent>
               </Card>
             </>
@@ -2394,18 +2082,22 @@ export const ProfitDashboardScreen: React.FC =
           {/* TILES VIEW */}
           {/* ======================================== */}
 
-          {activeTab === 'tiles' && (
+          {activeTab ===
+            'tiles' && (
             <>
-
               {isFetchingActive && (
                 <div className="bg-surface-secondary border border-border rounded-xl p-6 mb-6 animate-pulse">
                   <div className="h-6 bg-border rounded w-1/3 mb-4" />
 
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 items-center">
-                    {[...Array(4)].map(
+                    {[
+                      ...Array(4),
+                    ].map(
                       (_, index) => (
                         <div
-                          key={index}
+                          key={
+                            index
+                          }
                           className="h-8 bg-border rounded"
                         />
                       )
@@ -2498,146 +2190,34 @@ export const ProfitDashboardScreen: React.FC =
                 )}
 
               {/* ====================================== */}
-              {/* TILES TOOLBAR */}
+              {/* TILES HEADER */}
               {/* ====================================== */}
 
-              <div className="bg-surface-secondary border-b border-border mb-6">
-                <div className="px-6 py-4">
-
-                  <div className="flex items-center gap-4">
-
-                    <div className="w-[55%]">
-                      <div className="relative">
-
-                        <svg
-                          className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                          />
-                        </svg>
-
-                        <input
-                          type="text"
-                          placeholder="Search"
-                          value={
-                            searchTerm
-                          }
-                          onChange={(e) =>
-                            setSearchTerm(
-                              e.target.value
-                            )
-                          }
-                          className="w-full pl-10 pr-4 py-2.5 bg-surface border border-border rounded-lg text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary-200 focus:border-primary-600"
-                        />
-
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-3 flex-1 justify-end">
-
-                      {/* FIXED DATE PICKER */}
-                      <div className="w-[220px] shrink-0">
-                        <DateRangePicker
-                          value={
-                            tileDateRangeValue
-                          }
-                          presets={
-                            tileDatePresets
-                          }
-                          keepOpenPresetIds={[
-                            'custom',
-                          ]}
-                          onChange={
-                            handleTileDateRangeChange
-                          }
-                          displayFormat="MMM d, yyyy"
-                          placeholder="Select date range"
-                        />
-                      </div>
-
-                      <div className="min-w-[160px] shrink-0">
-                        <MultiSelectInput
-                          title="Marketplace"
-                          options={
-                            MARKETPLACES
-                          }
-                          value={
-                            selectedMarketplaces
-                          }
-                          onChange={
-                            handleMarketplacesChange
-                          }
-                        />
-                      </div>
-
-                      <div className="min-w-[100px] shrink-0">
-                        <Select
-                          value={
-                            selectedCurrency
-                          }
-                          onChange={(e) =>
-                            setSelectedCurrency(
-                              e.target
-                                .value as CurrencyCode
-                            )
-                          }
-                          options={[
-                            {
-                              value:
-                                'CAD',
-                              label:
-                                'CAD',
-                            },
-                            {
-                              value:
-                                'USD',
-                              label:
-                                'USD',
-                            },
-                            {
-                              value:
-                                'EUR',
-                              label:
-                                'EUR',
-                            },
-                          ]}
-                        />
-                      </div>
-
-                      <Button
-                        variant="ghost"
-                        onClick={
-                          handleReload
-                        }
-                        className="bg-surface border border-border hover:bg-surface-tertiary text-text-primary"
-                        title="Reload data"
-                      >
-                        <svg
-                          className="w-4 h-4"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                          />
-                        </svg>
-                      </Button>
-
-                    </div>
-                  </div>
-                </div>
-              </div>
+             <ProfitDashboardHeader
+                isFiltering={false}
+                searchTerm={searchTerm}
+                onSearchChange={setSearchTerm}
+                dateRange={tileDateRangeValue}
+                datePresets={tileDatePresets}
+                keepOpenPresetIds={['custom']}
+                onDateRangeChange={handleTileDateRangeChange}
+                dateDisplayFormat="MMM d, yyyy"
+                datePlaceholder="Select date range"
+                marketplaces={draftMarketplaces}
+                onMarketplacesChange={handleDraftMarketplacesChange}
+                currency={draftCurrency}
+                onCurrencyChange={(value) =>
+                  setDraftCurrency(value as CurrencyCode)
+                }
+                currencyOptions={[
+                  { value: 'CAD', label: 'CAD' },
+                  { value: 'USD', label: 'USD' },
+                  { value: 'EUR', label: 'EUR' },
+                ]}
+                onFilter={handleApplyTileFilters}
+                searchWidth="w-[55%]"
+                datePickerKey={tileDatePickerKey}
+              />
 
               {/* ====================================== */}
               {/* PERIOD CARDS */}
@@ -2645,7 +2225,7 @@ export const ProfitDashboardScreen: React.FC =
 
               <div
                 className={
-                  selectedPresetId ===
+                  appliedPresetId ===
                   'custom'
                     ? 'grid grid-cols-1 gap-4 mb-6 max-w-md'
                     : `grid grid-cols-1 md:grid-cols-2 ${
@@ -2660,7 +2240,6 @@ export const ProfitDashboardScreen: React.FC =
                       } gap-4 mb-6`
                 }
               >
-
                 {periodCardsData.map(
                   (period) => {
                     if (
@@ -2711,7 +2290,6 @@ export const ProfitDashboardScreen: React.FC =
                     )
                   }
                 )}
-
               </div>
 
               {/* ====================================== */}
@@ -2734,7 +2312,6 @@ export const ProfitDashboardScreen: React.FC =
                       </h2>
 
                       <div className="flex gap-2">
-
                         <button
                           onClick={() =>
                             setTableView(
@@ -2750,55 +2327,12 @@ export const ProfitDashboardScreen: React.FC =
                         >
                           Products
                         </button>
-
-                        <button
-                          onClick={() =>
-                            setTableView(
-                              'order-items'
-                            )
-                          }
-                          className={`px-4 py-1.5 text-sm font-medium rounded transition-colors ${
-                            tableView ===
-                            'order-items'
-                              ? 'bg-primary-600 text-white'
-                              : 'text-text-muted hover:text-text-primary hover:bg-surface-secondary'
-                          }`}
-                        >
-                          Order items
-                        </button>
-
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
-
-                      <select className="px-3 py-1.5 text-sm border border-border rounded-md bg-surface text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-200 focus:border-primary-600">
-                        <option>
-                          Group by parent
-                        </option>
-
-                        <option>
-                          Group by product
-                        </option>
-
-                        <option>
-                          Group by category
-                        </option>
-                      </select>
-
-                      <button
-                        disabled
-                        className="opacity-50 p-1.5 text-text-muted rounded transition-colors"
-                        title="Download"
-                      >
-                        ↓
-                      </button>
-
-                    </div>
                   </div>
 
                   <div className="p-6">
-
                     {tableView ===
                     'products' ? (
                       <SellerboardProductsTable
@@ -2828,11 +2362,10 @@ export const ProfitDashboardScreen: React.FC =
                         }
                       />
                     )}
-
                   </div>
+
                 </CardContent>
               </Card>
-
             </>
           )}
 
@@ -2840,7 +2373,8 @@ export const ProfitDashboardScreen: React.FC =
           {/* P&L VIEW */}
           {/* ======================================== */}
 
-          {activeTab === 'pnl' && (
+          {activeTab ===
+            'pnl' && (
             <>
               <div className="bg-surface-secondary border-b border-border mb-6">
                 <div className="px-6 py-4">
@@ -2870,7 +2404,9 @@ export const ProfitDashboardScreen: React.FC =
                           value={
                             searchTerm
                           }
-                          onChange={(e) =>
+                          onChange={(
+                            e
+                          ) =>
                             setSearchTerm(
                               e.target.value
                             )
@@ -2931,7 +2467,7 @@ export const ProfitDashboardScreen: React.FC =
                             MARKETPLACES
                           }
                           value={
-                            selectedMarketplaces
+                            appliedMarketplaces
                           }
                           onChange={
                             handleMarketplacesChange
@@ -2942,14 +2478,26 @@ export const ProfitDashboardScreen: React.FC =
                       <div className="min-w-[100px] shrink-0">
                         <Select
                           value={
-                            selectedCurrency
+                            appliedCurrency
                           }
-                          onChange={(e) =>
-                            setSelectedCurrency(
+                          onChange={(
+                            e
+                          ) => {
+                            const currency =
                               e.target
                                 .value as CurrencyCode
+
+                            setAppliedCurrency(
+                              currency
                             )
-                          }
+
+                            dispatch(
+                              setFilters({
+                                ...profitFilters,
+                                currency,
+                              })
+                            )
+                          }}
                           options={[
                             {
                               value:
@@ -2980,13 +2528,17 @@ export const ProfitDashboardScreen: React.FC =
 
               <div className="mb-6">
                 <PLTable
-                  data={plData}
+                  data={
+                    plData
+                  }
                   isLoading={
                     plFetching
                   }
-                  error={plError}
+                  error={
+                    plError
+                  }
                   currency={
-                    selectedCurrency
+                    appliedCurrency
                   }
                 />
               </div>
@@ -3024,55 +2576,7 @@ export const ProfitDashboardScreen: React.FC =
                           Products
                         </button>
 
-                        <button
-                          onClick={() =>
-                            setTableView(
-                              'order-items'
-                            )
-                          }
-                          className={`px-4 py-1.5 text-sm font-medium rounded transition-colors ${
-                            tableView ===
-                            'order-items'
-                              ? 'bg-primary-600 text-white'
-                              : 'text-text-muted hover:text-text-primary hover:bg-surface-secondary'
-                          }`}
-                        >
-                          Order items
-                        </button>
-
                       </div>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-
-                      <select className="px-3 py-1.5 text-sm border border-border rounded-md bg-surface text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-200 focus:border-primary-600">
-                        <option>
-                          Group by parent
-                        </option>
-
-                        <option>
-                          Group by product
-                        </option>
-
-                        <option>
-                          Group by category
-                        </option>
-                      </select>
-
-                      <button
-                        className="p-1.5 text-text-muted hover:text-text-primary hover:bg-surface-secondary rounded transition-colors"
-                        title="Download"
-                      >
-                        ↓
-                      </button>
-
-                      <button
-                        className="p-1.5 text-text-muted hover:text-text-primary hover:bg-surface-secondary rounded transition-colors"
-                        title="Copy to clipboard"
-                      >
-                        ⧉
-                      </button>
-
                     </div>
                   </div>
 
@@ -3118,7 +2622,8 @@ export const ProfitDashboardScreen: React.FC =
           {/* MAP */}
           {/* ======================================== */}
 
-          {activeTab === 'map' && (
+          {activeTab ===
+            'map' && (
             <MapComponent
               accountId={
                 effectiveAccountId
@@ -3137,10 +2642,10 @@ export const ProfitDashboardScreen: React.FC =
                 effectiveAccountId
               }
               marketplaces={
-                selectedMarketplaces
+                appliedMarketplaces
               }
               currency={
-                selectedCurrency
+                appliedCurrency
               }
             />
           )}
@@ -3154,30 +2659,41 @@ export const ProfitDashboardScreen: React.FC =
               isOpen={
                 !!selectedPeriodForDetails
               }
+
               onClose={() =>
                 setSelectedPeriodForDetails(
                   null
                 )
               }
+
               periodLabel={
                 periodCardsData.find(
-                  (period) =>
+                  (
+                    period
+                  ) =>
                     period.id ===
                     selectedPeriodForDetails
-                )?.label || ''
+                )?.label ||
+                ''
               }
+
               dateRange={
                 periodCardsData.find(
-                  (period) =>
+                  (
+                    period
+                  ) =>
                     period.id ===
                     selectedPeriodForDetails
-                )?.dateRange || ''
+                )?.dateRange ||
+                ''
               }
+
               data={getPeriodDetailData(
                 selectedPeriodForDetails
               )}
+
               currency={
-                selectedCurrency
+                appliedCurrency
               }
             />
           )}
