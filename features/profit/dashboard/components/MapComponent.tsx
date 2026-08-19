@@ -1545,7 +1545,7 @@ export const MapComponent:
                 All regions
               </h2>
 
-              <div className="flex items-center gap-2">
+              {/* <div className="flex items-center gap-2">
 
                 <button
                   className="p-1.5 text-text-muted hover:text-text-primary hover:bg-surface-secondary rounded transition-colors"
@@ -1585,7 +1585,7 @@ export const MapComponent:
                   </svg>
                 </button>
 
-              </div>
+              </div> */}
             </div>
 
             <div className="p-6">
