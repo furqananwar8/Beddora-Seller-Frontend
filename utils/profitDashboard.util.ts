@@ -24,6 +24,7 @@ export const TIMEZONE =
 export const PRESET_STORAGE_KEY =
   'profit-dashboard-preset'
 
+export const PRESET_PROFIT_SETTLEMENT_REPORT_PRESET = 'profit-settlement-report-preset'
 /**
  * Values actually sent to the API when
  * no marketplace is selected.

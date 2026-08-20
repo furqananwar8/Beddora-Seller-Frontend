@@ -56,6 +56,12 @@ export default function DashboardLayout({
                 action: 'read',
                 href: '/dashboard/profit/products',
               },
+              {
+                label: 'Settlement Report',
+                subject: 'profit:settlement-report',
+                action: 'read',
+                href: '/dashboard/profit/settlement-report',
+              },
             ],
           },
           {
@@ -299,7 +305,8 @@ export default function DashboardLayout({
 
   const isProfitDashboard = pathname?.includes('/dashboard/profit/dashboard')
   const isEbayDashboard = pathname?.includes('/dashboard/ebay/dashboard')
-  const showDashboardTabs = isProfitDashboard || isEbayDashboard
+  const isSettlementReport = pathname?.includes('/dashboard/profit/settlement-report')
+  const showDashboardTabs = isProfitDashboard || isEbayDashboard || isSettlementReport
 
   const handleLogout = React.useCallback(async () => {
     try {

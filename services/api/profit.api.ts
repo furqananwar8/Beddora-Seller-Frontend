@@ -442,6 +442,48 @@ export const profitApi = baseApi.injectEndpoints({
 
   endpoints: (builder) => ({
     // ============================================================
+    // Settlement Report Summary
+    // ============================================================
+
+    getSettlementReportSummary: builder.query<
+      ProfitSummary,
+      ProfitFilters
+    >({
+      query: (filters) => ({
+        url: '/profit/settlement-report/summary',
+        params: {
+          period: filters.period,
+          preset: filters.preset,
+          reportType: 'settlement-type',
+
+          // IMPORTANT:
+          // Custom date range is sent directly to backend.
+          startDate: filters.startDate,
+          endDate: filters.endDate,
+
+          accountId: filters.accountId,
+          amazonAccountId: filters.amazonAccountId,
+
+          marketplaceId: filters.marketplaceId,
+          marketplace: filters.marketplace,
+          marketplaces: filters.marketplaces,
+
+          sku: filters.sku,
+          currency: filters.currency,
+        },
+      }),
+
+      transformResponse: (
+        response: any
+      ): ProfitSummary => {
+        return response as ProfitSummary
+      },
+
+      providesTags: ['Profit'],
+      keepUnusedDataFor: 120,
+    }),
+
+    // ============================================================
     // PROFIT SUMMARY
     // ============================================================
 
@@ -473,10 +515,10 @@ export const profitApi = baseApi.injectEndpoints({
       }),
 
       transformResponse: (
-  response: any
-): ProfitSummary => {
-  return response as ProfitSummary
-},
+        response: any
+      ): ProfitSummary => {
+        return response as ProfitSummary
+      },
 
       providesTags: ['Profit'],
       keepUnusedDataFor: 120,
@@ -749,6 +791,7 @@ export const profitApi = baseApi.injectEndpoints({
 // ============================================
 
 export const {
+  useGetSettlementReportSummaryQuery,
   useGetProfitSummaryQuery,
   useGetProfitByProductQuery,
   useGetProfitByMarketplaceQuery,
@@ -759,6 +802,7 @@ export const {
   useGetProfitTrendsSimpleQuery,
   useGetProductTrendsQuery,
   useGetMarketplacesQuery,
+  useLazyGetSettlementReportSummaryQuery,
   useLazyGetProfitSummaryQuery,
   useLazyGetProfitByProductQuery,
   useLazyGetProfitByMarketplaceQuery,
