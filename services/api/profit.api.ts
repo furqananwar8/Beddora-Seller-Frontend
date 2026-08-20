@@ -545,6 +545,27 @@ export const profitApi = baseApi.injectEndpoints({
       keepUnusedDataFor: 180,
     }),
 
+     // ============================================================
+    // Settlement Products
+    // ============================================================
+
+    getSettlementReportProducts: builder.query<
+      ProductProfitBreakdown[],
+      ProfitFilters
+    >({
+      query: (filters) => ({
+        url: '/profit/settlement-report/products',
+        params: filters,
+      }),
+
+      transformResponse: (
+        response: ProductBreakdownResponse
+      ) => response.data,
+
+      providesTags: ['Profit'],
+      keepUnusedDataFor: 180,
+    }),
+
     // ============================================================
     // PROFIT BY MARKETPLACE
     // ============================================================
@@ -792,6 +813,7 @@ export const profitApi = baseApi.injectEndpoints({
 
 export const {
   useGetSettlementReportSummaryQuery,
+  useGetSettlementReportProductsQuery,
   useGetProfitSummaryQuery,
   useGetProfitByProductQuery,
   useGetProfitByMarketplaceQuery,

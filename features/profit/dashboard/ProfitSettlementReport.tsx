@@ -26,7 +26,7 @@ import { useGetAccountsQuery } from '@/services/api/accounts.api'
 import { useDebounce } from '@/utils/debounce'
 
 import {
-  useGetProfitByProductQuery,
+  useGetSettlementReportProductsQuery,
   useGetProfitByOrderItemsQuery,
   PeriodSummary,
   PeriodSummaryPeriod,
@@ -442,7 +442,7 @@ export const ProfitSettlementReport: React.FC = () => {
   // Product query (tiles tab)
   // ──────────────────────────────
 
-  const { data: productData, isFetching: productFetching } = useGetProfitByProductQuery(
+  const { data: productData, isFetching: productFetching } = useGetSettlementReportProductsQuery(
     {
       ...profitFilters,
       accountId: effectiveAccountId,
@@ -754,7 +754,7 @@ export const ProfitSettlementReport: React.FC = () => {
                   </div>
                 </div>
 
-                {/* <div className="p-6">
+                <div className="p-6">
                   {tableView === 'products' ? (
                     <SellerboardProductsTable
                       products={productData as any}
@@ -769,7 +769,7 @@ export const ProfitSettlementReport: React.FC = () => {
                       searchTerm={debouncedSearchTerm}
                     />
                   )}
-                </div> */}
+                </div>
               </CardContent>
             </Card>
           </>
