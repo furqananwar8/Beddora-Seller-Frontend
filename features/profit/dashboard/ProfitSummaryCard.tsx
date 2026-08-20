@@ -82,7 +82,7 @@ const PeriodTileCard = ({ tile }: { tile: PeriodSummary }) => {
         {tile.totalRefunds > 0 && (
           <MetricRow
             label="Refunds"
-            value={formatCurrency(tile.totalRefunds)}
+            value={String(tile.totalRefunds)}
             valueClass="text-orange-600"
           />
         )}

@@ -10,7 +10,7 @@ import {
 import { formatCurrency, formatPercentage, formatNumber } from '@/utils/format'
 import { cn } from '@/utils/cn'
 import { formatInTimeZone } from 'date-fns-tz'
-import { TIMEZONE } from '../ProfitDashboardScreen'
+import { TIMEZONE } from '@/utils/profitDashboard.util'
 
 export interface ChartSummaryTableProps {
   data?: any
@@ -731,7 +731,7 @@ export const ChartSummaryTable: React.FC<ChartSummaryTableProps> = ({
                     <DetailRow
                       label="Value of returned items"
                       value={
-                        -Number(
+                        Number(
                           refunds.valueOfReturnedItems ?? 0
                         )
                       }

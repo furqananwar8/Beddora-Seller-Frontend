@@ -530,15 +530,15 @@ console.log({data})
                       currency={displayCurrency}
                     />
 
-                    <DetailRow
+                    {/* <DetailRow
                       label="Promotion"
                       value={-Number(refunds.promotion ?? 0)}
                       currency={displayCurrency}
-                    />
+                    /> */}
 
                     <DetailRow
                       label="Value of returned items"
-                      value={-Number(refunds.valueOfReturnedItems ?? 0)}
+                      value={Number(refunds.valueOfReturnedItems ?? 0)}
                       currency={displayCurrency}
                     />
 
