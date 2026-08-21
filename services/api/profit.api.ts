@@ -433,6 +433,44 @@ export interface ProfitFilters {
   limit?: number
 }
 
+export interface CompareSalesSnapshot {
+  totalOrderItems: number
+  unitsOrdered: number
+  orderedProductSales: number
+  avgUnitsPerOrderItem: number
+  avgSalesPerOrderItem: number
+}
+
+export interface CompareSalesPeriod {
+  key: string
+  label: string
+  subtitle: string
+  color: string
+  units: number
+  sales: number
+  avgUnits: number
+  avgSales: number
+  orderItems: number
+}
+
+export interface CompareSalesHourly {
+  hour: string
+  today: number
+  yesterday: number
+  lastWeek: number
+  lastYear: number
+}
+
+export interface CompareSalesResponse {
+  snapshot: CompareSalesSnapshot
+  comparisons: CompareSalesPeriod[]
+  hourly: {
+    units: CompareSalesHourly[]
+    sales: CompareSalesHourly[]
+    orderItems: CompareSalesHourly[]
+  }
+}
+
 // ============================================
 // RTK QUERY ENDPOINTS
 // ============================================
@@ -804,6 +842,26 @@ export const profitApi = baseApi.injectEndpoints({
         providesTags: ['Profit'],
         keepUnusedDataFor: 300,
       }),
+
+    getCompareSales: builder.query<CompareSalesResponse, ProfitFilters>({
+      query: (filters) => ({
+        url: '/profit/business-report/sales',
+        params: {
+          startDate: filters.startDate,
+          endDate: filters.endDate,
+          accountId: filters.accountId,
+          amazonAccountId: filters.amazonAccountId,
+          marketplaceId: filters.marketplaceId,
+          marketplace: filters.marketplace,
+          marketplaces: filters.marketplaces,
+          sku: filters.sku,
+          currency: filters.currency,
+        },
+      }),
+      transformResponse: (response: any) => response.data,
+      providesTags: ['Profit'],
+      keepUnusedDataFor: 120,
+    }),
   }),
 })
 
@@ -815,6 +873,7 @@ export const {
   useGetSettlementReportSummaryQuery,
   useGetSettlementReportProductsQuery,
   useGetProfitSummaryQuery,
+  useGetCompareSalesQuery,
   useGetProfitByProductQuery,
   useGetProfitByMarketplaceQuery,
   useGetProfitTrendsQuery,
@@ -828,6 +887,7 @@ export const {
   useLazyGetProfitSummaryQuery,
   useLazyGetProfitByProductQuery,
   useLazyGetProfitByMarketplaceQuery,
+  useLazyGetCompareSalesQuery,
   useLazyGetProfitTrendsQuery,
   useLazyGetProfitByOrderItemsQuery,
   useLazyGetPLByPeriodsQuery,
