@@ -4,6 +4,7 @@ import React, {
   useCallback,
   useEffect,
   useMemo,
+  useRef, // CHANGED: added
   useState,
 } from 'react'
 
@@ -41,7 +42,6 @@ import { formatCurrency } from '@/utils/format'
 
 import SummaryTiles from './SummaryTiles'
 
-
 import { DateRangeValue } from '@/components/date-range-picker/DateRangePicker'
 
 import ProfitDashboardHeader from '../dashboard/components/ProfitDashboardHeader'
@@ -72,8 +72,9 @@ import MapTab from './MapTab'
 import PLTab from './PLTab'
 import TrendsTab from './TrendsTab'
 
-// ── Tab containers ──────────────────────────────────────
-
+// CHANGED: localStorage keys for full state restoration
+const LS_CUSTOM_RANGE = 'profit_settlement_custom_range'
+const LS_SELECTED_TILE = 'profit_settlement_selected_tile'
 
 // ════════════════════════════════════════════════════════
 // ProfitSettlementReport
@@ -126,6 +127,9 @@ export const ProfitSettlementReport: React.FC = () => {
   const [selectedTileId, setSelectedTileId] = useState<string>('yesterday')
   const [selectedPeriodForDetails, setSelectedPeriodForDetails] = useState<string | null>(null)
 
+  // CHANGED: ref to prevent auto-resetting tile on initial restore
+  const hasRestored = useRef(false)
+
   // suppress unused lint for PST helpers kept for future use
   void TIMEZONE
   void startOfMonthPST
@@ -134,23 +138,67 @@ export const ProfitSettlementReport: React.FC = () => {
   void endOfWeekPST
 
   // ──────────────────────────────
-  // Restore tile preset from localStorage
+  // Restore full tile state from localStorage
   // ──────────────────────────────
 
   useEffect(() => {
     try {
-      const saved = localStorage.getItem(PRESET_PROFIT_SETTLEMENT_REPORT_PRESET)
+      const savedPreset = localStorage.getItem(PRESET_PROFIT_SETTLEMENT_REPORT_PRESET)
+      const savedRange = localStorage.getItem(LS_CUSTOM_RANGE)
+      const savedTile = localStorage.getItem(LS_SELECTED_TILE)
+
+      let presetToUse = tilePresets[2].id
       if (
-        saved &&
-        (tilePresets.some((p) => p.id === saved) || saved === 'custom')
+        savedPreset &&
+        (tilePresets.some((p) => p.id === savedPreset) || savedPreset === 'custom')
       ) {
-        setDraftPresetId(saved)
-        setAppliedPresetId(saved)
+        presetToUse = savedPreset
       }
+
+      // CHANGED: if custom preset was saved but range is missing, fall back to default preset
+      if (presetToUse === 'custom' && !savedRange) {
+        presetToUse = tilePresets[2].id
+      }
+
+      setDraftPresetId(presetToUse)
+      setAppliedPresetId(presetToUse)
+
+      // CHANGED: restore custom range for both draft and applied
+      if (presetToUse === 'custom' && savedRange) {
+        const parsed = JSON.parse(savedRange)
+        setDraftCustomTileRange(parsed)
+        setAppliedCustomTileRange(parsed)
+      }
+
+      // CHANGED: restore selected tile (only if it exists in the restored preset)
+      const restoredPreset =
+        presetToUse === 'custom'
+          ? { tiles: [{ id: 'custom-range' }] }
+          : (tilePresets.find((p) => p.id === presetToUse) || tilePresets[0])
+
+      if (savedTile && restoredPreset.tiles.some((t: any) => t.id === savedTile)) {
+        setSelectedTileId(savedTile)
+      } else {
+        setSelectedTileId(restoredPreset.tiles[0].id)
+      }
+
+      hasRestored.current = true
     } catch {
       // ignore
     }
   }, [])
+
+  // ──────────────────────────────
+  // Persist selected tile whenever it changes
+  // ──────────────────────────────
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(LS_SELECTED_TILE, selectedTileId)
+    } catch {
+      // ignore
+    }
+  }, [selectedTileId])
 
   // ──────────────────────────────
   // Default account
@@ -243,12 +291,11 @@ export const ProfitSettlementReport: React.FC = () => {
   void currentDraftPreset
 
   // ──────────────────────────────
-  // Select first tile when preset changes
+  // Select first tile ONLY when preset changes via user action (not on restore)
   // ──────────────────────────────
 
-  useEffect(() => {
-    setSelectedTileId(currentPreset.tiles[0].id)
-  }, [currentPreset])
+  // CHANGED: removed the old useEffect that always reset tile on currentPreset change.
+  // Instead we validate the tile inside handleApplyTileFilters.
 
   // ──────────────────────────────
   // Profit summary — standard presets
@@ -553,6 +600,19 @@ export const ProfitSettlementReport: React.FC = () => {
     setAppliedMarketplaces([...draftMarketplaces])
     setAppliedCurrency(draftCurrency)
 
+    // CHANGED: validate selected tile exists in the new preset; reset only if it doesn't
+    const nextPreset =
+      nextPresetId === 'custom'
+        ? { tiles: [{ id: 'custom-range' }] }
+        : (tilePresets.find((p) => p.id === nextPresetId) || tilePresets[0])
+
+    setSelectedTileId((current) => {
+      if (nextPreset.tiles.some((t: any) => t.id === current)) {
+        return current
+      }
+      return nextPreset.tiles[0].id
+    })
+
     dispatch(
       setFilters({
         ...profitFilters,
@@ -565,6 +625,12 @@ export const ProfitSettlementReport: React.FC = () => {
 
     try {
       localStorage.setItem(PRESET_PROFIT_SETTLEMENT_REPORT_PRESET, nextPresetId)
+      // CHANGED: persist custom range so it reloads correctly
+      if (nextPresetId === 'custom' && nextCustomRange) {
+        localStorage.setItem(LS_CUSTOM_RANGE, JSON.stringify(nextCustomRange))
+      } else {
+        localStorage.removeItem(LS_CUSTOM_RANGE)
+      }
     } catch {
       // ignore
     }
