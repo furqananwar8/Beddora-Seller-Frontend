@@ -295,6 +295,15 @@ export const StatModal:
         )
       }
 
+      if (
+        item.integer
+      ) {
+        return formatNumber(
+          value,
+          0
+        )
+      }
+
       return formatNumber(
         value
       )

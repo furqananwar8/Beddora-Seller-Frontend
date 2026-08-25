@@ -112,6 +112,7 @@ export interface ProductProfitBreakdown {
   totalRefunds: number
   refundAmount: number
   refundCost: number
+  refundDetails: any
 
   // Promo
   promoRebates: number

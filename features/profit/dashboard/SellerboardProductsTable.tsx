@@ -78,11 +78,7 @@ type ProductWithChildren = ProductProfitBreakdown & {
 const buildProductStatData = (
   p: ProductProfitBreakdown
 ): StatModalData => {
-  const refundAmount =
-    Math.abs(p.refundAmount || 0)
-
-  const refundCount =
-    p.totalRefunds || 0
+  const refundCount = p.totalRefunds || 0
 
   const refundCost =
     Math.abs(p.refundCost || 0)
@@ -130,6 +126,9 @@ const buildProductStatData = (
 
   const totalCOGS =
     Math.abs(p.totalCOGS || 0)
+
+  // Pull detailed refund breakdown from the API
+  const refundDetails = p.refundDetails || {}
 
   return {
     title:
@@ -190,7 +189,17 @@ const buildProductStatData = (
         children: [
           {
             label: 'Refunded amount',
-            value: refundAmount,
+            value: -(refundDetails.refundedAmount || 0),
+            currency: true,
+          },
+          {
+            label: 'Refund commission',
+            value: -(refundDetails.refundCommission || 0),
+            currency: true,
+          },
+          {
+            label: 'Refunded referral fee',
+            value: refundDetails.refundedReferralFee || 0,
             currency: true,
           },
           {
@@ -336,7 +345,7 @@ const buildProductStatData = (
         label: '% Refunds',
         value:
           p.salesRevenue > 0
-            ? (refundAmount /
+            ? ((refundDetails.refundedAmount || 0) /
                 p.salesRevenue) *
               100
             : 0,
