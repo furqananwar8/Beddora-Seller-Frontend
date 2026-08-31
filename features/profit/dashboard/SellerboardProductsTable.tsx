@@ -209,7 +209,6 @@ const buildProductStatData = (
           },
         ],
       },
-
       {
         title: 'Amazon fees',
         value: totalFees,
@@ -217,11 +216,11 @@ const buildProductStatData = (
         defaultOpen: true,
 
         children: [
-          {
-            label: 'FBA fees',
-            value: fbaFees,
-            currency: true,
-          },
+          // {
+          //   label: 'FBA fees',
+          //   value: fbaFees,
+          //   currency: true,
+          // },
           {
             label:
               'FBA per unit fulfillment fee',
@@ -237,11 +236,6 @@ const buildProductStatData = (
             label:
               'Sales tax collection fee',
             value: salesTaxServiceFees,
-            currency: true,
-          },
-          {
-            label: 'Promo / rebates',
-            value: promoRebates,
             currency: true,
           },
           {
@@ -293,11 +287,11 @@ const buildProductStatData = (
     ],
 
     summaryRows: [
-      {
-        label: 'Refunds',
-        value: refundCost,
-        currency: true,
-      },
+      // {
+      //   label: 'Refunds',
+      //   value: refundCost,
+      //   currency: true,
+      // },
 
       {
         label: 'Promo',
