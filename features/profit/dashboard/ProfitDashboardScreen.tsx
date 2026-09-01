@@ -41,7 +41,6 @@ import { formatCurrency } from '@/utils/format'
 
 import SummaryTiles from './SummaryTiles'
 
-
 import { DateRangeValue } from '@/components/date-range-picker/DateRangePicker'
 
 import ProfitDashboardHeader from '../dashboard/components/ProfitDashboardHeader'
@@ -52,16 +51,14 @@ import {
   tilePresets,
   gridColsClass,
   nowInPST,
-  toISODatePST,
   formatDateRangePST,
-  addDaysPST,
+  getRollingDateRangePST,
+  getSingleDayPST,
+  TIMEZONE,
   startOfMonthPST,
   endOfMonthPST,
   startOfWeekPST,
   endOfWeekPST,
-  getRollingDateRangePST,
-  getSingleDayPST,
-  TIMEZONE,
   type CurrencyCode,
   type DashboardTab,
   type TableView,
@@ -72,8 +69,7 @@ import MapTab from './MapTab'
 import PLTab from './PLTab'
 import TrendsTab from './TrendsTab'
 
-// ── Tab containers ──────────────────────────────────────
-
+const CUSTOM_RANGE_STORAGE_KEY = 'profit_custom_tile_range'
 
 // ════════════════════════════════════════════════════════
 // ProfitDashboardScreen
@@ -104,19 +100,62 @@ export const ProfitDashboardScreen: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const debouncedSearchTerm = useDebounce(searchTerm, 300)
 
-  // Applied tile filters
-  const [appliedPresetId, setAppliedPresetId] = useState<string>(tilePresets[2].id)
+  // Synchronous restoration of preset ID from localStorage
+  const [appliedPresetId, setAppliedPresetId] = useState<string>(() => {
+    if (typeof window === 'undefined') return tilePresets[2].id
+    try {
+      const saved = localStorage.getItem(PRESET_STORAGE_KEY)
+      if (saved && (tilePresets.some((p) => p.id === saved) || saved === 'custom')) {
+        return saved
+      }
+    } catch {
+      // ignore storage errors
+    }
+    return tilePresets[2].id
+  })
+
+  const [draftPresetId, setDraftPresetId] = useState<string>(() => {
+    if (typeof window === 'undefined') return tilePresets[2].id
+    try {
+      const saved = localStorage.getItem(PRESET_STORAGE_KEY)
+      if (saved && (tilePresets.some((p) => p.id === saved) || saved === 'custom')) {
+        return saved
+      }
+    } catch {
+      // ignore storage errors
+    }
+    return tilePresets[2].id
+  })
+
+  // Synchronous restoration of custom date ranges from localStorage
   const [appliedCustomTileRange, setAppliedCustomTileRange] = useState<{
     startDate: string
     endDate: string
-  } | null>(null)
+  } | null>(() => {
+    if (typeof window === 'undefined') return null
+    try {
+      const savedRange = localStorage.getItem(CUSTOM_RANGE_STORAGE_KEY)
+      if (savedRange) return JSON.parse(savedRange)
+    } catch {
+      // ignore storage errors
+    }
+    return null
+  })
 
-  // Draft tile filters
-  const [draftPresetId, setDraftPresetId] = useState<string>(tilePresets[2].id)
   const [draftCustomTileRange, setDraftCustomTileRange] = useState<{
     startDate: string
     endDate: string
-  } | null>(null)
+  } | null>(() => {
+    if (typeof window === 'undefined') return null
+    try {
+      const savedRange = localStorage.getItem(CUSTOM_RANGE_STORAGE_KEY)
+      if (savedRange) return JSON.parse(savedRange)
+    } catch {
+      // ignore storage errors
+    }
+    return null
+  })
+
   const [draftMarketplaces, setDraftMarketplaces] = useState<string[]>(['Amazon.ca'])
   const [draftCurrency, setDraftCurrency] = useState<CurrencyCode>('CAD')
 
@@ -132,25 +171,6 @@ export const ProfitDashboardScreen: React.FC = () => {
   void endOfMonthPST
   void startOfWeekPST
   void endOfWeekPST
-
-  // ──────────────────────────────
-  // Restore tile preset from localStorage
-  // ──────────────────────────────
-
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem(PRESET_STORAGE_KEY)
-      if (
-        saved &&
-        (tilePresets.some((p) => p.id === saved) || saved === 'custom')
-      ) {
-        setDraftPresetId(saved)
-        setAppliedPresetId(saved)
-      }
-    } catch {
-      // ignore
-    }
-  }, [])
 
   // ──────────────────────────────
   // Default account
@@ -247,7 +267,9 @@ export const ProfitDashboardScreen: React.FC = () => {
   // ──────────────────────────────
 
   useEffect(() => {
-    setSelectedTileId(currentPreset.tiles[0].id)
+    if (currentPreset?.tiles?.[0]?.id) {
+      setSelectedTileId(currentPreset.tiles[0].id)
+    }
   }, [currentPreset])
 
   // ──────────────────────────────
@@ -290,7 +312,8 @@ export const ProfitDashboardScreen: React.FC = () => {
       skip:
         !effectiveAccountId ||
         appliedPresetId !== 'custom' ||
-        !appliedCustomTileRange,
+        !appliedCustomTileRange?.startDate ||
+        !appliedCustomTileRange?.endDate,
     },
   )
 
@@ -565,8 +588,13 @@ export const ProfitDashboardScreen: React.FC = () => {
 
     try {
       localStorage.setItem(PRESET_STORAGE_KEY, nextPresetId)
+      if (nextCustomRange) {
+        localStorage.setItem(CUSTOM_RANGE_STORAGE_KEY, JSON.stringify(nextCustomRange))
+      } else {
+        localStorage.removeItem(CUSTOM_RANGE_STORAGE_KEY)
+      }
     } catch {
-      // ignore
+      // ignore storage errors
     }
   }, [draftPresetId, draftCustomTileRange, draftMarketplaces, draftCurrency, dispatch, profitFilters])
 
