@@ -482,6 +482,7 @@
 
   .ds-modal-close {
     @apply absolute top-4 right-4 text-text-subtle hover:text-text-secondary;
+    z-index: 999;
   }
 }
 

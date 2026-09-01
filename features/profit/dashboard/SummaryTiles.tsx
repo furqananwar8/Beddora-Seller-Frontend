@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React from 'react'
 import { formatCurrency, formatNumber, formatPercentage } from "@/utils"
 
 interface SummaryTilesProps {
@@ -16,7 +16,7 @@ const TILE_TOOLTIPS = {
     sales: {
         title: 'Sales Revenue',
         formula: 'Sum(Product Principal Charges for Shipments)',
-        note: 'Gross order revenue excluding sales taxes and promotional discounts.',
+        note: 'Gross product order revenue excluding sales taxes and promotional rebates.',
     },
     ordersUnits: {
         title: 'Orders / Units Sold',
@@ -35,8 +35,8 @@ const TILE_TOOLTIPS = {
     },
     estPayout: {
         title: 'Estimated Payout',
-        formula: 'Sales Revenue - Amazon Fees - Net Refund Cost',
-        note: 'Estimated net bank disbursement from Amazon for the period.',
+        formula: 'Sales Revenue - Amazon Fees - Product Refund Amount + Reimbursements',
+        note: 'Estimated net settlement deposit to your bank account by Amazon.',
     },
     netProfit: {
         title: 'Net Profit',
@@ -54,7 +54,7 @@ const FieldTooltip: React.FC<{ fieldKey: keyof typeof TILE_TOOLTIPS }> = ({ fiel
     if (!info) return null
 
     return (
-        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-56 p-2.5 bg-gray-900 text-white text-left text-xs rounded-md shadow-xl opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 font-normal normal-case">
+        <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-60 p-2.5 bg-gray-900 text-white text-left text-xs rounded-md shadow-xl opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-[9999] font-normal normal-case">
             <div className="font-semibold text-white mb-1 border-b border-gray-700 pb-1">
                 {info.title}
             </div>
@@ -64,8 +64,8 @@ const FieldTooltip: React.FC<{ fieldKey: keyof typeof TILE_TOOLTIPS }> = ({ fiel
             <div className="text-gray-400 text-[10px] leading-tight">
                 {info.note}
             </div>
-            {/* Tooltip Arrow */}
-            <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
+            {/* Top Arrow pointing upward */}
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-gray-900" />
         </div>
     )
 }
