@@ -30,6 +30,11 @@ import {
   formatNumber,
   formatPercentage,
 } from '@/utils/format'
+import { MarketplaceFlag } from '@/components/marketplace-flag/MarketPlaceFlag'
+
+/* ──────────────────────────────────────────────────────
+ * Marketplace Flag Component
+ * ────────────────────────────────────────────────────── */
 
 /* ──────────────────────────────────────────────────────
  * Types
@@ -63,6 +68,7 @@ type SortDirection = 'asc' | 'desc'
 
 type ProductWithChildren = ProductProfitBreakdown & {
   children?: ProductProfitBreakdown[]
+  marketplace?: string
 }
 
 /* ──────────────────────────────────────────────────────
@@ -377,6 +383,7 @@ export const SellerboardProductsTable: React.FC<
     const [productStat, setProductStat] = useState<{
       data: StatModalData
       anchorRect: DOMRect
+      currency: string
     } | null>(null)
 
     const toggleRow = useCallback((sku: string) => {
@@ -585,8 +592,9 @@ export const SellerboardProductsTable: React.FC<
                   </div>
 
                   <div className="min-w-0 flex-1 max-w-[200px]">
-                    <div className="text-xs text-text-muted mb-1 truncate">
-                      {product.sku}
+                    <div className="text-xs text-text-muted mb-1 truncate flex items-center gap-1.5">
+                      <MarketplaceFlag marketplace={product.marketplace} />
+                      <span>{product.sku}</span>
                     </div>
 
                     <div className="font-medium text-text-primary text-sm mb-1.5 line-clamp-2 break-words">
@@ -706,9 +714,16 @@ export const SellerboardProductsTable: React.FC<
                   const rect = (
                     e.currentTarget as HTMLElement
                   ).getBoundingClientRect()
+                  const marketCurrency =
+                    product.marketplace?.toUpperCase() === 'US' ||
+                    product.marketplace?.toUpperCase() === 'USA'
+                      ? 'USD'
+                      : 'CAD'
+
                   setProductStat({
                     data: buildProductStatData(product),
                     anchorRect: rect,
+                    currency: marketCurrency,
                   })
                 }}
                 className="text-primary-600 hover:text-primary-700 text-sm font-medium"
@@ -755,7 +770,7 @@ export const SellerboardProductsTable: React.FC<
           isOpen={!!productStat}
           onClose={() => setProductStat(null)}
           data={productStat?.data || null}
-          currency="CAD"
+          currency={productStat?.currency || 'CAD'}
           anchorRect={productStat?.anchorRect || null}
         />
 
