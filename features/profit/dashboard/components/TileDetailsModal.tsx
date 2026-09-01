@@ -54,9 +54,7 @@ const MetricRow: React.FC<MetricRowProps> = ({
     <div
       className={cn(
         'flex items-center justify-between py-2.5 border-b border-border',
-        isExpandable &&
-          onClick &&
-          'cursor-pointer hover:bg-surface-secondary',
+        isExpandable && onClick && 'cursor-pointer hover:bg-surface-secondary',
         isBold && 'font-semibold'
       )}
       onClick={onClick}
@@ -72,16 +70,10 @@ const MetricRow: React.FC<MetricRowProps> = ({
             ›
           </span>
         )}
-
         <span>{label}</span>
       </div>
 
-      <span
-        className={cn(
-          'text-sm',
-          isBold && 'font-semibold'
-        )}
-      >
+      <span className={cn('text-sm', isBold && 'font-semibold')}>
         {value}
       </span>
     </div>
@@ -101,13 +93,11 @@ const DetailRow: React.FC<DetailRowProps> = ({
   return (
     <div
       className={cn(
-        'flex items-center justify-between py-2 text-sm',
-        'text-text-muted',
+        'flex items-center justify-between py-2 text-sm text-text-muted',
         indent && 'pl-7'
       )}
     >
       <span>{label}</span>
-
       <span className="text-text-primary">
         {formatCurrency(value, currency)}
       </span>
@@ -119,9 +109,7 @@ const DetailRow: React.FC<DetailRowProps> = ({
 // TILE DETAILS MODAL
 // ============================================================
 
-export const TileDetailsModal: React.FC<
-  TileDetailsModalProps
-> = ({
+export const TileDetailsModal: React.FC<TileDetailsModalProps> = ({
   isOpen,
   onClose,
   periodLabel,
@@ -129,15 +117,12 @@ export const TileDetailsModal: React.FC<
   data,
   currency = 'CAD',
 }) => {
-  const [expanded, setExpanded] =
-    useState<Record<string, boolean>>({})
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({})
 
-  if (!data) {
-    return null
-  }
+  if (!data) return null
 
   const toggle = (key: string) => {
-    setExpanded(prev => ({
+    setExpanded((prev) => ({
       ...prev,
       [key]: !prev[key],
     }))
@@ -147,25 +132,17 @@ export const TileDetailsModal: React.FC<
   // DATA
   // ============================================================
 
-  const amazonFees =
-    data.amazonFeeDetails || {}
-
-  const advertising =
-    data.advertisingDetails || {}
-
-  const refunds =
-    data.refundDetails || {}
-
-  const displayCurrency =
-    data.currency || currency
+  const amazonFees = data.amazonFeeDetails || {}
+  const advertising = data.advertisingDetails || {}
+  const refunds = data.refundDetails || {}
+  const displayCurrency = data.currency || currency
 
   // ============================================================
   // BASE VALUES
   // ============================================================
-console.log({data})
+
   const salesRevenue = Number(data.salesRevenue ?? 0)
   const totalFees = Number(data.totalFees ?? 0)
-  const totalRefunds = Number(data.totalRefunds ?? 0)
   const refundCost = Number(data.refundCost ?? 0)
   const totalCOGS = Number(data.totalCOGS ?? 0)
   const totalExpenses = Number(data.totalExpenses ?? 0)
@@ -175,7 +152,7 @@ console.log({data})
   const refundCount = Number(data.totalRefundsCount ?? 0)
 
   // ============================================================
-  // USE API CALCULATED VALUES (single source of truth)
+  // API CALCULATED VALUES
   // ============================================================
 
   const grossProfit = Number(data.grossProfit ?? 0)
@@ -186,22 +163,6 @@ console.log({data})
   const roi = Number(data.roi ?? 0)
   const refundPercentage = Number(data.refundPercentage ?? 0)
 
-  // ============================================================
-  // DERIVED VALUES (not provided by API)
-  // ============================================================
-
-  const sellableReturns = 0
-  const activeSubscriptions = 0
-  const sessions = 0
-  const unitSessionPercentage =
-    sessions > 0
-      ? (unitsSold / sessions) * 100
-      : 0
-
-  // ============================================================
-  // METRICS
-  // ============================================================
-
   const metrics = [
     {
       key: 'sales',
@@ -209,83 +170,42 @@ console.log({data})
       value: formatCurrency(salesRevenue, displayCurrency),
       expandable: false,
     },
-
     {
       key: 'units',
       label: 'Units',
       value: formatNumber(unitsSold, 0),
       expandable: false,
     },
-
     {
       key: 'promo',
       label: 'Promo',
       value: formatCurrency(-totalPromo, displayCurrency),
       expandable: false,
     },
-
-    // ==========================================================
-    // ADVERTISING
-    // ==========================================================
-
     {
       key: 'advertising',
       label: 'Advertising cost',
       value: formatCurrency(-advertisingCost, displayCurrency),
       expandable: true,
     },
-
-    {
-      key: 'shipping',
-      label: 'Shipping costs',
-      value: formatCurrency(0, displayCurrency),
-      expandable: false,
-    },
-
-    {
-      key: 'giftwrap',
-      label: 'Giftwrap',
-      value: formatCurrency(0, displayCurrency),
-      expandable: false,
-    },
-
-    // ==========================================================
-    // REFUNDS
-    // ==========================================================
-
     {
       key: 'refund',
       label: 'Refund cost',
       value: formatCurrency(-refundCost, displayCurrency),
       expandable: true,
     },
-
-    // ==========================================================
-    // AMAZON FEES
-    // ==========================================================
-
     {
       key: 'amazon-fees',
       label: 'Amazon fees',
       value: formatCurrency(-totalFees, displayCurrency),
       expandable: true,
     },
-
-    // ==========================================================
-    // COGS
-    // ==========================================================
-
     {
       key: 'cogs',
       label: 'Cost of goods',
       value: formatCurrency(-totalCOGS, displayCurrency),
       expandable: false,
     },
-
-    // ==========================================================
-    // GROSS PROFIT
-    // ==========================================================
-
     {
       key: 'gross-profit',
       label: 'Gross profit',
@@ -293,22 +213,12 @@ console.log({data})
       expandable: false,
       bold: true,
     },
-
-    // ==========================================================
-    // INDIRECT EXPENSES
-    // ==========================================================
-
     {
       key: 'indirect-expenses',
       label: 'Indirect expenses',
       value: formatCurrency(-totalExpenses, displayCurrency),
       expandable: false,
     },
-
-    // ==========================================================
-    // NET PROFIT
-    // ==========================================================
-
     {
       key: 'net-profit',
       label: 'Net profit',
@@ -316,388 +226,155 @@ console.log({data})
       expandable: false,
       bold: true,
     },
-
-    // ==========================================================
-    // ESTIMATED PAYOUT
-    // ==========================================================
-
     {
       key: 'estimated-payout',
       label: 'Estimated payout',
       value: formatCurrency(estimatedPayout, displayCurrency),
       expandable: false,
     },
-
-    // ==========================================================
-    // PERFORMANCE
-    // ==========================================================
-
     {
       key: 'real-acos',
       label: 'Real ACOS',
       value: formatPercentage(realACOS),
       expandable: false,
     },
-
     {
       key: 'refund-percent',
       label: '% Refunds',
       value: formatPercentage(refundPercentage),
       expandable: false,
     },
-
-    {
-      key: 'sellable-returns',
-      label: 'Sellable returns',
-      value: formatPercentage(sellableReturns),
-      expandable: false,
-    },
-
     {
       key: 'margin',
       label: 'Margin',
       value: formatPercentage(margin),
       expandable: false,
     },
-
     {
       key: 'roi',
       label: 'ROI',
       value: formatPercentage(roi),
       expandable: false,
     },
-
-    {
-      key: 'subscriptions',
-      label: 'Active subscriptions (SnS)',
-      value: formatNumber(activeSubscriptions, 0),
-      expandable: false,
-    },
-
-    {
-      key: 'sessions',
-      label: 'Sessions',
-      value: formatNumber(sessions, 0),
-      expandable: true,
-    },
-
-    {
-      key: 'unit-session',
-      label: 'Unit session percentage',
-      value: formatPercentage(unitSessionPercentage),
-      expandable: false,
-    },
   ]
 
-  // ============================================================
-  // RENDER
-  // ============================================================
-
   return (
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-    >
-      {/* ======================================================
-          HEADER
-      ====================================================== */}
-
+    <Modal isOpen={isOpen} onClose={onClose}>
       <div className="px-6 py-4 border-b border-border">
-        <div className="text-lg font-semibold">
-          {periodLabel}
-        </div>
-
-        <div className="text-sm text-text-muted mt-1">
-          {dateRange}
-        </div>
+        <div className="text-lg font-semibold">{periodLabel}</div>
+        <div className="text-sm text-text-muted mt-1">{dateRange}</div>
       </div>
-
-      {/* ======================================================
-          METRICS
-      ====================================================== */}
 
       <div className="px-6 py-4 max-h-[70vh] overflow-y-auto">
         <div className="space-y-0">
-          {metrics.map(metric => (
-            <React.Fragment
-              key={metric.key}
-            >
+          {metrics.map((metric) => (
+            <React.Fragment key={metric.key}>
               <MetricRow
                 label={metric.label}
                 value={metric.value}
-                isExpandable={
-                  metric.expandable
-                }
+                isExpandable={metric.expandable}
                 isBold={metric.bold}
-                isOpen={
-                  !!expanded[metric.key]
-                }
+                isOpen={!!expanded[metric.key]}
                 onClick={
-                  metric.expandable
-                    ? () =>
-                        toggle(
-                          metric.key
-                        )
-                    : undefined
+                  metric.expandable ? () => toggle(metric.key) : undefined
                 }
               />
 
-              {/* ==================================================
-                  ADVERTISING DETAILS
-              ================================================== */}
-
-              {metric.key ===
-                'advertising' &&
-                expanded[
-                  'advertising'
-                ] && (
-                  <div className="border-b border-border">
-                    <DetailRow
-                      label="Sponsored Products"
-                      value={
-                        -Number(
-                          advertising
-                            .sponsoredProducts ||
-                            0
-                        )
-                      }
-                      currency={
-                        displayCurrency
-                      }
-                    />
-
-                    <DetailRow
-                      label="Sponsored Brands Video"
-                      value={
-                        -Number(
-                          advertising
-                            .sponsoredBrandsVideo ||
-                            0
-                        )
-                      }
-                      currency={
-                        displayCurrency
-                      }
-                    />
-
-                    <DetailRow
-                      label="Sponsored Display"
-                      value={
-                        -Number(
-                          advertising
-                            .sponsoredDisplay ||
-                            0
-                        )
-                      }
-                      currency={
-                        displayCurrency
-                      }
-                    />
-
-                    <DetailRow
-                      label="Sponsored Brands"
-                      value={
-                        -Number(
-                          advertising
-                            .sponsoredBrands ||
-                            0
-                        )
-                      }
-                      currency={
-                        displayCurrency
-                      }
-                    />
-                  </div>
-                )}
-
-              {/* ==================================================
-                  REFUND DETAILS
-              ================================================== */}
-
-              {metric.key === 'refund' &&
-                expanded['refund'] && (
-                  <div className="border-b border-border">
-
-                    <DetailRow
-                      label="Refunded amount"
-                      value={-Number(refunds.refundedAmount ?? 0)}
-                      currency={displayCurrency}
-                    />
-
-                    <DetailRow
-                      label="Refund commission"
-                      value={-Number(refunds.refundCommission ?? 0)}
-                      currency={displayCurrency}
-                    />
-
-                    {/* <DetailRow
-                      label="Promotion"
-                      value={-Number(refunds.promotion ?? 0)}
-                      currency={displayCurrency}
-                    /> */}
-
-                    <DetailRow
-                      label="Value of returned items"
-                      value={Number(refunds.valueOfReturnedItems ?? 0)}
-                      currency={displayCurrency}
-                    />
-
-                    <DetailRow
-                      label="Refunded referral fee"
-                      value={Number(refunds.refundedReferralFee ?? 0)}
-                      currency={displayCurrency}
-                    />
-
-                    <div className="flex items-center justify-between py-2 text-sm">
-                      <span className="text-text-muted pl-7">
-                        Refund count
-                      </span>
-
-                      <span className="text-text-primary">
-                        {formatNumber(refundCount, 0)}
-                      </span>
-                    </div>
-
-                  </div>
+              {/* ADVERTISING DETAILS */}
+              {metric.key === 'advertising' && expanded['advertising'] && (
+                <div className="border-b border-border">
+                  <DetailRow
+                    label="Sponsored Products"
+                    value={-Number(advertising.sponsoredProducts || 0)}
+                    currency={displayCurrency}
+                  />
+                  <DetailRow
+                    label="Sponsored Brands Video"
+                    value={-Number(advertising.sponsoredBrandsVideo || 0)}
+                    currency={displayCurrency}
+                  />
+                  <DetailRow
+                    label="Sponsored Display"
+                    value={-Number(advertising.sponsoredDisplay || 0)}
+                    currency={displayCurrency}
+                  />
+                  <DetailRow
+                    label="Sponsored Brands"
+                    value={-Number(advertising.sponsoredBrands || 0)}
+                    currency={displayCurrency}
+                  />
+                </div>
               )}
 
-              {/* ==================================================
-                  AMAZON FEE DETAILS
-              ================================================== */}
-
-              {metric.key ===
-                'amazon-fees' &&
-                expanded[
-                  'amazon-fees'
-                ] && (
-                  <div className="border-b border-border">
-                    <DetailRow
-                      label="FBA storage fee"
-                      value={
-                        -Number(
-                          amazonFees
-                            .fbaStorageFee ||
-                            0
-                        )
-                      }
-                      currency={
-                        displayCurrency
-                      }
-                    />
-
-                    <DetailRow
-                      label="FBA per unit fulfilment fee"
-                      value={
-                        -Number(
-                          amazonFees
-                            .fbaPerUnitFulfillmentFee ||
-                            0
-                        )
-                      }
-                      currency={
-                        displayCurrency
-                      }
-                    />
-
-                    <DetailRow
-                      label="Referral fee"
-                      value={
-                        -Number(
-                          amazonFees
-                            .referralFee ||
-                            0
-                        )
-                      }
-                      currency={
-                        displayCurrency
-                      }
-                    />
-
-                    <DetailRow
-                      label="Deal participation fee"
-                      value={
-                        -Number(
-                          amazonFees
-                            .dealParticipationFee ||
-                            0
-                        )
-                      }
-                      currency={
-                        displayCurrency
-                      }
-                    />
-
-                    <DetailRow
-                      label="Deal performance fee"
-                      value={
-                        -Number(
-                          amazonFees
-                            .dealPerformanceFee ||
-                            0
-                        )
-                      }
-                      currency={
-                        displayCurrency
-                      }
-                    />
-
-                    <DetailRow
-                      label="FBA disposal fee"
-                      value={
-                        -Number(
-                          amazonFees
-                            .fbaDisposalFee ||
-                            0
-                        )
-                      }
-                      currency={
-                        displayCurrency
-                      }
-                    />
-
-                    <DetailRow
-                      label="Sales tax collection fee"
-                      value={
-                        -Number(
-                          amazonFees
-                            .salesTaxCollectionFee ||
-                            0
-                        )
-                      }
-                      currency={
-                        displayCurrency
-                      }
-                    />
-
-                    <DetailRow
-                      label="Reversal reimbursement"
-                      value={
-                        -Number(
-                          amazonFees
-                            .reversalReimbursement ||
-                            0
-                        )
-                      }
-                      currency={
-                        displayCurrency
-                      }
-                    />
-
-                    <DetailRow
-                      label="Other"
-                      value={
-                        -Number(
-                          amazonFees
-                            .other ||
-                            0
-                        )
-                      }
-                      currency={
-                        displayCurrency
-                      }
-                    />
+              {/* REFUND DETAILS */}
+              {metric.key === 'refund' && expanded['refund'] && (
+                <div className="border-b border-border">
+                  <DetailRow
+                    label="Refunded amount"
+                    value={-Number(refunds.refundedAmount ?? 0)}
+                    currency={displayCurrency}
+                  />
+                  <DetailRow
+                    label="Refund commission"
+                    value={-Number(refunds.refundCommission ?? 0)}
+                    currency={displayCurrency}
+                  />
+                  <DetailRow
+                    label="Promotion adjustment"
+                    value={Number(refunds.promotion ?? 0)}
+                    currency={displayCurrency}
+                  />
+                  <DetailRow
+                    label="Value of returned items"
+                    value={Number(refunds.valueOfReturnedItems ?? 0)}
+                    currency={displayCurrency}
+                  />
+                  <DetailRow
+                    label="Refunded referral fee"
+                    value={Number(refunds.refundedReferralFee ?? 0)}
+                    currency={displayCurrency}
+                  />
+                  <div className="flex items-center justify-between py-2 text-sm pl-7 text-text-muted">
+                    <span>Refund count</span>
+                    <span className="text-text-primary">
+                      {formatNumber(refundCount, 0)}
+                    </span>
                   </div>
-                )}
+                </div>
+              )}
+
+              {/* AMAZON FEE DETAILS */}
+              
+              {metric.key === 'amazon-fees' && expanded['amazon-fees'] && (
+                <div className="border-b border-border">
+                  {Object.entries({
+                    'FBA storage fee': amazonFees.fbaStorageFee,
+                    'FBA per unit fulfilment fee': amazonFees.fbaPerUnitFulfillmentFee,
+                    'Referral fee': amazonFees.referralFee,
+                    'Deal participation fee': amazonFees.dealParticipationFee,
+                    'Deal performance fee': amazonFees.dealPerformanceFee,
+                    'FBA disposal fee': amazonFees.fbaDisposalFee,
+                    'Sales tax collection fee': amazonFees.salesTaxCollectionFee,
+                    'Reversal reimbursement': amazonFees.reversalReimbursement,
+                    'Shipping chargeback': amazonFees.shippingChargeback,
+                    'Warehouse lost': amazonFees.warehouseLost,
+                    'Warehouse damage': amazonFees.warehouseDamage,
+                    'Refund commission': amazonFees.refundCommission,
+                    'Base fee': amazonFees.baseFee,
+                    'Tax on fee': amazonFees.taxOnFee,
+                    'Other': amazonFees.other,
+                  })
+                    .filter(([, feeValue]) => Math.abs(Number(feeValue || 0)) > 0)
+                    .map(([feeLabel, feeValue]) => (
+                      <DetailRow
+                        key={feeLabel}
+                        label={feeLabel}
+                        value={-Number(feeValue || 0)}
+                        currency={displayCurrency}
+                      />
+                    ))}
+                </div>
+              )}
             </React.Fragment>
           ))}
         </div>
