@@ -33,10 +33,6 @@ import {
 import { MarketplaceFlag } from '@/components/marketplace-flag/MarketPlaceFlag'
 
 /* ──────────────────────────────────────────────────────
- * Marketplace Flag Component
- * ────────────────────────────────────────────────────── */
-
-/* ──────────────────────────────────────────────────────
  * Types
  * ────────────────────────────────────────────────────── */
 
@@ -175,7 +171,6 @@ const HeaderTooltip: React.FC<{ columnKey: SortColumn | 'info' }> = ({
         {info.formula}
       </div>
       {info.note && <div className="text-gray-400 text-[10px] leading-tight">{info.note}</div>}
-      {/* Tooltip Arrow */}
       <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-gray-900" />
     </div>
   )
@@ -195,8 +190,11 @@ const buildProductStatData = (
   const totalCOGS = Math.abs(p.totalCOGS || 0)
   const promoRebates = Math.abs(p.promoRebates || 0)
 
-  const refundDetails = p.refundDetails || {}
+  const refundDetails = (p as any).refundDetails || {}
   const feeDetails = (p as any).amazonFeeDetails || {}
+
+  // Extract refundTax safely from nested details or root level fallback
+  const refundTax = Number(refundDetails.refundTax ?? (p as any).refundTax ?? 0)
 
   return {
     title: p.productTitle || p.sku || 'Product',
@@ -240,6 +238,12 @@ const buildProductStatData = (
             label: 'Value of returned items',
             value: refundDetails.valueOfReturnedItems || 0,
             currency: true,
+          },
+          {
+            label: 'Sales tax refunded',
+            value: refundTax,
+            currency: true,
+            tooltipKey: 'Sales tax refunded',
           },
           {
             label: 'Promotion adjustment',

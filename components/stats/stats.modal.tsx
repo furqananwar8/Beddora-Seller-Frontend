@@ -75,9 +75,9 @@ const STAT_TOOLTIPS: Record<
     note: 'Total ad spend incurred across Amazon Sponsored Ads campaigns.',
   },
   'Refund cost': {
-    title: 'Net Refund Cost',
-    formula: '(Refunded Amount + Tax) + Promo - Refunded Referral Fee + Refund Commission',
-    note: 'Total net financial impact resulting from customer returns and adjustments.',
+    title: 'Gross Refund Cost',
+    formula: 'Value of Returned Items + Sales Tax Refunded',
+    note: 'Total gross customer charges reversed during order return processing.',
   },
   'Amazon fees': {
     title: 'Amazon Fees',
@@ -133,8 +133,13 @@ const STAT_TOOLTIPS: Record<
   // Detail Sub-row Tooltips
   'Refunded amount': {
     title: 'Gross Refunded Amount',
-    formula: 'Principal Charges + Sales Tax + Shipping Charges Refunded',
+    formula: 'Value of Returned Items + Sales Tax Refunded',
     note: 'Total customer charge reversed during order return processing.',
+  },
+  'Sales tax refunded': {
+    title: 'Sales Tax Refunded',
+    formula: 'Sum(Sales Tax Reversed on Returns)',
+    note: 'Customer sales tax reversed and remitted during order return processing.',
   },
   'Value of returned items': {
     title: 'Base Price of Returned Items',
