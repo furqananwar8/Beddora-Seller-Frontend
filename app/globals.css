@@ -17,6 +17,13 @@
   * {
     @apply border-border;
     border-radius: 0 !important;
+    scrollbar-width: none;
+    -ms-overflow-style: none; /* IE and Edge */
+
+  }
+
+  *::-webkit-scrollbar {
+    display: none;
   }
 
   body {
