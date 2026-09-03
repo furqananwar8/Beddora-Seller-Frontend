@@ -760,7 +760,7 @@ export const ProfitDashboardScreen: React.FC = () => {
             </div>
 
             {/* Products table */}
-            <Card>
+            <Card className="overflow-visible">
               <CardContent className="p-0">
                 <div className="flex items-center justify-between px-6 pt-4 pb-2 border-b border-border flex-wrap gap-3">
                   <div className="flex items-center gap-4">
