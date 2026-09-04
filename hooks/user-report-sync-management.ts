@@ -74,25 +74,37 @@ export function useReportSyncManagement() {
       })
 
     if (selectedItems.length === 0) {
-      alert('Please select at least one row to reset.')
-      return
+      const emptyError = new Error('Please select at least one row to reset.')
+      setMessage({ text: emptyError.message, isError: true })
+      throw emptyError
     }
 
     setMessage(null)
 
     try {
       const result = await resetSyncState({ items: selectedItems }).unwrap()
+
       if (result.success) {
         setMessage({ text: result.message || 'Sync states reset successfully!' })
         setSelectionMap({})
+        return result
       } else {
-        setMessage({ text: `Error: ${result.message}`, isError: true })
+        const apiError = new Error(result.message || 'Failed to reset sync state')
+        setMessage({ text: apiError.message, isError: true })
+        // Throw error so UI caller handles error toast properly
+        throw apiError
       }
     } catch (e: any) {
+      const errorMessage =
+        e?.data?.message || e?.message || e?.data?.error || 'Unknown error occurred'
+
       setMessage({
-        text: `Request failed: ${e?.data?.message || e?.message || 'Unknown error'}`,
+        text: `Request failed: ${errorMessage}`,
         isError: true,
       })
+
+      // Re-throw so page-level try/catch triggers error toast
+      throw new Error(errorMessage)
     }
   }
 
