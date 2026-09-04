@@ -83,6 +83,10 @@ export interface DateRangePickerProps {
   placeholder?: string
 
   keepOpenPresetIds?: string[]
+
+  selectionMode?: 'range' | 'single'
+
+  disableFutureDates?: boolean
 }
 
 // ─── Default Presets ─────────────────────────────────────────────────────────
@@ -267,6 +271,8 @@ interface CalendarGridProps {
   disabledDate?: (
     date: Date
   ) => boolean
+  selectionMode?: 'range' | 'single'
+  disableFutureDates?: boolean
 }
 
 const WEEKDAYS = [
@@ -290,6 +296,8 @@ function CalendarGrid({
   minDate,
   maxDate,
   disabledDate,
+  selectionMode = 'range',
+  disableFutureDates = false,
 }: CalendarGridProps) {
   const firstDayOfMonth =
     new Date(year, month, 1)
@@ -328,6 +336,7 @@ function CalendarGrid({
     dateStr: string
   ): boolean => {
     if (
+      selectionMode === 'single' ||
       !selectedStart ||
       !selectedEnd
     ) {
@@ -350,6 +359,7 @@ function CalendarGrid({
     dateStr: string
   ): boolean => {
     if (
+      selectionMode === 'single' ||
       !selectedStart ||
       selectedEnd ||
       !hoverDate
@@ -397,6 +407,10 @@ function CalendarGrid({
     const isSelectedEnd =
       selectedEnd === dateStr
 
+    const isSingleSelected =
+      selectionMode === 'single' &&
+      selectedStart === dateStr
+
     const inRange =
       isInRange(dateStr)
 
@@ -406,7 +420,13 @@ function CalendarGrid({
     const isTodayDate =
       isToday(date)
 
+    const isFutureDate =
+      disableFutureDates &&
+      isAfter(date, new Date()) &&
+      !isTodayDate
+
     const isDisabled =
+      isFutureDate ||
       (minDate &&
         isBefore(date, minDate) &&
         !isSameDay(date, minDate)) ||
@@ -420,6 +440,7 @@ function CalendarGrid({
       dateStr,
       isSelectedStart,
       isSelectedEnd,
+      isSingleSelected,
       inRange,
       hovered,
       isTodayDate,
@@ -463,6 +484,7 @@ function CalendarGrid({
               dateStr,
               isSelectedStart,
               isSelectedEnd,
+              isSingleSelected,
               inRange,
               hovered,
               isTodayDate,
@@ -508,26 +530,34 @@ function CalendarGrid({
                   !isDisabled &&
                     'cursor-pointer hover:bg-primary-100',
 
-                  isSelectedStart &&
+                  isSingleSelected &&
+                    'rounded-md bg-primary-700 text-white hover:bg-primary-700',
+
+                  selectionMode === 'range' &&
+                    isSelectedStart &&
                     'rounded-l-md bg-primary-700 text-white hover:bg-primary-700',
 
-                  isSelectedEnd &&
+                  selectionMode === 'range' &&
+                    isSelectedEnd &&
                     'rounded-r-md bg-primary-700 text-white hover:bg-primary-700',
 
-                  !isSelectedStart &&
+                  selectionMode === 'range' &&
+                    !isSelectedStart &&
                     !isSelectedEnd &&
                     (inRange ||
                       hovered) &&
                     'bg-primary-100 text-secondary-600',
 
                   isTodayDate &&
+                    !isSingleSelected &&
                     !isSelectedStart &&
                     !isSelectedEnd &&
                     !inRange &&
                     !hovered &&
                     'font-semibold text-primary-600',
 
-                  !isSelectedStart &&
+                  !isSingleSelected &&
+                    !isSelectedStart &&
                     !isSelectedEnd &&
                     !inRange &&
                     !hovered &&
@@ -562,6 +592,8 @@ export default function DateRangePicker({
   displayFormat = 'MMM d, yyyy',
   placeholder = 'Select date range',
   keepOpenPresetIds = [],
+  selectionMode = 'range',
+  disableFutureDates = false,
 }: DateRangePickerProps) {
   const [isOpen, setIsOpen] =
     useState(false)
@@ -702,12 +734,21 @@ export default function DateRangePicker({
   const handleDateClick =
     useCallback(
       (dateStr: string) => {
-        /*
-         * Start a new range when:
-         *
-         * - there is no start date, OR
-         * - the previous range is already complete.
-         */
+        if (selectionMode === 'single') {
+          setTempStartDate(dateStr)
+          setTempEndDate(dateStr)
+          setSelectedPreset(null)
+
+          onChange({
+            startDate: dateStr,
+            endDate: dateStr,
+            presetId: null,
+          })
+
+          setIsOpen(false)
+          return
+        }
+
         if (
           !tempStartDate ||
           (tempStartDate &&
@@ -734,10 +775,6 @@ export default function DateRangePicker({
         const clicked =
           parseISO(dateStr)
 
-        /*
-         * User clicked before the start date.
-         * Swap the dates and complete the range.
-         */
         if (
           isBefore(
             clicked,
@@ -762,14 +799,6 @@ export default function DateRangePicker({
             null
           )
 
-          /*
-           * IMPORTANT:
-           *
-           * There is no Apply button anymore.
-           * Once both dates exist, immediately notify
-           * the parent so draft state receives the
-           * custom range.
-           */
           onChange({
             startDate:
               newStart,
@@ -780,9 +809,6 @@ export default function DateRangePicker({
           return
         }
 
-        /*
-         * Normal second-date selection.
-         */
         const newStart =
           tempStartDate
 
@@ -797,16 +823,6 @@ export default function DateRangePicker({
           null
         )
 
-        /*
-         * IMPORTANT:
-         *
-         * This is what was missing previously.
-         * The old component had applyCustomRange(),
-         * but there was no Apply button calling it.
-         *
-         * Notify the parent immediately after the
-         * second date is selected.
-         */
         onChange({
           startDate:
             newStart,
@@ -815,6 +831,7 @@ export default function DateRangePicker({
         })
       },
       [
+        selectionMode,
         tempStartDate,
         tempEndDate,
         onChange,
@@ -861,10 +878,6 @@ export default function DateRangePicker({
           presetId,
         })
 
-        /*
-         * Custom stays open because it is included
-         * in keepOpenPresetIds.
-         */
         if (
           !keepOpenPresetIds.includes(
             presetId
@@ -885,17 +898,6 @@ export default function DateRangePicker({
   // ─────────────────────────────────────────────────────────────────────────
 
   const displayText = () => {
-    /*
-     * A custom range must display the actual dates.
-     *
-     * Previously:
-     *
-     * selectedPreset === 'custom'
-     *     -> "Custom range"
-     *
-     * That made the selected custom range appear
-     * as if nothing had been selected.
-     */
     if (
       selectedPreset &&
       !keepOpenPresetIds.includes(
@@ -918,6 +920,16 @@ export default function DateRangePicker({
       tempStartDate &&
       tempEndDate
     ) {
+      if (
+        selectionMode === 'single' ||
+        tempStartDate === tempEndDate
+      ) {
+        return format(
+          parseISO(tempStartDate),
+          displayFormat
+        )
+      }
+
       return `${format(
         parseISO(tempStartDate),
         displayFormat
@@ -928,16 +940,19 @@ export default function DateRangePicker({
     }
 
     if (tempStartDate) {
+      if (selectionMode === 'single') {
+        return format(
+          parseISO(tempStartDate),
+          displayFormat
+        )
+      }
+
       return `${format(
         parseISO(tempStartDate),
         displayFormat
       )} - ...`
     }
 
-    /*
-     * If a keep-open preset such as custom has
-     * no temporary range yet, show its label.
-     */
     if (selectedPreset) {
       const preset =
         activePresets.find(
@@ -1218,6 +1233,12 @@ export default function DateRangePicker({
                 disabledDate={
                   disabledDate
                 }
+                selectionMode={
+                  selectionMode
+                }
+                disableFutureDates={
+                  disableFutureDates
+                }
               />
 
               <CalendarGrid
@@ -1251,6 +1272,12 @@ export default function DateRangePicker({
                 disabledDate={
                   disabledDate
                 }
+                selectionMode={
+                  selectionMode
+                }
+                disableFutureDates={
+                  disableFutureDates
+                }
               />
             </div>
 
@@ -1260,25 +1287,42 @@ export default function DateRangePicker({
               <div className="min-w-0 flex-1 truncate text-sm text-text-secondary">
                 {tempStartDate &&
                 tempEndDate
-                  ? `${format(
-                      parseISO(
-                        tempStartDate
-                      ),
-                      displayFormat
-                    )} - ${format(
-                      parseISO(
-                        tempEndDate
-                      ),
-                      displayFormat
-                    )}`
-                  : tempStartDate
-                    ? `${format(
+                  ? selectionMode === 'single' ||
+                    tempStartDate === tempEndDate
+                    ? format(
                         parseISO(
                           tempStartDate
                         ),
                         displayFormat
-                      )} - Select end date`
-                    : 'Select a date range'}
+                      )
+                    : `${format(
+                        parseISO(
+                          tempStartDate
+                        ),
+                        displayFormat
+                      )} - ${format(
+                        parseISO(
+                          tempEndDate
+                        ),
+                        displayFormat
+                      )}`
+                  : tempStartDate
+                    ? selectionMode === 'single'
+                      ? format(
+                          parseISO(
+                            tempStartDate
+                          ),
+                          displayFormat
+                        )
+                      : `${format(
+                          parseISO(
+                            tempStartDate
+                          ),
+                          displayFormat
+                        )} - Select end date`
+                    : selectionMode === 'single'
+                      ? 'Select date'
+                      : 'Select a date range'}
               </div>
             </div>
           </div>
