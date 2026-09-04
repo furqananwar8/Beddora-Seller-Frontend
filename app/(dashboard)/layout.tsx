@@ -146,6 +146,12 @@ export default function DashboardLayout({
             icon: NavIcons.settings,
             children: [
               {
+                label: 'Report Sync Managemnet',
+                subject: 'settings:report-sync-management',
+                action: 'read',
+                href: '/dashboard/settings/report-sync-management'
+              },
+              {
                 label: 'General',
                 subject: 'settings:general',
                 action: 'read',
