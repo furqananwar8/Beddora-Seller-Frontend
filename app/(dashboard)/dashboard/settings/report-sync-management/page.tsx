@@ -8,11 +8,12 @@ import { Spinner } from '@/design-system/loaders'
 import { useAppDispatch } from '@/store/hooks'
 import { addNotification } from '@/store/ui.slice'
 
-const ALLOWED_SYNC_TYPES = ['ads', 'fees']
+const ALLOWED_SYNC_TYPES = ['ads', 'fees', 'products']
 
 const SYNC_TYPE_LABEL_MAP: Record<string, string> = {
   ads: 'Ads Report',
   fees: 'Payment Report',
+  products: 'Products'
 }
 
 export default function ReportSyncManagementPage() {
