@@ -71,6 +71,45 @@ import TrendsTab from './TrendsTab'
 
 const CUSTOM_RANGE_STORAGE_KEY = 'profit_custom_tile_range'
 
+const MARKETPLACE_CURRENCY_MAP: Record<string, CurrencyCode> = {
+  // Canada
+  'amazon.ca': 'CAD',
+  'canada': 'CAD',
+  'ca': 'CAD',
+
+  // USA
+  'amazon.com': 'USD',
+  'usa': 'USD',
+  'us': 'USD',
+
+  // Mexico
+  'amazon.com.mx': 'EUR',
+  'amazon.mx': 'EUR',
+  'mexico': 'EUR',
+  'mx': 'EUR',
+}
+
+const getDefaultCurrencyForMarketplaces = (
+  marketplaces: string[],
+  fallback: CurrencyCode = 'CAD'
+): CurrencyCode => {
+  if (!marketplaces || marketplaces.length === 0) return fallback
+
+  const primary = marketplaces[0].trim().toLowerCase()
+
+  // $O(1)$ Direct Object Lookup
+  if (MARKETPLACE_CURRENCY_MAP[primary]) {
+    return MARKETPLACE_CURRENCY_MAP[primary]
+  }
+
+  // Fallback fuzzy search on object keys (if partial match like "Amazon Canada")
+  const matchedKey = Object.keys(MARKETPLACE_CURRENCY_MAP).find((key) =>
+    primary.includes(key)
+  )
+
+  return matchedKey ? MARKETPLACE_CURRENCY_MAP[matchedKey] : fallback
+}
+
 // ════════════════════════════════════════════════════════
 // ProfitDashboardScreen
 // ════════════════════════════════════════════════════════
@@ -190,11 +229,23 @@ export const ProfitDashboardScreen: React.FC = () => {
 
   const handleSharedMarketplacesChange = useCallback((value: string[]) => {
     setAppliedMarketplaces(value)
-  }, [])
+    const newCurrency = getDefaultCurrencyForMarketplaces(value, appliedCurrency)
+    setAppliedCurrency(newCurrency)
+  }, [appliedCurrency])
 
   const handleSharedCurrencyChange = useCallback((value: CurrencyCode) => {
     setAppliedCurrency(value)
   }, [])
+
+  // ──────────────────────────────
+  // Draft marketplace handler (Tiles Header)
+  // ──────────────────────────────
+
+  const handleDraftMarketplacesChange = useCallback((marketplaces: string[]) => {
+    setDraftMarketplaces(marketplaces)
+    const newCurrency = getDefaultCurrencyForMarketplaces(marketplaces, draftCurrency)
+    setDraftCurrency(newCurrency)
+  }, [draftCurrency])
 
   // ──────────────────────────────
   // Custom applied preset
@@ -703,7 +754,7 @@ export const ProfitDashboardScreen: React.FC = () => {
               dateDisplayFormat="MMM d, yyyy"
               datePlaceholder="Select date range"
               marketplaces={draftMarketplaces}
-              onMarketplacesChange={setDraftMarketplaces}
+              onMarketplacesChange={handleDraftMarketplacesChange}
               currency={draftCurrency}
               onCurrencyChange={(value) => setDraftCurrency(value as CurrencyCode)}
               currencyOptions={[
