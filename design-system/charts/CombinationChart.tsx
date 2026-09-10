@@ -35,7 +35,8 @@ export interface BarSeries {
   color?: string
   yAxisId?: 'left' | 'right'
   opacity?: number
-  radius?: number
+  radius?: number | [number, number, number, number]
+  stackId?: string
 }
 
 export interface CombinationChartProps {
@@ -83,25 +84,19 @@ export const CombinationChart: React.FC<CombinationChartProps> = ({
 
   const containerRef = useRef<HTMLDivElement>(null)
 
-  const [containerHeight, setContainerHeight] =
-    useState(height || 400)
+  const [containerHeight, setContainerHeight] = useState(height || 400)
 
   useEffect(() => {
     if (!height && containerRef.current) {
       const updateHeight = () => {
         if (containerRef.current) {
-          setContainerHeight(
-            containerRef.current.clientHeight
-          )
+          setContainerHeight(containerRef.current.clientHeight)
         }
       }
 
       updateHeight()
 
-      const resizeObserver = new ResizeObserver(
-        updateHeight
-      )
-
+      const resizeObserver = new ResizeObserver(updateHeight)
       resizeObserver.observe(containerRef.current)
 
       return () => resizeObserver.disconnect()
@@ -113,65 +108,42 @@ export const CombinationChart: React.FC<CombinationChartProps> = ({
     fill: '#64748b',
   }
 
-  /*
-   * Give the chart more room for formatted currency values.
-   *
-   * 90px left is important for values such as:
-   * C$-120,000
-   * C$50,000
-   *
-   * 70px right gives the units axis enough breathing room.
-   */
   const leftAxisWidth = hasLeftAxis ? 90 : 0
   const rightAxisWidth = hasRightAxis ? 70 : 0
 
   return (
-    <div
-      ref={containerRef}
-      className={cn('w-full h-full', className)}
-    >
-      <ResponsiveContainer
-        width="100%"
-        height={containerHeight}
-      >
+    <div ref={containerRef} className={cn('w-full h-full', className)}>
+      <ResponsiveContainer width="100%" height={containerHeight}>
         <ComposedChart
           data={data}
+          // Increases bar width by reducing gaps between bar groups and individual bars
+          barCategoryGap="100%"
+          barGap={5}
           margin={{
-            top: 12,
+            top: 16,
             right: hasRightAxis ? 12 : 8,
             left: hasLeftAxis ? 12 : 8,
             bottom: 20,
           }}
         >
-          {/* ================================================
-              GRID
-          ================================================= */}
-
+          {/* Subtle Horizontal Grid */}
           <CartesianGrid
             strokeDasharray="3 3"
-            stroke="#e2e8f0"
+            stroke="#f1f5f9"
             vertical={false}
           />
 
-          {/* ================================================
-              X AXIS
-          ================================================= */}
-
+          {/* X Axis */}
           <XAxis
             dataKey={xKey}
             tick={axisTickStyle}
-            axisLine={{
-              stroke: '#e2e8f0',
-            }}
+            axisLine={{ stroke: '#e2e8f0' }}
             tickLine={false}
             dy={8}
-            minTickGap={24}
+            minTickGap={16}
           />
 
-          {/* ================================================
-              LEFT Y AXIS
-          ================================================= */}
-
+          {/* Left Y Axis (Currency) */}
           {hasLeftAxis && (
             <YAxis
               yAxisId="left"
@@ -199,10 +171,7 @@ export const CombinationChart: React.FC<CombinationChartProps> = ({
             />
           )}
 
-          {/* ================================================
-              RIGHT Y AXIS
-          ================================================= */}
-
+          {/* Right Y Axis (Volume / Units) */}
           {hasRightAxis && (
             <YAxis
               yAxisId="right"
@@ -231,23 +200,19 @@ export const CombinationChart: React.FC<CombinationChartProps> = ({
             />
           )}
 
-          {/* ================================================
-              TOOLTIP
-          ================================================= */}
-
+          {/* Tooltip */}
           <Tooltip
             formatter={tooltipFormatter}
             contentStyle={{
               backgroundColor: '#ffffff',
               border: '1px solid #e2e8f0',
-              borderRadius: '10px',
-              boxShadow:
-                '0 10px 25px -5px rgb(0 0 0 / 0.10)',
+              borderRadius: '12px',
+              boxShadow: '0 10px 25px -5px rgb(0 0 0 / 0.08)',
               fontSize: 13,
               padding: '12px 16px',
             }}
             labelStyle={{
-              color: '#1e293b',
+              color: '#0f172a',
               fontWeight: 600,
               marginBottom: 8,
               fontSize: 13,
@@ -257,53 +222,49 @@ export const CombinationChart: React.FC<CombinationChartProps> = ({
               padding: '2px 0',
             }}
             cursor={{
-              fill: 'rgba(15, 23, 42, 0.035)',
+              fill: 'rgba(241, 245, 249, 0.6)',
             }}
           />
 
-          {/* ================================================
-              LEGEND
-          ================================================= */}
-
+          {/* Legend */}
           <Legend
             wrapperStyle={{
               fontSize: 12,
-              paddingTop: 12,
+              paddingTop: 16,
               color: '#475569',
             }}
             iconType="circle"
-            iconSize={7}
+            iconSize={8}
           />
 
-          {/* ================================================
-              BAR SERIES
-          ================================================= */}
-
+          {/* Bar Series */}
           {barSeries.map((series) => (
             <Bar
               key={series.key}
               dataKey={series.key}
               name={series.name}
-              fill={series.color || '#0ea5e9'}
+              fill={series.color || '#3b82f6'}
               yAxisId={series.yAxisId || 'left'}
-              radius={[
-                series.radius ?? 4,
-                series.radius ?? 4,
-                0,
-                0,
-              ]}
-              maxBarSize={36}
+              stackId={series.stackId}
+              radius={
+                Array.isArray(series.radius)
+                  ? series.radius
+                  : [
+                      series.radius ?? 6,
+                      series.radius ?? 6,
+                      0,
+                      0,
+                    ]
+              }
+              // Increased maxBarSize from 36px to 52px for fuller, wider bars
+              maxBarSize={64}
               fillOpacity={series.opacity ?? 0.85}
             />
           ))}
 
-          {/* ================================================
-              LINE / AREA SERIES
-          ================================================= */}
-
+          {/* Line / Area Series */}
           {lineSeries.map((series) => {
-            const stroke =
-              series.color || '#0ea5e9'
+            const stroke = series.color || '#6366f1'
 
             if (series.type === 'area') {
               return (
@@ -314,10 +275,8 @@ export const CombinationChart: React.FC<CombinationChartProps> = ({
                   name={series.name}
                   stroke={stroke}
                   fill={stroke}
-                  fillOpacity={0.10}
-                  strokeWidth={
-                    series.strokeWidth ?? 2.5
-                  }
+                  fillOpacity={0.12}
+                  strokeWidth={series.strokeWidth ?? 2.5}
                   dot={
                     series.showDots === false
                       ? false
@@ -333,9 +292,7 @@ export const CombinationChart: React.FC<CombinationChartProps> = ({
                     strokeWidth: 2,
                     fill: '#ffffff',
                   }}
-                  yAxisId={
-                    series.yAxisId || 'left'
-                  }
+                  yAxisId={series.yAxisId || 'left'}
                 />
               )
             }
@@ -347,14 +304,12 @@ export const CombinationChart: React.FC<CombinationChartProps> = ({
                 dataKey={series.key}
                 name={series.name}
                 stroke={stroke}
-                strokeWidth={
-                  series.strokeWidth ?? 2.5
-                }
+                strokeWidth={series.strokeWidth ?? 2.5}
                 dot={
                   series.showDots === false
                     ? false
                     : {
-                        r: 3,
+                        r: 3.5,
                         strokeWidth: 0,
                         fill: stroke,
                       }
@@ -365,9 +320,7 @@ export const CombinationChart: React.FC<CombinationChartProps> = ({
                   strokeWidth: 2,
                   fill: '#ffffff',
                 }}
-                yAxisId={
-                  series.yAxisId || 'left'
-                }
+                yAxisId={series.yAxisId || 'left'}
               />
             )
           })}

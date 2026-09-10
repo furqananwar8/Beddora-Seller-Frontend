@@ -48,6 +48,49 @@ import { DashboardChart } from './DashboardChart'
 import { OrderItemsTable } from './OrderItemsTable'
 import { SellerboardProductsTable } from './SellerboardProductsTable'
 
+// ────────────────────────────────────────────────────────
+// Marketplace to Currency Lookup Object
+// ────────────────────────────────────────────────────────
+
+const MARKETPLACE_CURRENCY_MAP: Record<string, CurrencyCode> = {
+  // Canada
+  'amazon.ca': 'CAD',
+  'canada': 'CAD',
+  'ca': 'CAD',
+
+  // USA
+  'amazon.com': 'USD',
+  'usa': 'USD',
+  'us': 'USD',
+
+  // Mexico
+  'amazon.com.mx': 'EUR',
+  'amazon.mx': 'EUR',
+  'mexico': 'EUR',
+  'mx': 'EUR',
+}
+
+const getDefaultCurrencyForMarketplaces = (
+  marketplaces: string[],
+  fallback: CurrencyCode = 'CAD'
+): CurrencyCode => {
+  if (!marketplaces || marketplaces.length === 0) return fallback
+
+  const primary = marketplaces[0].trim().toLowerCase()
+
+  // O(1) Direct Object Lookup
+  if (MARKETPLACE_CURRENCY_MAP[primary]) {
+    return MARKETPLACE_CURRENCY_MAP[primary]
+  }
+
+  // Fallback fuzzy search on object keys (if partial match like "Amazon Canada")
+  const matchedKey = Object.keys(MARKETPLACE_CURRENCY_MAP).find((key) =>
+    primary.includes(key)
+  )
+
+  return matchedKey ? MARKETPLACE_CURRENCY_MAP[matchedKey] : fallback
+}
+
 // ─────────────────────────────────────────────
 // Props
 // ─────────────────────────────────────────────
@@ -99,24 +142,23 @@ export const ChartTab: React.FC<ChartTabProps> = ({
   const [draftDateRange, setDraftDateRange] = useState<
     DateRangeValue & { periodicity?: string }
   >(initialDateRange)
+
   const [draftMarketplaces, setDraftMarketplaces] = useState<string[]>(
-    parentAppliedMarketplaces.length > 0
-      ? parentAppliedMarketplaces
-      : MARKETPLACES.map((m) => m.id),
+    parentAppliedMarketplaces
   )
   const [draftCurrency, setDraftCurrency] = useState<CurrencyCode>(
-    parentAppliedCurrency || 'CAD',
+    parentAppliedCurrency || 'CAD'
   )
 
   // Applied states (triggers API refetches)
   const [appliedDateRange, setAppliedDateRange] = useState<
     DateRangeValue & { periodicity?: string }
   >(initialDateRange)
-  const [appliedMarketplacesState, setAppliedMarketplacesState] = useState<
-    string[]
-  >(draftMarketplaces)
+  const [appliedMarketplacesState, setAppliedMarketplacesState] = useState<string[]>(
+    draftMarketplaces
+  )
   const [appliedCurrencyState, setAppliedCurrencyState] = useState<CurrencyCode>(
-    draftCurrency,
+    draftCurrency
   )
 
   // ──────────────────────────────
@@ -133,11 +175,19 @@ export const ChartTab: React.FC<ChartTabProps> = ({
     setDraftDateRange({ ...range, periodicity })
   }, [])
 
-  const handleDraftMarketplacesChange = useCallback((value: string[]) => {
-    const marketplaces =
-      value.length > 0 ? [...value] : MARKETPLACES.map((m) => m.id)
-    setDraftMarketplaces(marketplaces)
-  }, [])
+  const handleDraftMarketplacesChange = useCallback(
+    (value: string[]) => {
+      // Set draft marketplaces directly (allows empty array [])
+      setDraftMarketplaces(value)
+
+      // Auto-detect currency if marketplaces are selected
+      if (value.length > 0) {
+        const autoCurrency = getDefaultCurrencyForMarketplaces(value, draftCurrency)
+        setDraftCurrency(autoCurrency)
+      }
+    },
+    [draftCurrency]
+  )
 
   const handleDraftCurrencyChange = useCallback((value: string) => {
     setDraftCurrency(value as CurrencyCode)
@@ -184,9 +234,7 @@ export const ChartTab: React.FC<ChartTabProps> = ({
   const chartFilters = useMemo(
     () => ({
       accountId: effectiveAccountId,
-      marketplaces: appliedMarketplacesState.length
-        ? appliedMarketplacesState
-        : ALL_MARKETPLACES,
+      marketplaces: appliedMarketplacesState,
       startDate: appliedDateRange.startDate,
       endDate: appliedDateRange.endDate,
       period: (appliedDateRange.periodicity || 'day') as ChartPeriod,
@@ -225,9 +273,7 @@ export const ChartTab: React.FC<ChartTabProps> = ({
       {
         ...profitFilters,
         accountId: effectiveAccountId,
-        marketplaces: appliedMarketplacesState.length
-          ? appliedMarketplacesState
-          : ALL_MARKETPLACES,
+        marketplaces: appliedMarketplacesState,
         currency: appliedCurrencyState,
         startDate: activeRange.startDate,
         endDate: activeRange.endDate,
@@ -242,9 +288,7 @@ export const ChartTab: React.FC<ChartTabProps> = ({
       {
         ...profitFilters,
         accountId: effectiveAccountId,
-        marketplaces: appliedMarketplacesState.length
-          ? appliedMarketplacesState
-          : ALL_MARKETPLACES,
+        marketplaces: appliedMarketplacesState,
         currency: appliedCurrencyState,
         startDate: activeRange.startDate,
         endDate: activeRange.endDate,
