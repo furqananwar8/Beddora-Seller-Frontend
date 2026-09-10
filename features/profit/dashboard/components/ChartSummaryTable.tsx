@@ -348,15 +348,15 @@ export const ChartSummaryTable: React.FC<ChartSummaryTableProps> = ({
       expandable: false,
     },
 
-    {
-      key: 'giftwrap',
-      label: 'Giftwrap',
-      value: formatCurrency(
-        -giftwrap,
-        displayCurrency
-      ),
-      expandable: false,
-    },
+    // {
+    //   key: 'giftwrap',
+    //   label: 'Giftwrap',
+    //   value: formatCurrency(
+    //     -giftwrap,
+    //     displayCurrency
+    //   ),
+    //   expandable: false,
+    // },
 
     {
       key: 'refund',
@@ -469,15 +469,15 @@ export const ChartSummaryTable: React.FC<ChartSummaryTableProps> = ({
       expandable: false,
     },
 
-    {
-      key: 'subscriptions',
-      label: 'Active subscriptions (SnS)',
-      value: formatNumber(
-        activeSubscriptions,
-        0
-      ),
-      expandable: false,
-    },
+    // {
+    //   key: 'subscriptions',
+    //   label: 'Active subscriptions (SnS)',
+    //   value: formatNumber(
+    //     activeSubscriptions,
+    //     0
+    //   ),
+    //   expandable: false,
+    // },
 
     {
       key: 'sessions',
@@ -772,7 +772,7 @@ export const ChartSummaryTable: React.FC<ChartSummaryTableProps> = ({
                 expanded['amazon-fees'] && (
                   <div className="border-b border-border">
 
-                    <DetailRow
+                    {/* <DetailRow
                       label="FBA storage fee"
                       value={
                         -Number(
@@ -780,7 +780,7 @@ export const ChartSummaryTable: React.FC<ChartSummaryTableProps> = ({
                         )
                       }
                       currency={displayCurrency}
-                    />
+                    /> */}
 
                     <DetailRow
                       label="FBA per unit fulfilment fee"
@@ -802,7 +802,7 @@ export const ChartSummaryTable: React.FC<ChartSummaryTableProps> = ({
                       currency={displayCurrency}
                     />
 
-                    <DetailRow
+                    {/* <DetailRow
                       label="Deal participation fee"
                       value={
                         -Number(
@@ -810,9 +810,9 @@ export const ChartSummaryTable: React.FC<ChartSummaryTableProps> = ({
                         )
                       }
                       currency={displayCurrency}
-                    />
+                    /> */}
 
-                    <DetailRow
+                    {/* <DetailRow
                       label="Deal performance fee"
                       value={
                         -Number(
@@ -820,9 +820,9 @@ export const ChartSummaryTable: React.FC<ChartSummaryTableProps> = ({
                         )
                       }
                       currency={displayCurrency}
-                    />
+                    /> */}
 
-                    <DetailRow
+                    {/* <DetailRow
                       label="FBA disposal fee"
                       value={
                         -Number(
@@ -830,7 +830,7 @@ export const ChartSummaryTable: React.FC<ChartSummaryTableProps> = ({
                         )
                       }
                       currency={displayCurrency}
-                    />
+                    /> */}
 
                     <DetailRow
                       label="Sales tax collection fee"
@@ -842,7 +842,7 @@ export const ChartSummaryTable: React.FC<ChartSummaryTableProps> = ({
                       currency={displayCurrency}
                     />
 
-                    <DetailRow
+                    {/* <DetailRow
                       label="Reversal reimbursement"
                       value={
                         -Number(
@@ -850,7 +850,7 @@ export const ChartSummaryTable: React.FC<ChartSummaryTableProps> = ({
                         )
                       }
                       currency={displayCurrency}
-                    />
+                    /> */}
 
                     <DetailRow
                       label="Other"
