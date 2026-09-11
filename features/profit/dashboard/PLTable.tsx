@@ -30,12 +30,6 @@ export interface PLTableProps {
 
 /**
  * P&L Table
- *
- * Important:
- * - The API is the source of truth for expandable children.
- * - The frontend does not maintain Amazon fee definitions.
- * - Refunds is a COUNT, not a currency value.
- * - Refund cost is the currency-based expandable refund row.
  */
 export const PLTable: React.FC<PLTableProps> = ({
   data,
@@ -53,7 +47,7 @@ export const PLTable: React.FC<PLTableProps> = ({
       'Advertising cost',
       'Refund cost',
       'Amazon fees',
-      'Cost of goods',
+      'Costs of goods',
     ])
   )
 
@@ -73,8 +67,6 @@ export const PLTable: React.FC<PLTableProps> = ({
 
   /**
    * Main currency rows.
-   *
-   * Giftwrap intentionally removed.
    */
   const currencyRows = new Set([
     'Sales',
@@ -83,7 +75,7 @@ export const PLTable: React.FC<PLTableProps> = ({
     'Shipping costs',
     'Refund cost',
     'Amazon fees',
-    'Cost of goods',
+    'Costs of goods',
     'Gross profit',
     'Indirect expenses',
     'Net profit',
@@ -104,9 +96,6 @@ export const PLTable: React.FC<PLTableProps> = ({
 
   /**
    * Rows whose values are plain numbers/counts.
-   *
-   * Refunds is intentionally here because the parent
-   * represents the NUMBER OF REFUNDS.
    */
   const numberRows = new Set([
     'Refunds',
@@ -132,18 +121,10 @@ export const PLTable: React.FC<PLTableProps> = ({
       ? Number(value)
       : 0
 
-    /**
-     * Refund count.
-     *
-     * Refunds is NOT money.
-     */
     if (numberRows.has(parameter)) {
       return formatNumber(safeValue, 0)
     }
 
-    /**
-     * Children of Units / Sessions are counts.
-     */
     if (
       parentParameter &&
       numericParentRows.has(parentParameter)
@@ -151,18 +132,12 @@ export const PLTable: React.FC<PLTableProps> = ({
       return formatNumber(safeValue, 0)
     }
 
-    /**
-     * Percentage metrics.
-     */
     if (
       percentageRows.has(parameter)
     ) {
       return formatPercentage(safeValue)
     }
 
-    /**
-     * Main financial rows.
-     */
     if (
       currencyRows.has(parameter)
     ) {
@@ -172,11 +147,6 @@ export const PLTable: React.FC<PLTableProps> = ({
       )
     }
 
-    /**
-     * Children of financial rows.
-     *
-     * The API controls which children exist.
-     */
     if (
       parentParameter &&
       currencyRows.has(parentParameter)
@@ -187,9 +157,6 @@ export const PLTable: React.FC<PLTableProps> = ({
       )
     }
 
-    /**
-     * Standalone percentage fallback.
-     */
     if (
       parameter.toLowerCase().includes('%') ||
       parameter.toLowerCase().includes('margin') ||
@@ -200,18 +167,12 @@ export const PLTable: React.FC<PLTableProps> = ({
       return formatPercentage(safeValue)
     }
 
-    /**
-     * Standalone count/number fallback.
-     */
     return formatNumber(
       safeValue,
       0
     )
   }
 
-  /**
-   * Loading state.
-   */
   if (isLoading) {
     return (
       <Card>
@@ -224,9 +185,6 @@ export const PLTable: React.FC<PLTableProps> = ({
     )
   }
 
-  /**
-   * Error state.
-   */
   if (error) {
     return (
       <Card>
@@ -239,9 +197,6 @@ export const PLTable: React.FC<PLTableProps> = ({
     )
   }
 
-  /**
-   * Empty state.
-   */
   if (
     !data ||
     !data.metrics ||
@@ -263,11 +218,6 @@ export const PLTable: React.FC<PLTableProps> = ({
       <CardContent className="p-0">
         <div className="overflow-x-auto relative">
           <Table>
-
-            {/* ===================================================== */}
-            {/* HEADER */}
-            {/* ===================================================== */}
-
             <TableHeader>
               <TableRow>
                 <TableHead
@@ -311,10 +261,6 @@ export const PLTable: React.FC<PLTableProps> = ({
               </TableRow>
             </TableHeader>
 
-            {/* ===================================================== */}
-            {/* BODY */}
-            {/* ===================================================== */}
-
             <TableBody>
               {data.metrics.map(
                 (
@@ -344,11 +290,6 @@ export const PLTable: React.FC<PLTableProps> = ({
                     <React.Fragment
                       key={`${metric.parameter}-${rowIndex}`}
                     >
-
-                      {/* ================================================= */}
-                      {/* PARENT ROW */}
-                      {/* ================================================= */}
-
                       <TableRow
                         className={`
                           hover:bg-surface-secondary
@@ -384,7 +325,6 @@ export const PLTable: React.FC<PLTableProps> = ({
                           "
                         >
                           <div className="flex items-center gap-2">
-
                             {metric.isExpandable && (
                               <svg
                                 className={`
@@ -421,7 +361,6 @@ export const PLTable: React.FC<PLTableProps> = ({
                             >
                               {metric.parameter}
                             </span>
-
                           </div>
                         </TableCell>
 
@@ -473,10 +412,6 @@ export const PLTable: React.FC<PLTableProps> = ({
                         </TableCell>
                       </TableRow>
 
-                      {/* ================================================= */}
-                      {/* CHILD ROWS */}
-                      {/* ================================================= */}
-
                       {isExpanded &&
                         hasChildren &&
                         metric.children!.map(
@@ -512,7 +447,6 @@ export const PLTable: React.FC<PLTableProps> = ({
                                   }
                                 `}
                               >
-
                                 <TableCell
                                   className="
                                     sticky
@@ -525,7 +459,6 @@ export const PLTable: React.FC<PLTableProps> = ({
                                   "
                                 >
                                   <div className="flex items-center gap-2">
-
                                     <span
                                       className="
                                         w-1
@@ -545,7 +478,6 @@ export const PLTable: React.FC<PLTableProps> = ({
                                     >
                                       {child.parameter}
                                     </span>
-
                                   </div>
                                 </TableCell>
 
@@ -601,18 +533,15 @@ export const PLTable: React.FC<PLTableProps> = ({
                                     metric.parameter
                                   )}
                                 </TableCell>
-
                               </TableRow>
                             )
                           }
                         )}
-
                     </React.Fragment>
                   )
                 }
               )}
             </TableBody>
-
           </Table>
         </div>
       </CardContent>

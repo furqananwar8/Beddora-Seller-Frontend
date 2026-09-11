@@ -21,8 +21,6 @@ import {
   ProfitFilters,
 } from '@/services/api/profit.api'
 
-
-
 import { useDebounce } from '@/utils/debounce'
 
 import {
@@ -36,9 +34,7 @@ import {
   type TableView,
 } from '@/utils/profitDashboard.util'
 
-import { MARKETPLACES } from '@/utils/marketplaces'
-
-import DateRangePicker, {
+import {
   DateRangeValue,
 } from '@/components/date-range-picker/DateRangePicker'
 import ProfitDashboardHeader from './components/ProfitDashboardHeader'
@@ -46,6 +42,48 @@ import { OrderItemsTable } from './OrderItemsTable'
 import PLTable from './PLTable'
 import { SellerboardProductsTable } from './SellerboardProductsTable'
 
+// ────────────────────────────────────────────────────────
+// Marketplace to Currency Lookup Object
+// ────────────────────────────────────────────────────────
+
+const MARKETPLACE_CURRENCY_MAP: Record<string, CurrencyCode> = {
+  // Canada
+  'amazon.ca': 'CAD',
+  'canada': 'CAD',
+  'ca': 'CAD',
+
+  // USA
+  'amazon.com': 'USD',
+  'usa': 'USD',
+  'us': 'USD',
+
+  // Mexico
+  'amazon.com.mx': 'EUR',
+  'amazon.mx': 'EUR',
+  'mexico': 'EUR',
+  'mx': 'EUR',
+}
+
+const getDefaultCurrencyForMarketplaces = (
+  marketplaces: string[],
+  fallback: CurrencyCode = 'CAD'
+): CurrencyCode => {
+  if (!marketplaces || marketplaces.length === 0) return fallback
+
+  const primary = marketplaces[0].trim().toLowerCase()
+
+  // O(1) Direct Object Lookup
+  if (MARKETPLACE_CURRENCY_MAP[primary]) {
+    return MARKETPLACE_CURRENCY_MAP[primary]
+  }
+
+  // Fallback fuzzy search on object keys
+  const matchedKey = Object.keys(MARKETPLACE_CURRENCY_MAP).find((key) =>
+    primary.includes(key)
+  )
+
+  return matchedKey ? MARKETPLACE_CURRENCY_MAP[matchedKey] : fallback
+}
 
 // ─────────────────────────────────────────────
 // Props
@@ -65,8 +103,8 @@ interface PLTabProps {
 
 export const PLTab: React.FC<PLTabProps> = ({
   effectiveAccountId,
-  appliedMarketplaces,
-  appliedCurrency,
+  appliedMarketplaces: parentAppliedMarketplaces,
+  appliedCurrency: parentAppliedCurrency,
   onMarketplacesChange,
   onCurrencyChange,
 }) => {
@@ -81,92 +119,132 @@ export const PLTab: React.FC<PLTabProps> = ({
   const debouncedSearchTerm = useDebounce(searchTerm, 300)
 
   const [tableView, setTableView] = useState<TableView>('products')
-
   const [datePickerKey, setDatePickerKey] = useState(0)
 
-  const [dateRange, setDateRange] = useState<
-    DateRangeValue & { periodicity?: string }
-  >({
-    startDate: toISODatePST(addDaysPST(nowInPST(), -29)),
-    endDate: toISODatePST(nowInPST()),
-    presetId: 'last-30-days',
-    periodicity: 'day',
-  })
-
-  // ──────────────────────────────
-  // Date range change
-  // ──────────────────────────────
-
-  const handleDateRangeChange = useCallback(
-    (range: DateRangeValue) => {
-      const preset = chartPresets.find((item) => item.id === range.presetId)
-
-      const periodicity =
-        preset?.getRange().periodicity ||
-        inferPeriodicity(range.startDate as string, range.endDate as string)
-
-      setDateRange({ ...range, periodicity })
-    },
+  // Initial default date range
+  const initialDateRange = useMemo(
+    () => ({
+      startDate: toISODatePST(addDaysPST(nowInPST(), -29)),
+      endDate: toISODatePST(nowInPST()),
+      presetId: 'last-30-days',
+      periodicity: 'day',
+    }),
     [],
   )
 
+  // Draft states (staged until filter button click)
+  const [draftDateRange, setDraftDateRange] = useState<
+    DateRangeValue & { periodicity?: string }
+  >(initialDateRange)
+
+  const [draftMarketplaces, setDraftMarketplaces] = useState<string[]>(
+    parentAppliedMarketplaces
+  )
+  const [draftCurrency, setDraftCurrency] = useState<CurrencyCode>(
+    parentAppliedCurrency || 'CAD'
+  )
+
+  // Applied states (triggers API refetches)
+  const [appliedDateRange, setAppliedDateRange] = useState<
+    DateRangeValue & { periodicity?: string }
+  >(initialDateRange)
+  const [appliedMarketplacesState, setAppliedMarketplacesState] = useState<string[]>(
+    draftMarketplaces
+  )
+  const [appliedCurrencyState, setAppliedCurrencyState] = useState<CurrencyCode>(
+    draftCurrency
+  )
+
   // ──────────────────────────────
-  // Apply / reload
+  // Draft Handlers
   // ──────────────────────────────
 
-  const handleApply = useCallback(() => {
-    setDatePickerKey((k) => k + 1)
+  const handleDateRangeChange = useCallback((range: DateRangeValue) => {
+    const preset = chartPresets.find((item) => item.id === range.presetId)
+
+    const periodicity =
+      preset?.getRange().periodicity ||
+      inferPeriodicity(range.startDate as string, range.endDate as string)
+
+    setDraftDateRange({ ...range, periodicity })
+  }, [])
+
+  const handleDraftMarketplacesChange = useCallback(
+    (value: string[]) => {
+      // Set draft marketplaces directly
+      setDraftMarketplaces(value)
+
+      // Auto-detect currency if marketplaces are selected
+      if (value.length > 0) {
+        const autoCurrency = getDefaultCurrencyForMarketplaces(value, draftCurrency)
+        setDraftCurrency(autoCurrency)
+      }
+    },
+    [draftCurrency]
+  )
+
+  const handleDraftCurrencyChange = useCallback((value: string) => {
+    setDraftCurrency(value as CurrencyCode)
   }, [])
 
   // ──────────────────────────────
-  // Marketplace change (also syncs parent)
+  // Apply / Filter trigger
   // ──────────────────────────────
 
-  const handleMarketplacesChange = useCallback(
-    (value: string[]) => {
-      const marketplaces =
-        value.length > 0
-          ? [...value]
-          : MARKETPLACES.map((m) => m.id)
+  const handleApplyTileFilters = useCallback(() => {
+    // 1. Commit draft states to applied state
+    setAppliedDateRange(draftDateRange)
+    setAppliedMarketplacesState([...draftMarketplaces])
+    setAppliedCurrencyState(draftCurrency)
 
-      onMarketplacesChange(marketplaces)
-      dispatch(setFilters({ ...profitFilters, marketplaces }))
-    },
-    [dispatch, profitFilters, onMarketplacesChange],
-  )
+    // 2. Sync parent props and Redux store
+    onMarketplacesChange([...draftMarketplaces])
+    onCurrencyChange(draftCurrency)
+
+    dispatch(
+      setFilters({
+        ...profitFilters,
+        marketplaces: [...draftMarketplaces],
+        currency: draftCurrency,
+      }),
+    )
+
+    // 3. Force refresh key for header date picker
+    setDatePickerKey((k) => k + 1)
+  }, [
+    draftDateRange,
+    draftMarketplaces,
+    draftCurrency,
+    onMarketplacesChange,
+    onCurrencyChange,
+    dispatch,
+    profitFilters,
+  ])
 
   // ──────────────────────────────
-  // Currency change (also syncs parent)
-  // ──────────────────────────────
-
-  const handleCurrencyChange = useCallback(
-    (value: string) => {
-      const currency = value as CurrencyCode
-      onCurrencyChange(currency)
-      dispatch(setFilters({ ...profitFilters, currency }))
-    },
-    [dispatch, profitFilters, onCurrencyChange],
-  )
-
-  // ──────────────────────────────
-  // P&L filters
+  // P&L queries (Depend strictly on applied state)
   // ──────────────────────────────
 
   const plFilters: ProfitFilters = useMemo(
     () => ({
       accountId: effectiveAccountId,
-      marketplaces: appliedMarketplaces.length ? appliedMarketplaces : ALL_MARKETPLACES,
-      currency: appliedCurrency,
-      startDate: dateRange.startDate ?? undefined,
-      endDate: dateRange.endDate ?? undefined,
-      periodicity: (dateRange.periodicity as 'day' | 'week' | 'month') ?? undefined,
-      preset: (dateRange.presetId as
+      marketplaces: appliedMarketplacesState.length ? appliedMarketplacesState : ALL_MARKETPLACES,
+      currency: appliedCurrencyState,
+      startDate: appliedDateRange.startDate ?? undefined,
+      endDate: appliedDateRange.endDate ?? undefined,
+      periodicity: (appliedDateRange.periodicity as 'day' | 'week' | 'month') ?? undefined,
+      preset: (appliedDateRange.presetId as
         | 'last-12-months'
         | 'last-3-months'
         | 'last-30-days'
         | 'custom') ?? undefined,
     }),
-    [effectiveAccountId, appliedMarketplaces, appliedCurrency, dateRange],
+    [
+      effectiveAccountId,
+      appliedMarketplacesState,
+      appliedCurrencyState,
+      appliedDateRange,
+    ],
   )
 
   const {
@@ -178,19 +256,19 @@ export const PLTab: React.FC<PLTabProps> = ({
   })
 
   // ──────────────────────────────
-  // Active range for product table
+  // Active range for product/order queries
   // ──────────────────────────────
 
   const activeRange = useMemo(
     () => ({
-      startDate: dateRange.startDate || undefined,
-      endDate: dateRange.endDate || undefined,
+      startDate: appliedDateRange.startDate || undefined,
+      endDate: appliedDateRange.endDate || undefined,
     }),
-    [dateRange],
+    [appliedDateRange],
   )
 
   // ──────────────────────────────
-  // Product query
+  // Product & Order Item queries
   // ──────────────────────────────
 
   const { data: productData, isFetching: productFetching } =
@@ -198,8 +276,8 @@ export const PLTab: React.FC<PLTabProps> = ({
       {
         ...profitFilters,
         accountId: effectiveAccountId,
-        marketplaces: appliedMarketplaces.length ? appliedMarketplaces : ALL_MARKETPLACES,
-        currency: appliedCurrency,
+        marketplaces: appliedMarketplacesState.length ? appliedMarketplacesState : ALL_MARKETPLACES,
+        currency: appliedCurrencyState,
         startDate: activeRange.startDate,
         endDate: activeRange.endDate,
       },
@@ -208,17 +286,13 @@ export const PLTab: React.FC<PLTabProps> = ({
       },
     )
 
-  // ──────────────────────────────
-  // Order items query
-  // ──────────────────────────────
-
   const { data: orderItemsData, isFetching: orderItemsFetching } =
     useGetProfitByOrderItemsQuery(
       {
         ...profitFilters,
         accountId: effectiveAccountId,
-        marketplaces: appliedMarketplaces.length ? appliedMarketplaces : ALL_MARKETPLACES,
-        currency: appliedCurrency,
+        marketplaces: appliedMarketplacesState.length ? appliedMarketplacesState : ALL_MARKETPLACES,
+        currency: appliedCurrencyState,
         startDate: activeRange.startDate,
         endDate: activeRange.endDate,
       },
@@ -227,18 +301,15 @@ export const PLTab: React.FC<PLTabProps> = ({
       },
     )
 
-  // ──────────────────────────────
-  // Date range value for header picker
-  // ──────────────────────────────
-
+  // Value passed into header date picker input
   const dateRangeValue = useMemo<DateRangeValue>(
     () => ({
-      startDate: dateRange.startDate,
-      endDate: dateRange.endDate,
-      presetId: dateRange.presetId,
-      periodicity: dateRange.periodicity || 'day',
+      startDate: draftDateRange.startDate,
+      endDate: draftDateRange.endDate,
+      presetId: draftDateRange.presetId,
+      periodicity: draftDateRange.periodicity || 'day',
     }),
-    [dateRange],
+    [draftDateRange],
   )
 
   // ──────────────────────────────
@@ -258,16 +329,16 @@ export const PLTab: React.FC<PLTabProps> = ({
         onDateRangeChange={handleDateRangeChange}
         dateDisplayFormat="MMM d, yyyy"
         datePlaceholder="Select date range"
-        marketplaces={appliedMarketplaces}
-        onMarketplacesChange={handleMarketplacesChange}
-        currency={appliedCurrency}
-        onCurrencyChange={handleCurrencyChange}
+        marketplaces={draftMarketplaces}
+        onMarketplacesChange={handleDraftMarketplacesChange}
+        currency={draftCurrency}
+        onCurrencyChange={handleDraftCurrencyChange}
         currencyOptions={[
           { value: 'CAD', label: 'CAD' },
           { value: 'USD', label: 'USD' },
           { value: 'EUR', label: 'EUR' },
         ]}
-        onFilter={handleApply}
+        onFilter={handleApplyTileFilters}
         searchWidth="w-[50%]"
         datePickerKey={datePickerKey}
       />
@@ -278,7 +349,7 @@ export const PLTab: React.FC<PLTabProps> = ({
           data={plData}
           isLoading={plFetching}
           error={plError}
-          currency={appliedCurrency}
+          currency={appliedCurrencyState}
         />
       </div>
 
