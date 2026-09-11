@@ -693,25 +693,34 @@ export const profitApi = baseApi.injectEndpoints({
     // PROFIT BY COUNTRY
     // ============================================================
 
-    getProfitByCountry: builder.query<
+  getProfitByCountry: builder.query<
       CountryProfitBreakdown[],
       ProfitFilters
     >({
-      query: (filters) => ({
-        url: '/profit/map',
-        params: {
-          startDate: filters.startDate,
-          endDate: filters.endDate,
+      query: (filters) => {
+        let formattedMarketplaces: string | undefined = undefined
 
-          accountId: filters.accountId,
-          amazonAccountId: filters.amazonAccountId,
+        if (Array.isArray(filters.marketplaces)) {
+          formattedMarketplaces = filters.marketplaces.filter(Boolean).join(',')
+        } else if (typeof filters.marketplaces === 'string') {
+          formattedMarketplaces = filters.marketplaces
+        } else if (filters.marketplace) {
+          formattedMarketplaces = filters.marketplace
+        }
 
-          marketplaceId: filters.marketplaceId,
-          marketplaces: filters.marketplaces,
-
-          currency: filters.currency,
-        },
-      }),
+        return {
+          url: '/profit/map',
+          params: {
+            startDate: filters.startDate,
+            endDate: filters.endDate,
+            accountId: filters.accountId,
+            amazonAccountId: filters.amazonAccountId,
+            marketplaceId: filters.marketplaceId,
+            marketplaces: formattedMarketplaces,
+            currency: filters.currency,
+          },
+        }
+      },
 
       transformResponse: (
         response: {

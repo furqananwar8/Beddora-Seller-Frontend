@@ -227,6 +227,67 @@ export const getSingleDayPST = (
   }
 }
 
+export const mapPresets: any[] = [
+  {
+    id: 'last-12-months',
+    label: 'Last 12 months',
+
+    getRange: () => {
+      const end = nowInPST()
+      const start = addMonths(end, -12)
+
+      return {
+        startDate: toISODatePST(start),
+        endDate: toISODatePST(end),
+        periodicity: 'month',
+      }
+    },
+  },
+
+  {
+    id: 'last-3-months',
+    label: 'Last 3 months',
+
+    getRange: () => {
+      const end = nowInPST()
+      const start = addMonths(end, -3)
+
+      return {
+        startDate: toISODatePST(start),
+        endDate: toISODatePST(end),
+        periodicity: 'week',
+      }
+    },
+  },
+
+  {
+    id: 'last-30-days',
+    label: 'Last 30 days',
+
+    getRange: () => {
+      const end = nowInPST()
+      const start = addDaysPST(end, -29)
+
+      return {
+        startDate: toISODatePST(start),
+        endDate: toISODatePST(end),
+        periodicity: 'day',
+      }
+    },
+  },
+
+  {
+    id: 'custom',
+    label: 'Custom',
+
+    getRange: () => ({
+      startDate: toISODatePST(addDaysPST(nowInPST(), -29)),
+      endDate: toISODatePST(nowInPST()),
+      periodicity: 'day',
+    }),
+  },
+]
+
 // ============================================
 // CHART PRESETS
 // ============================================

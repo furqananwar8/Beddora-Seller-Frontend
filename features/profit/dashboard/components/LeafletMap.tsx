@@ -18,6 +18,10 @@ const GeoJSON = dynamic(
   () => import('react-leaflet').then((mod) => mod.GeoJSON),
   { ssr: false }
 )
+const ZoomControl = dynamic(
+  () => import('react-leaflet').then((mod) => mod.ZoomControl),
+  { ssr: false }
+)
 
 if (typeof window !== 'undefined') {
   const L = require('leaflet')
@@ -62,25 +66,25 @@ const ISO3_TO_ISO2: Record<string, string> = {
 const NAME_TO_ISO2: Record<string, string> = {
   'United States': 'US',
   'United States of America': 'US',
-  'USA': 'US',
-  'Canada': 'CA',
+  USA: 'US',
+  Canada: 'CA',
   'United Kingdom': 'GB',
   'Great Britain': 'GB',
-  'Germany': 'DE',
-  'France': 'FR',
-  'Italy': 'IT',
-  'Spain': 'ES',
-  'Japan': 'JP',
-  'Australia': 'AU',
-  'India': 'IN',
-  'Brazil': 'BR',
-  'Mexico': 'MX',
-  'Netherlands': 'NL',
-  'Sweden': 'SE',
-  'Poland': 'PL',
-  'Turkey': 'TR',
+  Germany: 'DE',
+  France: 'FR',
+  Italy: 'IT',
+  Spain: 'ES',
+  Japan: 'JP',
+  Australia: 'AU',
+  India: 'IN',
+  Brazil: 'BR',
+  Mexico: 'MX',
+  Netherlands: 'NL',
+  Sweden: 'SE',
+  Poland: 'PL',
+  Turkey: 'TR',
   'United Arab Emirates': 'AE',
-  'Singapore': 'SG',
+  Singapore: 'SG',
 }
 
 const getColorForProfit = (
@@ -96,7 +100,11 @@ const getColorForProfit = (
   return `rgb(${red}, ${green}, ${blue})`
 }
 
-export const LeafletMap: React.FC<LeafletMapProps> = ({ data, className, onCountryClick }) => {
+export const LeafletMap: React.FC<LeafletMapProps> = ({
+  data,
+  className,
+  onCountryClick,
+}) => {
   const [isClient, setIsClient] = useState(false)
   const [geoJsonData, setGeoJsonData] = useState<any>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -200,73 +208,52 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({ data, className, onCount
     [countryDataMap, maxProfit, minProfit, getCountryCode]
   )
 
- const onEachFeature = useCallback(
-  (feature: any, layer: any) => {
-    const code = getCountryCode(feature)
-    const countryData = code ? countryDataMap.get(code) : null
-    const name =
-      feature.properties?.NAME ||
-      feature.properties?.name ||
-      feature.properties?.ADMIN ||
-      code ||
-      'Unknown'
+  const onEachFeature = useCallback(
+    (feature: any, layer: any) => {
+      const code = getCountryCode(feature)
+      const countryData = code ? countryDataMap.get(code) : null
+      const name =
+        feature.properties?.NAME ||
+        feature.properties?.name ||
+        feature.properties?.ADMIN ||
+        code ||
+        'Unknown'
 
-    if (countryData) {
-      layer.bindPopup(
-        `<div style="padding:10px;font-family:sans-serif;min-width:180px;">
-          <div style="font-weight:600;font-size:15px;margin-bottom:6px;">${name}</div>
-          <div style="font-size:13px;color:#333;line-height:1.5;">
-            <div><strong>Profit:</strong> $${countryData.profit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-            <div><strong>Orders:</strong> ${countryData.orders}</div>
-          </div>
-        </div>`
-      )
+      if (countryData) {
+        layer.bindPopup(
+          `<div style="padding:10px;font-family:sans-serif;min-width:180px;">
+            <div style="font-weight:600;font-size:15px;margin-bottom:6px;">${name}</div>
+            <div style="font-size:13px;color:#333;line-height:1.5;">
+              <div><strong>Profit:</strong> $${countryData.profit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+              <div><strong>Orders:</strong> ${countryData.orders}</div>
+            </div>
+          </div>`
+        )
 
-      layer.bindTooltip(name, {
-        permanent: true,
-        direction: 'center',
-        className: 'country-label',
-        opacity: 1,
-      })
+        layer.bindTooltip(name, {
+          permanent: true,
+          direction: 'center',
+          className: 'country-label',
+          opacity: 1,
+        })
 
-      layer.on({
-        mouseover: (e: any) => {
-          e.target.setStyle({ weight: 2.5, color: '#f59e0b', fillOpacity: 0.9 })
-        },
-        mouseout: (e: any) => {
-          e.target.setStyle(styleFeature(feature))
-        },
-        click: (e: any) => {
-          if (code && onCountryClick) {
-            onCountryClick(e.originalEvent as any)  // ← pass native event
-          }
-        },
-      })
-    }
-  },
-  [countryDataMap, styleFeature, getCountryCode, onCountryClick]  // ← add dependency
-)
-
-  useEffect(() => {
-    if (!geoJsonData || !data.length) return
-    const features = geoJsonData.features || []
-    const matched: string[] = []
-    const unmatched: string[] = []
-
-    features.forEach((f: any) => {
-      const code = getCountryCode(f)
-      if (!code) return
-      if (countryDataMap.has(code)) {
-        matched.push(code)
-      } else {
-        unmatched.push(code)
+        layer.on({
+          mouseover: (e: any) => {
+            e.target.setStyle({ weight: 2.5, color: '#f59e0b', fillOpacity: 0.9 })
+          },
+          mouseout: (e: any) => {
+            e.target.setStyle(styleFeature(feature))
+          },
+          click: (e: any) => {
+            if (code && onCountryClick) {
+              onCountryClick(e.originalEvent as any)
+            }
+          },
+        })
       }
-    })
-
-    console.log('[LeafletMap] Data codes:', data.map((d) => d.country))
-    console.log('[LeafletMap] Matched features:', matched)
-    console.log('[LeafletMap] Unmatched features (first 20):', unmatched.slice(0, 20))
-  }, [geoJsonData, data, countryDataMap, getCountryCode])
+    },
+    [countryDataMap, styleFeature, getCountryCode, onCountryClick]
+  )
 
   if (!isClient) {
     return (
@@ -302,9 +289,13 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({ data, className, onCount
         center={[20, 0]}
         zoom={2}
         minZoom={2}
+        zoomControl={false} // ← Disables default top-left zoom control
         style={{ height: '100%', width: '100%' }}
         className="z-0"
       >
+        {/* Renders zoom controls in bottom-right corner */}
+        <ZoomControl position="bottomright" />
+
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
