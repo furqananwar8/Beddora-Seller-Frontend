@@ -19,6 +19,9 @@ export interface Invite {
   createdAt: string
   expiresAt: string
   acceptedAt: string | null
+  featurePermissionIds?: number[]
+  accountAccess?: { full: boolean; accountIds: number[] } | null
+  productAccess?: { full: boolean; productIds: number[] } | null
 }
 
 export interface CreateInvitePayload {
@@ -26,6 +29,15 @@ export interface CreateInvitePayload {
   featurePermissionIds: number[]
   validUntil?: string | null
   canEdit?: boolean
+  accountAccess?: { full: boolean; accountIds: number[] } | null
+  productAccess?: { full: boolean; productIds: number[] } | null
+}
+
+export interface UpdateInvitePermissionsPayload {
+  id: number
+  featurePermissionIds?: number[]
+  canEdit?: boolean
+  validUntil?: string | null
   accountAccess?: { full: boolean; accountIds: number[] } | null
   productAccess?: { full: boolean; productIds: number[] } | null
 }
@@ -49,7 +61,7 @@ export const invitesApi = baseApi.injectEndpoints({
     }),
 
     getInvites: builder.query<Invite[], void>({
-      query: () => '/invites',
+      query: () => '/invites/list',
       providesTags: ['Invites'],
       keepUnusedDataFor: 60,
     }),
@@ -59,6 +71,34 @@ export const invitesApi = baseApi.injectEndpoints({
         url: '/invites',
         method: 'POST',
         body: payload,
+      }),
+      invalidatesTags: ['Invites'],
+    }),
+
+    // Update user permissions / invite parameters
+    updateInvitePermissions: builder.mutation<Invite, UpdateInvitePermissionsPayload>({
+      query: ({ id, ...body }) => ({
+        url: `/invites/${id}/permissions`,
+        method: 'PUT',
+        body,
+      }),
+      invalidatesTags: ['Invites'],
+    }),
+
+    // Permanently delete invite / user account
+    deleteInvite: builder.mutation<{ message: string }, number>({
+      query: (id) => ({
+        url: `/invites/${id}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: ['Invites'],
+    }),
+
+    // Resend invitation link
+    resendInvite: builder.mutation<{ message: string }, number>({
+      query: (id) => ({
+        url: `/invites/${id}/resend`,
+        method: 'POST',
       }),
       invalidatesTags: ['Invites'],
     }),
@@ -86,6 +126,9 @@ export const {
   useGetPermissionsQuery,
   useGetInvitesQuery,
   useCreateInviteMutation,
+  useUpdateInvitePermissionsMutation,
+  useDeleteInviteMutation,
+  useResendInviteMutation,
   useGetInviteByTokenQuery,
   useAcceptInviteByTokenMutation,
 } = invitesApi
