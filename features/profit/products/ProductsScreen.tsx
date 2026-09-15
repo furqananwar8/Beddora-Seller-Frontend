@@ -1,3 +1,5 @@
+// src/screens/ProductsScreen.tsx
+
 'use client'
 
 import React, { useState, useMemo } from 'react'
@@ -17,9 +19,10 @@ import { SplitTable, ColumnDef, PaginationConfig } from '@/components/split-tabl
 type SortColumn = 'product' | 'cogs' | 'salesVelocity'
 type SortDirection = 'asc' | 'desc'
 type CogsFilterValue = 'all' | 'set' | 'notSet'
+type MarketplaceCode = 'CA' | 'US' | 'MX'
 
 interface EditedCOGS {
-  [sku: string]: string
+  [key: string]: { cost: string; marketplace: MarketplaceCode; sku: string }
 }
 
 export const ProductsScreen: React.FC = () => {
@@ -38,11 +41,9 @@ export const ProductsScreen: React.FC = () => {
   const [sortColumn, setSortColumn] = useState<SortColumn>('product')
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
 
-  /* ── edit state ── */
+  /* ── edit state (keyed by `${sku}_${marketplace}`) ── */
   const [editedCOGS, setEditedCOGS] = useState<EditedCOGS>({})
-  // NEW: SKUs currently being saved to the API (row-level skeletons + locks)
-  const [pendingSkus, setPendingSkus] = useState<Set<string>>(new Set())
-  // NEW: Successfully saved values that override stale RTK cache so we never need to refetch
+  const [pendingKeys, setPendingKeys] = useState<Set<string>>(new Set())
   const [committedCOGS, setCommittedCOGS] = useState<Record<string, number>>({})
 
   const effectiveAccountId = profitFilters.accountId || accountsData?.[0]?.id
@@ -50,8 +51,8 @@ export const ProductsScreen: React.FC = () => {
 
   const {
     data: productsResponse,
-    isLoading,   // TRUE = initial load only. This is the ONLY signal for the table skeleton.
-    isFetching,  // TRUE = background refetch. We show a subtle badge, never the full skeleton.
+    isLoading,
+    isFetching,
   } = useGetAllProductsQuery(
     {
       accountId: effectiveAccountId!,
@@ -83,10 +84,10 @@ export const ProductsScreen: React.FC = () => {
     }
   }
 
-  const toggleProductSelection = (sku: string) => {
+  const toggleProductSelection = (itemKey: string) => {
     const next = new Set(selectedProducts)
-    if (next.has(sku)) next.delete(sku)
-    else next.add(sku)
+    if (next.has(itemKey)) next.delete(itemKey)
+    else next.add(itemKey)
     setSelectedProducts(next)
   }
 
@@ -94,13 +95,17 @@ export const ProductsScreen: React.FC = () => {
     if (selectedProducts.size === sortedProducts.length) {
       setSelectedProducts(new Set())
     } else {
-      setSelectedProducts(new Set(sortedProducts.map((p) => p.sku)))
+      setSelectedProducts(new Set(sortedProducts.map((p) => `${p.sku}_${p.marketplace}`)))
     }
   }
 
-  const handleCOGSChange = (sku: string, value: string) => {
+  const handleCOGSChange = (sku: string, marketplace: MarketplaceCode, value: string) => {
     if (value === '' || /^\d*\.?\d{0,2}$/.test(value)) {
-      setEditedCOGS((prev) => ({ ...prev, [sku]: value }))
+      const editKey = `${sku}_${marketplace}`
+      setEditedCOGS((prev) => ({
+        ...prev,
+        [editKey]: { cost: value, marketplace, sku },
+      }))
     }
   }
 
@@ -109,29 +114,30 @@ export const ProductsScreen: React.FC = () => {
     setSearch((prev) => ({ ...prev, applied: prev.raw.trim() }))
     setPage(1)
     setSelectedProducts(new Set())
-    // Clear local overrides when filters change so we don't fight fresh server data
     setCommittedCOGS({})
   }
 
   const handleSave = async () => {
     const updates = Object.entries(editedCOGS)
-      .filter(([_, v]) => v !== '' && !isNaN(parseFloat(v)))
-      .map(([sku, v]) => ({ sku, cogs: parseFloat(v) }))
+      .filter(([_, v]) => v.cost !== '' && !isNaN(parseFloat(v.cost)))
+      .map(([_, v]) => ({
+        sku: v.sku,
+        cost: parseFloat(v.cost),
+        marketplace: v.marketplace,
+      }))
 
     if (updates.length === 0) return
 
-    // Lock the affected rows. SplitTable will receive these as pendingRowKeys.
-    setPendingSkus(new Set(updates.map((u) => u.sku)))
+    const pendingSet = new Set(updates.map((u) => `${u.sku}_${u.marketplace}`))
+    setPendingKeys(pendingSet)
 
     try {
       await updateCOGS({ items: updates }).unwrap()
 
-      // SUCCESS: persist locally, do NOT refetch.
-      // The inputs keep the exact numbers the user typed.
       setCommittedCOGS((prev) => {
         const next = { ...prev }
-        updates.forEach(({ sku, cogs }) => {
-          next[sku] = cogs
+        updates.forEach(({ sku, marketplace, cost }) => {
+          next[`${sku}_${marketplace}`] = cost
         })
         return next
       })
@@ -142,9 +148,8 @@ export const ProductsScreen: React.FC = () => {
       const msg = err?.data?.message || err?.message || 'Failed to update COGS'
       showToast(msg, 'error')
       console.error('Failed to update COGS:', err)
-      // Intentionally keep editedCOGS on error so user can retry without retyping.
     } finally {
-      setPendingSkus(new Set())
+      setPendingKeys(new Set())
     }
   }
 
@@ -153,8 +158,7 @@ export const ProductsScreen: React.FC = () => {
     showToast('Changes discarded', 'success')
   }
 
-  const hasEdits = Object.keys(editedCOGS).length > 0
-  const isGlobalSaving = isUpdatingCOGS || pendingSkus.size > 0
+  const isGlobalSaving = isUpdatingCOGS || pendingKeys.size > 0
 
   const sortedProducts = useMemo(() => {
     const result = [...productsData]
@@ -203,7 +207,7 @@ export const ProductsScreen: React.FC = () => {
       key: 'product',
       header: 'Product',
       width: 'min-w-[320px] w-[45%]',
-      align: 'center',
+      align: 'left',
       sortable: true,
       sortKey: 'product',
     },
@@ -216,7 +220,7 @@ export const ProductsScreen: React.FC = () => {
     {
       key: 'cogs',
       header: 'COGS',
-      width: 'w-32',
+      width: 'w-36',
       align: 'center',
       sortable: true,
       sortKey: 'cogs',
@@ -231,22 +235,25 @@ export const ProductsScreen: React.FC = () => {
     },
   ]
 
-  /* ── renderCell now receives meta.isPending from the updated SplitTable ── */
   const renderCell = (
     product: any,
     col: ColumnDef,
     _rowIndex: number,
     meta?: { isPending: boolean }
   ) => {
-    const isPending = meta?.isPending ?? false
+    const marketplace: MarketplaceCode = product.marketplace || 'US'
+    const compoundKey = `${product.sku}_${marketplace}`
+    const isPending = meta?.isPending || pendingKeys.has(compoundKey)
+
+    const currencySymbol = marketplace === 'CA' ? 'C$' : marketplace === 'MX' ? 'MX$' : '$'
 
     switch (col.key) {
       case 'checkbox':
         return (
           <input
             type="checkbox"
-            checked={selectedProducts.has(product.sku)}
-            onChange={() => toggleProductSelection(product.sku)}
+            checked={selectedProducts.has(compoundKey)}
+            onChange={() => toggleProductSelection(compoundKey)}
             disabled={isPending || isGlobalSaving}
             className="cursor-pointer disabled:opacity-40"
           />
@@ -255,7 +262,7 @@ export const ProductsScreen: React.FC = () => {
       case 'product': {
         const unitsSold = Math.round((product.salesVelocity || 0) * 30)
         return (
-          <div className="flex items-start justify-center gap-3">
+          <div className="flex items-start justify-start gap-3 text-left">
             <div className="w-12 h-12 bg-surface-secondary flex items-center justify-center flex-shrink-0 overflow-hidden rounded">
               {product.imageUrl ? (
                 <img
@@ -279,13 +286,15 @@ export const ProductsScreen: React.FC = () => {
                 </svg>
               )}
             </div>
-            <div className="flex-1 min-w-0 text-left">
+            <div className="flex-1 min-w-0">
               {product.productId != null && (
                 <div className="text-xs text-text-muted mb-0.5 truncate">
-                  {product.productId}
+                  ID: {product.productId}
                 </div>
               )}
-              <div className="text-xs text-text-muted mb-1 truncate">SKU: {product.sku}</div>
+              <div className="text-xs text-text-muted mb-1 truncate">
+                SKU: {product.sku} <span className="font-semibold text-text-primary">({marketplace})</span>
+              </div>
               <div className="font-medium text-text-primary text-sm mb-1 line-clamp-2 break-words">
                 {product.productTitle || 'Unnamed Product'}
               </div>
@@ -297,64 +306,90 @@ export const ProductsScreen: React.FC = () => {
         )
       }
 
-      case 'tags':
+      case 'tags': {
+        const channel = (
+          product.fulfillmentChannel ||
+          product.fulfillmentChannelCode ||
+          ''
+        ).toUpperCase()
+
+        const isFBA =
+          channel.includes('AMAZON') ||
+          channel.includes('AFN') ||
+          channel.includes('FBA') ||
+          channel === 'DEFAULT'
+
+        const tagLabel = isFBA ? '#FBA' : '#FBM'
+
         return (
-          <Badge variant="secondary" size="sm">
-            #FBA
+          <Badge
+            variant="secondary"
+            size="sm"
+            className="bg-white text-black border border-border font-medium"
+          >
+            {tagLabel}
           </Badge>
         )
+      }
 
       case 'cogs': {
-        // Row-level skeleton: the value the user typed stays in memory,
-        // but we show a pulse block so they know the row is working.
         if (isPending) {
           return (
             <div className="flex items-center justify-center gap-1">
-              <span className="text-text-muted text-sm">C$</span>
+              <span className="text-text-muted text-sm">{currencySymbol}</span>
               <div className="h-8 w-14 animate-pulse rounded bg-surface-secondary" />
             </div>
           )
         }
 
-        const editedValue = editedCOGS[product.sku]
-        const committedValue = committedCOGS[product.sku]
+        const isSystemLocked = Boolean(product.isLocked && product.lockedBy === 'SYSTEM')
+        const edited = editedCOGS[compoundKey]
+        const committed = committedCOGS[compoundKey]
 
-        // Display priority: active edit → locally committed → server cache
         let displayCOGS: string
-        if (editedValue !== undefined) {
-          displayCOGS = editedValue
-        } else if (committedValue !== undefined) {
-          displayCOGS = committedValue.toFixed(2)
+        if (edited !== undefined) {
+          displayCOGS = edited.cost
+        } else if (committed !== undefined) {
+          displayCOGS = committed.toFixed(2)
         } else if (product.cogsPerUnit > 0) {
-          displayCOGS = product.cogsPerUnit.toFixed(2)
+          displayCOGS = Number(product.cogsPerUnit).toFixed(2)
         } else {
           displayCOGS = ''
         }
 
         return (
-          <div className="flex items-center justify-center gap-1">
-            <span className="text-text-muted text-sm">C$</span>
+          <div className="flex items-center justify-center gap-1.5">
+            <span className="text-text-muted text-sm">{currencySymbol}</span>
             <input
               type="text"
               inputMode="decimal"
               value={displayCOGS}
-              onChange={(e) => handleCOGSChange(product.sku, e.target.value)}
-              disabled={isGlobalSaving}
-              className="w-14 text-center text-sm border border-border rounded px-1 py-1 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary bg-surface disabled:opacity-50 disabled:cursor-not-allowed"
+              onChange={(e) => handleCOGSChange(product.sku, marketplace, e.target.value)}
+              disabled={isSystemLocked || isGlobalSaving}
+              className={`w-16 text-center text-sm border rounded px-1 py-1 focus:outline-none focus:ring-1 bg-surface ${
+                isSystemLocked
+                  ? 'border-border-muted text-text-muted cursor-not-allowed bg-surface-secondary opacity-60'
+                  : 'border-border focus:ring-primary focus:border-primary disabled:opacity-50'
+              }`}
               placeholder="—"
             />
+            {isSystemLocked && (
+              <span title="Locked by System (Google Sheets)" className="text-text-muted text-xs cursor-help">
+                🔒
+              </span>
+            )}
           </div>
         )
       }
 
       case 'salesVelocity':
         return (
-          <>
+          <div className="text-center">
             <span className="text-text-primary font-medium">
               {formatNumber(product.salesVelocity || 0)}
             </span>
             <span className="text-text-muted text-xs ml-1">units/day</span>
-          </>
+          </div>
         )
 
       default:
@@ -434,7 +469,6 @@ export const ProductsScreen: React.FC = () => {
 
       {/* Table */}
       <Card className="flex-1 flex flex-col min-h-0 relative">
-        {/* Subtle background-refetch badge — never replaces the table body */}
         {isFetching && !isLoading && (
           <div className="absolute top-2 right-4 z-30 flex items-center gap-2 text-xs text-text-muted bg-surface/90 px-2 py-1 rounded border border-border shadow-sm">
             <svg
@@ -458,13 +492,11 @@ export const ProductsScreen: React.FC = () => {
           <SplitTable
             columns={columns}
             data={sortedProducts}
-            rowKey="sku"
+            rowKey={(row) => `${row.sku}_${row.marketplace}`}
             renderCell={renderCell}
             wrapperClassName="flex-1"
-            /* STRICT: initial load ONLY. Never true for background refetch. */
             isLoading={isLoading}
-            /* NEW: row-level locks. Pending rows get opacity-60 + skeleton cells. */
-            pendingRowKeys={pendingSkus}
+            pendingRowKeys={pendingKeys}
             skeletonRows={10}
             emptyMessage="No products found"
             pagination={pagination}
@@ -476,30 +508,30 @@ export const ProductsScreen: React.FC = () => {
       </Card>
 
       {/* Save Bar */}
-        <div className="shrink-0 mt-4 bg-surface border border-border rounded-lg px-6 py-3">
-          <div className="flex items-center justify-end gap-4">
-            <span className="text-sm text-text-muted">
-              {Object.keys(editedCOGS).length} product
-              {Object.keys(editedCOGS).length > 1 ? 's' : ''} modified
-            </span>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={handleDiscard}
-              disabled={isGlobalSaving}
-            >
-              Discard
-            </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={handleSave}
-              isLoading={isGlobalSaving}
-            >
-              Save Changes
-            </Button>
-          </div>
+      <div className="shrink-0 mt-4 bg-surface border border-border rounded-lg px-6 py-3">
+        <div className="flex items-center justify-end gap-4">
+          <span className="text-sm text-text-muted">
+            {Object.keys(editedCOGS).length} product
+            {Object.keys(editedCOGS).length > 1 ? 's' : ''} modified
+          </span>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={handleDiscard}
+            disabled={isGlobalSaving}
+          >
+            Discard
+          </Button>
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={handleSave}
+            isLoading={isGlobalSaving}
+          >
+            Save Changes
+          </Button>
         </div>
+      </div>
     </Container>
   )
 }
