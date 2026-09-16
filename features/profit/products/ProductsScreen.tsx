@@ -95,7 +95,7 @@ export const ProductsScreen: React.FC = () => {
     if (selectedProducts.size === sortedProducts.length) {
       setSelectedProducts(new Set())
     } else {
-      setSelectedProducts(new Set(sortedProducts.map((p) => `${p.sku}_${p.marketplace}`)))
+      setSelectedProducts(new Set(sortedProducts.map((p: any) => `${p.sku}_${p.marketplace}`)))
     }
   }
 
@@ -492,7 +492,7 @@ export const ProductsScreen: React.FC = () => {
           <SplitTable
             columns={columns}
             data={sortedProducts}
-            rowKey={(row) => `${row.sku}_${row.marketplace}`}
+            rowKey={(row: any) => `${row.sku}_${row.marketplace}`}
             renderCell={renderCell}
             wrapperClassName="flex-1"
             isLoading={isLoading}
