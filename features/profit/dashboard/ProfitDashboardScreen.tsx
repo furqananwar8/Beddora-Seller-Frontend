@@ -71,18 +71,15 @@ import TrendsTab from './TrendsTab'
 
 const CUSTOM_RANGE_STORAGE_KEY = 'profit_custom_tile_range'
 
-const MARKETPLACE_CURRENCY_MAP: Record<string, CurrencyCode> = {
-  // Canada
+const MARKETPLACE_CURRENCY_MAP: Record<any, any> = {
   'amazon.ca': 'CAD',
   'canada': 'CAD',
   'ca': 'CAD',
 
-  // USA
   'amazon.com': 'USD',
   'usa': 'USD',
   'us': 'USD',
 
-  // Mexico
   'amazon.com.mx': 'EUR',
   'amazon.mx': 'EUR',
   'mexico': 'EUR',
@@ -97,13 +94,11 @@ const getDefaultCurrencyForMarketplaces = (
 
   const primary = marketplaces[0].trim().toLowerCase()
 
-  // $O(1)$ Direct Object Lookup
-  if (MARKETPLACE_CURRENCY_MAP[primary]) {
-    return MARKETPLACE_CURRENCY_MAP[primary]
+  if (MARKETPLACE_CURRENCY_MAP[primary] ) {
+    return MARKETPLACE_CURRENCY_MAP[primary] 
   }
 
-  // Fallback fuzzy search on object keys (if partial match like "Amazon Canada")
-  const matchedKey = Object.keys(MARKETPLACE_CURRENCY_MAP).find((key) =>
+  const matchedKey = Object.keys(MARKETPLACE_CURRENCY_MAP).find((key: any) =>
     primary.includes(key)
   )
 
@@ -524,6 +519,8 @@ export const ProfitDashboardScreen: React.FC = () => {
       currency: appliedCurrency,
       startDate: activeRange.startDate,
       endDate: activeRange.endDate,
+      search: debouncedSearchTerm,
+      sku: debouncedSearchTerm,
     },
     {
       skip: !effectiveAccountId || tableView === 'order-items' || activeTab !== 'tiles',
@@ -543,6 +540,8 @@ export const ProfitDashboardScreen: React.FC = () => {
         currency: appliedCurrency,
         startDate: activeRange.startDate,
         endDate: activeRange.endDate,
+        search: debouncedSearchTerm,
+        sku: debouncedSearchTerm,
       },
       {
         skip: !effectiveAccountId || tableView === 'products' || activeTab !== 'tiles',
@@ -831,6 +830,53 @@ export const ProfitDashboardScreen: React.FC = () => {
                       </button>
                     </div>
                   </div>
+
+                  {/* Right Header Search Control */}
+                  <div className="relative min-w-[240px] sm:w-72">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-text-muted">
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                        />
+                      </svg>
+                    </div>
+                    <input
+                      type="text"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      placeholder="Search by SKU, ASIN, Title..."
+                      className="w-full pl-9 pr-8 py-1.5 text-xs bg-surface-secondary/50 border border-border rounded-md text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-primary-500 transition-colors"
+                    />
+                    {searchTerm && (
+                      <button
+                        type="button"
+                        onClick={() => setSearchTerm('')}
+                        className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-text-muted hover:text-text-primary transition-colors"
+                      >
+                        <svg
+                          className="w-3.5 h-3.5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M6 18L18 6M6 6l12 12"
+                          />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 <div className="p-6">
@@ -840,6 +886,7 @@ export const ProfitDashboardScreen: React.FC = () => {
                       isLoading={productFetching}
                       isFetching={productFetching}
                       searchTerm={debouncedSearchTerm}
+                      onSearchChange={setSearchTerm as any}
                     />
                   ) : (
                     <OrderItemsTable

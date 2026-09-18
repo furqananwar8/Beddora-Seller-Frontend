@@ -395,41 +395,19 @@ export interface MarketplacesResponse {
 export interface ProfitFilters {
   accountId?: string
   amazonAccountId?: string
-
   marketplaceId?: string
   marketplace?: string
   marketplaces?: string[]
-
   sku?: string
-
+  search?: string
   startDate?: string
   endDate?: string
-
-  period?:
-    | 'day'
-    | 'week'
-    | 'month'
-
-  preset?:
-    | 'last-12-months'
-    | 'last-3-months'
-    | 'last-30-days'
-    | 'custom'
-
-  periodicity?:
-    | 'day'
-    | 'week'
-    | 'month'
-
+  period?: 'day' | 'week' | 'month'
+  preset?: 'last-12-months' | 'last-3-months' | 'last-30-days' | 'custom'
+  periodicity?: 'day' | 'week' | 'month'
   currency?: string
-
-  interval?:
-    | 'daily'
-    | 'weekly'
-    | 'monthly'
-
+  interval?: 'daily' | 'weekly' | 'monthly'
   metric?: string
-
   page?: number
   limit?: number
 }
