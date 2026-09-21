@@ -15,22 +15,16 @@ import {
   TableRow,
 } from '@/design-system/tables'
 import { Button } from '@/design-system/buttons'
-import {
-  Spinner,
-} from '@/design-system/loaders'
-import {
-  ProductProfitBreakdown,
-} from '@/services/api/profit.api'
-import {
-  StatModal,
-  StatModalData,
-} from '@/components/stats/stats.modal'
+import { Spinner } from '@/design-system/loaders'
+import { ProductProfitBreakdown } from '@/services/api/profit.api'
+import { StatModal, StatModalData } from '@/components/stats/stats.modal'
 import {
   formatCurrency,
   formatNumber,
   formatPercentage,
 } from '@/utils/format'
 import { MarketplaceFlag } from '@/components/marketplace-flag/MarketPlaceFlag'
+import { cn } from '@/utils/cn'
 
 /* ──────────────────────────────────────────────────────
  * Types
@@ -41,7 +35,7 @@ export interface SellerboardProductsTableProps {
   isLoading?: boolean
   isFetching?: boolean
   searchTerm?: string
-  onSearchChange?: string
+  onSearchChange?: (term: string) => void
   error?: any
 }
 
@@ -755,32 +749,15 @@ export const SellerboardProductsTable: React.FC<
       )
     }
 
-    // Render full centered Spinner during initial load or when no data is ready
-    if (isLoading || (isFetching && (!products || products.length === 0))) {
-      return (
-        <div className="w-full h-80 flex flex-col items-center justify-center gap-3 bg-surface border border-border rounded-lg">
-          <Spinner />
-          <span className="text-xs font-medium text-text-muted">
-            Loading products...
-          </span>
-        </div>
-      )
-    }
-
-    if (error) {
-      return (
-        <div className="text-center py-8 text-danger-600">
-          Failed to load products. Please try again.
-        </div>
-      )
-    }
+    const showInitialLoading = isLoading || (isFetching && (!products || products.length === 0))
+    const isTableEmpty = showInitialLoading || error || !paginatedProducts.length
 
     return (
-      <div className="space-y-4 relative min-h-[300px]">
-        {/* Render overlay Spinner during background search / date range refetches */}
-        {isFetching && (
+      <div className="w-full space-y-4 relative min-h-[400px]">
+        {/* Refetch Backdrop Overlay Spinner */}
+        {isFetching && products && products.length > 0 && (
           <div className="absolute inset-0 bg-surface/65 backdrop-blur-[1px] z-30 flex items-center justify-center rounded-lg transition-opacity duration-200">
-            <div className="flex flex-col items-center gap-3 bg-surface p-5 rounded-xl shadow-xl border border-border">
+            <div className="flex flex-col items-center gap-2">
               <Spinner />
               <span className="text-xs font-medium text-text-muted">
                 Updating products...
@@ -797,196 +774,219 @@ export const SellerboardProductsTable: React.FC<
           anchorRect={productStat?.anchorRect || null}
         />
 
-        {!paginatedProducts.length && !isFetching ? (
-          <div className="text-center py-12 text-text-muted border border-border rounded-lg bg-surface">
-            No products found matching your search criteria.
-          </div>
-        ) : (
-          /* Scroll Container with Bounded Height & Isolated Viewport */
-          <div className="overflow-y-auto overflow-x-auto max-h-[calc(100vh-280px)] border border-border rounded-lg shadow-sm">
-            <Table className="min-w-full border-separate border-spacing-0">
-              <TableHeader className="sticky top-0 z-20 bg-surface shadow-sm">
-                <TableRow className="bg-surface h-12">
-                  {/* Product Column */}
-                  <TableHead
-                    className="sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-left min-w-[320px] py-3 px-4 border-b border-border align-middle"
-                    onClick={() => handleSort('name')}
-                  >
-                    <div className="flex items-center justify-start gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
-                      <span>Product</span>
-                      <SortIcon column="name" />
-                    </div>
-                    <HeaderTooltip columnKey="name" />
-                  </TableHead>
+        {/* Scroll Container with Bounded Height & Flex Layout */}
+        <div className="w-full h-[500px] max-h-[calc(100vh-280px)] min-h-[400px] overflow-y-auto overflow-x-auto border border-border rounded-lg shadow-sm flex flex-col">
+          <Table className={cn('min-w-full border-separate border-spacing-0', isTableEmpty && 'h-full flex-1')}>
+            <TableHeader className="sticky top-0 z-20 bg-surface shadow-sm">
+              <TableRow className="bg-surface h-12">
+                {/* Product Column */}
+                <TableHead
+                  className="sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-left min-w-[320px] py-3 px-4 border-b border-border align-middle"
+                  onClick={() => handleSort('name')}
+                >
+                  <div className="flex items-center justify-start gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
+                    <span>Product</span>
+                    <SortIcon column="name" />
+                  </div>
+                  <HeaderTooltip columnKey="name" />
+                </TableHead>
 
-                  {/* Units Sold Column */}
-                  <TableHead
-                    className="sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[120px] py-3 px-4 border-b border-border align-middle"
-                    onClick={() => handleSort('units')}
-                  >
-                    <div className="flex items-center justify-end gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
-                      <span>Units Sold</span>
-                      <SortIcon column="units" />
-                    </div>
-                    <HeaderTooltip columnKey="units" />
-                  </TableHead>
+                {/* Units Sold Column */}
+                <TableHead
+                  className="sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[120px] py-3 px-4 border-b border-border align-middle"
+                  onClick={() => handleSort('units')}
+                >
+                  <div className="flex items-center justify-end gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
+                    <span>Units Sold</span>
+                    <SortIcon column="units" />
+                  </div>
+                  <HeaderTooltip columnKey="units" />
+                </TableHead>
 
-                  {/* Refunds Column */}
-                  <TableHead
-                    className="sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[110px] py-3 px-4 border-b border-border align-middle"
-                    onClick={() => handleSort('refunds')}
-                  >
-                    <div className="flex items-center justify-end gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
-                      <span>Refunds</span>
-                      <SortIcon column="refunds" />
-                    </div>
-                    <HeaderTooltip columnKey="refunds" />
-                  </TableHead>
+                {/* Refunds Column */}
+                <TableHead
+                  className="sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[110px] py-3 px-4 border-b border-border align-middle"
+                  onClick={() => handleSort('refunds')}
+                >
+                  <div className="flex items-center justify-end gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
+                    <span>Refunds</span>
+                    <SortIcon column="refunds" />
+                  </div>
+                  <HeaderTooltip columnKey="refunds" />
+                </TableHead>
 
-                  {/* Sales Column */}
-                  <TableHead
-                    className="sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[130px] py-3 px-4 border-b border-border align-middle"
-                    onClick={() => handleSort('sales')}
-                  >
-                    <div className="flex items-center justify-end gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
-                      <span>Sales</span>
-                      <SortIcon column="sales" />
-                    </div>
-                    <HeaderTooltip columnKey="sales" />
-                  </TableHead>
+                {/* Sales Column */}
+                <TableHead
+                  className="sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[130px] py-3 px-4 border-b border-border align-middle"
+                  onClick={() => handleSort('sales')}
+                >
+                  <div className="flex items-center justify-end gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
+                    <span>Sales</span>
+                    <SortIcon column="sales" />
+                  </div>
+                  <HeaderTooltip columnKey="sales" />
+                </TableHead>
 
-                  {/* Promo Column */}
-                  <TableHead
-                    className="sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[120px] py-3 px-4 border-b border-border align-middle"
-                    onClick={() => handleSort('promo')}
-                  >
-                    <div className="flex items-center justify-end gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
-                      <span>Promo</span>
-                      <SortIcon column="promo" />
-                    </div>
-                    <HeaderTooltip columnKey="promo" />
-                  </TableHead>
+                {/* Promo Column */}
+                <TableHead
+                  className="sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[120px] py-3 px-4 border-b border-border align-middle"
+                  onClick={() => handleSort('promo')}
+                >
+                  <div className="flex items-center justify-end gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
+                    <span>Promo</span>
+                    <SortIcon column="promo" />
+                  </div>
+                  <HeaderTooltip columnKey="promo" />
+                </TableHead>
 
-                  {/* Ads Column */}
-                  <TableHead
-                    className="sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[130px] py-3 px-4 border-b border-border align-middle"
-                    onClick={() => handleSort('ads')}
-                  >
-                    <div className="flex items-center justify-end gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
-                      <span>Ads</span>
-                      <SortIcon column="ads" />
-                    </div>
-                    <HeaderTooltip columnKey="ads" />
-                  </TableHead>
+                {/* Ads Column */}
+                <TableHead
+                  className="sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[130px] py-3 px-4 border-b border-border align-middle"
+                  onClick={() => handleSort('ads')}
+                >
+                  <div className="flex items-center justify-end gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
+                    <span>Ads</span>
+                    <SortIcon column="ads" />
+                  </div>
+                  <HeaderTooltip columnKey="ads" />
+                </TableHead>
 
-                  {/* Refund Cost Column */}
-                  <TableHead
-                    className="sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[140px] py-3 px-4 border-b border-border align-middle"
-                    onClick={() => handleSort('refundCost')}
-                  >
-                    <div className="flex items-center justify-end gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
-                      <span>Refund Cost</span>
-                      <SortIcon column="refundCost" />
-                    </div>
-                    <HeaderTooltip columnKey="refundCost" />
-                  </TableHead>
+                {/* Refund Cost Column */}
+                <TableHead
+                  className="sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[140px] py-3 px-4 border-b border-border align-middle"
+                  onClick={() => handleSort('refundCost')}
+                >
+                  <div className="flex items-center justify-end gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
+                    <span>Refund Cost</span>
+                    <SortIcon column="refundCost" />
+                  </div>
+                  <HeaderTooltip columnKey="refundCost" />
+                </TableHead>
 
-                  {/* Amazon Fees Column */}
-                  <TableHead
-                    className="sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[140px] py-3 px-4 border-b border-border align-middle"
-                    onClick={() => handleSort('amazonFees')}
-                  >
-                    <div className="flex items-center justify-end gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
-                      <span>Amazon Fees</span>
-                      <SortIcon column="amazonFees" />
-                    </div>
-                    <HeaderTooltip columnKey="amazonFees" />
-                  </TableHead>
+                {/* Amazon Fees Column */}
+                <TableHead
+                  className="sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[140px] py-3 px-4 border-b border-border align-middle"
+                  onClick={() => handleSort('amazonFees')}
+                >
+                  <div className="flex items-center justify-end gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
+                    <span>Amazon Fees</span>
+                    <SortIcon column="amazonFees" />
+                  </div>
+                  <HeaderTooltip columnKey="amazonFees" />
+                </TableHead>
 
-                  {/* COGS Column */}
-                  <TableHead
-                    className="sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[140px] py-3 px-4 border-b border-border align-middle"
-                    onClick={() => handleSort('cogs')}
-                  >
-                    <div className="flex items-center justify-end gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
-                      <span>Cost of Goods</span>
-                      <SortIcon column="cogs" />
-                    </div>
-                    <HeaderTooltip columnKey="cogs" />
-                  </TableHead>
+                {/* COGS Column */}
+                <TableHead
+                  className="sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[140px] py-3 px-4 border-b border-border align-middle"
+                  onClick={() => handleSort('cogs')}
+                >
+                  <div className="flex items-center justify-end gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
+                    <span>Cost of Goods</span>
+                    <SortIcon column="cogs" />
+                  </div>
+                  <HeaderTooltip columnKey="cogs" />
+                </TableHead>
 
-                  {/* Gross Profit Column */}
-                  <TableHead
-                    className="sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[130px] py-3 px-4 border-b border-border align-middle"
-                    onClick={() => handleSort('grossProfit')}
-                  >
-                    <div className="flex items-center justify-end gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
-                      <span>Gross Profit</span>
-                      <SortIcon column="grossProfit" />
-                    </div>
-                    <HeaderTooltip columnKey="grossProfit" />
-                  </TableHead>
+                {/* Gross Profit Column */}
+                <TableHead
+                  className="sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[130px] py-3 px-4 border-b border-border align-middle"
+                  onClick={() => handleSort('grossProfit')}
+                >
+                  <div className="flex items-center justify-end gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
+                    <span>Gross Profit</span>
+                    <SortIcon column="grossProfit" />
+                  </div>
+                  <HeaderTooltip columnKey="grossProfit" />
+                </TableHead>
 
-                  {/* Net Profit Column */}
-                  <TableHead
-                    className="sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[130px] py-3 px-4 border-b border-border align-middle"
-                    onClick={() => handleSort('netProfit')}
-                  >
-                    <div className="flex items-center justify-end gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
-                      <span>Net Profit</span>
-                      <SortIcon column="netProfit" />
-                    </div>
-                    <HeaderTooltip columnKey="netProfit" />
-                  </TableHead>
+                {/* Net Profit Column */}
+                <TableHead
+                  className="sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[130px] py-3 px-4 border-b border-border align-middle"
+                  onClick={() => handleSort('netProfit')}
+                >
+                  <div className="flex items-center justify-end gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
+                    <span>Net Profit</span>
+                    <SortIcon column="netProfit" />
+                  </div>
+                  <HeaderTooltip columnKey="netProfit" />
+                </TableHead>
 
-                  {/* Margin Column */}
-                  <TableHead
-                    className="sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[110px] py-3 px-4 border-b border-border align-middle"
-                    onClick={() => handleSort('margin')}
-                  >
-                    <div className="flex items-center justify-end gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
-                      <span>Margin</span>
-                      <SortIcon column="margin" />
-                    </div>
-                    <HeaderTooltip columnKey="margin" />
-                  </TableHead>
+                {/* Margin Column */}
+                <TableHead
+                  className="sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[110px] py-3 px-4 border-b border-border align-middle"
+                  onClick={() => handleSort('margin')}
+                >
+                  <div className="flex items-center justify-end gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
+                    <span>Margin</span>
+                    <SortIcon column="margin" />
+                  </div>
+                  <HeaderTooltip columnKey="margin" />
+                </TableHead>
 
-                  {/* ROI Column */}
-                  <TableHead
-                    className="sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[110px] py-3 px-4 border-b border-border align-middle"
-                    onClick={() => handleSort('roi')}
-                  >
-                    <div className="flex items-center justify-end gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
-                      <span>ROI</span>
-                      <SortIcon column="roi" />
-                    </div>
-                    <HeaderTooltip columnKey="roi" />
-                  </TableHead>
+                {/* ROI Column */}
+                <TableHead
+                  className="sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[110px] py-3 px-4 border-b border-border align-middle"
+                  onClick={() => handleSort('roi')}
+                >
+                  <div className="flex items-center justify-end gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
+                    <span>ROI</span>
+                    <SortIcon column="roi" />
+                  </div>
+                  <HeaderTooltip columnKey="roi" />
+                </TableHead>
 
-                  {/* BSR Column */}
-                  <TableHead className="sticky top-0 z-20 bg-surface group relative text-right min-w-[90px] py-3 px-4 border-b border-border align-middle">
-                    <div className="flex items-center justify-end gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
-                      <span>BSR</span>
-                    </div>
-                    <HeaderTooltip columnKey="bsr" />
-                  </TableHead>
+                {/* BSR Column */}
+                <TableHead className="sticky top-0 z-20 bg-surface group relative text-right min-w-[90px] py-3 px-4 border-b border-border align-middle">
+                  <div className="flex items-center justify-end gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
+                    <span>BSR</span>
+                  </div>
+                  <HeaderTooltip columnKey="bsr" />
+                </TableHead>
 
-                  {/* Info Column */}
-                  <TableHead className="sticky top-0 z-20 bg-surface group relative text-center min-w-[90px] py-3 px-4 border-b border-border align-middle">
-                    <div className="flex items-center justify-center gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
-                      <span>Info</span>
+                {/* Info Column */}
+                <TableHead className="sticky top-0 z-20 bg-surface group relative text-center min-w-[90px] py-3 px-4 border-b border-border align-middle">
+                  <div className="flex items-center justify-center gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
+                    <span>Info</span>
+                  </div>
+                  <HeaderTooltip columnKey="info" />
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+
+            <TableBody className={cn(isTableEmpty && 'h-full')}>
+              {showInitialLoading ? (
+                <TableRow className="h-full hover:bg-transparent bg-transparent">
+                  <TableCell colSpan={15} className="h-full text-center align-middle border-none p-0">
+                    <div className="flex flex-col items-center justify-center h-full min-h-[300px] gap-2 py-12">
+                      <Spinner />
+                      <span className="text-xs font-medium text-text-muted">
+                        Loading products...
+                      </span>
                     </div>
-                    <HeaderTooltip columnKey="info" />
-                  </TableHead>
+                  </TableCell>
                 </TableRow>
-              </TableHeader>
-
-              <TableBody>
-                {paginatedProducts.map((product) => renderProductRow(product))}
-              </TableBody>
-            </Table>
-          </div>
-        )}
+              ) : error ? (
+                <TableRow className="h-full hover:bg-transparent bg-transparent">
+                  <TableCell colSpan={15} className="h-full text-center align-middle border-none p-0">
+                    <div className="flex flex-col items-center justify-center h-full min-h-[300px] py-12 text-danger-600 font-medium">
+                      Failed to load products. Please try again.
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ) : !paginatedProducts.length ? (
+                <TableRow className="h-full hover:bg-transparent bg-transparent">
+                  <TableCell colSpan={15} className="h-full text-center align-middle border-none p-0">
+                    <div className="flex flex-col items-center justify-center h-full min-h-[300px] py-12 text-text-muted">
+                      No products found matching your search criteria.
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                paginatedProducts.map((product) => renderProductRow(product))
+              )}
+            </TableBody>
+          </Table>
+        </div>
 
         {totalPages > 1 && (
           <div className="flex items-center justify-between">
