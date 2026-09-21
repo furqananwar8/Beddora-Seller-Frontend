@@ -5,6 +5,7 @@ import React, {
   useState,
   useCallback,
   useEffect,
+  useRef,
 } from 'react'
 import {
   Table,
@@ -384,12 +385,19 @@ export const SellerboardProductsTable: React.FC<
     const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
     const itemsPerPage = 20
 
+    // Preserve previous products so search refetches don't drop data to undefined
+    const previousProductsRef = useRef<ProductProfitBreakdown[] | undefined>(products)
+    if (products !== undefined) {
+      previousProductsRef.current = products
+    }
+    const activeProducts = products ?? previousProductsRef.current
+
     // Auto-expand parent rows when search is active
     useEffect(() => {
-      if (searchTerm.trim() && products && products.length > 0) {
+      if (searchTerm.trim() && activeProducts && activeProducts.length > 0) {
         const parentSkusToExpand = new Set<string>()
 
-        products.forEach((product) => {
+        activeProducts.forEach((product) => {
           const p = product as ProductWithChildren
           if (p.children && p.children.length > 0) {
             parentSkusToExpand.add(p.sku)
@@ -398,7 +406,7 @@ export const SellerboardProductsTable: React.FC<
 
         setExpandedRows(parentSkusToExpand)
       }
-    }, [products, searchTerm])
+    }, [activeProducts, searchTerm])
 
     const [productStat, setProductStat] = useState<{
       data: StatModalData
@@ -431,9 +439,9 @@ export const SellerboardProductsTable: React.FC<
     )
 
     const sortedProducts = useMemo(() => {
-      if (!products) return []
+      if (!activeProducts) return []
 
-      const result = [...products] as ProductWithChildren[]
+      const result = [...activeProducts] as ProductWithChildren[]
 
       result.sort((a, b) => {
         let aVal: number | string = 0
@@ -504,7 +512,7 @@ export const SellerboardProductsTable: React.FC<
       })
 
       return result
-    }, [products, sortColumn, sortDirection])
+    }, [activeProducts, sortColumn, sortDirection])
 
     const paginatedProducts = useMemo(() => {
       const startIndex = (currentPage - 1) * itemsPerPage
@@ -749,13 +757,13 @@ export const SellerboardProductsTable: React.FC<
       )
     }
 
-    const showInitialLoading = isLoading || (isFetching && (!products || products.length === 0))
+    const showInitialLoading = isLoading || (isFetching && (!activeProducts || activeProducts.length === 0))
     const isTableEmpty = showInitialLoading || error || !paginatedProducts.length
 
     return (
       <div className="w-full space-y-4 relative min-h-[400px]">
-        {/* Refetch Backdrop Overlay Spinner */}
-        {isFetching && products && products.length > 0 && (
+        {/* Single Refetch Backdrop Overlay */}
+        {isFetching && !showInitialLoading && activeProducts && activeProducts.length > 0 && (
           <div className="absolute inset-0 bg-surface/65 backdrop-blur-[1px] z-30 flex items-center justify-center rounded-lg transition-opacity duration-200">
             <div className="flex flex-col items-center gap-2">
               <Spinner />
@@ -774,7 +782,7 @@ export const SellerboardProductsTable: React.FC<
           anchorRect={productStat?.anchorRect || null}
         />
 
-        {/* Scroll Container with Bounded Height & Flex Layout */}
+        {/* Scroll Container */}
         <div className="w-full h-[500px] max-h-[calc(100vh-280px)] min-h-[400px] overflow-y-auto overflow-x-auto border border-border rounded-lg shadow-sm flex flex-col">
           <Table className={cn('min-w-full border-separate border-spacing-0', isTableEmpty && 'h-full flex-1')}>
             <TableHeader className="sticky top-0 z-20 bg-surface shadow-sm">
