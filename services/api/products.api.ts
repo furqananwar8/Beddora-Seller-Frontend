@@ -20,10 +20,15 @@ export interface Product {
   productTitle: string | null
   asin: string | null
   imageUrl: string | null
-  totalCOGS: number
-  totalCOGSQty: number
+  marketplace?: string | null
+  fulfillmentChannel?: string | null
+  fulfillmentChannelCode?: string | null
   cogsPerUnit: number
+  totalCOGS?: number
+  totalCOGSQty?: number
   salesVelocity: number
+  isLocked?: boolean
+  lockedBy?: string | null
 }
 
 export interface ProductsResponse {
@@ -36,13 +41,31 @@ export interface ProductsResponse {
 }
 
 export const productsApi = baseApi.injectEndpoints({
+  overrideExisting: true,
   endpoints: (builder) => ({
     getAllProducts: builder.query<ProductsResponse, ProductFilters>({
       query: (filters) => ({
         url: '/products',
-        params: filters,
+        params: {
+          accountId: filters.accountId,
+          amazonAccountId: filters.amazonAccountId,
+          marketplaceId: filters.marketplaceId,
+          startDate: filters.startDate,
+          endDate: filters.endDate,
+          cogsSet: filters.cogsSet,
+          search: filters.search ? filters.search.trim() : undefined,
+          page: filters.page,
+          limit: filters.limit,
+        },
       }),
-      providesTags: ['Products'],
+      providesTags: (result) =>
+        result
+          ? [
+              ...result.data.map(({ sku }) => ({ type: 'Products' as const, id: sku })),
+              { type: 'Products', id: 'LIST' },
+            ]
+          : [{ type: 'Products', id: 'LIST' }],
+      keepUnusedDataFor: 60,
     }),
   }),
 })

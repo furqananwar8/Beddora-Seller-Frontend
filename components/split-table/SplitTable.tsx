@@ -3,7 +3,7 @@
 import React, { useMemo, useRef, useCallback, useEffect } from 'react'
 import { TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/design-system/tables'
 import { PaginationFooter } from '@/components/pagination-footer/PaginationFooter'
-import { TableSkeleton } from '@/design-system/loaders'
+import { TableSkeleton, Spinner } from '@/design-system/loaders'
 import { cn } from '@/utils/cn'
 
 export type SortDirection = 'asc' | 'desc'
@@ -18,7 +18,7 @@ export interface ColumnDef<T = any> {
   heatmap?: 'green' | 'red' | 'neutral'
   headerClassName?: string
   cellClassName?: string
-  style?: React.CSSProperties   // ← NEW — applied to both th and td
+  style?: React.CSSProperties
 }
 
 export interface PaginationConfig {
@@ -37,6 +37,7 @@ interface BaseProps {
   columns: ColumnDef[]
   wrapperClassName?: string
   isLoading?: boolean
+  isFetching?: boolean
   skeletonRows?: number
   emptyMessage?: string
   emptyState?: React.ReactNode
@@ -83,6 +84,7 @@ export function SplitTable<T = any>(props: GenericProps<T> | SimpleProps): React
     data,
     wrapperClassName = '',
     isLoading = false,
+    isFetching = false,
     skeletonRows = 10,
     emptyMessage = 'No data found',
     emptyState,
@@ -231,132 +233,148 @@ export function SplitTable<T = any>(props: GenericProps<T> | SimpleProps): React
     return 'text-left'
   }
 
+  const showInitialLoading = isLoading || (isFetching && data.length === 0)
+  const isTableEmpty = showInitialLoading || data.length === 0
+
   return (
-    <div className={`flex flex-col min-h-0 ${wrapperClassName}`}>
-      {isLoading ? (
-        <div className="p-6">
-          <TableSkeleton rows={skeletonRows} columns={columns.length} />
+    <div className={cn('flex flex-col min-h-0 relative h-full', wrapperClassName)}>
+      {/* ── Background Refetching Overlay ── */}
+      {isFetching && !isLoading && data.length > 0 && (
+        <div className="absolute inset-0 bg-surface/65 backdrop-blur-[1px] z-30 flex items-center justify-center transition-opacity duration-200">
+          <div className="flex flex-col items-center gap-2">
+            <Spinner />
+            <span className="text-xs font-medium text-text-muted">
+              Updating data...
+            </span>
+          </div>
         </div>
-      ) : (
-        <>
-          {/* ═══════════════════════════════════════════════════════════════
-              HEADER — overflow: hidden. NO ds-table-wrap here.
-              Uses raw <table> instead of <Table> to avoid the inner
-              overflow-x-auto wrapper that Table.tsx injects.
-              ═══════════════════════════════════════════════════════════════ */}
-          <div
-            ref={headerRef}
-            className={cn(
-              'h-[50px] shrink-0 bg-surface border-b border-border z-20 overflow-hidden',
-              headerClassName
-            )}
-          >
-            <table className="h-full min-w-full table-fixed ds-table">
-              <TableHeader>
-                <TableRow className="h-full bg-surface shadow-sm items-center">
-                  {columns.map((col) => (
-                    <TableHead
-                      key={col.key}
-                      style={col.style}        // ← NEW
-                      className={cn(
-                        'h-full text-sm font-semibold text-text-primary',
-                        col.width,
-                        alignClass(col),
-                        col.headerClassName,
-                        col.sortable && 'cursor-pointer hover:bg-surface-secondary'
-                      )}
-                      onClick={() => handleSortClick(col)}
-                    >
-                      <div className="flex items-center h-full">
-                        {col.header}
-                        {sortIndicator(col)}
-                      </div>
-                    </TableHead>
-                  ))}
-                </TableRow>
-              </TableHeader>
-            </table>
-          </div>
+      )}
 
-          {/* ═══════════════════════════════════════════════════════════════
-              BODY — overflow-auto = the ONLY scrollbar.
-              Same raw <table> approach. onScroll syncs header scrollLeft.
-              ═══════════════════════════════════════════════════════════════ */}
-          <div
-            ref={bodyRef}
-            className={cn('overflow-auto flex-1 min-h-0', bodyClassName)}
-            onScroll={handleBodyScroll}
-          >
-            <table className="min-w-full table-fixed ds-table">
-              <TableBody>
-                {data.length > 0 ? (
-                  (data as any[]).map((row, rowIndex) => {
-                    const rowKeyValue = getRowKey(row, rowIndex)
-                    const isPending = pendingRowKeys ? pendingRowKeys.has(rowKeyValue) : false
+      {/* ── HEADER ── */}
+      <div
+        ref={headerRef}
+        className={cn(
+          'h-[50px] shrink-0 bg-surface border-b border-border z-20 overflow-hidden',
+          headerClassName
+        )}
+      >
+        <table className="h-full min-w-full table-fixed ds-table">
+          <TableHeader>
+            <TableRow className="h-full bg-surface shadow-sm items-center">
+              {columns.map((col) => (
+                <TableHead
+                  key={col.key}
+                  style={col.style}
+                  className={cn(
+                    'h-full text-sm font-semibold text-text-primary',
+                    col.width,
+                    alignClass(col),
+                    col.headerClassName,
+                    col.sortable && 'cursor-pointer hover:bg-surface-secondary'
+                  )}
+                  onClick={() => handleSortClick(col)}
+                >
+                  <div className="flex items-center h-full">
+                    {col.header}
+                    {sortIndicator(col)}
+                  </div>
+                </TableHead>
+              ))}
+            </TableRow>
+          </TableHeader>
+        </table>
+      </div>
 
-                    return (
-                      <TableRow
-                        key={rowKeyValue}
-                        aria-busy={isPending}
-                        className={cn(
-                          'hover:bg-surface-secondary',
-                          isPending && 'opacity-60'
-                        )}
-                      >
-                        {columns.map((col) => {
-                          const heatmapBg = (() => {
-                            if (isSimpleMode || !col.heatmap || col.heatmap === 'neutral')
-                              return undefined
-                            const val = (row as any)[col.key]
-                            if (typeof val !== 'number') return undefined
-                            return getHeatmapBg(val, heatmapRanges[col.key], col.heatmap)
-                          })()
+      {/* ── BODY ── */}
+      <div
+        ref={bodyRef}
+        className={cn('overflow-auto flex-1 min-h-0 flex flex-col', bodyClassName)}
+        onScroll={handleBodyScroll}
+      >
+        <table className={cn('min-w-full table-fixed ds-table', isTableEmpty && 'h-full flex-1')}>
+          <TableBody className={cn(isTableEmpty && 'h-full')}>
+            {showInitialLoading ? (
+              <TableRow className="h-full">
+                <TableCell
+                  colSpan={columns.length}
+                  className="h-full text-center align-middle border-none p-0"
+                >
+                  <div className="flex flex-col items-center justify-center h-full min-h-[300px] gap-2 py-12">
+                    <Spinner />
+                    <span className="text-xs font-medium text-text-muted">
+                      Loading data...
+                    </span>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ) : data.length > 0 ? (
+              (data as any[]).map((row, rowIndex) => {
+                const rowKeyValue = getRowKey(row, rowIndex)
+                const isPending = pendingRowKeys ? pendingRowKeys.has(rowKeyValue) : false
 
-                          return (
-                            <TableCell
-                              key={col.key}
-                              className={cn(
-                                col.width,
-                                alignClass(col),
-                                col.cellClassName
-                              )}
-                              style={heatmapBg ? { ...col.style, backgroundColor: heatmapBg } : col.style}
-                            >
-                              {renderCellContent(row, col, rowIndex, isPending)}
-                            </TableCell>
-                          )
-                        })}
-                      </TableRow>
-                    )
-                  })
-                ) : (
-                  <TableRow>
-                    <TableCell
-                      colSpan={columns.length}
-                      className="text-center text-text-muted py-8"
-                    >
-                      {emptyState || emptyMessage}
-                    </TableCell>
+                return (
+                  <TableRow
+                    key={rowKeyValue}
+                    aria-busy={isPending}
+                    className={cn(
+                      'hover:bg-surface-secondary',
+                      isPending && 'opacity-60'
+                    )}
+                  >
+                    {columns.map((col) => {
+                      const heatmapBg = (() => {
+                        if (isSimpleMode || !col.heatmap || col.heatmap === 'neutral')
+                          return undefined
+                        const val = (row as any)[col.key]
+                        if (typeof val !== 'number') return undefined
+                        return getHeatmapBg(val, heatmapRanges[col.key], col.heatmap)
+                      })()
+
+                      return (
+                        <TableCell
+                          key={col.key}
+                          className={cn(
+                            col.width,
+                            alignClass(col),
+                            col.cellClassName
+                          )}
+                          style={heatmapBg ? { ...col.style, backgroundColor: heatmapBg } : col.style}
+                        >
+                          {renderCellContent(row, col, rowIndex, isPending)}
+                        </TableCell>
+                      )
+                    })}
                   </TableRow>
-                )}
-              </TableBody>
-            </table>
-          </div>
+                )
+              })
+            ) : (
+              <TableRow className="h-full">
+                <TableCell
+                  colSpan={columns.length}
+                  className="h-full text-center align-middle text-text-muted border-none p-0"
+                >
+                  <div className="flex flex-col items-center justify-center h-full min-h-[300px] py-12">
+                    {emptyState || emptyMessage}
+                  </div>
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </table>
+      </div>
 
-          {/* Pagination */}
-          {pagination && pagination.totalItems > 0 && (
-            <div className="shrink-0 border-t border-border">
-              <PaginationFooter
-                page={pagination.page}
-                pageSize={pagination.pageSize}
-                totalItems={pagination.totalItems}
-                totalPages={pagination.totalPages}
-                onPageChange={pagination.onPageChange}
-                itemLabel={pagination.itemLabel || 'items'}
-              />
-            </div>
-          )}
-        </>
+      {/* ── PAGINATION ── */}
+      {pagination && pagination.totalItems > 0 && (
+        <div className="shrink-0 border-t border-border">
+          <PaginationFooter
+            page={pagination.page}
+            pageSize={pagination.pageSize}
+            totalItems={pagination.totalItems}
+            totalPages={pagination.totalPages}
+            onPageChange={pagination.onPageChange}
+            itemLabel={pagination.itemLabel || 'items'}
+          />
+        </div>
       )}
     </div>
   )

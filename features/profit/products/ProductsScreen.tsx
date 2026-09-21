@@ -1,8 +1,6 @@
-// src/screens/ProductsScreen.tsx
-
 'use client'
 
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { Container } from '@/components/layout'
 import { Button } from '@/design-system/buttons'
 import { Input } from '@/design-system/inputs'
@@ -15,6 +13,7 @@ import { useGetAllProductsQuery } from '@/services/api/products.api'
 import { useUpdateCOGSPerSkuMutation } from '@/services/api/cogs.api'
 import { formatNumber } from '@/utils/format'
 import { SplitTable, ColumnDef, PaginationConfig } from '@/components/split-table/SplitTable'
+import { useMinLoading } from '@/hooks/user-min-loading'
 
 type SortColumn = 'product' | 'cogs' | 'salesVelocity'
 type SortDirection = 'asc' | 'desc'
@@ -30,18 +29,19 @@ export const ProductsScreen: React.FC = () => {
   const dispatch = useAppDispatch()
   const { data: accountsData } = useGetAccountsQuery()
 
-  /* ── filter / pagination state ── */
+  /* ── Filter Draft & Applied States ── */
   const [search, setSearch] = useState({ raw: '', applied: '' })
   const [cogsFilter, setCogsFilter] = useState<{ raw: CogsFilterValue; applied: CogsFilterValue }>({
     raw: 'all',
     applied: 'all',
   })
+
   const [page, setPage] = useState(1)
   const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set())
   const [sortColumn, setSortColumn] = useState<SortColumn>('product')
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
 
-  /* ── edit state (keyed by `${sku}_${marketplace}`) ── */
+  /* ── Edit State ── */
   const [editedCOGS, setEditedCOGS] = useState<EditedCOGS>({})
   const [pendingKeys, setPendingKeys] = useState<Set<string>>(new Set())
   const [committedCOGS, setCommittedCOGS] = useState<Record<string, number>>({})
@@ -49,6 +49,12 @@ export const ProductsScreen: React.FC = () => {
   const effectiveAccountId = profitFilters.accountId || accountsData?.[0]?.id
   const limit = 10
 
+  // Reset pagination to page 1 whenever applied filters change
+  useEffect(() => {
+    setPage(1)
+  }, [search.applied, cogsFilter.applied])
+
+  /* ── API Query ── */
   const {
     data: productsResponse,
     isLoading,
@@ -61,8 +67,13 @@ export const ProductsScreen: React.FC = () => {
       cogsSet: cogsFilter.applied,
       search: search.applied,
     },
-    { skip: !effectiveAccountId }
+    {
+      skip: !effectiveAccountId,
+    }
   )
+
+  // Smooth out fast API responses to eliminate 10ms-50ms spinner flashes
+  const visualFetching = useMinLoading(isFetching, 300)
 
   const productsData = productsResponse?.data ?? []
   const totalRecords = productsResponse?.totalRecords ?? 0
@@ -109,6 +120,7 @@ export const ProductsScreen: React.FC = () => {
     }
   }
 
+  /* ── Apply Filters Button / Enter Key Handler ── */
   const handleApplyFilters = () => {
     setCogsFilter((prev) => ({ ...prev, applied: prev.raw }))
     setSearch((prev) => ({ ...prev, applied: prev.raw.trim() }))
@@ -416,8 +428,9 @@ export const ProductsScreen: React.FC = () => {
       {/* Top Toolbar */}
       <div className="shrink-0 bg-surface border-b border-border mb-4">
         <div className="px-6 py-4">
-          <div className="flex items-center gap-4">
-            <div className="w-[70%]">
+          <div className="flex items-center justify-between gap-4">
+            {/* Search Input */}
+            <div className="flex-1 min-w-0">
               <div className="relative">
                 <svg
                   className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted"
@@ -440,10 +453,25 @@ export const ProductsScreen: React.FC = () => {
                   onKeyDown={(e) => e.key === 'Enter' && handleApplyFilters()}
                   className="pl-10 w-full"
                 />
+                {search.raw && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearch({ raw: '', applied: '' })
+                      setPage(1)
+                    }}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary transition-colors"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
               </div>
             </div>
 
-            <div className="w-[30%] flex items-center justify-end gap-3">
+            {/* Filter Controls with Fixed Width Button */}
+            <div className="flex items-center gap-3 shrink-0">
               <select
                 value={cogsFilter.raw}
                 onChange={(e) =>
@@ -452,14 +480,19 @@ export const ProductsScreen: React.FC = () => {
                     raw: e.target.value as CogsFilterValue,
                   }))
                 }
-                className="h-9 w-40 px-3 text-sm border border-border rounded-md bg-surface text-text-primary focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary cursor-pointer"
+                className="h-9 w-40 px-3 text-sm border border-border rounded-md bg-surface text-text-primary focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary cursor-pointer shrink-0"
               >
                 <option value="all">Any COGS</option>
                 <option value="set">COGS set</option>
                 <option value="notSet">COGS not set</option>
               </select>
 
-              <Button variant="primary" onClick={handleApplyFilters} isLoading={isFetching}>
+              <Button
+                variant="primary"
+                onClick={handleApplyFilters}
+                isLoading={visualFetching}
+                className="w-24 shrink-0 flex items-center justify-center"
+              >
                 Filter
               </Button>
             </div>
@@ -467,27 +500,8 @@ export const ProductsScreen: React.FC = () => {
         </div>
       </div>
 
-      {/* Table */}
+      {/* Table Card */}
       <Card className="flex-1 flex flex-col min-h-0 relative">
-        {isFetching && !isLoading && (
-          <div className="absolute top-2 right-4 z-30 flex items-center gap-2 text-xs text-text-muted bg-surface/90 px-2 py-1 rounded border border-border shadow-sm">
-            <svg
-              className="animate-spin h-3 w-3"
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path
-                className="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-              />
-            </svg>
-            Refreshing…
-          </div>
-        )}
-
         <CardContent className="p-0 flex flex-col h-full">
           <SplitTable
             columns={columns}
@@ -496,6 +510,7 @@ export const ProductsScreen: React.FC = () => {
             renderCell={renderCell}
             wrapperClassName="flex-1"
             isLoading={isLoading}
+            isFetching={visualFetching}
             pendingRowKeys={pendingKeys}
             skeletonRows={10}
             emptyMessage="No products found"
