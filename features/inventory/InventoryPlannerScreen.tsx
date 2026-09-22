@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useMemo, useCallback } from 'react'
+import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import { Container } from '@/components/layout'
 import { Button } from '@/design-system/buttons'
 import { Card, CardContent } from '@/design-system/cards'
@@ -14,6 +14,7 @@ import { ProductInventoryTable } from './ProductInventoryTable'
 import { formatCurrency, formatNumber } from '@/utils/format'
 import { mockInventorySummary, mockProductInventory } from './mockData'
 import { MultiSelectInput } from '@/components/multi-select-input/MultiSelectInput'
+import { AllocationDrawer } from '@/components/allocation-drawer/AllocationDrawer'
 
 // ============================================
 // TYPES
@@ -74,6 +75,24 @@ export const InventoryPlannerScreen: React.FC = () => {
 
   // ---- Selected products ----
   const [selectedProducts, setSelectedProducts] = useState<string[]>([])
+  
+  // ---- Allocation Drawer state ----
+  const [isAllocationOpen, setIsAllocationOpen] = useState(false)
+
+  // ---- Header 3-Dots Dropdown State ----
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   // ---- Filter states (pending) ----
   const [pendingFilters, setPendingFilters] = useState<{
@@ -193,7 +212,7 @@ export const InventoryPlannerScreen: React.FC = () => {
     setAppliedFilters({ ...pendingFilters })
   }, [pendingFilters])
 
-  // ---- Summary Card ----
+  // ---- Summary Card Component ----
   interface SummaryCardProps {
     title: string
     color: string
@@ -230,12 +249,22 @@ export const InventoryPlannerScreen: React.FC = () => {
 
   return (
     <Container size="full" className="py-8">
-      {/* Header */}
+      {/* Page Title & Multi-Channel Sync Status */}
+      <div className="flex justify-between items-center mb-4 px-1">
+        <h1 className="text-2xl font-bold text-text-primary">Inventory Planner</h1>
+        <div className="flex items-center gap-2 bg-success-50 border border-success-200 text-success-700 px-3 py-1 rounded-full text-xs font-medium">
+          <span className="w-2 h-2 bg-success-500 rounded-full animate-pulse" />
+          <span>Multi-Channel Sync Active</span>
+        </div>
+      </div>
+
+      {/* Search, Filters & Header Actions (3 Vertical Dots) */}
       <div className="mb-6">
-        <div className="bg-surface-secondary border-b border-border-primary">
+        <div className="bg-surface-secondary border-b border-border-primary rounded-lg">
           <div className="px-6 py-4">
             <div className="flex items-center gap-3">
-              {/* Search */}
+              
+              {/* Search Bar */}
               <div className="relative flex-1 max-w-2xl">
                 <svg
                   className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted"
@@ -259,9 +288,8 @@ export const InventoryPlannerScreen: React.FC = () => {
                 />
               </div>
 
-              {/* Filters */}
+              {/* Multi-Select Filters */}
               <div className="flex items-center gap-2 flex-shrink-0">
-                
                 <MultiSelectInput
                   title="FBA"
                   options={FBA_OPTIONS}
@@ -287,23 +315,85 @@ export const InventoryPlannerScreen: React.FC = () => {
                   placeholder="Show OOS Items"
                 />
 
-                <div className="ml-2">
-                  <Button
-                    variant="primary"
-                    onClick={handleApplyFilters}
+                <Button variant="primary" onClick={handleApplyFilters}>
+                  Filter
+                </Button>
+
+                {/* 3 Vertical Dots Actions Menu */}
+                <div className="relative ml-1" ref={menuRef}>
+                  <button
+                    onClick={() => setIsMenuOpen(!isMenuOpen)}
+                    className="p-2.5 bg-white dark:bg-slate-900 bg-surface-primary border border-border-primary hover:bg-slate-100 dark:hover:bg-slate-800 text-text-primary rounded-md transition-colors flex items-center justify-center shadow-sm"
+                    title="More Options"
                   >
-                    <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"
-                      />
+                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z" />
                     </svg>
-                    Filter
-                  </Button>
+                  </button>
+
+                  {/* Dropdown Menu - Explicit Solid Backgrounds & High Contrast Banner */}
+                  {isMenuOpen && (
+                    <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-slate-900 border border-border-primary rounded-md shadow-2xl z-50 overflow-hidden divide-y divide-border-primary ring-1 ring-black/10">
+                      {selectedProducts.length > 0 && (
+                        <div className="px-4 py-2 text-xs font-bold text-white bg-blue-600 flex items-center justify-between">
+                          <span>{selectedProducts.length} Product{selectedProducts.length > 1 ? 's' : ''} Selected</span>
+                          <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
+                        </div>
+                      )}
+                      
+                      <div className="py-1 bg-white dark:bg-slate-900">
+                        <button
+                          onClick={() => {
+                            setIsMenuOpen(false)
+                            setIsAllocationOpen(true)
+                          }}
+                          disabled={selectedProducts.length === 0}
+                          className="w-full text-left px-4 py-2.5 text-sm text-slate-800 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2 font-medium transition-colors"
+                        >
+                          <svg className="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                          </svg>
+                          Allocate FBM / FBA
+                        </button>
+                      </div>
+
+                      <div className="py-1 bg-white dark:bg-slate-900">
+                        <button
+                          onClick={() => setIsMenuOpen(false)}
+                          disabled={selectedProducts.length === 0}
+                          className="w-full text-left px-4 py-2 text-sm text-slate-800 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                        >
+                          Create shipment plan
+                        </button>
+                        <button
+                          onClick={() => setIsMenuOpen(false)}
+                          disabled={selectedProducts.length === 0}
+                          className="w-full text-left px-4 py-2 text-sm text-slate-800 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                        >
+                          Create purchase order
+                        </button>
+                      </div>
+
+                      <div className="py-1 bg-white dark:bg-slate-900">
+                        <button
+                          onClick={() => setIsMenuOpen(false)}
+                          className="w-full text-left px-4 py-2 text-sm text-slate-800 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                        >
+                          Import
+                        </button>
+                        <button
+                          onClick={() => setIsMenuOpen(false)}
+                          className="w-full text-left px-4 py-2 text-sm text-slate-800 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                        >
+                          Export
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
+
               </div>
+
             </div>
           </div>
         </div>
@@ -326,13 +416,13 @@ export const InventoryPlannerScreen: React.FC = () => {
               </div>
             </div>
             <div>
-              <div className="text-text-muted mb-1">Est. monthly sales at risk</div>
+              <div className="text-text-muted mb-1">Sales at risk</div>
               <div className="font-semibold text-text-primary">
                 {formatCurrency(actionRequiredSummary.estMonthlySalesAtRisk)}
               </div>
             </div>
             <div>
-              <div className="text-text-muted mb-1">Est. monthly profit</div>
+              <div className="text-text-muted mb-1">Monthly profit</div>
               <div className="font-semibold text-success-600">
                 {formatCurrency(actionRequiredSummary.estMonthlyProfit)}
               </div>
@@ -457,8 +547,8 @@ export const InventoryPlannerScreen: React.FC = () => {
         </SummaryCard>
       </div>
 
-      {/* Product Inventory */}
-      <div className="space-y-6">
+      {/* Product Inventory Table */}
+      <div className="space-y-4">
         <h2 className="text-xl font-semibold text-text-primary">Product inventory</h2>
 
         <ProductInventoryTable
@@ -469,23 +559,15 @@ export const InventoryPlannerScreen: React.FC = () => {
           onProductSelect={handleProductSelect}
           onSelectAll={handleSelectAll}
         />
-
-        <div className="flex items-center gap-4 pt-4 border-t border-border-primary">
-          <Button variant="outline">Import</Button>
-          <Button variant="outline">Export</Button>
-          <Button variant="outline" disabled={selectedProducts.length === 0}>
-            Create shipment plan
-          </Button>
-          <Button variant="outline" disabled={selectedProducts.length === 0}>
-            Create purchase order
-          </Button>
-          {selectedProducts.length > 0 && (
-            <span className="text-sm text-text-muted">
-              {selectedProducts.length} product{selectedProducts.length > 1 ? 's' : ''} selected
-            </span>
-          )}
-        </div>
       </div>
+
+      {/* Slide-over Allocation Drawer */}
+      <AllocationDrawer
+        isOpen={isAllocationOpen}
+        onClose={() => setIsAllocationOpen(false)}
+        productIds={selectedProducts}
+        products={displayProducts as any}
+      />
     </Container>
   )
 }
