@@ -8,6 +8,7 @@ import { AuthInitializer } from '@/components/navigation/AuthInitializer'
 import { RouteGuard } from '@/components/navigation/RouteGuard'
 import { PersistGate } from 'redux-persist/integration/react'
 import { AbilityProvider } from '@/casl/AbilityProvider'
+import { SyncEventListener } from '@/components/sync/SyncEventListener'
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
@@ -16,6 +17,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
         <AuthInitializer>
           <AbilityProvider>
             <RouteGuard>
+              {/* Headless SSE Sync Event Listener */}
+              <SyncEventListener />
+
               {children}
               <ToastContainer />
             </RouteGuard>

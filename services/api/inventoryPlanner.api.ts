@@ -1,13 +1,7 @@
 import { baseApi } from './baseApi'
 
-/**
- * Stock Location Types
- */
 export type StockLocation = 'fba' | 'fbm' | 'prep' | 'awd' | 'ordered'
 
-/**
- * Inventory Summary by Location
- */
 export interface InventorySummary {
   location: StockLocation
   units: number
@@ -16,26 +10,22 @@ export interface InventorySummary {
   potentialProfit: number
 }
 
-/**
- * Product Inventory Item
- */
 export interface ProductInventoryItem {
   id: string
   sku: string
   asin: string
   title: string
   imageUrl?: string
-  fbaFbmStock: number
+  stock: number
   reserved: number
-  salesVelocity: number // units per day
+  salesVelocity: number
   daysOfStockLeft: number
   sentToFba: number
-  prepCenterStock: number
+  prepCenterStock?: number
   ordered: number
   daysUntilNextOrder: number
   recommendedQuantity: number
   stockValue: number
-  stock?: any
   roi: number
   comment?: string
   supplier?: string
@@ -43,9 +33,6 @@ export interface ProductInventoryItem {
   tags?: string[]
 }
 
-/**
- * Inventory Planner Filters
- */
 export interface InventoryPlannerFilters {
   accountId?: string
   marketplace?: string
@@ -60,9 +47,6 @@ export interface InventoryPlannerFilters {
   tags?: string[]
 }
 
-/**
- * Shipment Plan Request
- */
 export interface CreateShipmentPlanRequest {
   productIds: string[]
   destinationFulfillmentCenter?: string
@@ -70,9 +54,6 @@ export interface CreateShipmentPlanRequest {
   notes?: string
 }
 
-/**
- * Purchase Order Request
- */
 export interface CreatePurchaseOrderRequest {
   productIds: string[]
   supplierId?: string
@@ -80,14 +61,19 @@ export interface CreatePurchaseOrderRequest {
   notes?: string
 }
 
-/**
- * Inventory Planner API
- */
+export interface AllocatePushItem {
+  productId: string
+  sku: string
+  quantity: number
+  locationId?: string
+}
+
+export interface AllocatePushRequest {
+  items: AllocatePushItem[]
+}
+
 export const inventoryPlannerApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
-    /**
-     * Get inventory summary by location
-     */
     getInventorySummary: builder.query<InventorySummary[], InventoryPlannerFilters>({
       query: (filters) => ({
         url: '/inventory/planner/summary',
@@ -96,20 +82,29 @@ export const inventoryPlannerApi = baseApi.injectEndpoints({
       providesTags: ['Inventory'],
     }),
 
-    /**
-     * Get product inventory items
-     */
     getProductInventory: builder.query<ProductInventoryItem[], InventoryPlannerFilters>({
       query: (filters) => ({
-        url: '/inventory/products',   // <-- CHANGED from '/inventory/planner/products'
+        url: '/inventory/products',
         params: filters,
       }),
       providesTags: ['Inventory'],
     }),
 
     /**
-     * Update product inventory settings
+     * Trigger Multi-Channel Stock Push
      */
+    pushInventoryAllocation: builder.mutation<
+      { success: boolean; message: string },
+      AllocatePushRequest
+    >({
+      query: (body) => ({
+        url: '/inventory/allocate-push',
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: ['Inventory'],
+    }),
+
     updateProductInventory: builder.mutation<
       void,
       {
@@ -127,9 +122,6 @@ export const inventoryPlannerApi = baseApi.injectEndpoints({
       invalidatesTags: ['Inventory'],
     }),
 
-    /**
-     * Create shipment plan
-     */
     createShipmentPlan: builder.mutation<
       { shipmentPlanId: string; url: string },
       CreateShipmentPlanRequest
@@ -142,9 +134,6 @@ export const inventoryPlannerApi = baseApi.injectEndpoints({
       invalidatesTags: ['Inventory'],
     }),
 
-    /**
-     * Create purchase order
-     */
     createPurchaseOrder: builder.mutation<
       { purchaseOrderId: string; url: string },
       CreatePurchaseOrderRequest
@@ -157,9 +146,6 @@ export const inventoryPlannerApi = baseApi.injectEndpoints({
       invalidatesTags: ['Inventory', 'PurchaseOrders'],
     }),
 
-    /**
-     * Export inventory data
-     */
     exportInventoryData: builder.mutation<
       { downloadUrl: string },
       { filters: InventoryPlannerFilters; format: 'csv' | 'xlsx' }
@@ -171,9 +157,6 @@ export const inventoryPlannerApi = baseApi.injectEndpoints({
       }),
     }),
 
-    /**
-     * Import inventory data
-     */
     importInventoryData: builder.mutation<
       { imported: number; errors: string[] },
       FormData
@@ -191,6 +174,7 @@ export const inventoryPlannerApi = baseApi.injectEndpoints({
 export const {
   useGetInventorySummaryQuery,
   useGetProductInventoryQuery,
+  usePushInventoryAllocationMutation,
   useUpdateProductInventoryMutation,
   useCreateShipmentPlanMutation,
   useCreatePurchaseOrderMutation,

@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { Button } from '@/design-system/buttons'
 import { formatNumber } from '@/utils/format'
+import { usePushInventoryAllocationMutation } from '@/services/api/inventoryPlanner.api'
 
 export interface ProductItem {
   id: string
@@ -21,7 +22,7 @@ export interface ProductAllocationState {
   totalStock: number
   fbaAllocation: number
   safetyBuffer: number
-  channels: string[]
+  channels: string[] // List of marketplace account IDs (e.g., "Shopify.US", "Shopify.CA")
 }
 
 interface AllocationDrawerProps {
@@ -35,30 +36,121 @@ interface AllocationDrawerProps {
   ) => void
 }
 
-const CHANNELS = [
+export interface MarketplaceAccount {
+  id: string
+  channel: 'Shopify' | 'Walmart' | 'Temu' | 'TikTok' | 'Amazon'
+  region: 'US' | 'CA' | 'MX'
+  regionFlag: string
+  name: string
+  badgeStyle: string
+  dotStyle: string
+}
+
+// Connected Marketplace Accounts Across Regions
+const MARKETPLACE_ACCOUNTS: MarketplaceAccount[] = [
+  // UNITED STATES
   {
-    id: 'shopify',
-    name: 'Shopify',
-    badge: 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/80',
-    dot: 'bg-emerald-500',
+    id: 'Shopify.US',
+    channel: 'Shopify',
+    region: 'US',
+    regionFlag: '🇺🇸',
+    name: 'Shopify US',
+    badgeStyle: 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/80',
+    dotStyle: 'bg-emerald-500',
   },
   {
-    id: 'walmart',
-    name: 'Walmart',
-    badge: 'bg-sky-50 dark:bg-sky-950/50 text-sky-700 dark:text-sky-300 border-sky-200 dark:border-sky-800/80',
-    dot: 'bg-sky-500',
+    id: 'Walmart.US',
+    channel: 'Walmart',
+    region: 'US',
+    regionFlag: '🇺🇸',
+    name: 'Walmart US',
+    badgeStyle: 'bg-sky-50 dark:bg-sky-950/50 text-sky-700 dark:text-sky-300 border-sky-200 dark:border-sky-800/80',
+    dotStyle: 'bg-sky-500',
   },
   {
-    id: 'temu',
-    name: 'Temu',
-    badge: 'bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800/80',
-    dot: 'bg-amber-500',
+    id: 'Temu.US',
+    channel: 'Temu',
+    region: 'US',
+    regionFlag: '🇺🇸',
+    name: 'Temu US',
+    badgeStyle: 'bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800/80',
+    dotStyle: 'bg-amber-500',
   },
   {
-    id: 'tiktok',
-    name: 'TikTok Shop',
-    badge: 'bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800/80',
-    dot: 'bg-rose-500',
+    id: 'TikTok.US',
+    channel: 'TikTok',
+    region: 'US',
+    regionFlag: '🇺🇸',
+    name: 'TikTok Shop US',
+    badgeStyle: 'bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800/80',
+    dotStyle: 'bg-rose-500',
+  },
+  {
+    id: 'Amazon.US',
+    channel: 'Amazon',
+    region: 'US',
+    regionFlag: '🇺🇸',
+    name: 'Amazon US (FBM)',
+    badgeStyle: 'bg-amber-100/70 dark:bg-amber-950/80 text-amber-900 dark:text-amber-200 border-amber-300 dark:border-amber-700',
+    dotStyle: 'bg-amber-600',
+  },
+
+  // CANADA
+  {
+    id: 'Shopify.CA',
+    channel: 'Shopify',
+    region: 'CA',
+    regionFlag: '🇨🇦',
+    name: 'Shopify CA',
+    badgeStyle: 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/80',
+    dotStyle: 'bg-emerald-500',
+  },
+  {
+    id: 'Walmart.CA',
+    channel: 'Walmart',
+    region: 'CA',
+    regionFlag: '🇨🇦',
+    name: 'Walmart CA',
+    badgeStyle: 'bg-sky-50 dark:bg-sky-950/50 text-sky-700 dark:text-sky-300 border-sky-200 dark:border-sky-800/80',
+    dotStyle: 'bg-sky-500',
+  },
+  {
+    id: 'Temu.CA',
+    channel: 'Temu',
+    region: 'CA',
+    regionFlag: '🇨🇦',
+    name: 'Temu CA',
+    badgeStyle: 'bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800/80',
+    dotStyle: 'bg-amber-500',
+  },
+  {
+    id: 'TikTok.CA',
+    channel: 'TikTok',
+    region: 'CA',
+    regionFlag: '🇨🇦',
+    name: 'TikTok Shop CA',
+    badgeStyle: 'bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800/80',
+    dotStyle: 'bg-rose-500',
+  },
+  {
+    id: 'Amazon.CA',
+    channel: 'Amazon',
+    region: 'CA',
+    regionFlag: '🇨🇦',
+    name: 'Amazon CA (FBM)',
+    badgeStyle: 'bg-amber-100/70 dark:bg-amber-950/80 text-amber-900 dark:text-amber-200 border-amber-300 dark:border-amber-700',
+    dotStyle: 'bg-amber-600',
+  },
+
+  // MEXICO
+  {
+    id: 'Amazon.MX',
+    channel: 'Amazon',
+    region: 'MX',
+    regionFlag: '🇲🇽',
+    name: 'Amazon MX (FBM)',
+    badgeStyle: 'bg-amber-100/70 dark:bg-amber-950/80 text-amber-900 dark:text-amber-200 border-amber-300 dark:border-amber-700',
+    dotStyle: 'bg-amber-600',
   },
 ]
 
@@ -76,9 +168,11 @@ export const AllocationDrawer: React.FC<AllocationDrawerProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [activeDropdownId, setActiveDropdownId] = useState<string | null>(null)
 
+  // RTK Query Mutation hook for backend API dispatch
+  const [pushAllocation, { isLoading: isPushing }] = usePushInventoryAllocationMutation()
+
   const dropdownRef = useRef<HTMLDivElement>(null)
 
-  // Close dropdown popovers on outside click
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -89,7 +183,6 @@ export const AllocationDrawer: React.FC<AllocationDrawerProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  // Initialize or reset drawer state when opened
   useEffect(() => {
     if (isOpen && productIds.length > 0) {
       setCurrentStep(1)
@@ -102,13 +195,12 @@ export const AllocationDrawer: React.FC<AllocationDrawerProps> = ({
         totalStock: p.totalStock ?? 100,
         fbaAllocation: p.fbaReserved ?? 20,
         safetyBuffer: p.safetyBuffer ?? 5,
-        channels: ['shopify', 'walmart', 'temu', 'tiktok'],
+        channels: MARKETPLACE_ACCOUNTS.map((m) => m.id),
       }))
       setRowStates(initialStates)
     }
   }, [isOpen, productIds, products])
 
-  // Total summary calculation
   const totals = useMemo(() => {
     return rowStates.reduce(
       (acc, r) => {
@@ -149,7 +241,7 @@ export const AllocationDrawer: React.FC<AllocationDrawerProps> = ({
       const updated = [...prev]
       updated[rowIndex] = {
         ...updated[rowIndex],
-        channels: selectAll ? CHANNELS.map((c) => c.id) : [],
+        channels: selectAll ? MARKETPLACE_ACCOUNTS.map((c) => c.id) : [],
       }
       return updated
     })
@@ -160,27 +252,67 @@ export const AllocationDrawer: React.FC<AllocationDrawerProps> = ({
     setCurrentStep(2)
   }
 
+  /**
+   * Executes live push to Express backend via pushAllocation mutation
+   */
   const handleExecutePush = async () => {
-    setIsSubmitting(true)
-    setTimeout(() => {
-      setIsSubmitting(false)
-      if (onConfirmSync) {
-        onConfirmSync(rowStates, createFbaInbound)
-      }
-      onClose()
-    }, 600)
+  setIsSubmitting(true)
+  try {
+    const itemsToPush = rowStates.map((r) => ({
+      productId: r.productId,
+      sku: r.sku,
+      quantity: Math.max(0, r.totalStock - r.fbaAllocation - r.safetyBuffer),
+      productDetails: {
+        sku: r.sku,
+        title: r.title,
+        price: 1099.99,
+        description: `<p>${r.title}</p>`,
+      },
+    }))
+
+    await pushAllocation({ items: itemsToPush }).unwrap()
+
+    if (onConfirmSync) {
+      onConfirmSync(rowStates, createFbaInbound)
+    }
+    onClose()
+  } catch (error) {
+    console.error('Failed to execute marketplace inventory push:', error)
+  } finally {
+    setIsSubmitting(false)
+  }
+}
+
+  const getGroupedMarketplaceBadges = (selectedIds: string[]) => {
+    const selectedAccounts = MARKETPLACE_ACCOUNTS.filter((m) => selectedIds.includes(m.id))
+    
+    const grouped = selectedAccounts.reduce<Record<string, { channel: string; regions: string[]; badgeStyle: string; dotStyle: string }>>(
+      (acc, account) => {
+        if (!acc[account.channel]) {
+          acc[account.channel] = {
+            channel: account.channel,
+            regions: [],
+            badgeStyle: account.badgeStyle,
+            dotStyle: account.dotStyle,
+          }
+        }
+        acc[account.channel].regions.push(account.region)
+        return acc
+      },
+      {}
+    )
+
+    return Object.values(grouped)
   }
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden">
-      {/* Dark Overlay Backdrop */}
       <div 
         className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" 
         onClick={onClose} 
       />
 
       <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
-        {/* Main Panel Drawer */}
         <div className="w-screen max-w-5xl bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col justify-between relative z-10">
           
           {/* Header & Stepper */}
@@ -188,10 +320,10 @@ export const AllocationDrawer: React.FC<AllocationDrawerProps> = ({
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h3 className="text-xl font-bold text-slate-900 dark:text-white">
-                  Inventory Allocation & Multi-Channel Push
+                  Inventory Allocation & Multi-Marketplace Push
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                  Allocate stock to lock FBM pool before selecting channel targets[cite: 1].
+                  Separate FBA stock before pushing central FBM stock across connected US, CA & MX marketplaces.
                 </p>
               </div>
               <button 
@@ -202,7 +334,6 @@ export const AllocationDrawer: React.FC<AllocationDrawerProps> = ({
               </button>
             </div>
 
-            {/* Stepper Tabs */}
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setCurrentStep(1)}
@@ -220,11 +351,10 @@ export const AllocationDrawer: React.FC<AllocationDrawerProps> = ({
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
 
-              {/* Locked Step 2 Button */}
               <button
                 disabled={!isStep1Completed}
                 onClick={() => isStep1Completed && setCurrentStep(2)}
-                title={!isStep1Completed ? 'Complete Step 1 Allocation first to unlock target channel selection' : ''}
+                title={!isStep1Completed ? 'Complete Step 1 Allocation first to unlock target marketplace selection' : ''}
                 className={`flex items-center gap-2 text-xs font-bold px-3.5 py-2 rounded-lg transition-all ${
                   currentStep === 2
                     ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
@@ -236,15 +366,15 @@ export const AllocationDrawer: React.FC<AllocationDrawerProps> = ({
                 <span className="w-5 h-5 rounded-full bg-slate-300 dark:bg-slate-700 flex items-center justify-center text-[10px]">
                   {isStep1Completed ? '2' : '🔒'}
                 </span>
-                <span>Step 2: Target Channel Selection & Live Push</span>
+                <span>Step 2: Target Marketplaces & Live Push</span>
               </button>
             </div>
           </div>
 
-          {/* Drawer Body Content */}
+          {/* Drawer Body */}
           <div className="p-6 overflow-y-auto flex-1 bg-white dark:bg-slate-900" ref={dropdownRef}>
             
-            {/* Top Summary Metrics Cards */}
+            {/* Top Metrics Cards */}
             <div className="grid grid-cols-3 gap-4 mb-6">
               <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-800">
                 <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Physical Stock</div>
@@ -268,11 +398,9 @@ export const AllocationDrawer: React.FC<AllocationDrawerProps> = ({
               </div>
             </div>
 
-            {/* STEP 1: ALLOCATION & SP-API FULFILLMENT REQUEST */}
+            {/* STEP 1: ALLOCATION */}
             {currentStep === 1 && (
               <div className="space-y-5">
-                
-                {/* Information Callout Banner */}
                 <div className="p-4 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl flex items-start gap-4">
                   <div className="p-2.5 bg-blue-600 text-white rounded-lg flex-shrink-0">
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -283,12 +411,11 @@ export const AllocationDrawer: React.FC<AllocationDrawerProps> = ({
                     <span className="font-bold text-slate-900 dark:text-white block text-sm mb-0.5">
                       FBA Fulfillment Request Generation
                     </span>
-                    Allocating units to FBA separates Amazon inbound stock from your central FBM pool[cite: 1].
-                    Checking the box below will automatically dispatch an Amazon SP-API <code className="text-blue-600 dark:text-blue-400 font-mono">createInboundPlan</code> request for these SKUs upon confirmation[cite: 1].
+                    Allocating units to FBA separates Amazon inbound stock from your central FBM pool.
+                    Checking the box below will automatically dispatch an Amazon SP-API <code className="text-blue-600 dark:text-blue-400 font-mono">createInboundPlan</code> request for these SKUs upon confirmation.
                   </div>
                 </div>
 
-                {/* SP-API Inbound Request Checkbox Card */}
                 <label className="flex items-center justify-between p-4 bg-white dark:bg-slate-900 border-2 border-blue-500/40 rounded-xl cursor-pointer hover:border-blue-500 transition-all shadow-sm">
                   <div className="flex items-center gap-3">
                     <input
@@ -302,7 +429,7 @@ export const AllocationDrawer: React.FC<AllocationDrawerProps> = ({
                         Create Amazon Inbound Fulfillment Request ({totals.fbaAllocation} Total Units)
                       </span>
                       <span className="text-xs text-slate-500">
-                        Dispatches inbound shipment plans directly to Amazon SP-API for selected SKUs[cite: 1].
+                        Dispatches inbound shipment plans directly to Amazon SP-API for selected SKUs.
                       </span>
                     </div>
                   </div>
@@ -311,7 +438,6 @@ export const AllocationDrawer: React.FC<AllocationDrawerProps> = ({
                   </span>
                 </label>
 
-                {/* Step 1 Allocation Table */}
                 <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-xs">
                   <table className="w-full text-left border-collapse">
                     <thead>
@@ -369,16 +495,16 @@ export const AllocationDrawer: React.FC<AllocationDrawerProps> = ({
               </div>
             )}
 
-            {/* STEP 2: MULTI-CHANNEL TARGET SELECTION & PUSH */}
+            {/* STEP 2: TARGETING MATRIX */}
             {currentStep === 2 && (
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
                   <div>
                     <h4 className="text-sm font-bold text-slate-900 dark:text-white">
-                      Target Channel Configurations
+                      Target Marketplace Configurations
                     </h4>
                     <p className="text-xs text-slate-500">
-                      Specify which channels receive central stock updates for each SKU[cite: 1].
+                      Specify which connected regional marketplace accounts receive stock updates for each SKU.
                     </p>
                   </div>
                   <span className="text-xs font-semibold text-slate-500 bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full border border-slate-200 dark:border-slate-700">
@@ -386,79 +512,82 @@ export const AllocationDrawer: React.FC<AllocationDrawerProps> = ({
                   </span>
                 </div>
 
-                {/* Step 2 Channel Selection Table */}
                 <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-visible shadow-xs">
                   <table className="w-full text-left border-collapse">
                     <thead>
                       <tr className="bg-slate-100 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-500 uppercase tracking-wider">
-                        <th className="py-3.5 px-4">SKU / Product</th>
-                        <th className="py-3.5 px-3 text-center">FBM Push Qty</th>
-                        <th className="py-3.5 px-4">Active Target Channels</th>
-                        <th className="py-3.5 px-4 text-right">Configure Target Channels</th>
+                        <th className="py-3.5 px-4 w-1/4">SKU / Product</th>
+                        <th className="py-3.5 px-3 text-center w-28">FBM Push Qty</th>
+                        <th className="py-3.5 px-4">Active Target Marketplaces</th>
+                        <th className="py-3.5 px-4 text-right w-44">Configure</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200 dark:divide-slate-800 text-sm">
                       {rowStates.map((row, idx) => {
                         const calculatedFbm = Math.max(0, row.totalStock - row.fbaAllocation - row.safetyBuffer)
                         const isDropdownOpen = activeDropdownId === row.productId
+                        const groupedBadges = getGroupedMarketplaceBadges(row.channels)
 
                         return (
                           <tr key={row.productId} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
                             
-                            {/* SKU Info */}
+                            {/* SKU / Title */}
                             <td className="py-3.5 px-4">
                               <div className="font-bold text-slate-900 dark:text-white">{row.title || row.sku}</div>
                               <div className="text-xs font-mono text-blue-600 dark:text-blue-400 mt-0.5">{row.sku}</div>
                             </td>
 
-                            {/* Pushed Qty */}
+                            {/* Push Qty */}
                             <td className="py-3.5 px-3 text-center">
                               <span className="font-extrabold text-emerald-600 dark:text-emerald-400 text-base">
                                 {calculatedFbm}
                               </span>
                             </td>
 
-                            {/* Sleek Pill Badges */}
+                            {/* Grouped Platform Pills */}
                             <td className="py-3.5 px-4">
-                              <div className="flex items-center gap-1.5 flex-wrap">
+                              <div className="flex items-center gap-2 flex-wrap">
                                 {row.channels.length === 0 ? (
                                   <span className="text-xs font-bold text-rose-600 bg-rose-50 dark:bg-rose-950/60 px-3 py-1 rounded-full border border-rose-200 dark:border-rose-900">
-                                    ⚠️ No Channels Selected
+                                    ⚠️ No Marketplaces Active
                                   </span>
                                 ) : (
-                                  CHANNELS.filter((ch) => row.channels.includes(ch.id)).map((ch) => (
+                                  groupedBadges.map((group) => (
                                     <span
-                                      key={ch.id}
-                                      className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border ${ch.badge}`}
+                                      key={group.channel}
+                                      className={`inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-lg border shadow-2xs ${group.badgeStyle}`}
                                     >
-                                      <span className={`w-1.5 h-1.5 rounded-full ${ch.dot}`} />
-                                      {ch.name}
+                                      <span className={`w-1.5 h-1.5 rounded-full ${group.dotStyle}`} />
+                                      <span>{group.channel}</span>
+                                      <span className="text-[10px] font-extrabold tracking-wider bg-black/10 dark:bg-white/20 px-1.5 py-0.5 rounded-md ml-0.5">
+                                        {group.regions.join(' · ')}
+                                      </span>
                                     </span>
                                   ))
                                 )}
                               </div>
                             </td>
 
-                            {/* Popover Menu */}
+                            {/* Configure Popover Button */}
                             <td className="py-3.5 px-4 text-right relative">
                               <button
                                 type="button"
                                 onClick={() => setActiveDropdownId(isDropdownOpen ? null : row.productId)}
                                 className="inline-flex items-center gap-2 px-3.5 py-1.5 text-xs font-bold bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 rounded-lg shadow-2xs transition-all"
                               >
-                                <span>Configure ({row.channels.length}/{CHANNELS.length})</span>
+                                <span>Target ({row.channels.length}/{MARKETPLACE_ACCOUNTS.length})</span>
                                 <svg className={`w-3.5 h-3.5 text-slate-400 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                                 </svg>
                               </button>
 
-                              {/* Channel Selector Card */}
+                              {/* Popover Menu */}
                               {isDropdownOpen && (
-                                <div className="absolute right-4 mt-2 w-60 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl z-50 p-3 space-y-2 text-left ring-1 ring-black/10">
+                                <div className="absolute right-4 mt-2 w-64 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl z-50 p-3 space-y-3 text-left ring-1 ring-black/10">
                                   
-                                  {/* Quick Select Buttons */}
+                                  {/* Select All / Clear Header */}
                                   <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
-                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Select Channels</span>
+                                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Target Accounts</span>
                                     <div className="flex gap-2">
                                       <button
                                         type="button"
@@ -477,32 +606,108 @@ export const AllocationDrawer: React.FC<AllocationDrawerProps> = ({
                                     </div>
                                   </div>
 
-                                  {/* Checkbox List */}
-                                  <div className="space-y-1">
-                                    {CHANNELS.map((ch) => {
-                                      const isChecked = row.channels.includes(ch.id)
-                                      return (
-                                        <label
-                                          key={ch.id}
-                                          className={`flex items-center justify-between px-3 py-2 rounded-xl cursor-pointer text-xs font-bold transition-all ${
-                                            isChecked
-                                              ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white'
-                                              : 'hover:bg-slate-50 dark:hover:bg-slate-800/50 text-slate-500'
-                                          }`}
-                                        >
-                                          <div className="flex items-center gap-2">
-                                            <span className={`w-2 h-2 rounded-full ${ch.dot}`} />
-                                            <span>{ch.name}</span>
-                                          </div>
-                                          <input
-                                            type="checkbox"
-                                            checked={isChecked}
-                                            onChange={() => handleChannelToggle(idx, ch.id)}
-                                            className="w-4 h-4 text-blue-600 rounded-md focus:ring-blue-500 cursor-pointer"
-                                          />
-                                        </label>
-                                      )
-                                    })}
+                                  {/* Explicit Grouped Account List */}
+                                  <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
+                                    
+                                    {/* USA Accounts */}
+                                    <div>
+                                      <div className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-1 px-1">
+                                        🇺🇸 United States
+                                      </div>
+                                      <div className="space-y-1">
+                                        {MARKETPLACE_ACCOUNTS.filter((m) => m.region === 'US').map((m) => {
+                                          const isChecked = row.channels.includes(m.id)
+                                          return (
+                                            <label
+                                              key={m.id}
+                                              className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg cursor-pointer text-xs font-semibold transition-all ${
+                                                isChecked
+                                                  ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white'
+                                                  : 'hover:bg-slate-50 dark:hover:bg-slate-800/50 text-slate-500'
+                                              }`}
+                                            >
+                                              <div className="flex items-center gap-2">
+                                                <span className={`w-2 h-2 rounded-full ${m.dotStyle}`} />
+                                                <span>{m.name}</span>
+                                              </div>
+                                              <input
+                                                type="checkbox"
+                                                checked={isChecked}
+                                                onChange={() => handleChannelToggle(idx, m.id)}
+                                                className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 cursor-pointer"
+                                              />
+                                            </label>
+                                          )
+                                        })}
+                                      </div>
+                                    </div>
+
+                                    {/* Canada Accounts */}
+                                    <div>
+                                      <div className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-1 px-1">
+                                        🇨🇦 Canada
+                                      </div>
+                                      <div className="space-y-1">
+                                        {MARKETPLACE_ACCOUNTS.filter((m) => m.region === 'CA').map((m) => {
+                                          const isChecked = row.channels.includes(m.id)
+                                          return (
+                                            <label
+                                              key={m.id}
+                                              className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg cursor-pointer text-xs font-semibold transition-all ${
+                                                isChecked
+                                                  ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white'
+                                                  : 'hover:bg-slate-50 dark:hover:bg-slate-800/50 text-slate-500'
+                                              }`}
+                                            >
+                                              <div className="flex items-center gap-2">
+                                                <span className={`w-2 h-2 rounded-full ${m.dotStyle}`} />
+                                                <span>{m.name}</span>
+                                              </div>
+                                              <input
+                                                type="checkbox"
+                                                checked={isChecked}
+                                                onChange={() => handleChannelToggle(idx, m.id)}
+                                                className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 cursor-pointer"
+                                              />
+                                            </label>
+                                          )
+                                        })}
+                                      </div>
+                                    </div>
+
+                                    {/* Mexico Accounts */}
+                                    <div>
+                                      <div className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-1 px-1">
+                                        🇲🇽 Mexico
+                                      </div>
+                                      <div className="space-y-1">
+                                        {MARKETPLACE_ACCOUNTS.filter((m) => m.region === 'MX').map((m) => {
+                                          const isChecked = row.channels.includes(m.id)
+                                          return (
+                                            <label
+                                              key={m.id}
+                                              className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg cursor-pointer text-xs font-semibold transition-all ${
+                                                isChecked
+                                                  ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white'
+                                                  : 'hover:bg-slate-50 dark:hover:bg-slate-800/50 text-slate-500'
+                                              }`}
+                                            >
+                                              <div className="flex items-center gap-2">
+                                                <span className={`w-2 h-2 rounded-full ${m.dotStyle}`} />
+                                                <span>{m.name}</span>
+                                              </div>
+                                              <input
+                                                type="checkbox"
+                                                checked={isChecked}
+                                                onChange={() => handleChannelToggle(idx, m.id)}
+                                                className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 cursor-pointer"
+                                              />
+                                            </label>
+                                          )
+                                        })}
+                                      </div>
+                                    </div>
+
                                   </div>
                                 </div>
                               )}
@@ -520,7 +725,7 @@ export const AllocationDrawer: React.FC<AllocationDrawerProps> = ({
 
           </div>
 
-          {/* Drawer Footer Controls */}
+          {/* Drawer Footer */}
           <div className="p-6 border-t border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/80 flex items-center justify-between">
             <div className="text-xs text-slate-500 font-medium">
               Step {currentStep} of 2
@@ -533,7 +738,7 @@ export const AllocationDrawer: React.FC<AllocationDrawerProps> = ({
                     Cancel
                   </Button>
                   <Button variant="primary" onClick={handleProceedToStep2}>
-                    Continue to Target Channels
+                    Continue to Target Marketplaces
                   </Button>
                 </>
               ) : (
@@ -541,8 +746,12 @@ export const AllocationDrawer: React.FC<AllocationDrawerProps> = ({
                   <Button variant="outline" onClick={() => setCurrentStep(1)}>
                     Back to Allocation
                   </Button>
-                  <Button variant="primary" onClick={handleExecutePush} disabled={isSubmitting}>
-                    {isSubmitting ? 'Syncing Channels...' : 'Execute Live Push to Channels'}
+                  <Button 
+                    variant="primary" 
+                    onClick={handleExecutePush} 
+                    disabled={isSubmitting || isPushing}
+                  >
+                    {isSubmitting || isPushing ? 'Syncing Marketplaces...' : 'Execute Live Push to Marketplaces'}
                   </Button>
                 </>
               )}
