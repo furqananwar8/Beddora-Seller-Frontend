@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { Container } from '@/components/layout'
 import { Button } from '@/design-system/buttons'
 import { Card, CardContent } from '@/design-system/cards'
@@ -70,6 +71,8 @@ const MARKETPLACES = [
 // ============================================
 
 export const InventoryPlannerScreen: React.FC = () => {
+  const router = useRouter()
+
   // ---- Search ----
   const [searchTerm, setSearchTerm] = useState<string>('')
   const debouncedSearch = useDebounce(searchTerm, 300)
@@ -392,11 +395,16 @@ export const InventoryPlannerScreen: React.FC = () => {
 
                       <div className="py-1 bg-white dark:bg-slate-900">
                         <button
-                          onClick={() => setIsMenuOpen(false)}
+                          onClick={() => {
+                            setIsMenuOpen(false)
+                            router.push(
+                              `/dashboard/inventory/shipments?create=1&productIds=${encodeURIComponent(selectedProducts.join(','))}`
+                            )
+                          }}
                           disabled={selectedProducts.length === 0}
                           className="w-full text-left px-4 py-2 text-sm text-slate-800 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                         >
-                          Create shipment plan
+                          Create FBA shipment
                         </button>
                         <button
                           onClick={() => setIsMenuOpen(false)}
