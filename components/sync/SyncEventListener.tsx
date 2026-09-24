@@ -7,30 +7,34 @@ import { addNotification } from '@/store/ui.slice'
 export const SyncEventListener: React.FC = () => {
   const dispatch = useAppDispatch()
   
-  // Ensure token key matches your Redux Auth state (e.g. state.auth.token or state.auth.accessToken)
-  const token = useAppSelector((state: any) => state.auth?.token || state.auth?.accessToken)
+  const reduxToken = useAppSelector((state: any) => state.auth?.token || state.auth?.accessToken)
 
   useEffect(() => {
-    // If auth token is missing, log warning
+    const token =
+      reduxToken ||
+      (typeof window !== 'undefined'
+        ? localStorage.getItem('token') || localStorage.getItem('accessToken')
+        : null)
+
     if (!token) {
-      console.warn('⚠️ [SSE] No auth token found in Redux. Waiting for user login...')
+      console.warn('⚠️ [SSE] No JWT token found in Redux or localStorage. Waiting...')
       return
     }
 
-    const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5100'
+    const apiBaseUrl = process.env.NEXT_PUBLIC_FRONTEND_BASE_URL || 'http://localhost:3001'
     const sseUrl = `${apiBaseUrl}/api/inventory/events?token=${token}`
 
-    console.log('🔌 [SSE] Attempting connection to:', sseUrl)
+    console.log('🔌 [SSE] Mounting listener. Connecting to:', sseUrl)
     const eventSource = new EventSource(sseUrl)
 
     eventSource.onopen = () => {
-      console.log('✅ [SSE STREAM CONNECTED] Successfully connected to Express SSE stream!')
+      console.log('✅ [SSE STREAM CONNECTED] Express SSE listener active!')
     }
 
     eventSource.onmessage = (event) => {
       try {
         const payload = JSON.parse(event.data)
-        console.log('📩 [SSE MESSAGE RECEIVED]:', payload)
+        console.log('📩 [SSE EVENT RECEIVED]:', payload)
 
         if (payload.type === 'connected') return
 
@@ -43,18 +47,22 @@ export const SyncEventListener: React.FC = () => {
           )
         }
       } catch (error) {
-        console.error('❌ [SSE] Error parsing SSE event payload:', error)
+        console.error('❌ [SSE] Payload parse error:', error)
       }
     }
 
     eventSource.onerror = (err) => {
-      console.error('⚠️ [SSE STREAM ERROR] Connection dropped or blocked:', err)
+      if (eventSource.readyState === EventSource.CONNECTING) {
+        console.warn('⚠️ [SSE] Reconnecting to backend...')
+      } else {
+        console.error('⚠️ [SSE STREAM ERROR] Connection dropped or blocked:', err)
+      }
     }
 
     return () => {
       eventSource.close()
     }
-  }, [dispatch, token])
+  }, [dispatch, reduxToken])
 
   return null
 }
