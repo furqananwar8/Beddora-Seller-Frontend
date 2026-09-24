@@ -65,11 +65,28 @@ export interface AllocatePushItem {
   productId: string
   sku: string
   quantity: number
+  channels?: string[]
   locationId?: string
+  productDetails?: {
+    sku: string
+    title: string
+    price: number
+    description?: string
+  }
 }
 
 export interface AllocatePushRequest {
   items: AllocatePushItem[]
+}
+
+export interface AllocateFbaItem {
+  sku: string
+  quantity: number
+}
+
+export interface AllocateFbaRequest {
+  items: AllocateFbaItem[]
+  createInbound: boolean
 }
 
 export const inventoryPlannerApi = baseApi.injectEndpoints({
@@ -91,7 +108,22 @@ export const inventoryPlannerApi = baseApi.injectEndpoints({
     }),
 
     /**
-     * Trigger Multi-Channel Stock Push
+     * Trigger Step 1: Save FBA Allocation & Optional SP-API Inbound Request
+     */
+    allocateFba: builder.mutation<
+      { success: boolean; message: string },
+      AllocateFbaRequest
+    >({
+      query: (body) => ({
+        url: '/inventory/fba-allocate',
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: ['Inventory'],
+    }),
+
+    /**
+     * Trigger Step 2: Multi-Channel Live Stock Push (FBM)
      */
     pushInventoryAllocation: builder.mutation<
       { success: boolean; message: string },
@@ -174,6 +206,7 @@ export const inventoryPlannerApi = baseApi.injectEndpoints({
 export const {
   useGetInventorySummaryQuery,
   useGetProductInventoryQuery,
+  useAllocateFbaMutation,
   usePushInventoryAllocationMutation,
   useUpdateProductInventoryMutation,
   useCreateShipmentPlanMutation,

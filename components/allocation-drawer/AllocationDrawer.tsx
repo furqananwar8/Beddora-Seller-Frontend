@@ -3,7 +3,10 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { Button } from '@/design-system/buttons'
 import { formatNumber } from '@/utils/format'
-import { usePushInventoryAllocationMutation } from '@/services/api/inventoryPlanner.api'
+import {
+  usePushInventoryAllocationMutation,
+  useAllocateFbaMutation,
+} from '@/services/api/inventoryPlanner.api'
 
 export interface ProductItem {
   id: string
@@ -22,7 +25,7 @@ export interface ProductAllocationState {
   totalStock: number
   fbaAllocation: number
   safetyBuffer: number
-  channels: string[] // List of marketplace account IDs (e.g., "Shopify.US", "Shopify.CA")
+  channels: string[]
 }
 
 interface AllocationDrawerProps {
@@ -46,7 +49,6 @@ export interface MarketplaceAccount {
   dotStyle: string
 }
 
-// Connected Marketplace Accounts Across Regions
 const MARKETPLACE_ACCOUNTS: MarketplaceAccount[] = [
   // UNITED STATES
   {
@@ -154,6 +156,26 @@ const MARKETPLACE_ACCOUNTS: MarketplaceAccount[] = [
   },
 ]
 
+interface DrawerState {
+  currentStep: 1 | 2
+  isStep1Completed: boolean
+  rowStates: ProductAllocationState[]
+  createFbaInbound: boolean
+  isStep1Submitting: boolean
+  isSubmitting: boolean
+  activeDropdownId: string | null
+}
+
+const INITIAL_STATE: DrawerState = {
+  currentStep: 1,
+  isStep1Completed: false,
+  rowStates: [],
+  createFbaInbound: true,
+  isStep1Submitting: false,
+  isSubmitting: false,
+  activeDropdownId: null,
+}
+
 export const AllocationDrawer: React.FC<AllocationDrawerProps> = ({
   isOpen,
   onClose,
@@ -161,32 +183,41 @@ export const AllocationDrawer: React.FC<AllocationDrawerProps> = ({
   products,
   onConfirmSync,
 }) => {
-  const [currentStep, setCurrentStep] = useState<1 | 2>(1)
-  const [isStep1Completed, setIsStep1Completed] = useState<boolean>(false)
-  const [rowStates, setRowStates] = useState<ProductAllocationState[]>([])
-  const [createFbaInbound, setCreateFbaInbound] = useState<boolean>(true)
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [activeDropdownId, setActiveDropdownId] = useState<string | null>(null)
+  // Consolidated Object State
+  const [drawerState, setDrawerState] = useState<DrawerState>(INITIAL_STATE)
 
-  // RTK Query Mutation hook for backend API dispatch
+  // RTK Query Mutations
   const [pushAllocation, { isLoading: isPushing }] = usePushInventoryAllocationMutation()
+  const [allocateFba, { isLoading: isAllocatingFba }] = useAllocateFbaMutation()
 
   const dropdownRef = useRef<HTMLDivElement>(null)
 
+  // Lock background body scroll when drawer is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+    }
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [isOpen])
+
+  // Close channel selection popover on outside click
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setActiveDropdownId(null)
+        setDrawerState((prev) => ({ ...prev, activeDropdownId: null }))
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
+  // Initialize drawer items when opened
   useEffect(() => {
     if (isOpen && productIds.length > 0) {
-      setCurrentStep(1)
-      setIsStep1Completed(false)
       const selectedList = products.filter((p) => productIds.includes(p.id))
       const initialStates: ProductAllocationState[] = selectedList.map((p) => ({
         productId: p.id,
@@ -197,12 +228,16 @@ export const AllocationDrawer: React.FC<AllocationDrawerProps> = ({
         safetyBuffer: p.safetyBuffer ?? 5,
         channels: MARKETPLACE_ACCOUNTS.map((m) => m.id),
       }))
-      setRowStates(initialStates)
+
+      setDrawerState({
+        ...INITIAL_STATE,
+        rowStates: initialStates,
+      })
     }
   }, [isOpen, productIds, products])
 
   const totals = useMemo(() => {
-    return rowStates.reduce(
+    return drawerState.rowStates.reduce(
       (acc, r) => {
         const fbm = Math.max(0, r.totalStock - r.fbaAllocation - r.safetyBuffer)
         return {
@@ -213,108 +248,144 @@ export const AllocationDrawer: React.FC<AllocationDrawerProps> = ({
       },
       { totalStock: 0, fbaAllocation: 0, fbmAvailable: 0 }
     )
-  }, [rowStates])
+  }, [drawerState.rowStates])
 
   if (!isOpen) return null
 
   const handleRowChange = (index: number, field: keyof ProductAllocationState, value: any) => {
-    setRowStates((prev) => {
-      const updated = [...prev]
-      updated[index] = { ...updated[index], [field]: value }
-      return updated
+    setDrawerState((prev) => {
+      const updatedRows = [...prev.rowStates]
+      updatedRows[index] = { ...updatedRows[index], [field]: value }
+      return { ...prev, rowStates: updatedRows }
     })
   }
 
   const handleChannelToggle = (rowIndex: number, channelId: string) => {
-    setRowStates((prev) => {
-      const updated = [...prev]
-      const current = updated[rowIndex].channels
+    setDrawerState((prev) => {
+      const updatedRows = [...prev.rowStates]
+      const current = updatedRows[rowIndex].channels
       const exists = current.includes(channelId)
       const next = exists ? current.filter((c) => c !== channelId) : [...current, channelId]
-      updated[rowIndex] = { ...updated[rowIndex], channels: next }
-      return updated
+      updatedRows[rowIndex] = { ...updatedRows[rowIndex], channels: next }
+      return { ...prev, rowStates: updatedRows }
     })
   }
 
   const handleSelectAllChannels = (rowIndex: number, selectAll: boolean) => {
-    setRowStates((prev) => {
-      const updated = [...prev]
-      updated[rowIndex] = {
-        ...updated[rowIndex],
+    setDrawerState((prev) => {
+      const updatedRows = [...prev.rowStates]
+      updatedRows[rowIndex] = {
+        ...updatedRows[rowIndex],
         channels: selectAll ? MARKETPLACE_ACCOUNTS.map((c) => c.id) : [],
       }
-      return updated
+      return { ...prev, rowStates: updatedRows }
     })
   }
 
-  const handleProceedToStep2 = () => {
-    setIsStep1Completed(true)
-    setCurrentStep(2)
+  /**
+   * STEP 1 -> STEP 2: Executes FBA Allocation / Inbound SP-API Call
+   */
+  const handleProceedToStep2 = async () => {
+    const fbaItems = drawerState.rowStates
+      .filter((r) => r.fbaAllocation > 0)
+      .map((r) => ({
+        sku: r.sku,
+        quantity: r.fbaAllocation,
+      }))
+
+    if (fbaItems.length === 0) {
+      setDrawerState((prev) => ({ ...prev, isStep1Completed: true, currentStep: 2 }))
+      return
+    }
+
+    setDrawerState((prev) => ({ ...prev, isStep1Submitting: true }))
+
+    try {
+      await allocateFba({
+        items: fbaItems,
+        createInbound: drawerState.createFbaInbound,
+      }).unwrap()
+
+      setDrawerState((prev) => ({
+        ...prev,
+        isStep1Completed: true,
+        currentStep: 2,
+        isStep1Submitting: false,
+      }))
+    } catch (error) {
+      console.error('Failed to process FBA allocation/inbound API:', error)
+      setDrawerState((prev) => ({
+        ...prev,
+        isStep1Completed: true,
+        currentStep: 2,
+        isStep1Submitting: false,
+      }))
+    }
   }
 
   /**
-   * Executes live push to Express backend via pushAllocation mutation
+   * STEP 2: Executes live multi-channel FBM stock push
    */
   const handleExecutePush = async () => {
-  setIsSubmitting(true)
-  try {
-    const itemsToPush = rowStates.map((r) => ({
-      productId: r.productId,
-      sku: r.sku,
-      quantity: Math.max(0, r.totalStock - r.fbaAllocation - r.safetyBuffer),
-      productDetails: {
+    setDrawerState((prev) => ({ ...prev, isSubmitting: true }))
+    try {
+      const itemsToPush = drawerState.rowStates.map((r) => ({
+        productId: r.productId,
         sku: r.sku,
-        title: r.title,
-        price: 1099.99,
-        description: `<p>${r.title}</p>`,
-      },
-    }))
+        quantity: Math.max(0, r.totalStock - r.fbaAllocation - r.safetyBuffer),
+        channels: r.channels,
+        productDetails: {
+          sku: r.sku,
+          title: r.title,
+          price: 1099.99,
+        },
+      }))
 
-    await pushAllocation({ items: itemsToPush }).unwrap()
+      await pushAllocation({ items: itemsToPush }).unwrap()
 
-    if (onConfirmSync) {
-      onConfirmSync(rowStates, createFbaInbound)
+      if (onConfirmSync) {
+        onConfirmSync(drawerState.rowStates, drawerState.createFbaInbound)
+      }
+      onClose()
+    } catch (error) {
+      console.error('Failed to execute marketplace inventory push:', error)
+    } finally {
+      setDrawerState((prev) => ({ ...prev, isSubmitting: false }))
     }
-    onClose()
-  } catch (error) {
-    console.error('Failed to execute marketplace inventory push:', error)
-  } finally {
-    setIsSubmitting(false)
   }
-}
 
   const getGroupedMarketplaceBadges = (selectedIds: string[]) => {
     const selectedAccounts = MARKETPLACE_ACCOUNTS.filter((m) => selectedIds.includes(m.id))
-    
-    const grouped = selectedAccounts.reduce<Record<string, { channel: string; regions: string[]; badgeStyle: string; dotStyle: string }>>(
-      (acc, account) => {
-        if (!acc[account.channel]) {
-          acc[account.channel] = {
-            channel: account.channel,
-            regions: [],
-            badgeStyle: account.badgeStyle,
-            dotStyle: account.dotStyle,
-          }
+
+    const grouped = selectedAccounts.reduce<
+      Record<string, { channel: string; regions: string[]; badgeStyle: string; dotStyle: string }>
+    >((acc, account) => {
+      if (!acc[account.channel]) {
+        acc[account.channel] = {
+          channel: account.channel,
+          regions: [],
+          badgeStyle: account.badgeStyle,
+          dotStyle: account.dotStyle,
         }
-        acc[account.channel].regions.push(account.region)
-        return acc
-      },
-      {}
-    )
+      }
+      acc[account.channel].regions.push(account.region)
+      return acc
+    }, {})
 
     return Object.values(grouped)
   }
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden">
-      <div 
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" 
-        onClick={onClose} 
+      {/* Backdrop */}
+      <div
+        className="absolute inset-0 bg-black/60 backdrop-blur-xs transition-opacity"
+        onClick={onClose}
       />
 
       <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
         <div className="w-screen max-w-5xl bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col justify-between relative z-10">
-          
+
           {/* Header & Stepper */}
           <div className="p-6 border-b border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/60">
             <div className="flex items-center justify-between mb-4">
@@ -326,8 +397,8 @@ export const AllocationDrawer: React.FC<AllocationDrawerProps> = ({
                   Separate FBA stock before pushing central FBM stock across connected US, CA & MX marketplaces.
                 </p>
               </div>
-              <button 
-                onClick={onClose} 
+              <button
+                onClick={onClose}
                 className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-white rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
               >
                 ✕
@@ -336,9 +407,9 @@ export const AllocationDrawer: React.FC<AllocationDrawerProps> = ({
 
             <div className="flex items-center gap-3">
               <button
-                onClick={() => setCurrentStep(1)}
+                onClick={() => setDrawerState((prev) => ({ ...prev, currentStep: 1 }))}
                 className={`flex items-center gap-2 text-xs font-bold px-3.5 py-2 rounded-lg transition-all ${
-                  currentStep === 1
+                  drawerState.currentStep === 1
                     ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
                     : 'bg-slate-200/80 dark:bg-slate-700/80 text-slate-700 dark:text-slate-300 hover:bg-slate-300'
                 }`}
@@ -352,19 +423,22 @@ export const AllocationDrawer: React.FC<AllocationDrawerProps> = ({
               </svg>
 
               <button
-                disabled={!isStep1Completed}
-                onClick={() => isStep1Completed && setCurrentStep(2)}
-                title={!isStep1Completed ? 'Complete Step 1 Allocation first to unlock target marketplace selection' : ''}
+                disabled={!drawerState.isStep1Completed}
+                onClick={() =>
+                  drawerState.isStep1Completed &&
+                  setDrawerState((prev) => ({ ...prev, currentStep: 2 }))
+                }
+                title={!drawerState.isStep1Completed ? 'Complete Step 1 Allocation first to unlock target marketplace selection' : ''}
                 className={`flex items-center gap-2 text-xs font-bold px-3.5 py-2 rounded-lg transition-all ${
-                  currentStep === 2
+                  drawerState.currentStep === 2
                     ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
-                    : isStep1Completed
+                    : drawerState.isStep1Completed
                     ? 'bg-slate-200/80 dark:bg-slate-700/80 text-slate-700 dark:text-slate-300 hover:bg-slate-300 cursor-pointer'
                     : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed opacity-60'
                 }`}
               >
                 <span className="w-5 h-5 rounded-full bg-slate-300 dark:bg-slate-700 flex items-center justify-center text-[10px]">
-                  {isStep1Completed ? '2' : '🔒'}
+                  {drawerState.isStep1Completed ? '2' : '🔒'}
                 </span>
                 <span>Step 2: Target Marketplaces & Live Push</span>
               </button>
@@ -373,8 +447,8 @@ export const AllocationDrawer: React.FC<AllocationDrawerProps> = ({
 
           {/* Drawer Body */}
           <div className="p-6 overflow-y-auto flex-1 bg-white dark:bg-slate-900" ref={dropdownRef}>
-            
-            {/* Top Metrics Cards */}
+
+            {/* Metrics */}
             <div className="grid grid-cols-3 gap-4 mb-6">
               <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-800">
                 <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Physical Stock</div>
@@ -399,7 +473,7 @@ export const AllocationDrawer: React.FC<AllocationDrawerProps> = ({
             </div>
 
             {/* STEP 1: ALLOCATION */}
-            {currentStep === 1 && (
+            {drawerState.currentStep === 1 && (
               <div className="space-y-5">
                 <div className="p-4 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl flex items-start gap-4">
                   <div className="p-2.5 bg-blue-600 text-white rounded-lg flex-shrink-0">
@@ -416,12 +490,14 @@ export const AllocationDrawer: React.FC<AllocationDrawerProps> = ({
                   </div>
                 </div>
 
-                <label className="flex items-center justify-between p-4 bg-white dark:bg-slate-900 border-2 border-blue-500/40 rounded-xl cursor-pointer hover:border-blue-500 transition-all shadow-sm">
+                <label className="flex items-center justify-between p-4 bg-white dark:bg-slate-900 border-2 border-blue-500/40 rounded-xl cursor-pointer hover:border-blue-500 transition-all shadow-xs">
                   <div className="flex items-center gap-3">
                     <input
                       type="checkbox"
-                      checked={createFbaInbound}
-                      onChange={(e) => setCreateFbaInbound(e.target.checked)}
+                      checked={drawerState.createFbaInbound}
+                      onChange={(e) =>
+                        setDrawerState((prev) => ({ ...prev, createFbaInbound: e.target.checked }))
+                      }
                       className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500 cursor-pointer"
                     />
                     <div>
@@ -434,11 +510,11 @@ export const AllocationDrawer: React.FC<AllocationDrawerProps> = ({
                     </div>
                   </div>
                   <span className="text-xs font-extrabold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950 px-3 py-1 rounded-full border border-blue-200 dark:border-blue-800">
-                    {createFbaInbound ? 'SP-API Auto-Request Enabled' : 'Internal Allocation Only'}
+                    {drawerState.createFbaInbound ? 'SP-API Auto-Request Enabled' : 'Internal Allocation Only'}
                   </span>
                 </label>
 
-                <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-xs">
+                <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-2xs">
                   <table className="w-full text-left border-collapse">
                     <thead>
                       <tr className="bg-slate-100 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-500 uppercase tracking-wider">
@@ -450,7 +526,7 @@ export const AllocationDrawer: React.FC<AllocationDrawerProps> = ({
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200 dark:divide-slate-800 text-sm">
-                      {rowStates.map((row, idx) => {
+                      {drawerState.rowStates.map((row, idx) => {
                         const calculatedFbm = Math.max(0, row.totalStock - row.fbaAllocation - row.safetyBuffer)
                         return (
                           <tr key={row.productId} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
@@ -496,7 +572,7 @@ export const AllocationDrawer: React.FC<AllocationDrawerProps> = ({
             )}
 
             {/* STEP 2: TARGETING MATRIX */}
-            {currentStep === 2 && (
+            {drawerState.currentStep === 2 && (
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
                   <div>
@@ -512,7 +588,7 @@ export const AllocationDrawer: React.FC<AllocationDrawerProps> = ({
                   </span>
                 </div>
 
-                <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-visible shadow-xs">
+                <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-visible shadow-2xs">
                   <table className="w-full text-left border-collapse">
                     <thead>
                       <tr className="bg-slate-100 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-500 uppercase tracking-wider">
@@ -523,28 +599,25 @@ export const AllocationDrawer: React.FC<AllocationDrawerProps> = ({
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200 dark:divide-slate-800 text-sm">
-                      {rowStates.map((row, idx) => {
+                      {drawerState.rowStates.map((row, idx) => {
                         const calculatedFbm = Math.max(0, row.totalStock - row.fbaAllocation - row.safetyBuffer)
-                        const isDropdownOpen = activeDropdownId === row.productId
+                        const isDropdownOpen = drawerState.activeDropdownId === row.productId
                         const groupedBadges = getGroupedMarketplaceBadges(row.channels)
 
                         return (
                           <tr key={row.productId} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
-                            
-                            {/* SKU / Title */}
+
                             <td className="py-3.5 px-4">
                               <div className="font-bold text-slate-900 dark:text-white">{row.title || row.sku}</div>
                               <div className="text-xs font-mono text-blue-600 dark:text-blue-400 mt-0.5">{row.sku}</div>
                             </td>
 
-                            {/* Push Qty */}
                             <td className="py-3.5 px-3 text-center">
                               <span className="font-extrabold text-emerald-600 dark:text-emerald-400 text-base">
                                 {calculatedFbm}
                               </span>
                             </td>
 
-                            {/* Grouped Platform Pills */}
                             <td className="py-3.5 px-4">
                               <div className="flex items-center gap-2 flex-wrap">
                                 {row.channels.length === 0 ? (
@@ -568,11 +641,15 @@ export const AllocationDrawer: React.FC<AllocationDrawerProps> = ({
                               </div>
                             </td>
 
-                            {/* Configure Popover Button */}
                             <td className="py-3.5 px-4 text-right relative">
                               <button
                                 type="button"
-                                onClick={() => setActiveDropdownId(isDropdownOpen ? null : row.productId)}
+                                onClick={() =>
+                                  setDrawerState((prev) => ({
+                                    ...prev,
+                                    activeDropdownId: isDropdownOpen ? null : row.productId,
+                                  }))
+                                }
                                 className="inline-flex items-center gap-2 px-3.5 py-1.5 text-xs font-bold bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 rounded-lg shadow-2xs transition-all"
                               >
                                 <span>Target ({row.channels.length}/{MARKETPLACE_ACCOUNTS.length})</span>
@@ -581,11 +658,9 @@ export const AllocationDrawer: React.FC<AllocationDrawerProps> = ({
                                 </svg>
                               </button>
 
-                              {/* Popover Menu */}
                               {isDropdownOpen && (
                                 <div className="absolute right-4 mt-2 w-64 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl z-50 p-3 space-y-3 text-left ring-1 ring-black/10">
-                                  
-                                  {/* Select All / Clear Header */}
+
                                   <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
                                     <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Target Accounts</span>
                                     <div className="flex gap-2">
@@ -606,10 +681,9 @@ export const AllocationDrawer: React.FC<AllocationDrawerProps> = ({
                                     </div>
                                   </div>
 
-                                  {/* Explicit Grouped Account List */}
                                   <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
-                                    
-                                    {/* USA Accounts */}
+
+                                    {/* US Accounts */}
                                     <div>
                                       <div className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-1 px-1">
                                         🇺🇸 United States
@@ -642,7 +716,7 @@ export const AllocationDrawer: React.FC<AllocationDrawerProps> = ({
                                       </div>
                                     </div>
 
-                                    {/* Canada Accounts */}
+                                    {/* CA Accounts */}
                                     <div>
                                       <div className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-1 px-1">
                                         🇨🇦 Canada
@@ -675,7 +749,7 @@ export const AllocationDrawer: React.FC<AllocationDrawerProps> = ({
                                       </div>
                                     </div>
 
-                                    {/* Mexico Accounts */}
+                                    {/* MX Accounts */}
                                     <div>
                                       <div className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-1 px-1">
                                         🇲🇽 Mexico
@@ -728,30 +802,62 @@ export const AllocationDrawer: React.FC<AllocationDrawerProps> = ({
           {/* Drawer Footer */}
           <div className="p-6 border-t border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/80 flex items-center justify-between">
             <div className="text-xs text-slate-500 font-medium">
-              Step {currentStep} of 2
+              Step {drawerState.currentStep} of 2
             </div>
 
             <div className="flex items-center gap-3">
-              {currentStep === 1 ? (
+              {drawerState.currentStep === 1 ? (
                 <>
-                  <Button variant="outline" onClick={onClose}>
+                  <Button
+                    variant="outline"
+                    onClick={onClose}
+                    disabled={drawerState.isStep1Submitting || isAllocatingFba}
+                  >
                     Cancel
                   </Button>
-                  <Button variant="primary" onClick={handleProceedToStep2}>
-                    Continue to Target Marketplaces
+                  <Button
+                    variant="primary"
+                    onClick={handleProceedToStep2}
+                    disabled={drawerState.isStep1Submitting || isAllocatingFba}
+                  >
+                    {drawerState.isStep1Submitting || isAllocatingFba ? (
+                      <span className="flex items-center gap-2">
+                        <svg className="animate-spin h-3.5 w-3.5 text-white" viewBox="0 0 24 24" fill="none">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                        </svg>
+                        <span>Processing FBA Allocation...</span>
+                      </span>
+                    ) : (
+                      'Continue to Target Marketplaces'
+                    )}
                   </Button>
                 </>
               ) : (
                 <>
-                  <Button variant="outline" onClick={() => setCurrentStep(1)}>
+                  <Button
+                    variant="outline"
+                    onClick={() => setDrawerState((prev) => ({ ...prev, currentStep: 1 }))}
+                    disabled={drawerState.isSubmitting || isPushing}
+                  >
                     Back to Allocation
                   </Button>
-                  <Button 
-                    variant="primary" 
-                    onClick={handleExecutePush} 
-                    disabled={isSubmitting || isPushing}
+                  <Button
+                    variant="primary"
+                    onClick={handleExecutePush}
+                    disabled={drawerState.isSubmitting || isPushing}
                   >
-                    {isSubmitting || isPushing ? 'Syncing Marketplaces...' : 'Execute Live Push to Marketplaces'}
+                    {drawerState.isSubmitting || isPushing ? (
+                      <span className="flex items-center gap-2">
+                        <svg className="animate-spin h-3.5 w-3.5 text-white" viewBox="0 0 24 24" fill="none">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                        </svg>
+                        <span>Syncing Marketplaces...</span>
+                      </span>
+                    ) : (
+                      'Execute Live Push to Marketplaces'
+                    )}
                   </Button>
                 </>
               )}
