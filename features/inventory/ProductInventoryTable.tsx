@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useMemo, useState, useCallback } from 'react'
+import React, { useMemo, useState, useCallback, useEffect } from 'react'
 import {
   Table,
   TableBody,
@@ -10,351 +10,347 @@ import {
   TableRow,
 } from '@/design-system/tables'
 import { Button } from '@/design-system/buttons'
-import { TableSkeleton } from '@/design-system/loaders'
-import { ProductInventoryItem } from '@/services/api/inventoryPlanner.api'
-import { formatCurrency, formatNumber } from '@/utils/format'
+import { Spinner } from '@/design-system/loaders'
+import { Input } from '@/design-system/inputs'
+import { MultiSelectInput } from '@/components/multi-select-input/MultiSelectInput'
 import { Badge } from '@/design-system/badges'
+import { InventoryItemStatus, ProductInventoryItem } from '@/services/api/inventoryPlanner.api'
+import { formatNumber } from '@/utils/format'
+import { cn } from '@/utils/cn'
+import { InventoryBulkEdit } from './useInventoryBulkEdit'
 
 export interface ProductInventoryTableProps {
   products?: ProductInventoryItem[]
   isLoading?: boolean
+  isFetching?: boolean
   searchTerm?: string
   error?: any
   selectedProducts: string[]
   onProductSelect: (productId: string, selected: boolean) => void
   onSelectAll: (selected: boolean) => void
+  bulkEdit: InventoryBulkEdit
 }
 
 type SortColumn =
-  | 'title'
-  | 'stock'
-  | 'reserved'
+  | 'description'
+  | 'totalQuantity'
+  | 'amazonReserve'
+  | 'otherMarketReserve'
+  | 'status'
   | 'salesVelocity'
   | 'daysOfStockLeft'
-  | 'sentToFba'
   | 'daysUntilNextOrder'
   | 'recommendedQuantity'
-  | 'stockValue'
-  | 'roi'
-type SortDirection = 'asc' | 'desc'
+
+interface ViewState {
+  sortColumn: SortColumn
+  sortDirection: 'asc' | 'desc'
+  currentPage: number
+}
+
+const INITIAL_VIEW: ViewState = { sortColumn: 'daysOfStockLeft', sortDirection: 'asc', currentPage: 1 }
+
+const ITEMS_PER_PAGE = 20
+const COLUMN_COUNT = 10
+const NO_SALES_HINT = 'No sales in the last 30 days'
+
+export const STATUS_OPTIONS: { value: InventoryItemStatus; label: string }[] = [
+  { value: 'ACTIVE', label: 'Active' },
+  { value: 'INACTIVE', label: 'Inactive' },
+  { value: 'DISCONTINUED', label: 'Discontinued' },
+]
+
+const STATUS_BADGE: Record<InventoryItemStatus, 'success' | 'secondary' | 'warning'> = {
+  ACTIVE: 'success',
+  INACTIVE: 'secondary',
+  DISCONTINUED: 'warning',
+}
+
+const HEAD_CLASS = 'sticky top-0 z-20 bg-surface py-3 px-4 border-b border-border align-middle text-center'
+const CELL_CLASS = 'text-center align-middle'
+// Edit fields share one shape so text inputs and the status dropdown line up
+const FIELD_CLASS = 'h-10 py-2.5 rounded-lg text-sm text-center'
+const STATUS_SELECT_OPTIONS = STATUS_OPTIONS.map((o) => ({ id: o.value, name: o.label }))
+
+const statusLabel = (status: InventoryItemStatus) =>
+  STATUS_OPTIONS.find((o) => o.value === status)?.label ?? status
+
+// No sales means stock never runs out, so null sorts after every real value
+const sortValue = (product: ProductInventoryItem, column: SortColumn): number | string => {
+  const value = product[column]
+  return value === null ? Number.POSITIVE_INFINITY : value
+}
+
+const DaysBadge = ({ days }: { days: number | null }) => {
+  if (days === null) {
+    return (
+      <span className="text-text-muted" title={NO_SALES_HINT}>
+        —
+      </span>
+    )
+  }
+  if (days <= 0) return <Badge variant="error">{days}</Badge>
+  if (days < 7) return <Badge variant="warning">{days}</Badge>
+  if (days < 30) return <Badge variant="success">{days}</Badge>
+  return <Badge variant="primary">{days}</Badge>
+}
 
 export const ProductInventoryTable = ({
   products,
   isLoading,
+  isFetching,
   searchTerm = '',
   error,
   selectedProducts,
   onProductSelect,
   onSelectAll,
+  bulkEdit,
 }: ProductInventoryTableProps) => {
-  const [sortColumn, setSortColumn] = useState<SortColumn>('daysOfStockLeft')
-  const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
-  const [currentPage, setCurrentPage] = useState(1)
-  const itemsPerPage = 20
+  const [view, setView] = useState<ViewState>(INITIAL_VIEW)
+  const { edit, setDraftField, save } = bulkEdit
+
+  useEffect(() => setView((prev) => ({ ...prev, currentPage: 1 })), [searchTerm])
 
   const handleSort = useCallback((column: SortColumn) => {
-    if (sortColumn === column) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
-    } else {
-      setSortColumn(column)
-      setSortDirection('desc')
-    }
-  }, [sortColumn, sortDirection])
+    setView((prev) => ({
+      ...prev,
+      sortColumn: column,
+      sortDirection: prev.sortColumn === column && prev.sortDirection === 'desc' ? 'asc' : 'desc',
+      currentPage: 1,
+    }))
+  }, [])
 
-  const filteredAndSortedProducts = useMemo(() => {
-    if (!products) return []
-    let result = [...products]
-
-    if (searchTerm) {
-      const lower = searchTerm.toLowerCase()
-      result = result.filter(
-        (product) =>
-          product.title?.toLowerCase().includes(lower) ||
-          product.sku?.toLowerCase().includes(lower) ||
-          product.asin?.toLowerCase().includes(lower)
-      )
-    }
-
+  const sortedProducts = useMemo(() => {
+    const result = [...(products ?? [])]
     result.sort((a, b) => {
-      let aVal: number | string = 0
-      let bVal: number | string = 0
-
-      switch (sortColumn) {
-        case 'title':
-          aVal = a.title || ''
-          bVal = b.title || ''
-          break
-        case 'stock':
-          aVal = a.stock || 0
-          bVal = b.stock || 0
-          break
-        case 'reserved':
-          aVal = a.reserved || 0
-          bVal = b.reserved || 0
-          break
-        case 'salesVelocity':
-          aVal = a.salesVelocity || 0
-          bVal = b.salesVelocity || 0
-          break
-        case 'daysOfStockLeft':
-          aVal = a.daysOfStockLeft || 0
-          bVal = b.daysOfStockLeft || 0
-          break
-        case 'sentToFba':
-          aVal = a.sentToFba || 0
-          bVal = b.sentToFba || 0
-          break
-        case 'daysUntilNextOrder':
-          aVal = a.daysUntilNextOrder || 0
-          bVal = b.daysUntilNextOrder || 0
-          break
-        case 'recommendedQuantity':
-          aVal = a.recommendedQuantity || 0
-          bVal = b.recommendedQuantity || 0
-          break
-        case 'stockValue':
-          aVal = a.stockValue || 0
-          bVal = b.stockValue || 0
-          break
-        case 'roi':
-          aVal = a.roi || 0
-          bVal = b.roi || 0
-          break
-      }
-
+      const aVal = sortValue(a, view.sortColumn)
+      const bVal = sortValue(b, view.sortColumn)
       if (typeof aVal === 'string' && typeof bVal === 'string') {
-        return sortDirection === 'asc'
-          ? aVal.localeCompare(bVal)
-          : bVal.localeCompare(aVal)
+        return view.sortDirection === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal)
       }
-
-      return sortDirection === 'asc' ? Number(aVal) - Number(bVal) : Number(bVal) - Number(aVal)
+      const diff = Number(aVal) - Number(bVal)
+      if (Number.isNaN(diff)) return 0 // both Infinity
+      return view.sortDirection === 'asc' ? diff : -diff
     })
-
     return result
-  }, [products, searchTerm, sortColumn, sortDirection])
+  }, [products, view.sortColumn, view.sortDirection])
 
-  const paginatedProducts = useMemo(() => {
-    const startIdx = (currentPage - 1) * itemsPerPage
-    return filteredAndSortedProducts.slice(startIdx, startIdx + itemsPerPage)
-  }, [filteredAndSortedProducts, currentPage])
-
-  const totalPages = Math.ceil(filteredAndSortedProducts.length / itemsPerPage)
-
-  const allSelected =
-    paginatedProducts.length > 0 &&
-    paginatedProducts.every((p) => selectedProducts.includes(p.id))
-
-  const getDaysLeftBadge = (days: number) => {
-    if (days <= 0) return <Badge variant="error">{days}</Badge>
-    if (days < 7) return <Badge variant="warning">{days}</Badge>
-    if (days < 30) return <Badge variant="success">{days}</Badge>
-    return <Badge variant="primary">{days}</Badge>
-  }
-
-  const getStockLevelIndicator = (stock: number, velocity: number) => {
-    const daysLeft = velocity > 0 ? stock / velocity : 999
-    if (daysLeft === 0) return <span className="text-danger-600">●</span>
-    if (daysLeft < 7) return <span className="text-warning-600">●</span>
-    return <span className="text-success-600">●</span>
-  }
-
-  if (error) {
-    return (
-      <div className="rounded-lg border border-border-primary bg-surface-primary p-8 text-center">
-        <p className="text-text-danger">Error loading products: {error.message}</p>
-      </div>
+  const searchedProducts = useMemo(() => {
+    if (!searchTerm) return sortedProducts
+    const lower = searchTerm.toLowerCase()
+    return sortedProducts.filter(
+      (p) =>
+        p.description.toLowerCase().includes(lower) ||
+        p.sku.toLowerCase().includes(lower) ||
+        p.sheetSku.toLowerCase().includes(lower)
     )
+  }, [sortedProducts, searchTerm])
+
+  // Edit mode shows every row being edited on one screen, whatever page or search it came from
+  const visibleProducts = useMemo(() => {
+    if (edit.isEditing) return sortedProducts.filter((p) => edit.drafts[p.id])
+    const start = (view.currentPage - 1) * ITEMS_PER_PAGE
+    return searchedProducts.slice(start, start + ITEMS_PER_PAGE)
+  }, [edit.isEditing, edit.drafts, sortedProducts, searchedProducts, view.currentPage])
+
+  const totalPages = edit.isEditing ? 1 : Math.ceil(searchedProducts.length / ITEMS_PER_PAGE)
+  const selectedCount = (products ?? []).filter((p) => selectedProducts.includes(p.id)).length
+  const allSelected = visibleProducts.length > 0 && visibleProducts.every((p) => selectedProducts.includes(p.id))
+  const editCount = Object.keys(edit.drafts).length
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (edit.isEditing) save()
   }
 
-  if (isLoading) {
-    return <TableSkeleton rows={10} columns={11} />
-  }
+  const showRefetchOverlay = Boolean(isFetching) && !isLoading && (products?.length ?? 0) > 0
+  const bodyMessage = error
+    ? { tone: 'error', text: `Couldn’t load inventory: ${error?.data?.error ?? error?.message ?? 'request failed'}` }
+    : !products || products.length === 0
+    ? { tone: 'muted', text: 'No inventory yet. Items appear here once the InBound_Logs sync picks up new stock.' }
+    : visibleProducts.length === 0
+    ? { tone: 'muted', text: 'No items match your search' }
+    : null
+  const isTableEmpty = Boolean(isLoading) || Boolean(bodyMessage)
 
-  if (!products || products.length === 0) {
-    return (
-      <div className="rounded-lg border border-border-primary bg-surface-primary p-8 text-center">
-        <p className="text-text-muted">No products found</p>
+  const SortableHead = ({ column, label, className }: { column: SortColumn; label: string; className?: string }) => (
+    <TableHead
+      className={cn(HEAD_CLASS, 'cursor-pointer hover:bg-surface-secondary', className)}
+      onClick={() => handleSort(column)}
+    >
+      <div className="flex items-center justify-center gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
+        <span>{label}</span>
+        <span className={view.sortColumn === column ? '' : 'text-text-tertiary'}>
+          {view.sortColumn !== column ? '↕' : view.sortDirection === 'asc' ? '↑' : '↓'}
+        </span>
       </div>
-    )
-  }
-
-  if (filteredAndSortedProducts.length === 0) {
-    return (
-      <div className="rounded-lg border border-border-primary bg-surface-primary p-8 text-center">
-        <p className="text-text-muted">No products match your search</p>
-      </div>
-    )
-  }
-
-  const SortIcon = ({ column }: { column: SortColumn }) => {
-    if (sortColumn !== column) return <span className="ml-1 text-text-tertiary">↕</span>
-    return <span className="ml-1">{sortDirection === 'asc' ? '↑' : '↓'}</span>
-  }
+    </TableHead>
+  )
 
   return (
-    <div className="space-y-4">
-      <div className="overflow-hidden rounded-lg border border-border-primary bg-surface-primary">
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-12">
+    <form onSubmit={handleSubmit} className="w-full space-y-4">
+      {/* Lets Enter in any edit field save; the visible Save lives in the ⋮ menu */}
+      {edit.isEditing && <button type="submit" className="sr-only" tabIndex={-1} aria-hidden="true" />}
+
+      <p className="text-sm text-text-muted">
+        {edit.isEditing
+          ? `Editing ${editCount} item${editCount === 1 ? '' : 's'}. Save or cancel from the ⋮ menu, or press Enter to save.`
+          : selectedCount > 0
+          ? `${selectedCount} selected`
+          : `${formatNumber(products?.length ?? 0, 0)} items`}
+      </p>
+
+      <div className="relative">
+        {showRefetchOverlay && (
+          <div className="absolute inset-0 bg-surface/65 backdrop-blur-[1px] z-30 flex items-center justify-center rounded-lg">
+            <div className="flex flex-col items-center gap-2">
+              <Spinner />
+              <span className="text-xs font-medium text-text-muted">Updating inventory...</span>
+            </div>
+          </div>
+        )}
+
+        {/* Scroll container: body scrolls, header stays put */}
+        <div className="w-full h-[500px] max-h-[calc(100vh-280px)] min-h-[400px] overflow-y-auto overflow-x-auto border border-border rounded-lg shadow-sm flex flex-col">
+          <Table className={cn('min-w-full border-separate border-spacing-0', isTableEmpty && 'h-full flex-1')}>
+            <TableHeader className="sticky top-0 z-20 bg-surface shadow-sm">
+              <TableRow className="bg-surface h-12">
+                <TableHead className={cn(HEAD_CLASS, 'w-12')}>
                   <input
                     type="checkbox"
                     checked={allSelected}
+                    disabled={edit.isEditing}
                     onChange={(e) => onSelectAll(e.target.checked)}
+                    aria-label="Select all items on this page"
                     className="rounded border-border-primary"
                   />
                 </TableHead>
-                <TableHead
-                  className="cursor-pointer hover:bg-surface-secondary min-w-[250px]"
-                  onClick={() => handleSort('title')}
-                >
-                  Product <SortIcon column="title" />
-                </TableHead>
-                <TableHead
-                  className="cursor-pointer hover:bg-surface-secondary text-right"
-                  onClick={() => handleSort('stock')}
-                >
-                  Stock <SortIcon column="stock" />
-                </TableHead>
-                <TableHead
-                  className="cursor-pointer hover:bg-surface-secondary text-right"
-                  onClick={() => handleSort('reserved')}
-                >
-                  Reserved <SortIcon column="reserved" />
-                </TableHead>
-                <TableHead
-                  className="cursor-pointer hover:bg-surface-secondary text-right"
-                  onClick={() => handleSort('salesVelocity')}
-                >
-                  Sales velocity <SortIcon column="salesVelocity" />
-                </TableHead>
-                <TableHead
-                  className="cursor-pointer hover:bg-surface-secondary text-right"
-                  onClick={() => handleSort('daysOfStockLeft')}
-                >
-                  Days of stock left <SortIcon column="daysOfStockLeft" />
-                </TableHead>
-                <TableHead
-                  className="cursor-pointer hover:bg-surface-secondary text-right"
-                  onClick={() => handleSort('sentToFba')}
-                >
-                  Sent to FBA <SortIcon column="sentToFba" />
-                </TableHead>
-                <TableHead
-                  className="cursor-pointer hover:bg-surface-secondary text-right"
-                  onClick={() => handleSort('daysUntilNextOrder')}
-                >
-                  Days until next order <SortIcon column="daysUntilNextOrder" />
-                </TableHead>
-                <TableHead
-                  className="cursor-pointer hover:bg-surface-secondary text-right"
-                  onClick={() => handleSort('recommendedQuantity')}
-                >
-                  Recommended qty <SortIcon column="recommendedQuantity" />
-                </TableHead>
-                <TableHead
-                  className="cursor-pointer hover:bg-surface-secondary text-right"
-                  onClick={() => handleSort('stockValue')}
-                >
-                  Stock value <SortIcon column="stockValue" />
-                </TableHead>
-                <TableHead
-                  className="cursor-pointer hover:bg-surface-secondary text-right"
-                  onClick={() => handleSort('roi')}
-                >
-                  ROI <SortIcon column="roi" />
-                </TableHead>
-                <TableHead className="w-12">Actions</TableHead>
+                <SortableHead column="description" label="Product" className="min-w-[320px]" />
+                <SortableHead column="totalQuantity" label="Total quantity" className="min-w-[130px]" />
+                <SortableHead column="amazonReserve" label="Amazon reserve" className="min-w-[130px]" />
+                <SortableHead column="otherMarketReserve" label="Other market reserve" className="min-w-[160px]" />
+                <SortableHead column="status" label="Status" className="min-w-[160px]" />
+                <SortableHead column="salesVelocity" label="Sales velocity" className="min-w-[120px]" />
+                <SortableHead column="daysOfStockLeft" label="Days of stock left" className="min-w-[140px]" />
+                <SortableHead column="daysUntilNextOrder" label="Days until next order" className="min-w-[160px]" />
+                <SortableHead column="recommendedQuantity" label="Recommended qty" className="min-w-[140px]" />
               </TableRow>
             </TableHeader>
             <TableBody>
-              {paginatedProducts.map((product) => (
-                <TableRow key={product.id}>
-                  <TableCell>
-                    <input
-                      type="checkbox"
-                      checked={selectedProducts.includes(product.id)}
-                      onChange={(e) => onProductSelect(product.id, e.target.checked)}
-                      className="rounded border-border-primary"
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <div className="flex-shrink-0 w-10 h-10 bg-surface-secondary rounded flex items-center justify-center">
-                        {product.imageUrl ? (
-                          <img
-                            src={product.imageUrl}
-                            alt={product.title}
-                            className="w-10 h-10 rounded object-cover"
-                          />
-                        ) : (
-                          <svg className="w-6 h-6 text-text-tertiary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                          </svg>
-                        )}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="font-medium text-text-primary truncate max-w-xs">
-                          {product.title}
-                        </div>
-                        <div className="text-xs text-text-muted">
-                          {product.sku} • {product.asin}
-                        </div>
-                      </div>
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={COLUMN_COUNT} className="h-full">
+                    <div className="flex flex-col items-center justify-center h-full min-h-[300px] gap-2 py-12">
+                      <Spinner />
+                      <span className="text-sm text-text-muted">Loading inventory...</span>
                     </div>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      {getStockLevelIndicator(product.stock, product.salesVelocity)}
-                      <span>{formatNumber(product.stock)}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right">{formatNumber(product.reserved)}</TableCell>
-                  <TableCell className="text-right">
-                    {formatNumber(product.salesVelocity, 2)}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {getDaysLeftBadge(product.daysOfStockLeft)}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <span className="text-primary-600">{formatNumber(product.sentToFba)}</span>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {getDaysLeftBadge(product.daysUntilNextOrder)}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <span className="text-primary-600">
-                      {formatNumber(product.recommendedQuantity)}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {formatCurrency(product.stockValue)}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <span
-                      className={
-                        product.roi >= 50
-                          ? 'text-text-success'
-                          : product.roi >= 20
-                          ? 'text-text-warning'
-                          : 'text-text-muted'
-                      }
-                    >
-                      {product.roi}%
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <button className="text-text-muted hover:text-text-primary">
-                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z" />
-                      </svg>
-                    </button>
                   </TableCell>
                 </TableRow>
-              ))}
+              ) : bodyMessage ? (
+                <TableRow>
+                  <TableCell colSpan={COLUMN_COUNT} className="h-full">
+                    <div
+                      className={cn(
+                        'flex flex-col items-center justify-center h-full min-h-[300px] py-12 text-center',
+                        bodyMessage.tone === 'error' ? 'text-danger-600 font-medium' : 'text-text-muted'
+                      )}
+                    >
+                      {bodyMessage.text}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                visibleProducts.map((product) => {
+                  const draft = edit.isEditing ? edit.drafts[product.id] : undefined
+                  const rowErrors = edit.errors[product.id] ?? {}
+                  return (
+                    <TableRow key={product.id} className={draft ? 'bg-surface-secondary hover:bg-surface-secondary' : undefined}>
+                      <TableCell className={CELL_CLASS}>
+                        <input
+                          type="checkbox"
+                          checked={selectedProducts.includes(product.id)}
+                          disabled={edit.isEditing}
+                          onChange={(e) => onProductSelect(product.id, e.target.checked)}
+                          aria-label={`Select ${product.sku}`}
+                          className="rounded border-border-primary"
+                        />
+                      </TableCell>
+                      <TableCell className={CELL_CLASS}>
+                        {draft ? (
+                          <div className="flex flex-col gap-2 min-w-[300px]">
+                            <Input
+                              aria-label={`Description for ${product.sheetSku}`}
+                              className={FIELD_CLASS}
+                              value={draft.description}
+                              onChange={(e) => setDraftField(product.id, 'description', e.target.value)}
+                              error={rowErrors.description}
+                            />
+                            <Input
+                              aria-label={`SKU for ${product.sheetSku}`}
+                              className={FIELD_CLASS}
+                              value={draft.sku}
+                              onChange={(e) => setDraftField(product.id, 'sku', e.target.value)}
+                              error={rowErrors.sku}
+                              helperText={draft.sku.trim() !== product.sheetSku ? `Sheet SKU: ${product.sheetSku}` : undefined}
+                            />
+                          </div>
+                        ) : (
+                          <div className="mx-auto max-w-sm">
+                            <div className="font-medium text-text-primary truncate" title={product.description}>
+                              {product.description}
+                            </div>
+                            <div className="text-xs text-text-muted">
+                              {product.sku}
+                              {product.sheetSku !== product.sku && (
+                                <span title="SKU as written in the InBound_Logs sheet"> · sheet: {product.sheetSku}</span>
+                              )}
+                              {product.lastReceivedDate && <> · received {product.lastReceivedDate}</>}
+                            </div>
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell className={CELL_CLASS}>
+                        <div className="font-medium">{formatNumber(product.totalQuantity, 0)}</div>
+                        {product.unallocated > 0 && (
+                          <div className="text-xs text-warning-700" title="Arrived but not yet split between FBA and FBM">
+                            {formatNumber(product.unallocated, 0)} unallocated
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell className={CELL_CLASS}>{formatNumber(product.amazonReserve, 0)}</TableCell>
+                      <TableCell className={CELL_CLASS}>{formatNumber(product.otherMarketReserve, 0)}</TableCell>
+                      <TableCell className={CELL_CLASS}>
+                        {draft ? (
+                          <MultiSelectInput
+                            single
+                            title="Status"
+                            className="w-full"
+                            options={STATUS_SELECT_OPTIONS}
+                            value={[draft.status]}
+                            onChange={(value) => value[0] && setDraftField(product.id, 'status', value[0])}
+                          />
+                        ) : (
+                          <Badge variant={STATUS_BADGE[product.status]}>{statusLabel(product.status)}</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className={CELL_CLASS}>
+                        <span title={product.salesVelocity === 0 ? NO_SALES_HINT : 'Units per day, last 30 days'}>
+                          {formatNumber(product.salesVelocity, 2)}
+                        </span>
+                      </TableCell>
+                      <TableCell className={CELL_CLASS}>
+                        <DaysBadge days={product.daysOfStockLeft} />
+                      </TableCell>
+                      <TableCell className={CELL_CLASS}>
+                        <DaysBadge days={product.daysUntilNextOrder} />
+                      </TableCell>
+                      <TableCell className={CELL_CLASS}>
+                        <span className="text-primary-600">{formatNumber(product.recommendedQuantity, 0)}</span>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })
+              )}
             </TableBody>
           </Table>
         </div>
@@ -363,35 +359,31 @@ export const ProductInventoryTable = ({
       {totalPages > 1 && (
         <div className="flex items-center justify-between">
           <div className="text-sm text-text-muted">
-            Showing {(currentPage - 1) * itemsPerPage + 1} to{' '}
-            {Math.min(currentPage * itemsPerPage, filteredAndSortedProducts.length)} of{' '}
-            {filteredAndSortedProducts.length} products
+            Showing {(view.currentPage - 1) * ITEMS_PER_PAGE + 1} to{' '}
+            {Math.min(view.currentPage * ITEMS_PER_PAGE, searchedProducts.length)} of {searchedProducts.length} items
           </div>
           <div className="flex items-center gap-2">
             <Button
+              type="button"
               variant="outline"
               size="sm"
-              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-              disabled={currentPage === 1}
+              onClick={() => setView((prev) => ({ ...prev, currentPage: Math.max(1, prev.currentPage - 1) }))}
+              disabled={view.currentPage === 1}
             >
               Previous
             </Button>
             <div className="flex gap-1">
               {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                const { currentPage } = view
                 let pageNum: number
-                if (totalPages <= 5) {
-                  pageNum = i + 1
-                } else if (currentPage <= 3) {
-                  pageNum = i + 1
-                } else if (currentPage >= totalPages - 2) {
-                  pageNum = totalPages - 4 + i
-                } else {
-                  pageNum = currentPage - 2 + i
-                }
+                if (totalPages <= 5 || currentPage <= 3) pageNum = i + 1
+                else if (currentPage >= totalPages - 2) pageNum = totalPages - 4 + i
+                else pageNum = currentPage - 2 + i
                 return (
                   <button
                     key={pageNum}
-                    onClick={() => setCurrentPage(pageNum)}
+                    type="button"
+                    onClick={() => setView((prev) => ({ ...prev, currentPage: pageNum }))}
                     className={`w-8 h-8 rounded text-sm font-medium transition-colors ${
                       currentPage === pageNum
                         ? 'bg-primary-600 text-white'
@@ -404,16 +396,17 @@ export const ProductInventoryTable = ({
               })}
             </div>
             <Button
+              type="button"
               variant="outline"
               size="sm"
-              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-              disabled={currentPage === totalPages}
+              onClick={() => setView((prev) => ({ ...prev, currentPage: Math.min(totalPages, prev.currentPage + 1) }))}
+              disabled={view.currentPage === totalPages}
             >
               Next
             </Button>
           </div>
         </div>
       )}
-    </div>
+    </form>
   )
 }

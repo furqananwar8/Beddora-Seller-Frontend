@@ -10,27 +10,39 @@ export interface InventorySummary {
   potentialProfit: number
 }
 
+export type InventoryItemStatus = 'ACTIVE' | 'INACTIVE' | 'DISCONTINUED'
+
+/** One planner row: warehouse stock synced from the InBound_Logs sheet. */
 export interface ProductInventoryItem {
   id: string
   sku: string
-  asin: string
-  title: string
-  imageUrl?: string
-  stock: number
-  reserved: number
-  salesVelocity: number
-  daysOfStockLeft: number
-  sentToFba: number
-  prepCenterStock?: number
-  ordered: number
-  daysUntilNextOrder: number
+  sheetSku: string // SKU as written in the sheet; stays fixed when sku is edited
+  description: string
+  status: InventoryItemStatus
+  lastReceivedDate: string | null // yyyy-mm-dd
+  totalQuantity: number
+  unallocated: number
+  amazonReserve: number
+  otherMarketReserve: number
+  buffer: number
+  salesVelocity: number // units per day, last 30 days
+  daysOfStockLeft: number | null // null when there were no sales
+  daysUntilNextOrder: number | null
   recommendedQuantity: number
-  stockValue: number
-  roi: number
-  comment?: string
-  supplier?: string
-  leadTime?: number
-  tags?: string[]
+}
+
+export interface InventoryItemChange {
+  id: string
+  status?: InventoryItemStatus
+  description?: string
+  sku?: string
+}
+
+/** Returned with HTTP 409 when a SKU clashes; nothing is saved. */
+export interface InventorySkuConflict {
+  id: number
+  sku: string
+  reason: 'duplicate_in_request' | 'used_by_other_item'
 }
 
 export interface InventoryPlannerFilters {
@@ -105,6 +117,16 @@ export const inventoryPlannerApi = baseApi.injectEndpoints({
         params: filters,
       }),
       providesTags: ['Inventory'],
+    }),
+
+    /** Saves edits to one or more rows, all or nothing. */
+    updateInventoryItems: builder.mutation<{ success: boolean; updated: number }, InventoryItemChange[]>({
+      query: (items) => ({
+        url: '/inventory/items',
+        method: 'PATCH',
+        body: { items: items.map(({ id, ...change }) => ({ id: Number(id), ...change })) },
+      }),
+      invalidatesTags: ['Inventory'],
     }),
 
     /**
@@ -206,6 +228,7 @@ export const inventoryPlannerApi = baseApi.injectEndpoints({
 export const {
   useGetInventorySummaryQuery,
   useGetProductInventoryQuery,
+  useUpdateInventoryItemsMutation,
   useAllocateFbaMutation,
   usePushInventoryAllocationMutation,
   useUpdateProductInventoryMutation,

@@ -7,7 +7,7 @@
 export { InventoryPlannerScreen } from './InventoryPlannerScreen'
 export { ProductInventoryTable } from './ProductInventoryTable'
 export type { ProductInventoryTableProps } from './ProductInventoryTable'
-export { mockInventorySummary, mockProductInventory } from './mockData'
+export { mockInventorySummary } from './mockData'
 export { PurchaseOrdersScreen } from './PurchaseOrdersScreen'
 export { PurchaseOrdersTable } from './PurchaseOrdersTable'
 export type { PurchaseOrdersTableProps } from './PurchaseOrdersTable'

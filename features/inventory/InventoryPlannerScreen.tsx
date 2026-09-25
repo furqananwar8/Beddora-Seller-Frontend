@@ -14,9 +14,10 @@ import {
 } from '@/services/api/inventoryPlanner.api'
 import { ProductInventoryTable } from './ProductInventoryTable'
 import { formatCurrency, formatNumber } from '@/utils/format'
-import { mockInventorySummary, mockProductInventory } from './mockData'
+import { mockInventorySummary } from './mockData'
 import { MultiSelectInput } from '@/components/multi-select-input/MultiSelectInput'
 import { AllocationDrawer } from '@/components/allocation-drawer/AllocationDrawer'
+import { useInventoryBulkEdit } from './useInventoryBulkEdit'
 
 // ============================================
 // TYPES
@@ -133,11 +134,36 @@ export const InventoryPlannerScreen: React.FC = () => {
 
   // ---- API Queries ----
   const { data: summaryData, isLoading: summaryLoading } = useGetInventorySummaryQuery(filters)
-  const { data: products, isLoading: productsLoading } = useGetProductInventoryQuery(filters)
+  const {
+    data: products,
+    isLoading: productsLoading,
+    isFetching: productsFetching,
+    error: productsError,
+  } = useGetProductInventoryQuery(filters)
 
-  // ---- Mock fallback ----
+  // ---- Summary cards still use mock data until the summary API exists ----
   const displaySummary = summaryData ?? mockInventorySummary
-  const displayProducts = products ?? mockProductInventory
+  const displayProducts = useMemo(() => products ?? [], [products])
+  const selectedRows = useMemo(
+    () => displayProducts.filter((p) => selectedProducts.includes(p.id)),
+    [displayProducts, selectedProducts]
+  )
+  const bulkEdit = useInventoryBulkEdit(displayProducts)
+
+  // Allocation drawer still takes its old item shape until it is rebuilt on stock buckets
+  const drawerProducts = useMemo(
+    () =>
+      displayProducts.map((p) => ({
+        id: p.id,
+        sku: p.sku,
+        title: p.description,
+        totalStock: p.totalQuantity,
+        fbaReserved: p.amazonReserve,
+        fbmAvailable: p.otherMarketReserve,
+        safetyBuffer: p.buffer,
+      })),
+    [displayProducts]
+  )
 
   // ---- Calculate totals ----
   const totalSummary = useMemo<SummaryTotals | null>(() => {
@@ -228,7 +254,7 @@ export const InventoryPlannerScreen: React.FC = () => {
       .map((p) => ({
         productId: p.id,
         sku: p.sku,
-        quantity: (p as any).fbaFbmStock ?? (p as any).stock ?? 45,
+        quantity: p.otherMarketReserve,
       }))
 
     if (itemsToPush.length === 0) return
@@ -364,7 +390,50 @@ export const InventoryPlannerScreen: React.FC = () => {
                           <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
                         </div>
                       )}
-                      
+
+                      {/* Inline bulk edit of SKU / description / status */}
+                      <div className="py-1 bg-white dark:bg-slate-900">
+                        {bulkEdit.edit.isEditing ? (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setIsMenuOpen(false)
+                                bulkEdit.save()
+                              }}
+                              disabled={bulkEdit.isSaving}
+                              className="w-full text-left px-4 py-2.5 text-sm font-semibold text-blue-600 dark:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                            >
+                              {bulkEdit.isSaving ? 'Saving...' : 'Save changes'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setIsMenuOpen(false)
+                                bulkEdit.cancel()
+                              }}
+                              disabled={bulkEdit.isSaving}
+                              className="w-full text-left px-4 py-2 text-sm text-slate-800 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                            >
+                              Cancel editing
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsMenuOpen(false)
+                              bulkEdit.startEditing(selectedRows)
+                            }}
+                            disabled={selectedRows.length === 0}
+                            title={selectedRows.length === 0 ? 'Select rows to update' : undefined}
+                            className="w-full text-left px-4 py-2.5 text-sm font-medium text-slate-800 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                          >
+                            {selectedRows.length > 0 ? `Update selected (${selectedRows.length})` : 'Update selected'}
+                          </button>
+                        )}
+                      </div>
+
                       {/* Multi-Channel Allocation Push Action */}
                       <div className="py-1 bg-white dark:bg-slate-900">
                         <button
@@ -593,12 +662,15 @@ export const InventoryPlannerScreen: React.FC = () => {
         <h2 className="text-xl font-semibold text-text-primary">Product inventory</h2>
 
         <ProductInventoryTable
-          products={displayProducts as any}
+          products={displayProducts}
           isLoading={productsLoading}
+          isFetching={productsFetching}
+          error={productsError}
           searchTerm={debouncedSearch}
           selectedProducts={selectedProducts}
           onProductSelect={handleProductSelect}
           onSelectAll={handleSelectAll}
+          bulkEdit={bulkEdit}
         />
       </div>
 
@@ -607,7 +679,7 @@ export const InventoryPlannerScreen: React.FC = () => {
         isOpen={isAllocationOpen}
         onClose={() => setIsAllocationOpen(false)}
         productIds={selectedProducts}
-        products={displayProducts as any}
+        products={drawerProducts}
       />
     </Container>
   )
