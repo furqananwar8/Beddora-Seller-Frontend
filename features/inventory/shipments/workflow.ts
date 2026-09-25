@@ -19,6 +19,7 @@ export interface WorkflowStep {
 export const WORKFLOW_STEPS: WorkflowStep[] = [
   { key: 'draft', label: 'Items' },
   { key: 'plan_created', label: 'Inbound plan' },
+  { key: 'packing_set', label: 'Packing' },
   { key: 'placement_confirmed', label: 'Warehouse' },
   { key: 'window_confirmed', label: 'Delivery window' },
   { key: 'transport_confirmed', label: 'Carrier' },
@@ -29,6 +30,7 @@ export const WORKFLOW_STEPS: WorkflowStep[] = [
 const STAGE_ORDER: ShipmentStage[] = [
   'draft',
   'plan_created',
+  'packing_set',
   'placement_confirmed',
   'window_confirmed',
   'transport_confirmed',
@@ -37,6 +39,7 @@ const STAGE_ORDER: ShipmentStage[] = [
 
 export type NextAction =
   | 'submit_plan'
+  | 'set_packing'
   | 'choose_placement'
   | 'choose_window'
   | 'choose_transport'
@@ -50,9 +53,14 @@ export const NEXT_ACTION: Record<ShipmentStage, { action: NextAction; label: str
     hint: 'Internal draft. Nothing has been sent to Amazon yet.',
   },
   plan_created: {
+    action: 'set_packing',
+    label: 'Enter box contents',
+    hint: 'Amazon accepted the inbound plan. Tell Amazon how the units are packed into boxes.',
+  },
+  packing_set: {
     action: 'choose_placement',
-    label: 'Choose warehouse',
-    hint: 'Amazon accepted the inbound plan. Pick a destination warehouse (FC).',
+    label: 'Choose placement',
+    hint: 'Box contents sent. Pick one of Amazon’s placement options; Amazon assigns the warehouses.',
   },
   placement_confirmed: {
     action: 'choose_window',
@@ -83,8 +91,9 @@ export const getActiveStepIndex = (s: InboundShipment): number => {
 }
 
 /**
- * Quantities can change until a placement is confirmed. After that Amazon has
- * split the plan across FCs, so changing items means cancelling and re-planning.
+ * Quantities can change until box contents are sent. Amazon can't change a
+ * plan's items, so editing after the plan exists cancels it and the shipment
+ * goes back to Draft to be sent again.
  */
 export const canEditItems = (s: InboundShipment) =>
   s.status === 'in_progress' && (s.stage === 'draft' || s.stage === 'plan_created')

@@ -2,21 +2,25 @@
 
 import { useCallback, useState } from 'react'
 import {
-  AmazonOption,
-  InboundShipment,
-  InboundShipmentItem,
-  Marketplace,
-  ReservedPoolItem,
-} from './types'
-import {
-  buildDeliveryWindowOptions,
-  buildPlacementOptions,
-  buildTransportationOptions,
-  mockReservedPool,
-  mockShipments,
-} from './mockShipments'
+  OptionKind,
+  useCancelShipmentMutation,
+  useConfirmShipmentOptionsMutation,
+  useCreateShipmentMutation,
+  useGenerateShipmentLabelsMutation,
+  useGetPackingPlanMutation,
+  useGetShipmentLabelsMutation,
+  useGetShipmentOptionsMutation,
+  useGetShipmentPoolQuery,
+  useGetShipmentsQuery,
+  useMarkShipmentShippedMutation,
+  useSubmitInboundPlanMutation,
+  useSubmitPackingMutation,
+  useSyncShipmentsMutation,
+  useUpdateShipmentItemsMutation,
+} from '@/services/api/inboundShipments.api'
+import { AmazonOption, InboundShipment, InboundShipmentItem, LabelType, Marketplace, PackingSubmission } from './types'
 
-export type OptionKind = 'placement' | 'window' | 'transport'
+export type { OptionKind }
 
 export interface CreateShipmentInput {
   name: string
@@ -24,133 +28,94 @@ export interface CreateShipmentInput {
   items: InboundShipmentItem[]
 }
 
+/** Server error text when there is one, so Amazon's own message reaches the user. */
+export function apiErrorMessage(err: unknown, fallback: string): string {
+  const data = (err as any)?.data
+  return data?.error || data?.message || (err instanceof Error && err.message) || fallback
+}
+
+/** Runs an RTK mutation and rethrows failures as Error(serverMessage). */
+async function call<T>(promise: { unwrap: () => Promise<T> }, fallback: string): Promise<T> {
+  try {
+    return await promise.unwrap()
+  } catch (err) {
+    throw new Error(apiErrorMessage(err, fallback))
+  }
+}
+
+const toLines = (items: InboundShipmentItem[]) =>
+  items.map((i) => ({ inventoryItemId: Number(i.productId), quantity: i.quantity }))
+
 /**
- * Shipments data + actions.
- *
- * Integration seam: this hook is backed by local mock state today. When the
- * backend lands, replace each action body with the matching RTK mutation
- * (tag 'InboundShipments'; markShipped also invalidates 'Inventory') and the
- * state with query results. The screen and components don't need to change.
- *
- *   createShipment   POST  /inventory/shipments
- *   saveItems        PATCH /inventory/shipments/:id/items
- *   submitPlan       POST  /inventory/shipments/:id/inbound-plan        (createInboundPlan)
- *   getOptions       POST  /inventory/shipments/:id/{kind}-options      (generate*Options)
- *   confirmOption    POST  /inventory/shipments/:id/{kind}              (confirm*Option)
- *   generateLabels   POST  /inventory/shipments/:id/labels              (getLabels + createMarketplaceItemLabels)
- *   markShipped      POST  /inventory/shipments/:id/ship                (deducts on-hand stock)
- *   cancelShipment   POST  /inventory/shipments/:id/cancel              (cancelInboundPlan)
- *   sync             POST  /inventory/shipments/sync                    (pull status + received qty)
+ * Shipments data + actions, backed by /inventory/shipments. Local actions move
+ * stock between the FBA pool and shipments; Amazon actions run the SP-API
+ * inbound workflow on the backend.
  */
-
-const LATENCY_MS = 700
-const wait = () => new Promise((r) => setTimeout(r, LATENCY_MS))
-const now = () => new Date().toISOString()
-
 export const useShipments = () => {
-  const [shipments, setShipments] = useState<InboundShipment[]>(mockShipments)
-  const [pool, setPool] = useState<ReservedPoolItem[]>(mockReservedPool)
-  const [lastSyncedAt, setLastSyncedAt] = useState<string>(() => now())
+  const { data: shipments = [] } = useGetShipmentsQuery()
+  const { data: pool = [] } = useGetShipmentPoolQuery()
+  const [lastSyncedAt, setLastSyncedAt] = useState<string>(() => new Date().toISOString())
 
-  const patch = useCallback((id: string, fn: (s: InboundShipment) => Partial<InboundShipment>) => {
-    setShipments((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, ...fn(s), updatedAt: now() } : s))
-    )
-  }, [])
+  const [create] = useCreateShipmentMutation()
+  const [updateItems] = useUpdateShipmentItemsMutation()
+  const [cancel] = useCancelShipmentMutation()
+  const [ship] = useMarkShipmentShippedMutation()
+  const [submit] = useSubmitInboundPlanMutation()
+  const [packingPlan] = useGetPackingPlanMutation()
+  const [packing] = useSubmitPackingMutation()
+  const [options] = useGetShipmentOptionsMutation()
+  const [confirm] = useConfirmShipmentOptionsMutation()
+  const [labels] = useGenerateShipmentLabelsMutation()
+  const [labelDownloads] = useGetShipmentLabelsMutation()
+  const [syncAll] = useSyncShipmentsMutation()
 
-  const createShipment = useCallback(async (input: CreateShipmentInput) => {
-    await wait()
-    // Backend owns the sequence; this mirrors the format.
-    const nextNo =
-      Math.max(0, ...shipments.map((s) => Number(s.reference.replace(/\D/g, '')) || 0)) + 1
-    const padded = String(nextNo).padStart(4, '0')
-    const created: InboundShipment = {
-      id: `shp_${padded}`,
-      reference: `SHP-${padded}`,
-      name: input.name,
-      marketplace: input.marketplace,
-      status: 'in_progress',
-      stage: 'draft',
-      items: input.items,
-      legs: [],
-      createdAt: now(),
-      updatedAt: now(),
-    }
-    setShipments((prev) => [created, ...prev])
-    return created
-  }, [shipments])
-
-  const saveItems = useCallback(async (id: string, items: InboundShipmentItem[]) => {
-    await wait()
-    // Editing after createInboundPlan regenerates the plan on the backend.
-    patch(id, () => ({ items }))
-  }, [patch])
-
-  const submitPlan = useCallback(async (id: string) => {
-    await wait()
-    patch(id, () => ({
-      stage: 'plan_created',
-      amazonInboundPlanId: `wf${Math.random().toString(16).slice(2, 10)}-${Math.random().toString(16).slice(2, 6)}`,
-    }))
-  }, [patch])
-
-  const getOptions = useCallback(
-    async (shipment: InboundShipment, kind: OptionKind): Promise<AmazonOption[]> => {
-      await wait()
-      if (kind === 'placement') return buildPlacementOptions(shipment)
-      if (kind === 'window') return buildDeliveryWindowOptions()
-      return buildTransportationOptions(shipment)
-    },
-    []
+  const createShipment = useCallback(
+    (input: CreateShipmentInput) =>
+      call(create({ name: input.name, marketplace: input.marketplace, items: toLines(input.items) }), 'Could not create the shipment'),
+    [create]
   )
 
-  const confirmOption = useCallback(async (id: string, kind: OptionKind, option: AmazonOption) => {
-    await wait()
-    if (kind === 'placement') {
-      patch(id, () => ({
-        stage: 'placement_confirmed',
-        legs: (option.legs ?? []).map((leg) => ({
-          ...leg,
-          amazonShipmentId: `FBA17${Math.random().toString(36).slice(2, 9).toUpperCase()}`,
-        })),
-      }))
-    } else if (kind === 'window') {
-      patch(id, () => ({ stage: 'window_confirmed', deliveryWindow: option.window }))
-    } else {
-      patch(id, () => ({ stage: 'transport_confirmed', carrier: option.carrier }))
-    }
-  }, [patch])
+  const saveItems = useCallback(
+    (id: string, items: InboundShipmentItem[]) => call(updateItems({ id, items: toLines(items) }), 'Could not save quantities'),
+    [updateItems]
+  )
 
-  const generateLabels = useCallback(async (id: string) => {
-    await wait()
-    patch(id, () => ({ stage: 'labels_ready' }))
-  }, [patch])
+  const submitPlan = useCallback((id: string) => call(submit(id), 'Amazon rejected the inbound plan'), [submit])
 
-  const markShipped = useCallback(async (id: string) => {
-    await wait()
-    const shipment = shipments.find((s) => s.id === id)
-    if (!shipment) return
-    patch(id, () => ({ status: 'shipped', shippedAt: now() }))
-    // Units physically left: they are no longer part of the reserved pool.
-    const qty = Object.fromEntries(shipment.items.map((i) => [i.productId, i.quantity]))
-    setPool((prev) =>
-      prev.map((p) =>
-        qty[p.productId] ? { ...p, reserved: Math.max(0, p.reserved - qty[p.productId]) } : p
-      )
-    )
-  }, [shipments, patch])
+  const getPackingPlan = useCallback((id: string) => call(packingPlan(id), 'Amazon did not return packing options'), [packingPlan])
 
-  const cancelShipment = useCallback(async (id: string) => {
-    await wait()
-    // Units return to the unassigned reserved pool automatically: only open
-    // shipments count as committed.
-    patch(id, () => ({ status: 'cancelled' }))
-  }, [patch])
+  const submitPacking = useCallback(
+    (id: string, submission: PackingSubmission) => call(packing({ id, packing: submission }), 'Amazon rejected the box contents'),
+    [packing]
+  )
+
+  const getOptions = useCallback(
+    (shipment: InboundShipment, kind: OptionKind): Promise<AmazonOption[]> =>
+      call(options({ id: shipment.id, kind }), 'Amazon did not return any options'),
+    [options]
+  )
+
+  const confirmOptions = useCallback(
+    (id: string, kind: OptionKind, chosen: AmazonOption[]) =>
+      call(confirm({ id, kind, optionIds: chosen.map((o) => o.id) }), 'Amazon rejected this option'),
+    [confirm]
+  )
+
+  const generateLabels = useCallback((id: string) => call(labels(id), 'Could not generate labels'), [labels])
+
+  const getLabels = useCallback(
+    (id: string, type: LabelType) => call(labelDownloads({ id, type }), 'Could not get labels from Amazon'),
+    [labelDownloads]
+  )
+
+  const markShipped = useCallback((id: string) => call(ship(id), 'Could not mark as shipped'), [ship])
+
+  const cancelShipment = useCallback((id: string) => call(cancel(id), 'Could not cancel the shipment'), [cancel])
 
   const sync = useCallback(async () => {
-    await wait()
-    setLastSyncedAt(now())
-  }, [])
+    await call(syncAll(), 'Sync failed')
+    setLastSyncedAt(new Date().toISOString())
+  }, [syncAll])
 
   return {
     shipments,
@@ -159,9 +124,12 @@ export const useShipments = () => {
     createShipment,
     saveItems,
     submitPlan,
+    getPackingPlan,
+    submitPacking,
     getOptions,
-    confirmOption,
+    confirmOptions,
     generateLabels,
+    getLabels,
     markShipped,
     cancelShipment,
     sync,
