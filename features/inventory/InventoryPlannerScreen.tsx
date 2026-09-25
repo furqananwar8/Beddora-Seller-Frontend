@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 import { Container } from '@/components/layout'
 import { Button } from '@/design-system/buttons'
 import { Card, CardContent } from '@/design-system/cards'
@@ -9,7 +10,9 @@ import { useDebounce } from '@/utils/debounce'
 import {
   useGetInventorySummaryQuery,
   useGetProductInventoryQuery,
-  usePushInventoryAllocationMutation,
+  useGetChannelTargetsQuery,
+  usePushStockMutation,
+  ProductInventoryItem,
   InventoryPlannerFilters,
 } from '@/services/api/inventoryPlanner.api'
 import { ProductInventoryTable } from './ProductInventoryTable'
@@ -81,15 +84,16 @@ export const InventoryPlannerScreen: React.FC = () => {
   // ---- Selected products ----
   const [selectedProducts, setSelectedProducts] = useState<string[]>([])
   
-  // ---- Allocation Drawer state ----
-  const [isAllocationOpen, setIsAllocationOpen] = useState(false)
+  // ---- Allocation drawer: open with a snapshot of the selected rows ----
+  const [allocation, setAllocation] = useState<{ items: ProductInventoryItem[] } | null>(null)
 
   // ---- Header 3-Dots Dropdown State ----
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
   // ---- API Mutations & Queries ----
-  const [pushAllocation, { isLoading: isPushing }] = usePushInventoryAllocationMutation()
+  const [pushStock, { isLoading: isPushing }] = usePushStockMutation()
+  const { data: channelTargets = [] } = useGetChannelTargetsQuery()
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -149,21 +153,6 @@ export const InventoryPlannerScreen: React.FC = () => {
     [displayProducts, selectedProducts]
   )
   const bulkEdit = useInventoryBulkEdit(displayProducts)
-
-  // Allocation drawer still takes its old item shape until it is rebuilt on stock buckets
-  const drawerProducts = useMemo(
-    () =>
-      displayProducts.map((p) => ({
-        id: p.id,
-        sku: p.sku,
-        title: p.description,
-        totalStock: p.totalQuantity,
-        fbaReserved: p.amazonReserve,
-        fbmAvailable: p.otherMarketReserve,
-        safetyBuffer: p.buffer,
-      })),
-    [displayProducts]
-  )
 
   // ---- Calculate totals ----
   const totalSummary = useMemo<SummaryTotals | null>(() => {
@@ -249,17 +238,19 @@ export const InventoryPlannerScreen: React.FC = () => {
   const handlePushToChannels = async () => {
     setIsMenuOpen(false)
 
-    const itemsToPush = displayProducts
-      .filter((p) => selectedProducts.includes(p.id))
-      .map((p) => ({
-        productId: p.id,
-        sku: p.sku,
-        quantity: p.otherMarketReserve,
-      }))
+    const channels = channelTargets.filter((t) => t.connected).map((t) => t.id)
+    if (selectedRows.length === 0) return
+    if (channels.length === 0) {
+      toast.error('No connected channels to push to')
+      return
+    }
 
-    if (itemsToPush.length === 0) return
-
-    await pushAllocation({ items: itemsToPush })
+    // Per-listing results arrive as a live toast from the push endpoint's SSE event
+    try {
+      await pushStock(selectedRows.map((row) => ({ inventoryItemId: Number(row.id), channels }))).unwrap()
+    } catch (err: any) {
+      toast.error(err?.data?.error ?? 'Couldn’t push stock. Try again.')
+    }
   }
 
   // ---- Summary Card Component ----
@@ -450,7 +441,7 @@ export const InventoryPlannerScreen: React.FC = () => {
                         <button
                           onClick={() => {
                             setIsMenuOpen(false)
-                            setIsAllocationOpen(true)
+                            setAllocation({ items: selectedRows })
                           }}
                           disabled={selectedProducts.length === 0}
                           className="w-full text-left px-4 py-2.5 text-sm text-slate-800 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2 font-medium transition-colors"
@@ -675,12 +666,16 @@ export const InventoryPlannerScreen: React.FC = () => {
       </div>
 
       {/* Slide-over Allocation Drawer */}
-      <AllocationDrawer
-        isOpen={isAllocationOpen}
-        onClose={() => setIsAllocationOpen(false)}
-        productIds={selectedProducts}
-        products={drawerProducts}
-      />
+      {allocation && (
+        <AllocationDrawer
+          items={allocation.items}
+          onClose={() => setAllocation(null)}
+          onCreateShipment={(itemIds) => {
+            setAllocation(null)
+            router.push(`/dashboard/inventory/shipments?create=1&productIds=${encodeURIComponent(itemIds.join(','))}`)
+          }}
+        />
+      )}
     </Container>
   )
 }
