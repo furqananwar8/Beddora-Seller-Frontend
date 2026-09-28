@@ -1,314 +1,285 @@
 "use client"
 
 import React, { useEffect, useMemo, useState } from 'react'
-import { Button } from '@/design-system/buttons'
-import { Spinner } from '@/design-system/loaders'
+import { createPortal } from 'react-dom'
+import { useScrollLock } from '@/hooks/useScrollLock'
+import { DrawerButton } from '@/components/allocation-drawer/drawerUi'
 import { cn } from '@/utils/cn'
 import { InboundShipment, Marketplace, ReservedPoolItem } from './types'
 import { CreateShipmentInput } from './useShipments'
-import { MARKETPLACE_META } from './workflow'
-import { ProductThumb, formatUnits } from './ShipmentParts'
+import { MARKETPLACE_META, isOpen as isOpenShipment } from './workflow'
+import { formatUnits } from './ShipmentParts'
+
+/**
+ * New FBA shipment, per the "Shipment" canvas design: one row per SKU with its
+ * FBA pool, what other open shipments hold, what's left, and how many to book
+ * here. "Save draft" only holds the units; "Confirm with Amazon" also creates
+ * the inbound plan.
+ */
+
+export type CreateMode = 'draft' | 'confirm'
 
 interface CreateShipmentDrawerProps {
   isOpen: boolean
   onClose: () => void
   pool: ReservedPoolItem[]
+  /** All shipments, to show which ones hold each SKU's units. */
+  shipments: InboundShipment[]
   /** Unassigned reserved units per product. */
   unassigned: Record<string, number>
   /** Pre-selected products, e.g. from the Planner selection. */
   initialProductIds?: string[]
-  onCreate: (input: CreateShipmentInput) => Promise<InboundShipment>
+  onCreate: (input: CreateShipmentInput, mode: CreateMode) => Promise<InboundShipment>
 }
 
-type Lines = Record<string, { selected: boolean; quantity: number }>
+interface FormState {
+  marketplace: Marketplace
+  /** Units to book per product id; strings keep the inputs editable. */
+  book: Record<string, string>
+  submitting: CreateMode | null
+}
 
 const defaultName = (marketplace: Marketplace) => {
   const d = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(new Date())
   return `FBA ${MARKETPLACE_META[marketplace].label} · ${d}`
 }
 
-export const CreateShipmentDrawer: React.FC<CreateShipmentDrawerProps> = ({
-  isOpen,
+const MAX_LISTED = 2
+
+/** "SHP-0002 draft · 10, SHP-0003 confirmed · 40", or "3 confirmed · 400" when many hold it. */
+function heldBy(productId: string, shipments: InboundShipment[]): string {
+  const holders = shipments
+    .filter(isOpenShipment)
+    .map((s) => ({ s, qty: s.items.find((i) => i.productId === productId)?.quantity ?? 0 }))
+    .filter((h) => h.qty > 0)
+  if (holders.length === 0) return 'None'
+  const state = (s: InboundShipment) => (s.stage === 'draft' ? 'draft' : 'confirmed')
+  if (holders.length <= MAX_LISTED) return holders.map(({ s, qty }) => `${s.reference} ${state(s)} · ${formatUnits(qty)}`).join(', ')
+  const groups = new Map<string, { count: number; qty: number }>()
+  for (const { s, qty } of holders) {
+    const g = groups.get(state(s)) ?? { count: 0, qty: 0 }
+    groups.set(state(s), { count: g.count + 1, qty: g.qty + qty })
+  }
+  return Array.from(groups, ([st, g]) => `${g.count} ${st} · ${formatUnits(g.qty)}`).join(', ')
+}
+
+export const CreateShipmentDrawer: React.FC<CreateShipmentDrawerProps> = ({ isOpen, ...props }) =>
+  isOpen ? <DrawerPanel {...props} /> : null
+
+const DrawerPanel: React.FC<Omit<CreateShipmentDrawerProps, 'isOpen'>> = ({
   onClose,
   pool,
+  shipments,
   unassigned,
   initialProductIds = [],
   onCreate,
 }) => {
-  const marketplaces = useMemo(
-    () => Array.from(new Set(pool.map((p) => p.marketplace))),
-    [pool]
-  )
-  const [marketplace, setMarketplace] = useState<Marketplace>('Amazon.ca')
-  const [name, setName] = useState('')
-  const [search, setSearch] = useState('')
-  const [lines, setLines] = useState<Lines>({})
-  const [isSubmitting, setIsSubmitting] = useState(false)
-
-  // Reset every time the drawer opens.
-  useEffect(() => {
-    if (!isOpen) return
-    const preselected = pool.filter(
-      (p) => initialProductIds.includes(p.productId) && (unassigned[p.productId] ?? 0) > 0
-    )
-    const mp = preselected[0]?.marketplace ?? marketplaces[0] ?? 'Amazon.ca'
-    setMarketplace(mp)
-    setName(defaultName(mp))
-    setSearch('')
-    setLines(
-      Object.fromEntries(
-        preselected.map((p) => [p.productId, { selected: true, quantity: unassigned[p.productId] }])
-      )
-    )
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen])
+  useScrollLock()
+  const [form, setForm] = useState<FormState>(() => ({
+    marketplace: 'Amazon.com',
+    book: Object.fromEntries(
+      pool
+        .filter((p) => initialProductIds.includes(p.productId) && (unassigned[p.productId] ?? 0) > 0)
+        .map((p) => [p.productId, String(unassigned[p.productId])])
+    ),
+    submitting: null,
+  }))
+  const { marketplace, book, submitting } = form
+  const patch = (next: Partial<FormState>) => setForm((prev) => ({ ...prev, ...next }))
 
   useEffect(() => {
-    if (!isOpen) return
-    document.body.style.overflow = 'hidden'
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && !isSubmitting && onClose()
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && !submitting && onClose()
     document.addEventListener('keydown', onKey)
-    return () => {
-      document.body.style.overflow = ''
-      document.removeEventListener('keydown', onKey)
-    }
-  }, [isOpen, isSubmitting, onClose])
+    return () => document.removeEventListener('keydown', onKey)
+  }, [submitting, onClose])
 
-  const available = useMemo(
-    () => pool.filter((p) => p.marketplace === marketplace && (unassigned[p.productId] ?? 0) > 0),
-    [pool, marketplace, unassigned]
+  const rows = useMemo(
+    () =>
+      pool
+        .filter((p) => p.reserved > 0)
+        .map((p) => ({ product: p, available: unassigned[p.productId] ?? 0, held: heldBy(p.productId, shipments) })),
+    [pool, unassigned, shipments]
   )
 
-  const visible = useMemo(() => {
-    const q = search.trim().toLowerCase()
-    if (!q) return available
-    return available.filter(
-      (p) =>
-        p.title.toLowerCase().includes(q) ||
-        p.sku.toLowerCase().includes(q) ||
-        p.asin.toLowerCase().includes(q)
-    )
-  }, [available, search])
-
-  const selected = available.filter((p) => lines[p.productId]?.selected)
-  const totalUnits = selected.reduce((s, p) => s + (lines[p.productId]?.quantity || 0), 0)
-  const invalid = selected.some((p) => {
-    const q = lines[p.productId].quantity
-    return !Number.isInteger(q) || q < 1 || q > (unassigned[p.productId] ?? 0)
-  })
-  const canSubmit = selected.length > 0 && !invalid && name.trim().length > 0 && !isSubmitting
-
-  const allVisibleSelected = visible.length > 0 && visible.every((p) => lines[p.productId]?.selected)
-
-  const toggle = (p: ReservedPoolItem, on: boolean) =>
-    setLines((prev) => ({
-      ...prev,
-      [p.productId]: { selected: on, quantity: prev[p.productId]?.quantity ?? unassigned[p.productId] },
-    }))
-
-  const toggleAll = (on: boolean) =>
-    setLines((prev) => {
-      const next = { ...prev }
-      visible.forEach((p) => {
-        next[p.productId] = { selected: on, quantity: prev[p.productId]?.quantity ?? unassigned[p.productId] }
+  const booked = rows
+    .map((r) => ({ ...r, qty: Number(book[r.product.productId] || 0) }))
+    .filter((r) => r.qty > 0)
+  const errors = Object.fromEntries(
+    rows
+      .map((r) => {
+        const raw = book[r.product.productId]
+        const qty = Number(raw || 0)
+        if (raw && (!Number.isInteger(qty) || qty < 0)) return [r.product.productId, 'Whole units only']
+        if (qty > r.available) return [r.product.productId, `Only ${formatUnits(r.available)} available`]
+        return null
       })
-      return next
-    })
+      .filter((e): e is [string, string] => e !== null)
+  )
+  const totalUnits = booked.reduce((s, r) => s + r.qty, 0)
+  const canSubmit = booked.length > 0 && Object.keys(errors).length === 0 && !submitting
 
-  const setQty = (productId: string, quantity: number) =>
-    setLines((prev) => ({ ...prev, [productId]: { selected: true, quantity } }))
-
-  const changeMarketplace = (mp: Marketplace) => {
-    // Items can't span marketplaces; an inbound plan targets one.
-    setMarketplace(mp)
-    setLines({})
-    if (!name || name === defaultName(marketplace)) setName(defaultName(mp))
-  }
-
-  const handleCreate = async () => {
-    setIsSubmitting(true)
+  const submit = async (mode: CreateMode) => {
+    patch({ submitting: mode })
     try {
-      await onCreate({
-        name: name.trim(),
-        marketplace,
-        items: selected.map((p) => ({
-          productId: p.productId,
-          sku: p.sku,
-          fnsku: p.fnsku,
-          asin: p.asin,
-          title: p.title,
-          imageUrl: p.imageUrl,
-          quantity: lines[p.productId].quantity,
-        })),
-      })
+      await onCreate(
+        {
+          name: defaultName(marketplace),
+          marketplace,
+          items: booked.map(({ product: p, qty }) => ({
+            productId: p.productId,
+            sku: p.sku,
+            fnsku: p.fnsku,
+            asin: p.asin,
+            title: p.title,
+            imageUrl: p.imageUrl,
+            quantity: qty,
+          })),
+        },
+        mode
+      )
       onClose()
-    } finally {
-      setIsSubmitting(false)
+    } catch {
+      // caller shows the error toast; keep the drawer open to fix and retry
+      patch({ submitting: null })
     }
   }
 
-  if (!isOpen) return null
+  return createPortal(
+    <div className="fixed inset-0 z-50 overscroll-none" role="dialog" aria-modal="true" aria-labelledby="create-shipment-title">
+      <div className="absolute inset-0 bg-black/40" onClick={() => !submitting && onClose()} />
 
-  return (
-    <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-labelledby="create-shipment-title">
-      <div className="absolute inset-0 bg-black/40" onClick={() => !isSubmitting && onClose()} />
-
-      <div className="absolute inset-y-0 right-0 flex w-full max-w-3xl flex-col border-l border-border bg-surface shadow-xl">
+      <div className="absolute inset-y-0 right-0 flex w-full max-w-[1120px] flex-col border-l border-slate-200 bg-white text-slate-900">
         {/* Header */}
-        <div className="flex items-start justify-between border-b border-border px-6 py-5">
-          <div>
-            <h2 id="create-shipment-title" className="text-lg font-semibold text-text-primary">
+        <div className="flex items-start justify-between gap-6 border-b border-slate-200 bg-slate-50 px-8 pb-5 pt-6">
+          <div className="flex flex-col gap-1">
+            <h2 id="create-shipment-title" className="text-[22px] font-semibold">
               New FBA shipment
             </h2>
-            <p className="mt-0.5 text-sm text-text-muted">
-              Split your FBA reserved stock into a shipment. It stays an internal draft until you send it to Amazon.
+            <p className="text-sm text-slate-600">
+              Book units from each SKU&apos;s FBA pool. A draft holds them. Confirming with Amazon locks them.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={isSubmitting}
-            aria-label="Close"
-            className="rounded p-1.5 text-text-muted hover:bg-secondary-100 hover:text-text-primary"
-          >
-            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+          <div className="flex w-[220px] flex-col gap-1">
+            <label htmlFor="shipment-destination" className="text-[13px] font-medium text-slate-700">
+              Destination
+            </label>
+            <select
+              id="shipment-destination"
+              value={marketplace}
+              onChange={(e) => patch({ marketplace: e.target.value as Marketplace })}
+              className="h-10 !rounded-lg border border-slate-300 bg-white px-3 text-[15px] font-medium focus:outline-none focus:ring-2 focus:ring-slate-300"
+            >
+              {(Object.keys(MARKETPLACE_META) as Marketplace[]).map((mp) => (
+                <option key={mp} value={mp}>
+                  {mp}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
         {/* Body */}
-        <div className="flex-1 space-y-5 overflow-y-auto px-6 py-5">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <label className="sm:col-span-2">
-              <span className="mb-1 block text-xs font-medium text-text-muted">Shipment name</span>
-              <input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                maxLength={80}
-                className="w-full rounded-md border border-border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-secondary-200"
-              />
-            </label>
-            <label>
-              <span className="mb-1 block text-xs font-medium text-text-muted">Marketplace</span>
-              <select
-                value={marketplace}
-                onChange={(e) => changeMarketplace(e.target.value as Marketplace)}
-                className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-secondary-200"
-              >
-                {(Object.keys(MARKETPLACE_META) as Marketplace[]).map((mp) => (
-                  <option key={mp} value={mp} disabled={!marketplaces.includes(mp)}>
-                    {MARKETPLACE_META[mp].flag} {mp}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-
-          <div className="overflow-hidden rounded-lg border border-border">
-            <div className="flex items-center gap-3 border-b border-border bg-secondary-50 px-4 py-2.5">
-              <input
-                type="checkbox"
-                checked={allVisibleSelected}
-                onChange={(e) => toggleAll(e.target.checked)}
-                aria-label="Select all products"
-                disabled={visible.length === 0}
-              />
-              <input
-                type="search"
-                placeholder="Search products, SKU, ASIN"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="flex-1 rounded-md border border-border bg-surface px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-secondary-200"
-              />
-              <span className="whitespace-nowrap text-xs text-text-muted">
-                {available.length} with unassigned stock
-              </span>
+        <div className="flex flex-1 flex-col gap-5 overflow-y-auto px-8 py-6">
+          <div className="overflow-hidden !rounded-xl border border-slate-200">
+            <div className="grid grid-cols-[260px_110px_minmax(0,1fr)_110px_150px] border-b border-slate-200 bg-slate-100 text-xs font-semibold text-slate-700">
+              <div className="px-4 py-3">Product</div>
+              <div className="px-2 py-3 text-right">FBA pool</div>
+              <div className="px-4 py-3">Held by other shipments</div>
+              <div className="px-2 py-3 text-right">Available</div>
+              <div className="px-4 py-3">Book in this one</div>
             </div>
 
-            {visible.length === 0 ? (
-              <div className="px-4 py-10 text-center text-sm text-text-muted">
-                {available.length === 0
-                  ? 'All FBA reserved stock for this marketplace is already assigned to shipments. Allocate more in the Planner.'
-                  : 'No products match your search.'}
+            {rows.length === 0 && (
+              <div className="px-4 py-10 text-center text-sm text-slate-600">
+                No FBA stock yet. Allocate units to FBA in the Planner first.
               </div>
-            ) : (
-              <ul className="divide-y divide-border">
-                {visible.map((p) => {
-                  const line = lines[p.productId]
-                  const max = unassigned[p.productId] ?? 0
-                  const qty = line?.quantity ?? max
-                  const bad = line?.selected && (!Number.isInteger(qty) || qty < 1 || qty > max)
-                  return (
-                    <li
-                      key={p.productId}
-                      className={cn('flex items-center gap-3 px-4 py-3', line?.selected && 'bg-secondary-50/60')}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={!!line?.selected}
-                        onChange={(e) => toggle(p, e.target.checked)}
-                        aria-label={`Select ${p.sku}`}
-                      />
-                      <ProductThumb src={p.imageUrl} alt={p.title} size="sm" />
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate text-sm text-text-primary">{p.title}</div>
-                        <div className="text-xs text-text-muted">
-                          <span className="font-mono">{p.sku}</span> · {p.asin}
-                        </div>
-                      </div>
-                      <div className="text-right text-xs text-text-muted">
-                        <div>
-                          <span className="font-semibold text-text-primary">{formatUnits(max)}</span> unassigned
-                        </div>
-                        <div>{formatUnits(p.reserved)} reserved</div>
-                      </div>
-                      <div className="flex flex-col items-end">
+            )}
+
+            {rows.map(({ product: p, available, held }) => {
+              const full = available === 0
+              const error = errors[p.productId]
+              return (
+                <div
+                  key={p.productId}
+                  className={cn(
+                    'grid min-h-[72px] grid-cols-[260px_110px_minmax(0,1fr)_110px_150px] items-center border-b border-slate-100 text-sm last:border-0',
+                    full ? 'bg-slate-50' : 'bg-white'
+                  )}
+                >
+                  <div className="flex min-w-0 flex-col gap-0.5 px-4 py-2.5">
+                    <span className={cn('truncate font-medium', full ? 'text-slate-600' : 'text-slate-900')}>{p.title}</span>
+                    <span className="truncate font-mono text-xs text-slate-600">{p.sku}</span>
+                  </div>
+                  <div className="px-2 py-2.5 text-right">{formatUnits(p.reserved)}</div>
+                  <div className="px-4 py-2.5 text-[13px] text-slate-700">{held}</div>
+                  <div className={cn('px-2 py-2.5 text-right font-semibold', full ? 'text-slate-600' : 'text-emerald-800')}>
+                    {formatUnits(available)}
+                  </div>
+                  <div className="px-4 py-2.5">
+                    {full ? (
+                      <span className="text-[13px] text-slate-600">Fully booked</span>
+                    ) : (
+                      <div className="flex flex-col gap-1">
                         <input
                           type="number"
-                          min={1}
-                          max={max}
+                          min={0}
+                          max={available}
                           step={1}
-                          value={Number.isNaN(qty) ? '' : qty}
-                          onChange={(e) => setQty(p.productId, e.target.valueAsNumber)}
-                          aria-label={`Quantity for ${p.sku}`}
-                          aria-invalid={!!bad}
+                          value={book[p.productId] ?? ''}
+                          placeholder="0"
+                          onChange={(e) => patch({ book: { ...book, [p.productId]: e.target.value } })}
+                          aria-label={`Units for ${p.title}`}
+                          aria-invalid={!!error}
                           className={cn(
-                            'w-24 rounded-md border px-2 py-1 text-right text-sm font-semibold focus:outline-none focus:ring-2',
-                            bad ? 'border-danger-400 focus:ring-danger-200' : 'border-border focus:ring-secondary-200',
-                            !line?.selected && 'text-text-subtle'
+                            'h-10 w-full !rounded-lg border bg-white px-3 text-[15px] font-medium focus:outline-none focus:ring-2',
+                            error ? 'border-red-400 focus:ring-red-200' : 'border-slate-300 focus:ring-slate-300'
                           )}
                         />
-                        {bad && <span className="mt-0.5 text-[11px] text-danger-600">1 – {formatUnits(max)}</span>}
+                        {error && <span className="text-[11px] text-red-600">{error}</span>}
                       </div>
-                    </li>
-                  )
-                })}
-              </ul>
-            )}
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1.5 !rounded-[10px] border border-slate-200 px-4 py-3.5">
+              <span className="text-sm font-semibold">Save as draft</span>
+              <span className="text-sm text-slate-700">
+                Units move from the FBA pool to this shipment. Edit or cancel anytime, and cancelled units go back to the pool.
+              </span>
+            </div>
+            <div className="flex flex-col gap-1.5 !rounded-[10px] border border-slate-300 bg-slate-50 px-4 py-3.5">
+              <span className="text-sm font-semibold">Confirm with Amazon</span>
+              <span className="text-sm text-slate-700">
+                Creates the inbound plan. Quantities lock and the allocation drawer can&apos;t take these units back. Stock
+                leaves on-hand when marked shipped.
+              </span>
+            </div>
           </div>
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between border-t border-border bg-secondary-50 px-6 py-4">
-          <div className="text-sm text-text-muted">
-            <span className="font-semibold text-text-primary">{selected.length}</span> SKU{selected.length !== 1 && 's'} ·{' '}
-            <span className="font-semibold text-text-primary">{formatUnits(totalUnits)}</span> units
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={onClose} disabled={isSubmitting}>
+        <div className="flex items-center justify-between border-t border-slate-200 bg-slate-50 px-8 py-[18px]">
+          <span className="text-sm text-slate-600">
+            {booked.length} product{booked.length !== 1 && 's'} · {formatUnits(totalUnits)} units
+          </span>
+          <div className="flex gap-3">
+            <DrawerButton onClick={onClose} disabled={!!submitting}>
               Cancel
-            </Button>
-            <Button onClick={handleCreate} disabled={!canSubmit}>
-              {isSubmitting ? (
-                <span className="flex items-center gap-2"><Spinner size="sm" className="text-white" /> Creating…</span>
-              ) : (
-                'Create draft shipment'
-              )}
-            </Button>
+            </DrawerButton>
+            <DrawerButton onClick={() => submit('draft')} disabled={!canSubmit} isLoading={submitting === 'draft'}>
+              Save draft
+            </DrawerButton>
+            <DrawerButton variant="primary" onClick={() => submit('confirm')} disabled={!canSubmit} isLoading={submitting === 'confirm'}>
+              Confirm with Amazon
+            </DrawerButton>
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
