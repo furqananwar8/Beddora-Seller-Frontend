@@ -16,12 +16,16 @@ import {
   NEXT_ACTION,
   NextAction,
   canEditItems,
+  cancelledAtLabel,
   getReceivedUnits,
   getShipmentUnits,
+  legReference,
+  shipsAsFreight,
 } from './workflow'
 import {
   ChevronIcon,
   FloatingMenu,
+  LabelButton,
   ProductThumb,
   StageProgress,
   StatusBadge,
@@ -38,7 +42,7 @@ interface ShipmentRowProps {
   shipment: InboundShipment
   isExpanded: boolean
   onToggle: () => void
-  /** Reserved pool for this shipment's marketplace. */
+  /** FBA pool (shared by every marketplace). */
   pool: ReservedPoolItem[]
   /** Unassigned reserved units per product, NOT counting this shipment's own qty. */
   availableElsewhere: Record<string, number>
@@ -46,6 +50,8 @@ interface ShipmentRowProps {
   onAction: (action: NextAction) => Promise<void> | void
   onCancel: () => void
   onDownloadLabel: (type: LabelType) => void
+  /** Label downloads running for this shipment. */
+  downloadingLabels: Partial<Record<LabelType, boolean>>
 }
 
 const LABELS: { type: LabelType; label: string }[] = [
@@ -68,6 +74,7 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({
   onAction,
   onCancel,
   onDownloadLabel,
+  downloadingLabels,
 }) => {
   const editable = canEditItems(shipment)
   const [draft, setDraft] = useState<InboundShipmentItem[]>(shipment.items)
@@ -88,9 +95,11 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({
   const draftUnits = draft.reduce((s, i) => s + (i.quantity || 0), 0)
   const received = getReceivedUnits(shipment)
   const showReceived = shipment.status === 'receiving' || shipment.status === 'closed'
-  const labelsAvailable =
-    shipment.stage === 'labels_ready' && shipment.status !== 'cancelled'
+  // Our server keeps label copies only until the shipment is shipped or cancelled
+  const labelsAvailable = shipment.stage === 'labels_ready' && shipment.status === 'in_progress'
   const next = shipment.status === 'in_progress' ? NEXT_ACTION[shipment.stage] : null
+  const labels = LABELS.filter((l) => l.type !== 'pallet' || shipsAsFreight(shipment))
+  const legRefs = shipment.legs.map(legReference).filter(Boolean)
 
   const maxFor = (productId: string) => availableElsewhere[productId] ?? 0
 
@@ -191,10 +200,8 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({
             )}
           </div>
           <div className="max-w-[260px] truncate text-xs text-text-muted">{shipment.name}</div>
-          {shipment.legs.some((l) => l.amazonShipmentId) && (
-            <div className="mt-0.5 font-mono text-[11px] text-text-subtle">
-              {shipment.legs.map((l) => l.amazonShipmentId).filter(Boolean).join(', ')}
-            </div>
+          {legRefs.length > 0 && (
+            <div className="mt-0.5 font-mono text-[11px] text-text-subtle">{legRefs.join(', ')}</div>
           )}
         </TableCell>
 
@@ -226,16 +233,16 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({
         </TableCell>
 
         <TableCell className="min-w-[180px]">
-          {shipment.status === 'cancelled' ? (
-            <span className="text-sm text-text-subtle">—</span>
-          ) : (
-            <>
-              <StageProgress shipment={shipment} />
-              <div className="mt-1 text-xs text-text-muted">
-                {next ? `Next: ${next.label}` : shipment.status === 'closed' ? 'Complete' : 'With Amazon'}
-              </div>
-            </>
-          )}
+          <StageProgress shipment={shipment} />
+          <div className="mt-1 text-xs text-text-muted">
+            {shipment.status === 'cancelled'
+              ? `Cancelled at ${cancelledAtLabel(shipment)?.toLowerCase() ?? 'draft'}`
+              : next
+              ? `Next: ${next.label}`
+              : shipment.status === 'closed'
+              ? 'Complete'
+              : 'With Amazon'}
+          </div>
         </TableCell>
 
         <TableCell className="whitespace-nowrap text-sm">{formatWindow(shipment.deliveryWindow)}</TableCell>
@@ -266,13 +273,13 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({
                 <MenuItem onClick={() => { setIsMenuOpen(false); if (!isExpanded) onToggle() }}>
                   {editable ? 'Edit quantities' : 'View details'}
                 </MenuItem>
-                {LABELS.map((l) => (
+                {labels.map((l) => (
                   <MenuItem
                     key={l.type}
-                    disabled={!labelsAvailable}
+                    disabled={!labelsAvailable || !!downloadingLabels[l.type]}
                     onClick={() => { setIsMenuOpen(false); onDownloadLabel(l.type) }}
                   >
-                    Download {l.label.toLowerCase()}
+                    {downloadingLabels[l.type] ? `Downloading ${l.label.toLowerCase()}…` : `Download ${l.label.toLowerCase()}`}
                   </MenuItem>
                 ))}
                 <div className="my-1 border-t border-border" />
@@ -303,7 +310,9 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({
                     shipment.amazonInboundPlanId ? (
                       <span className="font-mono text-xs">{shipment.amazonInboundPlanId}</span>
                     ) : (
-                      <span className="text-text-subtle">Not sent to Amazon</span>
+                      <span className="text-text-subtle">
+                        {shipment.status === 'cancelled' ? 'Never sent to Amazon' : 'Not sent to Amazon'}
+                      </span>
                     )
                   }
                 />
@@ -313,11 +322,18 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({
                     shipment.legs.length ? (
                       <div className="space-y-0.5">
                         {shipment.legs.map((l) => (
-                          <div key={l.fulfillmentCenter}>
+                          <div key={l.amazonShipmentId ?? l.fulfillmentCenter}>
                             <span className="font-mono font-semibold">{l.fulfillmentCenter}</span>
-                            <span className="text-xs text-text-muted"> · {formatUnits(l.units)} u</span>
-                            {l.amazonShipmentId && (
-                              <div className="font-mono text-[11px] text-text-muted">{l.amazonShipmentId}</div>
+                            <span className="text-xs text-text-muted">
+                              {' '}· {formatUnits(l.units)} u{l.boxes ? ` · ${formatUnits(l.boxes)} box${l.boxes === 1 ? '' : 'es'}` : ''}
+                            </span>
+                            {legReference(l) && (
+                              <div className="font-mono text-[11px] text-text-muted">{legReference(l)}</div>
+                            )}
+                            {shipment.legs.length > 1 && (l.carrier || l.deliveryWindow) && (
+                              <div className="text-[11px] text-text-muted">
+                                {[l.carrier, l.deliveryWindow && formatWindow(l.deliveryWindow)].filter(Boolean).join(' · ')}
+                              </div>
                             )}
                           </div>
                         ))}
@@ -343,10 +359,10 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({
                     <p className="text-xs text-text-muted">
                       {editable
                         ? shipment.stage === 'plan_created'
-                          ? 'Saving changes regenerates the inbound plan with Amazon.'
+                          ? 'Saving changes cancels the Amazon plan; send it to Amazon again afterwards.'
                           : 'Quantities come from your FBA reserved pool.'
                         : shipment.status === 'in_progress'
-                        ? 'Quantities are locked once a warehouse is confirmed. Cancel and re-plan to change them.'
+                        ? 'Quantities are locked once box contents are sent. Cancel and re-plan to change them.'
                         : 'Read-only.'}
                     </p>
                   </div>
@@ -537,10 +553,14 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex flex-wrap items-center gap-2">
                   {labelsAvailable &&
-                    LABELS.map((l) => (
-                      <Button key={l.type} variant="outline" size="sm" onClick={() => onDownloadLabel(l.type)}>
-                        ↓ {l.label}
-                      </Button>
+                    labels.map((l) => (
+                      <LabelButton
+                        key={l.type}
+                        label={l.label}
+                        status={l.type === 'pallet' ? undefined : shipment.labels?.[l.type]}
+                        isDownloading={!!downloadingLabels[l.type]}
+                        onClick={() => onDownloadLabel(l.type)}
+                      />
                     ))}
                   {!labelsAvailable && next && (
                     <span className="text-xs text-text-muted">{next.hint}</span>

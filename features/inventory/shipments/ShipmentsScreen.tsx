@@ -2,7 +2,8 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
-import { toast } from 'sonner'
+import { useAppDispatch } from '@/store/hooks'
+import { addNotification } from '@/store/ui.slice'
 import { Container } from '@/components/layout'
 import { Button } from '@/design-system/buttons'
 import { Card, CardContent } from '@/design-system/cards'
@@ -17,10 +18,11 @@ import {
 } from '@/design-system/tables'
 import { useDebounce } from '@/utils/debounce'
 import { cn } from '@/utils/cn'
-import { AmazonOption, LabelType, Marketplace, ShipmentStatus } from './types'
-import { OptionKind, useShipments } from './useShipments'
+import { AmazonOption, InboundShipment, LabelType, Marketplace, PackingSubmission, ShipmentStatus } from './types'
+import { CreateShipmentInput, OptionKind, ShipmentsMode, useShipments } from './useShipments'
 import {
   MARKETPLACE_META,
+  NEXT_ACTION,
   NextAction,
   STATUS_META,
   getReceivedUnits,
@@ -28,11 +30,21 @@ import {
   getUnassignedUnits,
 } from './workflow'
 import { ShipmentRow, SHIPMENT_TABLE_COLUMNS } from './ShipmentRow'
-import { CreateShipmentDrawer } from './CreateShipmentDrawer'
+import { CreateMode, CreateShipmentDrawer } from './CreateShipmentDrawer'
 import { ConfirmModal, MarkShippedModal, OptionPickerModal } from './ShipmentDialogs'
+import { PackingModal } from './PackingModal'
 import { formatRelative, formatUnits } from './ShipmentParts'
 
 type StatusFilter = 'all' | ShipmentStatus
+
+/** At most one dialog is open at a time. */
+type Dialog =
+  | { type: 'create'; preselect: string[] }
+  | { type: 'options'; id: string; kind: OptionKind }
+  | { type: 'packing'; id: string }
+  | { type: 'ship'; id: string }
+  | { type: 'cancel'; id: string }
+  | null
 
 const STATUS_ORDER: ShipmentStatus[] = ['in_progress', 'shipped', 'receiving', 'closed', 'cancelled']
 
@@ -49,16 +61,21 @@ const LABEL_NAMES: Record<LabelType, string> = {
 }
 
 export const ShipmentsScreen: React.FC = () => {
+  const dispatch = useAppDispatch()
   const {
     shipments,
     pool,
+    mode,
     lastSyncedAt,
     createShipment,
     saveItems,
     submitPlan,
+    getPackingPlan,
+    submitPacking,
     getOptions,
-    confirmOption,
+    confirmOptions,
     generateLabels,
+    downloadLabels,
     markShipped,
     cancelShipment,
     sync,
@@ -69,10 +86,14 @@ export const ShipmentsScreen: React.FC = () => {
   const searchParams = useSearchParams()
 
   // ---- Filters ----
-  const [search, setSearch] = useState('')
+  const [filters, setFilters] = useState<{ search: string; status: StatusFilter; marketplace: 'all' | Marketplace }>({
+    search: '',
+    status: 'all',
+    marketplace: 'all',
+  })
+  const { search, status: statusFilter, marketplace: marketplaceFilter } = filters
+  const setFilter = (next: Partial<typeof filters>) => setFilters((prev) => ({ ...prev, ...next }))
   const debouncedSearch = useDebounce(search, 250)
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
-  const [marketplaceFilter, setMarketplaceFilter] = useState<'all' | Marketplace>('all')
 
   // ---- Expansion ----
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
@@ -86,18 +107,29 @@ export const ShipmentsScreen: React.FC = () => {
   }, [])
 
   // ---- Dialogs ----
-  const [createOpen, setCreateOpen] = useState(false)
-  const [createPreselect, setCreatePreselect] = useState<string[]>([])
-  const [picker, setPicker] = useState<{ id: string; kind: OptionKind } | null>(null)
-  const [shippingId, setShippingId] = useState<string | null>(null)
-  const [cancelId, setCancelId] = useState<string | null>(null)
-  const [isSyncing, setIsSyncing] = useState(false)
+  const [ui, setUi] = useState<{
+    dialog: Dialog
+    isSyncing: boolean
+    /** Label downloads in progress, keyed "shipmentId:type"; survives closing the dialog. */
+    downloading: Record<string, true>
+  }>({ dialog: null, isSyncing: false, downloading: {} })
+  const { dialog, isSyncing, downloading } = ui
+  const openDialog = (next: Dialog) => setUi((prev) => ({ ...prev, dialog: next }))
+  const closeDialog = useCallback(() => setUi((prev) => ({ ...prev, dialog: null })), [])
+  /**
+   * Closes the dialog only if it's still the one asking. When a step succeeds
+   * the next step's dialog is already open, and the finished one's onClose
+   * must not shut it.
+   */
+  const closeIfCurrent = (current: Dialog) => () =>
+    setUi((prev) => (JSON.stringify(prev.dialog) === JSON.stringify(current) ? { ...prev, dialog: null } : prev))
+  const dialogId = (type: 'options' | 'packing' | 'ship' | 'cancel') =>
+    dialog && dialog.type === type ? dialog.id : null
 
   // Deep link from Planner: /shipments?create=1&productIds=1,2,3
   useEffect(() => {
     if (searchParams.get('create') !== '1') return
-    setCreatePreselect((searchParams.get('productIds') ?? '').split(',').filter(Boolean))
-    setCreateOpen(true)
+    openDialog({ type: 'create', preselect: (searchParams.get('productIds') ?? '').split(',').filter(Boolean) })
     router.replace(pathname, { scroll: false })
   }, [searchParams, router, pathname])
 
@@ -154,6 +186,7 @@ export const ShipmentsScreen: React.FC = () => {
           s.legs.some(
             (l) =>
               l.amazonShipmentId?.toLowerCase().includes(q) ||
+              l.shipmentConfirmationId?.toLowerCase().includes(q) ||
               l.fulfillmentCenter.toLowerCase().includes(q)
           ) ||
           s.items.some(
@@ -173,63 +206,151 @@ export const ShipmentsScreen: React.FC = () => {
   const byId = (id: string | null) => (id ? shipments.find((s) => s.id === id) ?? null : null)
 
   // ---- Handlers ----
+  /** Runs an action with a success toast; failures toast the server's message (Amazon's own text when it has one). */
   const run = async (fn: () => Promise<unknown>, success: string, failure: string) => {
     try {
       await fn()
-      toast.success(success)
+      dispatch(addNotification({ message: success, type: 'success' }))
     } catch (err) {
       console.error(err)
-      toast.error(failure)
+      dispatch(addNotification({ message: (err as Error).message || failure, type: 'error' }))
       throw err
     }
+  }
+
+  /** Same as run, for fire-and-forget buttons: the toast is the whole error handling. */
+  const attempt = (fn: () => Promise<unknown>, success: string, failure: string) =>
+    run(fn, success, failure).catch(() => undefined)
+
+  /**
+   * Guided flow: once a step succeeds, open the next one. Labels need no input,
+   * so they're generated on the way to "Mark as shipped". Closing a dialog just
+   * pauses; the row's next-step button resumes from the same place.
+   */
+  const continueFlow = async (shipment: InboundShipment): Promise<void> => {
+    if (shipment.status !== 'in_progress') return closeDialog()
+    const { action } = NEXT_ACTION[shipment.stage]
+    const kind = ACTION_TO_OPTION[action]
+    if (kind) return openDialog({ type: 'options', id: shipment.id, kind })
+    if (action === 'set_packing') return openDialog({ type: 'packing', id: shipment.id })
+    if (action === 'mark_shipped') return openDialog({ type: 'ship', id: shipment.id })
+    if (action === 'generate_labels') {
+      closeDialog()
+      try {
+        const ready = await generateLabels(shipment.id)
+        dispatch(addNotification({ message: `Labels generated for ${shipment.reference}`, type: 'success' }))
+        return continueFlow(ready)
+      } catch (err) {
+        dispatch(addNotification({ message: (err as Error).message || 'Could not generate labels.', type: 'error' }))
+        return
+      }
+    }
+    closeDialog()
   }
 
   const handleAction = async (id: string, action: NextAction) => {
     const shipment = byId(id)
     if (!shipment) return
     const optionKind = ACTION_TO_OPTION[action]
-    if (optionKind) return setPicker({ id, kind: optionKind })
-    if (action === 'mark_shipped') return setShippingId(id)
-    if (action === 'submit_plan')
-      return run(() => submitPlan(id), `${shipment.reference} sent to Amazon. Inbound plan created.`, 'Amazon rejected the inbound plan.')
-    if (action === 'generate_labels')
-      return run(() => generateLabels(id), `Labels generated for ${shipment.reference}`, 'Could not generate labels.')
+    if (optionKind) return openDialog({ type: 'options', id, kind: optionKind })
+    if (action === 'set_packing') return openDialog({ type: 'packing', id })
+    if (action === 'mark_shipped') return openDialog({ type: 'ship', id })
+    if (action === 'generate_labels') return continueFlow(shipment)
+    if (action === 'submit_plan') {
+      try {
+        const planned = await submitPlan(id)
+        dispatch(addNotification({ message: `${shipment.reference} sent to Amazon. Inbound plan created.`, type: 'success' }))
+        return continueFlow(planned)
+      } catch (err) {
+        dispatch(addNotification({ message: (err as Error).message || 'Amazon rejected the inbound plan.', type: 'error' }))
+      }
+    }
   }
 
-  const handleConfirmOption = async (option: AmazonOption) => {
-    if (!picker) return
-    const s = byId(picker.id)
+  // The picker shows its own error and stays open, so only success is toasted here
+  const handleConfirmOptions = async (chosen: AmazonOption[]) => {
+    if (dialog?.type !== 'options') return
+    const { id, kind } = dialog
     const copy: Record<OptionKind, string> = {
       placement: 'Warehouse confirmed',
-      window: 'Delivery window booked',
+      window: chosen.length ? 'Delivery window booked' : 'No delivery window needed',
       transport: 'Carrier booked',
     }
-    await run(() => confirmOption(picker.id, picker.kind, option), `${s?.reference}: ${copy[picker.kind]}`, 'Amazon rejected this option.')
+    const updated = await confirmOptions(id, kind, chosen)
+    dispatch(addNotification({ message: `${updated.reference}: ${copy[kind]}`, type: 'success' }))
+    await continueFlow(updated)
   }
 
-  const handleDownloadLabel = (id: string, type: LabelType) => {
-    const s = byId(id)
-    // TODO: GET /inventory/shipments/:id/labels/:type returns a signed PDF URL.
-    toast.info(`${LABEL_NAMES[type]} for ${s?.reference} will download once the labels API is connected.`)
+  const handleSubmitPacking = async (id: string, submission: PackingSubmission) => {
+    const updated = await submitPacking(id, submission)
+    dispatch(addNotification({ message: `${updated.reference}: box contents sent to Amazon`, type: 'success' }))
+    await continueFlow(updated)
   }
 
-  const handleSync = async () => {
-    setIsSyncing(true)
+  const setDownloading = (key: string, on: boolean) =>
+    setUi((prev) => {
+      const next = { ...prev.downloading }
+      if (on) next[key] = true
+      else delete next[key]
+      return { ...prev, downloading: next }
+    })
+
+  /** Downloads the server's copy of the labels in the background; one request per shipment and type at a time. */
+  const handleDownloadLabel = async (id: string, type: LabelType) => {
+    const key = `${id}:${type}`
+    if (downloading[key]) return
+    const shipment = byId(id)
+    setDownloading(key, true)
     try {
-      await run(sync, 'Shipment statuses synced from Amazon', 'Sync failed')
-    } catch {
-      /* toast already shown */
+      const file = await downloadLabels(id, type)
+      const ext = file.type === 'application/zip' ? 'zip' : 'pdf'
+      saveFile(file, `${shipment?.reference ?? 'shipment'}-${LABEL_NAMES[type].toLowerCase().replace(/s+/g, '-')}.${ext}`)
+    } catch (err) {
+      dispatch(addNotification({ message: (err as Error).message || `Could not download ${LABEL_NAMES[type].toLowerCase()}`, type: 'error' }))
     } finally {
-      setIsSyncing(false)
+      setDownloading(key, false)
     }
   }
 
-  const openCreate = () => {
-    setCreatePreselect([])
-    setCreateOpen(true)
+  const downloadingFor = (id: string): Partial<Record<LabelType, boolean>> =>
+    Object.fromEntries((['box', 'unit', 'pallet'] as LabelType[]).map((t) => [t, !!downloading[`${id}:${t}`]]))
+
+  const handleSync = async () => {
+    setUi((prev) => ({ ...prev, isSyncing: true }))
+    await attempt(sync, 'Shipment statuses synced from Amazon', 'Sync failed')
+    setUi((prev) => ({ ...prev, isSyncing: false }))
   }
 
-  const cancelTarget = byId(cancelId)
+  const openCreate = () => openDialog({ type: 'create', preselect: [] })
+
+  /** Save draft holds the units; Confirm with Amazon also creates the inbound plan. */
+  const handleCreate = async (input: CreateShipmentInput, createMode: CreateMode) => {
+    let created
+    try {
+      created = await createShipment(input)
+    } catch (err) {
+      dispatch(addNotification({ message: (err as Error).message || 'Could not create the shipment', type: 'error' }))
+      throw err
+    }
+    setFilter({ status: 'all' })
+    setExpanded((prev) => new Set(prev).add(created.id))
+    if (createMode === 'draft') {
+      dispatch(addNotification({ message: `${created.reference} saved as a draft`, type: 'success' }))
+      return created
+    }
+    // The shipment exists either way; a rejected plan leaves it as a draft to retry from the row
+    try {
+      const confirmed = await submitPlan(created.id)
+      dispatch(addNotification({ message: `${created.reference} sent to Amazon. Inbound plan created.`, type: 'success' }))
+      return confirmed
+    } catch (err) {
+      dispatch(addNotification({ message: `${created.reference} saved as a draft, but Amazon rejected the plan: ${(err as Error).message}`, type: 'error' }))
+      return created
+    }
+  }
+
+  const cancelTarget = byId(dialogId('cancel'))
+  const shippingTarget = byId(dialogId('ship'))
 
   return (
     <Container size="full" className="py-8">
@@ -255,6 +376,8 @@ export const ShipmentsScreen: React.FC = () => {
           </Button>
         </div>
       </div>
+
+      <ModeBanner mode={mode} />
 
       {/* Summary */}
       <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -294,7 +417,7 @@ export const ShipmentsScreen: React.FC = () => {
                 type="button"
                 role="tab"
                 aria-selected={active}
-                onClick={() => setStatusFilter(st)}
+                onClick={() => setFilter({ status: st })}
                 className={cn(
                   'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
                   active ? 'bg-secondary-800 text-white' : 'text-text-muted hover:bg-secondary-50 hover:text-text-primary'
@@ -322,14 +445,14 @@ export const ShipmentsScreen: React.FC = () => {
             type="search"
             placeholder="Search shipment ID, FBA ID, FC, SKU or product"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => setFilter({ search: e.target.value })}
             className="w-full rounded-md border border-border bg-surface py-2 pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-secondary-200"
           />
         </div>
 
         <select
           value={marketplaceFilter}
-          onChange={(e) => setMarketplaceFilter(e.target.value as 'all' | Marketplace)}
+          onChange={(e) => setFilter({ marketplace: e.target.value as 'all' | Marketplace })}
           aria-label="Marketplace"
           className="rounded-md border border-border bg-surface px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-secondary-200"
         >
@@ -392,20 +515,21 @@ export const ShipmentsScreen: React.FC = () => {
                     shipment={s}
                     isExpanded={expanded.has(s.id)}
                     onToggle={() => toggle(s.id)}
-                    pool={pool.filter((p) => p.marketplace === s.marketplace)}
+                    pool={pool}
                     availableElsewhere={getUnassignedUnits(pool, shipments, s.id)}
                     onSaveItems={(items) =>
                       run(
                         () => saveItems(s.id, items),
                         s.stage === 'plan_created'
-                          ? `${s.reference} updated. Inbound plan regenerated.`
+                          ? `${s.reference} updated. The Amazon plan was cancelled; send it to Amazon again.`
                           : `${s.reference} quantities saved`,
                         'Could not save quantities'
                       )
                     }
                     onAction={(action) => handleAction(s.id, action)}
-                    onCancel={() => setCancelId(s.id)}
+                    onCancel={() => openDialog({ type: 'cancel', id: s.id })}
                     onDownloadLabel={(type) => handleDownloadLabel(s.id, type)}
+                    downloadingLabels={downloadingFor(s.id)}
                   />
                 ))
               )}
@@ -416,35 +540,39 @@ export const ShipmentsScreen: React.FC = () => {
 
       {/* Drawers & dialogs */}
       <CreateShipmentDrawer
-        isOpen={createOpen}
-        onClose={() => setCreateOpen(false)}
+        isOpen={dialog?.type === 'create'}
+        onClose={closeIfCurrent(dialog?.type === 'create' ? dialog : null)}
         pool={pool}
+        shipments={shipments}
         unassigned={unassigned}
-        initialProductIds={createPreselect}
-        onCreate={async (input) => {
-          const created = await createShipment(input)
-          toast.success(`${created.reference} created as a draft`)
-          setStatusFilter('all')
-          setExpanded((prev) => new Set(prev).add(created.id))
-          return created
-        }}
+        initialProductIds={dialog?.type === 'create' ? dialog.preselect : []}
+        onCreate={handleCreate}
       />
 
       <OptionPickerModal
-        kind={picker?.kind ?? null}
-        shipment={byId(picker?.id ?? null)}
+        kind={dialog?.type === 'options' ? dialog.kind : null}
+        shipment={byId(dialogId('options'))}
         loadOptions={getOptions}
-        onConfirm={handleConfirmOption}
-        onClose={() => setPicker(null)}
+        onConfirm={handleConfirmOptions}
+        onClose={closeIfCurrent(dialog?.type === 'options' ? dialog : null)}
+      />
+
+      <PackingModal
+        shipment={byId(dialogId('packing'))}
+        loadPlan={getPackingPlan}
+        onSubmit={handleSubmitPacking}
+        onClose={closeIfCurrent(dialog?.type === 'packing' ? dialog : null)}
       />
 
       <MarkShippedModal
-        shipment={byId(shippingId)}
-        onClose={() => setShippingId(null)}
+        shipment={shippingTarget}
+        onDownloadLabel={(type) => shippingTarget && handleDownloadLabel(shippingTarget.id, type)}
+        downloadingLabels={shippingTarget ? downloadingFor(shippingTarget.id) : {}}
+        onClose={closeDialog}
         onConfirm={() => {
-          const s = byId(shippingId)
+          const s = shippingTarget
           return run(
-            () => markShipped(shippingId!),
+            () => markShipped(s!.id),
             `${s?.reference} marked as shipped. ${formatUnits(s ? getShipmentUnits(s) : 0)} units deducted from inventory.`,
             'Could not mark as shipped'
           )
@@ -465,13 +593,35 @@ export const ShipmentsScreen: React.FC = () => {
         }
         confirmLabel="Cancel shipment"
         variant="danger"
-        onClose={() => setCancelId(null)}
+        onClose={closeDialog}
         onConfirm={() =>
-          run(() => cancelShipment(cancelId!), `${cancelTarget?.reference} cancelled`, 'Could not cancel shipment')
+          run(() => cancelShipment(cancelTarget!.id), `${cancelTarget?.reference} cancelled`, 'Could not cancel shipment')
         }
       />
     </Container>
   )
+}
+
+/** Only shown in sandbox mode, so nobody mistakes Amazon's sample data for a real plan. */
+const ModeBanner: React.FC<{ mode: ShipmentsMode }> = ({ mode }) =>
+  mode === 'sandbox' ? (
+    <div className="mb-6 rounded-lg border border-warning-200 bg-warning-50 px-4 py-3 text-sm text-warning-800">
+      <strong>Amazon sandbox mode.</strong> Inbound steps go to the SP-API sandbox with sandbox credentials, so nothing
+      reaches your Seller Central account. Your shipments and stock are real; Amazon&apos;s side answers with its sample
+      data (plan wf1234…, SKU &quot;msku&quot;, FC YYZ5).
+    </div>
+  ) : null
+
+/** Hands a downloaded file to the browser's own download manager. */
+function saveFile(blob: Blob, fileName: string): void {
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = fileName
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
 const SummaryCard: React.FC<{ title: string; accent: string; children: React.ReactNode }> = ({
