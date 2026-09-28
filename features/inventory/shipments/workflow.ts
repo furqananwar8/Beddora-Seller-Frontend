@@ -84,11 +84,18 @@ export const NEXT_ACTION: Record<ShipmentStage, { action: NextAction; label: str
   },
 }
 
-/** 0-based index into WORKFLOW_STEPS of the step currently being worked on. */
+/**
+ * 0-based index into WORKFLOW_STEPS of the step currently being worked on. For
+ * a cancelled shipment it's the step it was cancelled at; the steps before it
+ * were completed.
+ */
 export const getActiveStepIndex = (s: InboundShipment): number => {
-  if (s.status !== 'in_progress') return WORKFLOW_STEPS.length
+  if (s.status !== 'in_progress' && s.status !== 'cancelled') return WORKFLOW_STEPS.length
   return STAGE_ORDER.indexOf(s.stage) + 1
 }
+
+/** "Packing", "Carrier", ...: the step a cancelled shipment stopped at. */
+export const cancelledAtLabel = (s: InboundShipment) => WORKFLOW_STEPS[getActiveStepIndex(s)]?.label
 
 /**
  * Quantities can change until box contents are sent. Amazon can't change a
@@ -99,6 +106,13 @@ export const canEditItems = (s: InboundShipment) =>
   s.status === 'in_progress' && (s.stage === 'draft' || s.stage === 'plan_created')
 
 export const isOpen = (s: InboundShipment) => s.status === 'in_progress'
+
+/** Pallet labels only exist for freight (LTL / FTL) legs. */
+export const shipsAsFreight = (s: InboundShipment) => s.legs.some((l) => l.shippingMode?.startsWith('FREIGHT'))
+
+/** The ID Amazon prints on labels (FBA15…), falling back to the API shipment id. */
+export const legReference = (l: { shipmentConfirmationId?: string; amazonShipmentId?: string }) =>
+  l.shipmentConfirmationId ?? l.amazonShipmentId
 
 export const getShipmentUnits = (s: InboundShipment) =>
   s.items.reduce((sum, i) => sum + i.quantity, 0)

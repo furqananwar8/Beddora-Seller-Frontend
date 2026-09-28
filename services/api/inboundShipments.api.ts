@@ -22,10 +22,6 @@ export interface CreateShipmentRequest {
   items: ShipmentLineInput[]
 }
 
-export interface LabelDownload {
-  label: string // e.g. "FBA15ABC · YYZ4"
-  url: string
-}
 
 /**
  * FBA inbound shipments. Local actions reserve / release / ship stock; the
@@ -39,9 +35,15 @@ export const inboundShipmentsApi = baseApi.injectEndpoints({
       providesTags: ['InboundShipments'],
     }),
 
+    /** sandbox: true when the backend sends the Amazon steps to the SP-API sandbox (FBA_SANDBOX). */
+    getShipmentsConfig: builder.query<{ sandbox: boolean }, void>({
+      query: () => ({ url: '/inventory/shipments/config' }),
+    }),
+
     getShipmentPool: builder.query<ReservedPoolItem[], void>({
       query: () => ({ url: '/inventory/shipments/pool' }),
-      providesTags: ['InboundShipments'],
+      // Allocations in the Planner change the FBA pool, and they invalidate Inventory
+      providesTags: ['InboundShipments', 'Inventory'],
     }),
 
     createShipment: builder.mutation<InboundShipment, CreateShipmentRequest>({
@@ -97,8 +99,14 @@ export const inboundShipmentsApi = baseApi.injectEndpoints({
       invalidatesTags: ['InboundShipments'],
     }),
 
-    getShipmentLabels: builder.mutation<LabelDownload[], { id: string; type: LabelType }>({
-      query: ({ id, type }) => ({ url: `/inventory/shipments/${id}/labels/${type}` }),
+    /** The label file from our server's copy (PDF, or a zip when Amazon split it into several). */
+    downloadShipmentLabels: builder.mutation<Blob, { id: string; type: LabelType }>({
+      query: ({ id, type }) => ({
+        url: `/inventory/shipments/${id}/labels/${type}/file`,
+        responseHandler: (response) => (response.ok ? response.blob() : response.json()),
+      }),
+      // A retry can turn a failed copy into a ready one
+      invalidatesTags: ['InboundShipments'],
     }),
 
     syncShipments: builder.mutation<InboundShipment[], void>({
@@ -110,6 +118,7 @@ export const inboundShipmentsApi = baseApi.injectEndpoints({
 
 export const {
   useGetShipmentsQuery,
+  useGetShipmentsConfigQuery,
   useGetShipmentPoolQuery,
   useCreateShipmentMutation,
   useUpdateShipmentItemsMutation,
@@ -121,6 +130,6 @@ export const {
   useGetShipmentOptionsMutation,
   useConfirmShipmentOptionsMutation,
   useGenerateShipmentLabelsMutation,
-  useGetShipmentLabelsMutation,
+  useDownloadShipmentLabelsMutation,
   useSyncShipmentsMutation,
 } = inboundShipmentsApi

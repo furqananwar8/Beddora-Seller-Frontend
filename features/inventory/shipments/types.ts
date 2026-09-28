@@ -33,6 +33,14 @@ export type ShipmentStage =
 
 export type LabelType = 'box' | 'pallet' | 'unit'
 
+/** Our server keeps a copy of each label file; this is how that copy is doing. */
+export interface LabelFileStatus {
+  status: 'pending' | 'ready' | 'failed'
+  /** Why the labels couldn't be fetched from Amazon. */
+  error?: string
+  updatedAt: string
+}
+
 export type DimensionUnit = 'IN' | 'CM'
 export type WeightUnit = 'LB' | 'KG'
 
@@ -78,6 +86,10 @@ export interface AmazonShipmentLeg {
   boxes?: number
   deliveryWindow?: DeliveryWindow
   carrier?: string
+  /** GROUND_SMALL_PARCEL | FREIGHT_LTL | FREIGHT_FTL_PALLET | ... */
+  shippingMode?: string
+  /** AMAZON_PARTNERED_CARRIER | USE_YOUR_OWN_CARRIER */
+  shippingSolution?: string
   status?: string
 }
 
@@ -97,6 +109,8 @@ export interface InboundShipment {
   createdAt: string
   updatedAt: string
   shippedAt?: string
+  /** Box and FNSKU label copies on our server, fetched in the background once labels are generated. */
+  labels: Partial<Record<'box' | 'unit', LabelFileStatus>>
 }
 
 /**

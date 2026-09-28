@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import {
   OptionKind,
   useCancelShipmentMutation,
@@ -8,9 +8,10 @@ import {
   useCreateShipmentMutation,
   useGenerateShipmentLabelsMutation,
   useGetPackingPlanMutation,
-  useGetShipmentLabelsMutation,
+  useDownloadShipmentLabelsMutation,
   useGetShipmentOptionsMutation,
   useGetShipmentPoolQuery,
+  useGetShipmentsConfigQuery,
   useGetShipmentsQuery,
   useMarkShipmentShippedMutation,
   useSubmitInboundPlanMutation,
@@ -18,9 +19,44 @@ import {
   useSyncShipmentsMutation,
   useUpdateShipmentItemsMutation,
 } from '@/services/api/inboundShipments.api'
-import { AmazonOption, InboundShipment, InboundShipmentItem, LabelType, Marketplace, PackingSubmission } from './types'
+import {
+  AmazonOption,
+  InboundShipment,
+  InboundShipmentItem,
+  LabelType,
+  Marketplace,
+  PackingPlan,
+  PackingSubmission,
+  ReservedPoolItem,
+} from './types'
 
 export type { OptionKind }
+
+/**
+ * sandbox: the backend sends the Amazon steps to the SP-API sandbox (FBA_SANDBOX)
+ * live:    the backend calls the real seller account
+ */
+export type ShipmentsMode = 'sandbox' | 'live'
+
+/** What the Shipments screens need from their data source. */
+export interface ShipmentsController {
+  mode: ShipmentsMode
+  shipments: InboundShipment[]
+  pool: ReservedPoolItem[]
+  lastSyncedAt: string
+  createShipment: (input: CreateShipmentInput) => Promise<InboundShipment>
+  saveItems: (id: string, items: InboundShipmentItem[]) => Promise<InboundShipment>
+  submitPlan: (id: string) => Promise<InboundShipment>
+  getPackingPlan: (id: string) => Promise<PackingPlan>
+  submitPacking: (id: string, submission: PackingSubmission) => Promise<InboundShipment>
+  getOptions: (shipment: InboundShipment, kind: OptionKind) => Promise<AmazonOption[]>
+  confirmOptions: (id: string, kind: OptionKind, chosen: AmazonOption[]) => Promise<InboundShipment>
+  generateLabels: (id: string) => Promise<InboundShipment>
+  downloadLabels: (id: string, type: LabelType) => Promise<Blob>
+  markShipped: (id: string) => Promise<InboundShipment>
+  cancelShipment: (id: string) => Promise<InboundShipment>
+  sync: () => Promise<void>
+}
 
 export interface CreateShipmentInput {
   name: string
@@ -51,9 +87,22 @@ const toLines = (items: InboundShipmentItem[]) =>
  * stock between the FBA pool and shipments; Amazon actions run the SP-API
  * inbound workflow on the backend.
  */
-export const useShipments = () => {
-  const { data: shipments = [] } = useGetShipmentsQuery()
+export const useShipments = (): ShipmentsController => {
+  // Poll while the server is still fetching label files, so their status appears on its own
+  const [pollMs, setPollMs] = useState(0)
+  const { data: shipments = [] } = useGetShipmentsQuery(undefined, { pollingInterval: pollMs })
+  useEffect(() => {
+    // Labels are fetched right after they're generated, so a status that's missing counts as still preparing
+    const preparing = shipments.some(
+      (s) =>
+        s.status === 'in_progress' &&
+        s.stage === 'labels_ready' &&
+        (['box', 'unit'] as const).some((t) => !s.labels?.[t] || s.labels[t]?.status === 'pending')
+    )
+    setPollMs(preparing ? 3000 : 0)
+  }, [shipments])
   const { data: pool = [] } = useGetShipmentPoolQuery()
+  const { data: config } = useGetShipmentsConfigQuery()
   const [lastSyncedAt, setLastSyncedAt] = useState<string>(() => new Date().toISOString())
 
   const [create] = useCreateShipmentMutation()
@@ -66,7 +115,7 @@ export const useShipments = () => {
   const [options] = useGetShipmentOptionsMutation()
   const [confirm] = useConfirmShipmentOptionsMutation()
   const [labels] = useGenerateShipmentLabelsMutation()
-  const [labelDownloads] = useGetShipmentLabelsMutation()
+  const [labelFile] = useDownloadShipmentLabelsMutation()
   const [syncAll] = useSyncShipmentsMutation()
 
   const createShipment = useCallback(
@@ -103,9 +152,9 @@ export const useShipments = () => {
 
   const generateLabels = useCallback((id: string) => call(labels(id), 'Could not generate labels'), [labels])
 
-  const getLabels = useCallback(
-    (id: string, type: LabelType) => call(labelDownloads({ id, type }), 'Could not get labels from Amazon'),
-    [labelDownloads]
+  const downloadLabels = useCallback(
+    (id: string, type: LabelType) => call(labelFile({ id, type }), 'Could not download the labels'),
+    [labelFile]
   )
 
   const markShipped = useCallback((id: string) => call(ship(id), 'Could not mark as shipped'), [ship])
@@ -120,6 +169,7 @@ export const useShipments = () => {
   return {
     shipments,
     pool,
+    mode: config?.sandbox ? 'sandbox' : 'live',
     lastSyncedAt,
     createShipment,
     saveItems,
@@ -129,11 +179,10 @@ export const useShipments = () => {
     getOptions,
     confirmOptions,
     generateLabels,
-    getLabels,
+    downloadLabels,
     markShipped,
     cancelShipment,
     sync,
   }
 }
 
-export type ShipmentsController = ReturnType<typeof useShipments>
