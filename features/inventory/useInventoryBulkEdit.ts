@@ -1,7 +1,8 @@
 "use client"
 
 import { useCallback, useState } from 'react'
-import { toast } from 'sonner'
+import { useAppDispatch } from '@/store/hooks'
+import { addNotification } from '@/store/ui.slice'
 import {
   InventoryItemChange,
   InventoryItemStatus,
@@ -79,6 +80,7 @@ function collectChanges(
  * SKU / description / status per row, then save every change at once.
  */
 export function useInventoryBulkEdit(products: ProductInventoryItem[]) {
+  const dispatch = useAppDispatch()
   const [edit, setEdit] = useState<BulkEditState>(INITIAL_EDIT)
   const [updateItems, { isLoading: isSaving }] = useUpdateInventoryItemsMutation()
 
@@ -107,18 +109,18 @@ export function useInventoryBulkEdit(products: ProductInventoryItem[]) {
     const { changes, errors } = collectChanges(edit.drafts, products)
     if (Object.keys(errors).length > 0) {
       setEdit((prev) => ({ ...prev, errors }))
-      toast.error('Fix the highlighted fields before saving')
+      dispatch(addNotification({ message: 'Fix the highlighted fields before saving', type: 'error' }))
       return
     }
     if (changes.length === 0) {
       setEdit(INITIAL_EDIT)
-      toast.info('No changes to save')
+      dispatch(addNotification({ message: 'No changes to save', type: 'info' }))
       return
     }
 
     try {
       await updateItems(changes).unwrap()
-      toast.success(`Saved ${changes.length} item${changes.length === 1 ? '' : 's'}`)
+      dispatch(addNotification({ message: `Saved ${changes.length} item${changes.length === 1 ? '' : 's'}`, type: 'success' }))
       setEdit(INITIAL_EDIT)
     } catch (err: any) {
       const conflicts: InventorySkuConflict[] = err?.data?.conflicts ?? []
@@ -128,9 +130,9 @@ export function useInventoryBulkEdit(products: ProductInventoryItem[]) {
           errors: Object.fromEntries(conflicts.map((c) => [String(c.id), { sku: CONFLICT_MESSAGE[c.reason] }])),
         }))
       }
-      toast.error(err?.data?.error ?? 'Couldn’t save changes. Try again.')
+      dispatch(addNotification({ message: err?.data?.error ?? 'Couldn’t save changes. Try again.', type: 'error' }))
     }
-  }, [edit.drafts, products, updateItems])
+  }, [edit.drafts, products, updateItems, dispatch])
 
   return { edit, isSaving, startEditing, cancel, setDraftField, save }
 }

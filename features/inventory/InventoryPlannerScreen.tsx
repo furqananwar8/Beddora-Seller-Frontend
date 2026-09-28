@@ -2,7 +2,8 @@
 
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { toast } from 'sonner'
+import { useAppDispatch } from '@/store/hooks'
+import { addNotification } from '@/store/ui.slice'
 import { Container } from '@/components/layout'
 import { Button } from '@/design-system/buttons'
 import { Card, CardContent } from '@/design-system/cards'
@@ -75,6 +76,7 @@ const MARKETPLACES = [
 // ============================================
 
 export const InventoryPlannerScreen: React.FC = () => {
+  const dispatch = useAppDispatch()
   const router = useRouter()
 
   // ---- Search ----
@@ -241,7 +243,7 @@ export const InventoryPlannerScreen: React.FC = () => {
     const channels = channelTargets.filter((t) => t.connected).map((t) => t.id)
     if (selectedRows.length === 0) return
     if (channels.length === 0) {
-      toast.error('No connected channels to push to')
+      dispatch(addNotification({ message: 'No connected channels to push to', type: 'error' }))
       return
     }
 
@@ -249,7 +251,7 @@ export const InventoryPlannerScreen: React.FC = () => {
     try {
       await pushStock(selectedRows.map((row) => ({ inventoryItemId: Number(row.id), channels }))).unwrap()
     } catch (err: any) {
-      toast.error(err?.data?.error ?? 'Couldn’t push stock. Try again.')
+      dispatch(addNotification({ message: err?.data?.error ?? 'Couldn’t push stock. Try again.', type: 'error' }))
     }
   }
 

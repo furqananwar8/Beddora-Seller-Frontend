@@ -1,7 +1,8 @@
 "use client"
 
 import { useCallback, useMemo, useState } from 'react'
-import { toast } from 'sonner'
+import { useAppDispatch } from '@/store/hooks'
+import { addNotification } from '@/store/ui.slice'
 import {
   AllocationConflict,
   AllocationItemInput,
@@ -42,6 +43,7 @@ const samePush = (a: PushResult, b: PushResult) => a.inventoryItemId === b.inven
  * when the drawer opens, so a background refetch never resets in-progress edits.
  */
 export function useAllocationDrawer(items: ProductInventoryItem[]) {
+  const dispatch = useAppDispatch()
   const [state, setState] = useState<DrawerState>(() => initialState(items))
   const { data: targets = [], isLoading: targetsLoading } = useGetChannelTargetsQuery()
   const [saveAllocation, { isLoading: isSaving }] = useSaveAllocationMutation()
@@ -136,9 +138,9 @@ export function useAllocationDrawer(items: ProductInventoryItem[]) {
       setState((prev) => ({ ...prev, step: 'result', result, conflicts: [] }))
     } catch (err: any) {
       setState((prev) => ({ ...prev, conflicts: err?.data?.conflicts ?? [] }))
-      toast.error(err?.data?.error ?? 'Couldn’t save the allocation. Try again.')
+      dispatch(addNotification({ message: err?.data?.error ?? 'Couldn’t save the allocation. Try again.', type: 'error' }))
     }
-  }, [allocationInput, channelsFor, items, saveAllocation])
+  }, [allocationInput, channelsFor, items, saveAllocation, dispatch])
 
   /** Re-pushes the given listings and swaps their results in place. */
   const retry = useCallback(
@@ -161,10 +163,10 @@ export function useAllocationDrawer(items: ProductInventoryItem[]) {
             : prev
         )
       } catch (err: any) {
-        toast.error(err?.data?.error ?? 'Retry failed. Try again.')
+        dispatch(addNotification({ message: err?.data?.error ?? 'Retry failed. Try again.', type: 'error' }))
       }
     },
-    [pushStock]
+    [pushStock, dispatch]
   )
 
   const retryFailed = useCallback(
