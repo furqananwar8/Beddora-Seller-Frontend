@@ -2,8 +2,10 @@
 
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { Button } from '@/design-system/buttons'
+import { Spinner } from '@/design-system/loaders'
 import { cn } from '@/utils/cn'
-import { DeliveryWindow, InboundShipment, ShipmentStatus } from './types'
+import { DeliveryWindow, InboundShipment, LabelFileStatus, ShipmentStatus } from './types'
 import { STATUS_META, WORKFLOW_STEPS, getActiveStepIndex } from './workflow'
 
 export const formatUnits = (n: number) => new Intl.NumberFormat('en-US').format(n)
@@ -65,6 +67,7 @@ export const StageProgress: React.FC<{ shipment: InboundShipment }> = ({ shipmen
   const active = getActiveStepIndex(shipment)
   const total = WORKFLOW_STEPS.length
   const done = Math.min(active, total)
+  const cancelled = shipment.status === 'cancelled'
   return (
     <div className="flex items-center gap-2">
       <div className="flex gap-0.5" aria-hidden>
@@ -73,7 +76,11 @@ export const StageProgress: React.FC<{ shipment: InboundShipment }> = ({ shipmen
             key={step.key}
             className={cn(
               'h-1.5 w-3 rounded-full',
-              i < done ? 'bg-secondary-800' : i === active ? 'bg-warning-400' : 'bg-secondary-200'
+              i < done
+                ? cancelled ? 'bg-secondary-400' : 'bg-secondary-800'
+                : i === active
+                ? cancelled ? 'bg-danger-400' : 'bg-warning-400'
+                : 'bg-secondary-200'
             )}
           />
         ))}
@@ -92,15 +99,19 @@ export const WorkflowStepper: React.FC<{ shipment: InboundShipment }> = ({ shipm
   return (
     <ol className="flex items-center gap-1 overflow-x-auto pb-1">
       {WORKFLOW_STEPS.map((step, i) => {
-        const done = !cancelled && i < active
-        const current = !cancelled && i === active
+        const done = i < active
+        const current = i === active
+        // A cancelled shipment keeps its completed steps (muted) and marks where it stopped
+        const stoppedHere = cancelled && current
         return (
           <li key={step.key} className="flex min-w-0 items-center gap-1">
             <div
               className={cn(
                 'flex items-center gap-2 whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-medium',
-                done && 'border-secondary-800 bg-secondary-800 text-white',
-                current && 'border-warning-300 bg-warning-50 text-warning-800',
+                done && !cancelled && 'border-secondary-800 bg-secondary-800 text-white',
+                done && cancelled && 'border-secondary-300 bg-secondary-100 text-secondary-700',
+                current && !cancelled && 'border-warning-300 bg-warning-50 text-warning-800',
+                stoppedHere && 'border-danger-200 bg-danger-50 text-danger-700',
                 !done && !current && 'border-border bg-surface text-text-muted'
               )}
               aria-current={current ? 'step' : undefined}
@@ -108,12 +119,14 @@ export const WorkflowStepper: React.FC<{ shipment: InboundShipment }> = ({ shipm
               <span
                 className={cn(
                   'flex h-4 w-4 items-center justify-center rounded-full text-[10px]',
-                  done ? 'bg-white/20' : current ? 'bg-warning-200' : 'bg-secondary-100'
+                  done
+                    ? cancelled ? 'bg-secondary-200' : 'bg-white/20'
+                    : stoppedHere ? 'bg-danger-100' : current ? 'bg-warning-200' : 'bg-secondary-100'
                 )}
               >
-                {done ? '✓' : i + 1}
+                {done ? '✓' : stoppedHere ? '✕' : i + 1}
               </span>
-              {step.label}
+              {stoppedHere ? `Cancelled at ${step.label.toLowerCase()}` : step.label}
             </div>
             {i < WORKFLOW_STEPS.length - 1 && (
               <span className={cn('h-px w-4 flex-shrink-0', done ? 'bg-secondary-800' : 'bg-border')} />
@@ -198,5 +211,81 @@ export const FloatingMenu: React.FC<{
       {children}
     </div>,
     document.body
+  )
+}
+
+/**
+ * A label download button. Spins while a download (or the server's background
+ * fetch) is running; a warning badge means the labels couldn't be fetched, with
+ * the reason on hover, and clicking tries again.
+ */
+export const LabelButton: React.FC<{
+  label: string
+  status?: LabelFileStatus
+  isDownloading: boolean
+  onClick: () => void
+}> = ({ label, status, isDownloading, onClick }) => {
+  const preparing = status?.status === 'pending'
+  const failed = status?.status === 'failed'
+  const busy = isDownloading || preparing
+  const message = `${status?.error ?? 'These labels aren’t available right now.'} Click to try again.`
+  return (
+    <span className="relative inline-flex">
+      <Button variant="outline" size="sm" onClick={onClick} disabled={busy} aria-busy={busy}>
+        <span className="flex items-center gap-2">
+          {busy ? <Spinner size="sm" /> : <span aria-hidden>↓</span>}
+          {preparing && !isDownloading ? `Preparing ${label.toLowerCase()}…` : label}
+        </span>
+      </Button>
+      {failed && !busy && (
+        <HoverTooltip text={message}>
+          <span
+            className="absolute -right-1.5 -top-1.5 flex h-4 w-4 cursor-help items-center justify-center !rounded-full bg-danger-500 text-[10px] font-bold text-white"
+            aria-label={`${label} unavailable. ${message}`}
+          >
+            !
+          </span>
+        </HoverTooltip>
+      )}
+    </span>
+  )
+}
+
+const TOOLTIP_WIDTH = 256
+
+/**
+ * Tooltip rendered in a portal with fixed positioning, so dialogs and scroll
+ * containers can't clip it. Opens above the anchor, flipping below when there's
+ * no room, and stays inside the viewport horizontally.
+ */
+const HoverTooltip: React.FC<{ text: string; children: React.ReactElement }> = ({ text, children }) => {
+  const [pos, setPos] = useState<{ top: number; left: number; below: boolean } | null>(null)
+
+  const show = (e: React.MouseEvent | React.FocusEvent) => {
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+    const left = Math.min(Math.max(8, rect.left + rect.width / 2 - TOOLTIP_WIDTH / 2), window.innerWidth - TOOLTIP_WIDTH - 8)
+    const below = rect.top < 80
+    setPos({ top: below ? rect.bottom + 8 : rect.top - 8, left, below })
+  }
+  const hide = () => setPos(null)
+
+  return (
+    <>
+      {React.cloneElement(children, { onMouseEnter: show, onMouseLeave: hide, onFocus: show, onBlur: hide, tabIndex: 0 })}
+      {pos &&
+        createPortal(
+          <div
+            role="tooltip"
+            style={{ top: pos.top, left: pos.left, width: TOOLTIP_WIDTH }}
+            className={cn(
+              'pointer-events-none fixed z-[10000] !rounded-md bg-secondary-900 px-3 py-2 text-xs leading-snug text-white shadow-lg',
+              !pos.below && '-translate-y-full'
+            )}
+          >
+            {text}
+          </div>,
+          document.body
+        )}
+    </>
   )
 }
