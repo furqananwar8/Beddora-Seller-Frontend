@@ -1,5 +1,7 @@
 'use client'
 
+import { useAiContext } from '@/components/ai-assistant'
+
 import React, {
   useMemo,
   useState,
@@ -392,6 +394,29 @@ export const SellerboardProductsTable: React.FC<
     }
     const activeProducts = products ?? previousProductsRef.current
 
+    // Let the Ask AI assistant see this table's real numbers (top sellers first)
+    useAiContext({
+      pageName: 'Profit by product (sales, ads, fees, COGS, profit)',
+      data: (activeProducts ?? [])
+        .slice()
+        .sort((x, y) => (y.salesRevenue || 0) - (x.salesRevenue || 0))
+        .slice(0, 30)
+        .map((x) => ({
+          sku: x.sku,
+          title: x.productTitle,
+          units: x.unitsSold,
+          sales: x.salesRevenue,
+          ads: x.advertisingCost,
+          refunds: x.totalRefunds,
+          fees: x.totalFees,
+          cogs: x.totalCOGS,
+          netProfit: x.netProfit,
+          margin: x.margin,
+          roi: x.roi,
+          realACOS: x.realACOS,
+        })),
+    })
+
     // Auto-expand parent rows when search is active
     useEffect(() => {
       if (searchTerm.trim() && activeProducts && activeProducts.length > 0) {
@@ -761,7 +786,8 @@ export const SellerboardProductsTable: React.FC<
     const isTableEmpty = showInitialLoading || error || !paginatedProducts.length
 
     return (
-      <div className="w-full space-y-4 relative min-h-[400px]">
+      // data-ai-registered: the AI already gets this table via useAiContext, skip the DOM copy
+      <div className="w-full space-y-4 relative min-h-[400px]" data-ai-registered>
         {/* Single Refetch Backdrop Overlay */}
         {isFetching && !showInitialLoading && activeProducts && activeProducts.length > 0 && (
           <div className="absolute inset-0 bg-surface/65 backdrop-blur-[1px] z-30 flex items-center justify-center rounded-lg transition-opacity duration-200">

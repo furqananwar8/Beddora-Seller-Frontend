@@ -9,6 +9,7 @@ import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { NavIcons } from '@/components/navigation/icons'
 import { setAmazonSession } from '@/store/amazon.slice'
 import { useAppAbility } from '@/hooks/useAppAbility'
+import { AiAssistant } from '@/components/ai-assistant'
 
 export interface NavItem {
   label: string
@@ -362,6 +363,7 @@ export default function DashboardLayout({
             onDashboardTabChange={showDashboardTabs ? setActiveDashboardTab : undefined}
           />
           <main className="ds-content">{children}</main>
+          <AiAssistant />
         </div>
       </div>
     </ProtectedRoute>
