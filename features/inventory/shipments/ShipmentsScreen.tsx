@@ -33,7 +33,7 @@ import { ShipmentRow, SHIPMENT_TABLE_COLUMNS } from './ShipmentRow'
 import { CreateMode, CreateShipmentDrawer } from './CreateShipmentDrawer'
 import { ConfirmModal, MarkShippedModal, OptionPickerModal } from './ShipmentDialogs'
 import { PackingModal } from './PackingModal'
-import { formatRelative, formatUnits } from './ShipmentParts'
+import { formatRelative, formatUnits, unitsLabel } from './ShipmentParts'
 
 type StatusFilter = 'all' | ShipmentStatus
 
@@ -76,6 +76,7 @@ export const ShipmentsScreen: React.FC = () => {
     confirmOptions,
     generateLabels,
     downloadLabels,
+    setShipFrom,
     getShipRequirements,
     markShipped,
     cancelShipment,
@@ -524,6 +525,7 @@ export const ShipmentsScreen: React.FC = () => {
                     onToggle={() => toggle(s.id)}
                     pool={pool}
                     availableElsewhere={getUnassignedUnits(pool, shipments, s.id)}
+                    onChangeShipFrom={(choice) => run(() => setShipFrom(s.id, choice), `${s.reference} will ship from the new address`, 'Could not change the ship-from address')}
                     onSaveItems={(items) =>
                       run(
                         () => saveItems(s.id, items),
@@ -581,7 +583,7 @@ export const ShipmentsScreen: React.FC = () => {
           const s = shippingTarget
           return run(
             () => markShipped(s!.id, tracking),
-            `${s?.reference} confirmed with Amazon and marked as shipped. ${formatUnits(s ? getShipmentUnits(s) : 0)} units deducted from inventory.`,
+            `${s?.reference} confirmed with Amazon and marked as shipped. ${unitsLabel(s ? getShipmentUnits(s) : 0)} deducted from inventory.`,
             'Could not mark as shipped'
           )
         }}

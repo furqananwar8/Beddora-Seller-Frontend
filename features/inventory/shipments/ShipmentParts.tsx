@@ -18,6 +18,9 @@ export const formatShortDate = (iso: string) =>
 export const formatWindow = (w?: DeliveryWindow) =>
   w ? `${formatShortDate(w.start)} – ${formatShortDate(w.end)}` : '—'
 
+/** "1 unit", "12 units". */
+export const unitsLabel = (n: number) => `${formatUnits(n)} unit${n === 1 ? '' : 's'}`
+
 export const formatRelative = (iso: string) => {
   const mins = Math.round((Date.now() - new Date(iso).getTime()) / 60000)
   if (mins < 1) return 'just now'

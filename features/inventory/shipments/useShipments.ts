@@ -14,6 +14,7 @@ import {
   useGetShipmentsConfigQuery,
   useGetShipmentsQuery,
   useMarkShipmentShippedMutation,
+  useUpdateShipmentShipFromMutation,
   useGetShipRequirementsMutation,
   useSubmitInboundPlanMutation,
   useSubmitPackingMutation,
@@ -57,10 +58,18 @@ export interface ShipmentsController {
   confirmOptions: (id: string, kind: OptionKind, chosen: AmazonOption[]) => Promise<InboundShipment>
   generateLabels: (id: string) => Promise<InboundShipment>
   downloadLabels: (id: string, type: LabelType) => Promise<Blob>
+  setShipFrom: (id: string, choice: ShipFromRequest) => Promise<InboundShipment>
   getShipRequirements: (id: string) => Promise<ShipLegRequirement[]>
   markShipped: (id: string, tracking?: ShipTrackingInput[]) => Promise<InboundShipment>
   cancelShipment: (id: string) => Promise<InboundShipment>
   sync: () => Promise<void>
+}
+
+/** A saved address, or a typed one (saved to the address book unless saveShipFromAddress is false). */
+export interface ShipFromRequest {
+  shipFromAddressId?: number
+  shipFromAddress?: ShipFromAddress
+  saveShipFromAddress?: boolean
 }
 
 export interface CreateShipmentInput {
@@ -118,6 +127,7 @@ export const useShipments = (): ShipmentsController => {
   const [cancel] = useCancelShipmentMutation()
   const [ship] = useMarkShipmentShippedMutation()
   const [shipRequirements] = useGetShipRequirementsMutation()
+  const [updateShipFrom] = useUpdateShipmentShipFromMutation()
   const [submit] = useSubmitInboundPlanMutation()
   const [packingPlan] = useGetPackingPlanMutation()
   const [packing] = useSubmitPackingMutation()
@@ -176,6 +186,11 @@ export const useShipments = (): ShipmentsController => {
     [labelFile]
   )
 
+  const setShipFrom = useCallback(
+    (id: string, choice: ShipFromRequest) => call(updateShipFrom({ id, ...choice }), 'Could not change the ship-from address'),
+    [updateShipFrom]
+  )
+
   const getShipRequirements = useCallback(
     async (id: string) => (await call(shipRequirements(id), 'Could not check the shipment with Amazon')).legs,
     [shipRequirements]
@@ -208,6 +223,7 @@ export const useShipments = (): ShipmentsController => {
     generateLabels,
     downloadLabels,
     markShipped,
+    setShipFrom,
     getShipRequirements,
     cancelShipment,
     sync,

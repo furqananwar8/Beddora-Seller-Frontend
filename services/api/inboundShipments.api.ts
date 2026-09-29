@@ -68,6 +68,15 @@ export const inboundShipmentsApi = baseApi.injectEndpoints({
       invalidatesTags: ['InboundShipments', 'Inventory'],
     }),
 
+    /** Changes where a draft ships from (drafts only; a plan sent to Amazon keeps its address). */
+    updateShipmentShipFrom: builder.mutation<
+      InboundShipment,
+      { id: string; shipFromAddressId?: number; shipFromAddress?: ShipFromAddress; saveShipFromAddress?: boolean }
+    >({
+      query: ({ id, ...body }) => ({ url: `/inventory/shipments/${id}/ship-from`, method: 'PATCH', body }),
+      invalidatesTags: ['InboundShipments'],
+    }),
+
     /** What Amazon needs before this can be marked as shipped (tracking for own-carrier legs). */
     getShipRequirements: builder.mutation<{ legs: ShipLegRequirement[] }, string>({
       query: (id) => ({ url: `/inventory/shipments/${id}/ship-requirements`, method: 'GET' }),
@@ -137,6 +146,7 @@ export const {
   useUpdateShipmentItemsMutation,
   useCancelShipmentMutation,
   useMarkShipmentShippedMutation,
+  useUpdateShipmentShipFromMutation,
   useGetShipRequirementsMutation,
   useSubmitInboundPlanMutation,
   useGetPackingPlanMutation,

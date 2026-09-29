@@ -7,6 +7,8 @@ import { Spinner } from '@/design-system/loaders'
 import { cn } from '@/utils/cn'
 import { formatCurrency } from '@/utils/format'
 import { formatAddressLine } from './AddressForm'
+import { ShipFromChoice, ShipFromPicker, shipFromRequest } from './ShipFromPicker'
+import type { ShipFromRequest } from './useShipments'
 import {
   InboundShipment,
   InboundShipmentItem,
@@ -49,6 +51,8 @@ interface ShipmentRowProps {
   /** Unassigned reserved units per product, NOT counting this shipment's own qty. */
   availableElsewhere: Record<string, number>
   onSaveItems: (items: InboundShipmentItem[]) => Promise<void>
+  /** Drafts only: pick another ship-from address. */
+  onChangeShipFrom: (choice: ShipFromRequest) => Promise<unknown>
   onAction: (action: NextAction) => Promise<void> | void
   onCancel: () => void
   onDownloadLabel: (type: LabelType) => void
@@ -73,6 +77,7 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({
   pool,
   availableElsewhere,
   onSaveItems,
+  onChangeShipFrom,
   onAction,
   onCancel,
   onDownloadLabel,
@@ -83,6 +88,12 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({
   const [isSaving, setIsSaving] = useState(false)
   const [isActing, setIsActing] = useState(false)
   const [isAddOpen, setIsAddOpen] = useState(false)
+  // Ship-from is editable only until the plan is sent to Amazon
+  const canChangeFrom = shipment.status === 'in_progress' && shipment.stage === 'draft'
+  const [fromChoice, setFromChoice] = useState<ShipFromChoice | null>(null)
+  const [isEditingFrom, setIsEditingFrom] = useState(false)
+  const [isSavingFrom, setIsSavingFrom] = useState(false)
+  const [fromError, setFromError] = useState<string | null>(null)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const menuRef = useRef<HTMLButtonElement>(null)
   const addRef = useRef<HTMLDivElement>(null)
@@ -152,6 +163,25 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({
       // toast shown by caller; keep the draft so the user can retry
     } finally {
       setIsSaving(false)
+    }
+  }
+
+  const handleSaveFrom = async () => {
+    const request = shipFromRequest(fromChoice)
+    if (!request || (!request.shipFromAddressId && !request.shipFromAddress)) {
+      return setFromError(request ? 'Pick a saved address or enter one.' : 'Complete the address first.')
+    }
+    setIsSavingFrom(true)
+    setFromError(null)
+    try {
+      await onChangeShipFrom(request)
+      setIsEditingFrom(false)
+      setFromChoice(null)
+    } catch (err) {
+      // the toast is behind nothing here, but keep the reason next to the field too
+      setFromError((err as Error).message || 'Could not change the ship-from address')
+    } finally {
+      setIsSavingFrom(false)
     }
   }
 
@@ -354,18 +384,44 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({
               </dl>
 
               {/* Ship-from and Amazon's fee estimates */}
-              {(shipment.shipFrom || shipment.fees) && (
+              {(shipment.shipFrom || shipment.fees || canChangeFrom) && (
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  {shipment.shipFrom && (
+                  {(shipment.shipFrom || canChangeFrom) && (
                     <div className="rounded-lg border border-border bg-surface p-4 text-sm">
-                      <div className="text-[11px] font-medium uppercase tracking-wider text-text-muted">Ship from</div>
-                      <div className="mt-1 font-medium text-text-primary">
-                        {shipment.shipFrom.companyName ?? shipment.shipFrom.name}
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-medium uppercase tracking-wider text-text-muted">Ship from</span>
+                        {canChangeFrom && !isEditingFrom && (
+                          <Button variant="ghost" size="sm" onClick={() => setIsEditingFrom(true)}>
+                            Change
+                          </Button>
+                        )}
                       </div>
-                      <div className="text-text-secondary">{formatAddressLine(shipment.shipFrom)}</div>
-                      <div className="text-xs text-text-muted">
-                        {shipment.shipFrom.name} · {shipment.shipFrom.phoneNumber}
-                      </div>
+                      {isEditingFrom ? (
+                        <div className="mt-2 space-y-3">
+                          <ShipFromPicker label={null} value={fromChoice} onChange={(c) => { setFromChoice(c); setFromError(null) }} showErrors={!!fromError} disabled={isSavingFrom} />
+                          {fromError && <p role="alert" className="text-xs text-danger-700">{fromError}</p>}
+                          <div className="flex justify-end gap-2">
+                            <Button variant="outline" size="sm" onClick={() => { setIsEditingFrom(false); setFromChoice(null); setFromError(null) }} disabled={isSavingFrom}>
+                              Cancel
+                            </Button>
+                            <Button size="sm" onClick={handleSaveFrom} disabled={isSavingFrom || !fromChoice}>
+                              {isSavingFrom ? 'Saving…' : 'Use this address'}
+                            </Button>
+                          </div>
+                        </div>
+                      ) : shipment.shipFrom ? (
+                        <>
+                          <div className="mt-1 font-medium text-text-primary">
+                            {shipment.shipFrom.companyName ?? shipment.shipFrom.name}
+                          </div>
+                          <div className="text-text-secondary">{formatAddressLine(shipment.shipFrom)}</div>
+                          <div className="text-xs text-text-muted">
+                            {shipment.shipFrom.name} · {shipment.shipFrom.phoneNumber}
+                          </div>
+                        </>
+                      ) : (
+                        <div className="mt-1 text-text-muted">Not chosen yet. Your default address is used when this is sent to Amazon.</div>
+                      )}
                     </div>
                   )}
                   {shipment.fees && (

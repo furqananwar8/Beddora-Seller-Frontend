@@ -8,7 +8,7 @@ import { formatCurrency } from '@/utils/format'
 import { cn } from '@/utils/cn'
 import { AmazonOption, InboundShipment, LabelType, ShipLegRequirement, ShipTrackingInput } from './types'
 import { OptionKind } from './useShipments'
-import { LabelButton, ProductThumb, formatUnits, formatWindow } from './ShipmentParts'
+import { LabelButton, ProductThumb, formatUnits, formatWindow, unitsLabel } from './ShipmentParts'
 import { MARKETPLACE_META, getShipmentUnits, shipsAsFreight } from './workflow'
 
 // ============================================
@@ -368,7 +368,7 @@ export const MarkShippedModal: React.FC<MarkShippedModalProps> = ({
       </div>
 
       <div className="mb-4 rounded-md border border-warning-200 bg-warning-50 px-3 py-2.5 text-sm text-warning-800">
-        This deducts <strong>{formatUnits(units)} units</strong> across {shipment.items.length} SKU
+        This deducts <strong>{unitsLabel(units)}</strong> across {shipment.items.length} SKU
         {shipment.items.length !== 1 && 's'} from on-hand inventory and locks the shipment. It can&apos;t be undone.
       </div>
 
@@ -457,7 +457,7 @@ export const MarkShippedModal: React.FC<MarkShippedModalProps> = ({
           Cancel
         </Button>
         <Button onClick={handleConfirm} disabled={!acknowledged || isSubmitting || !legs || legs.length === 0 || !trackingComplete}>
-          {isSubmitting ? 'Confirming with Amazon…' : `Confirm with Amazon & deduct ${formatUnits(units)} units`}
+          {isSubmitting ? 'Confirming with Amazon…' : `Confirm with Amazon & deduct ${unitsLabel(units)}`}
         </Button>
       </div>
     </Modal>

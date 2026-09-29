@@ -8,7 +8,7 @@ import { cn } from '@/utils/cn'
 import { InboundShipment, Marketplace, ReservedPoolItem } from './types'
 import { CreateShipmentInput } from './useShipments'
 import { MARKETPLACE_META, isOpen as isOpenShipment } from './workflow'
-import { formatUnits } from './ShipmentParts'
+import { formatUnits, unitsLabel } from './ShipmentParts'
 import { ShipFromChoice, ShipFromPicker, shipFromRequest } from './ShipFromPicker'
 
 /**
@@ -287,7 +287,7 @@ const DrawerPanel: React.FC<Omit<CreateShipmentDrawerProps, 'isOpen'>> = ({
         )}
         <div className="flex items-center justify-between border-t border-slate-200 bg-slate-50 px-8 py-[18px]">
           <span className="text-sm text-slate-600">
-            {booked.length} product{booked.length !== 1 && 's'} · {formatUnits(totalUnits)} units
+            {booked.length} product{booked.length !== 1 && 's'} · {unitsLabel(totalUnits)}
           </span>
           <div className="flex gap-3">
             <DrawerButton onClick={onClose} disabled={!!submitting}>

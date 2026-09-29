@@ -33,9 +33,11 @@ interface ShipFromPickerProps {
   /** Show the typed address's validation messages. */
   showErrors?: boolean
   disabled?: boolean
+  /** Heading above the field; null when the surrounding card already has one. */
+  label?: string | null
 }
 
-export const ShipFromPicker: React.FC<ShipFromPickerProps> = ({ value, onChange, showErrors = false, disabled = false }) => {
+export const ShipFromPicker: React.FC<ShipFromPickerProps> = ({ value, onChange, showErrors = false, disabled = false, label = 'Ship from' }) => {
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState(false)
   const debounced = useDebounce(query, 200)
@@ -72,9 +74,11 @@ export const ShipFromPicker: React.FC<ShipFromPickerProps> = ({ value, onChange,
 
   return (
     <div ref={boxRef} className="relative">
-      <label htmlFor="ship-from-search" className="mb-1 block text-[13px] font-medium text-slate-700">
-        Ship from
-      </label>
+      {label && (
+        <label htmlFor="ship-from-search" className="mb-1 block text-[13px] font-medium text-slate-700">
+          {label}
+        </label>
+      )}
 
       {value?.kind === 'manual' ? (
         <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-4">
