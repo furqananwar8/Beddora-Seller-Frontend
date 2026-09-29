@@ -10,6 +10,7 @@ import { Tabs } from '@/design-system/tabs'
 import { AmazonAccountAuthorization } from '@/features/amazon/AmazonAccountAuthorization'
 import { AccountsList } from '@/features/accounts/AccountsList'
 import { AmazonAccountsOverview } from '@/features/amazon/AmazonAccountsOverview'
+import { AddressBook } from '@/features/inventory/shipments'
 
 /**
  * Settings Page - Professional Sellerboard-style design
@@ -30,10 +31,11 @@ export default function SettingsDashboardPage() {
   const tabs = [
     { id: 'account', label: 'Account' },
     { id: 'amazon', label: 'Amazon Accounts' },
+    { id: 'addresses', label: 'Addresses' },
   ]
 
   return (
-    <div className="space-y-6 pb-8">
+    <div className="space-y-6 px-4 py-8 sm:px-6 lg:px-8">
       <PageHeader
         title="Settings"
         description="Manage your account settings and connected services"
@@ -185,6 +187,8 @@ export default function SettingsDashboardPage() {
           </Card>
         </div>
       )}
+
+      {activeTab === 'addresses' && <AddressBook />}
 
       {activeTab === 'amazon' && (
         <div className="space-y-6">

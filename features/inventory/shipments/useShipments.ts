@@ -14,6 +14,7 @@ import {
   useGetShipmentsConfigQuery,
   useGetShipmentsQuery,
   useMarkShipmentShippedMutation,
+  useGetShipRequirementsMutation,
   useSubmitInboundPlanMutation,
   useSubmitPackingMutation,
   useSyncShipmentsMutation,
@@ -25,9 +26,12 @@ import {
   InboundShipmentItem,
   LabelType,
   Marketplace,
+  ShipFromAddress,
   PackingPlan,
   PackingSubmission,
   ReservedPoolItem,
+  ShipLegRequirement,
+  ShipTrackingInput,
 } from './types'
 
 export type { OptionKind }
@@ -53,7 +57,8 @@ export interface ShipmentsController {
   confirmOptions: (id: string, kind: OptionKind, chosen: AmazonOption[]) => Promise<InboundShipment>
   generateLabels: (id: string) => Promise<InboundShipment>
   downloadLabels: (id: string, type: LabelType) => Promise<Blob>
-  markShipped: (id: string) => Promise<InboundShipment>
+  getShipRequirements: (id: string) => Promise<ShipLegRequirement[]>
+  markShipped: (id: string, tracking?: ShipTrackingInput[]) => Promise<InboundShipment>
   cancelShipment: (id: string) => Promise<InboundShipment>
   sync: () => Promise<void>
 }
@@ -62,6 +67,9 @@ export interface CreateShipmentInput {
   name: string
   marketplace: Marketplace
   items: InboundShipmentItem[]
+  shipFromAddressId?: number
+  shipFromAddress?: ShipFromAddress
+  saveShipFromAddress?: boolean
 }
 
 /** Server error text when there is one, so Amazon's own message reaches the user. */
@@ -109,6 +117,7 @@ export const useShipments = (): ShipmentsController => {
   const [updateItems] = useUpdateShipmentItemsMutation()
   const [cancel] = useCancelShipmentMutation()
   const [ship] = useMarkShipmentShippedMutation()
+  const [shipRequirements] = useGetShipRequirementsMutation()
   const [submit] = useSubmitInboundPlanMutation()
   const [packingPlan] = useGetPackingPlanMutation()
   const [packing] = useSubmitPackingMutation()
@@ -120,7 +129,17 @@ export const useShipments = (): ShipmentsController => {
 
   const createShipment = useCallback(
     (input: CreateShipmentInput) =>
-      call(create({ name: input.name, marketplace: input.marketplace, items: toLines(input.items) }), 'Could not create the shipment'),
+      call(
+        create({
+          name: input.name,
+          marketplace: input.marketplace,
+          items: toLines(input.items),
+          shipFromAddressId: input.shipFromAddressId,
+          shipFromAddress: input.shipFromAddress,
+          saveShipFromAddress: input.saveShipFromAddress,
+        }),
+        'Could not create the shipment'
+      ),
     [create]
   )
 
@@ -157,7 +176,15 @@ export const useShipments = (): ShipmentsController => {
     [labelFile]
   )
 
-  const markShipped = useCallback((id: string) => call(ship(id), 'Could not mark as shipped'), [ship])
+  const getShipRequirements = useCallback(
+    async (id: string) => (await call(shipRequirements(id), 'Could not check the shipment with Amazon')).legs,
+    [shipRequirements]
+  )
+
+  const markShipped = useCallback(
+    (id: string, tracking?: ShipTrackingInput[]) => call(ship({ id, tracking }), 'Could not mark as shipped'),
+    [ship]
+  )
 
   const cancelShipment = useCallback((id: string) => call(cancel(id), 'Could not cancel the shipment'), [cancel])
 
@@ -181,6 +208,7 @@ export const useShipments = (): ShipmentsController => {
     generateLabels,
     downloadLabels,
     markShipped,
+    getShipRequirements,
     cancelShipment,
     sync,
   }

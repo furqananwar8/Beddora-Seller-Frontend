@@ -19,7 +19,6 @@ const HIDDEN_ROUTES = [
   // Inventory
   '/dashboard/inventory/purchase-orders',
   '/dashboard/inventory/reseller-workflow',
-  '/dashboard/inventory/fba-shipments',
   '/dashboard/inventory/suppliers',
 
   // Autoresponder

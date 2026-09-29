@@ -7,6 +7,9 @@ import type {
   PackingPlan,
   PackingSubmission,
   ReservedPoolItem,
+  ShipFromAddress,
+  ShipLegRequirement,
+  ShipTrackingInput,
 } from '@/features/inventory/shipments/types'
 
 export type OptionKind = 'placement' | 'window' | 'transport'
@@ -20,6 +23,10 @@ export interface CreateShipmentRequest {
   name: string
   marketplace: Marketplace
   items: ShipmentLineInput[]
+  /** A saved address, or a typed one (saved to the address book unless saveShipFromAddress is false). */
+  shipFromAddressId?: number
+  shipFromAddress?: ShipFromAddress
+  saveShipFromAddress?: boolean
 }
 
 
@@ -61,8 +68,14 @@ export const inboundShipmentsApi = baseApi.injectEndpoints({
       invalidatesTags: ['InboundShipments', 'Inventory'],
     }),
 
-    markShipmentShipped: builder.mutation<InboundShipment, string>({
-      query: (id) => ({ url: `/inventory/shipments/${id}/ship`, method: 'POST' }),
+    /** What Amazon needs before this can be marked as shipped (tracking for own-carrier legs). */
+    getShipRequirements: builder.mutation<{ legs: ShipLegRequirement[] }, string>({
+      query: (id) => ({ url: `/inventory/shipments/${id}/ship-requirements`, method: 'GET' }),
+    }),
+
+    /** Confirms the shipment with Amazon, then deducts the stock. */
+    markShipmentShipped: builder.mutation<InboundShipment, { id: string; tracking?: ShipTrackingInput[] }>({
+      query: ({ id, tracking }) => ({ url: `/inventory/shipments/${id}/ship`, method: 'POST', body: { tracking: tracking ?? [] } }),
       invalidatesTags: ['InboundShipments', 'Inventory'],
     }),
 
@@ -124,6 +137,7 @@ export const {
   useUpdateShipmentItemsMutation,
   useCancelShipmentMutation,
   useMarkShipmentShippedMutation,
+  useGetShipRequirementsMutation,
   useSubmitInboundPlanMutation,
   useGetPackingPlanMutation,
   useSubmitPackingMutation,

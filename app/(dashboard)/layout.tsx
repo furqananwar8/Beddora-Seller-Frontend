@@ -170,6 +170,13 @@ export default function DashboardLayout({
                 action: 'read',
                 href: '/dashboard/settings/users',
               },
+              {
+                label: 'Addresses',
+                // Same access as General: a separate subject would need granting to every role first
+                subject: 'settings:general',
+                action: 'read',
+                href: '/dashboard/settings/addresses',
+              },
             ],
           },
         ],

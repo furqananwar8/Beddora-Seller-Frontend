@@ -238,7 +238,7 @@ export const PackingModal: React.FC<PackingModalProps> = ({ shipment, loadPlan, 
                 {o.description && <div className="text-xs text-text-muted">{o.description}</div>}
               </div>
               {o.fee !== undefined && (
-                <div className="text-sm font-semibold text-text-primary">{formatCurrency(o.fee, currency)}</div>
+                <div className="text-sm font-semibold text-text-primary">{formatCurrency(o.fee, o.currency ?? currency)}</div>
               )}
             </label>
           ))}

@@ -6,7 +6,7 @@ import { Button } from '@/design-system/buttons'
 import { Spinner } from '@/design-system/loaders'
 import { formatCurrency } from '@/utils/format'
 import { cn } from '@/utils/cn'
-import { AmazonOption, InboundShipment, LabelType } from './types'
+import { AmazonOption, InboundShipment, LabelType, ShipLegRequirement, ShipTrackingInput } from './types'
 import { OptionKind } from './useShipments'
 import { LabelButton, ProductThumb, formatUnits, formatWindow } from './ShipmentParts'
 import { MARKETPLACE_META, getShipmentUnits, shipsAsFreight } from './workflow'
@@ -214,7 +214,7 @@ export const OptionPickerModal: React.FC<OptionPickerModalProps> = ({
                     {opt.fee !== undefined && (
                       <div className="text-right">
                         <div className="text-sm font-semibold text-text-primary">
-                          {formatCurrency(opt.fee, MARKETPLACE_META[shipment.marketplace].currency)}
+                          {formatCurrency(opt.fee, opt.currency ?? MARKETPLACE_META[shipment.marketplace].currency)}
                         </div>
                         <div className="text-[11px] text-text-muted">{kind === 'placement' ? 'placement fee' : 'est. cost'}</div>
                       </div>
@@ -259,7 +259,9 @@ interface MarkShippedModalProps {
   /** Last step of the guided flow, so the labels are printable from here. */
   onDownloadLabel: (type: LabelType) => void
   downloadingLabels: Partial<Record<LabelType, boolean>>
-  onConfirm: () => Promise<void>
+  /** Asks Amazon what it needs to mark this shipment as shipped (tracking for own-carrier legs). */
+  loadRequirements: (id: string) => Promise<ShipLegRequirement[]>
+  onConfirm: (tracking: ShipTrackingInput[]) => Promise<void>
   onClose: () => void
 }
 
@@ -267,24 +269,74 @@ export const MarkShippedModal: React.FC<MarkShippedModalProps> = ({
   shipment,
   onDownloadLabel,
   downloadingLabels,
+  loadRequirements,
   onConfirm,
   onClose,
 }) => {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [acknowledged, setAcknowledged] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  /** null while Amazon is being asked. */
+  const [legs, setLegs] = useState<ShipLegRequirement[] | null>(null)
+  /** Typed tracking: per box id for parcel legs, BOL / freight bills per leg for freight. */
+  const [boxTracking, setBoxTracking] = useState<Record<string, string>>({})
+  const [freight, setFreight] = useState<Record<string, { bol: string; bills: string }>>({})
 
-  useEffect(() => setAcknowledged(false), [shipment?.id])
+  useEffect(() => {
+    setAcknowledged(false)
+    setError(null)
+    setLegs(null)
+    setBoxTracking({})
+    setFreight({})
+    if (!shipment) return
+    let cancelled = false
+    loadRequirements(shipment.id)
+      .then((l) => !cancelled && setLegs(l))
+      .catch((err: Error) => {
+        if (cancelled) return
+        setLegs([])
+        setError(err.message || 'Could not check the shipment with Amazon.')
+      })
+    return () => {
+      cancelled = true
+    }
+    // Ask again only when the dialog opens for a different shipment
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shipment?.id])
 
   if (!shipment) return null
   const units = getShipmentUnits(shipment)
 
+  const ownLegs = (legs ?? []).filter((l) => l.solution === 'own')
+  const trackingComplete = ownLegs.every((l) =>
+    l.mode === 'freight'
+      ? !!freight[l.shipmentId]?.bol.trim()
+      : l.boxes.length > 0 && l.boxes.every((b) => !!boxTracking[b.boxId]?.trim())
+  )
+
+  const buildTracking = (): ShipTrackingInput[] =>
+    ownLegs.map((l) =>
+      l.mode === 'freight'
+        ? {
+            shipmentId: l.shipmentId,
+            billOfLadingNumber: freight[l.shipmentId].bol.trim(),
+            freightBillNumbers: freight[l.shipmentId].bills
+              .split(',')
+              .map((b) => b.trim())
+              .filter(Boolean),
+          }
+        : { shipmentId: l.shipmentId, boxes: l.boxes.map((b) => ({ boxId: b.boxId, trackingId: boxTracking[b.boxId].trim() })) }
+    )
+
   const handleConfirm = async () => {
     setIsSubmitting(true)
+    setError(null)
     try {
-      await onConfirm()
+      await onConfirm(buildTracking())
       onClose()
-    } catch {
-      // keep the dialog open; caller shows the error toast
+    } catch (err) {
+      // keep the dialog open; the caller's toast sits under it, so show the reason here too
+      setError((err as Error).message || 'Could not mark as shipped.')
     } finally {
       setIsSubmitting(false)
     }
@@ -333,17 +385,79 @@ export const MarkShippedModal: React.FC<MarkShippedModalProps> = ({
         ))}
       </div>
 
+      {/* What Amazon is told */}
+      <div className="mt-4 rounded-md border border-border p-3">
+        <div className="mb-2 text-sm font-semibold text-text-primary">Confirm with Amazon</div>
+        {!legs && (
+          <div className="flex items-center gap-2 text-sm text-text-muted">
+            <Spinner size="sm" /> Checking the shipment with Amazon…
+          </div>
+        )}
+        {legs && legs.length > 0 && (
+          <div className="space-y-3">
+            {legs.map((leg) => (
+              <div key={leg.shipmentId}>
+                <div className="font-mono text-xs font-semibold text-text-secondary">{leg.label}</div>
+                {leg.solution === 'partnered' ? (
+                  <p className="mt-0.5 text-xs text-text-muted">
+                    {leg.carrier ?? 'Amazon partnered carrier'}: Amazon books the pickup and is told by the carrier. Nothing to enter.
+                  </p>
+                ) : leg.mode === 'freight' ? (
+                  <div className="mt-1 grid grid-cols-1 gap-2 md:grid-cols-2">
+                    <input
+                      placeholder="Bill of lading number"
+                      value={freight[leg.shipmentId]?.bol ?? ''}
+                      onChange={(e) => setFreight((f) => ({ ...f, [leg.shipmentId]: { bills: f[leg.shipmentId]?.bills ?? '', bol: e.target.value } }))}
+                      className="h-9 rounded-md border border-border bg-surface px-3 text-sm"
+                    />
+                    <input
+                      placeholder="Freight bill numbers (optional, comma separated)"
+                      value={freight[leg.shipmentId]?.bills ?? ''}
+                      onChange={(e) => setFreight((f) => ({ ...f, [leg.shipmentId]: { bol: f[leg.shipmentId]?.bol ?? '', bills: e.target.value } }))}
+                      className="h-9 rounded-md border border-border bg-surface px-3 text-sm"
+                    />
+                  </div>
+                ) : leg.boxes.length === 0 ? (
+                  <p className="mt-0.5 text-xs text-danger-700">Amazon has no boxes for this shipment yet, so tracking can&apos;t be attached.</p>
+                ) : (
+                  <div className="mt-1 space-y-1.5">
+                    <p className="text-xs text-text-muted">Your own carrier: enter the tracking number of each box.</p>
+                    {leg.boxes.map((b) => (
+                      <div key={b.boxId} className="flex items-center gap-2">
+                        <span className="w-14 text-xs text-text-muted">{b.label}</span>
+                        <input
+                          placeholder="Tracking number"
+                          value={boxTracking[b.boxId] ?? ''}
+                          onChange={(e) => setBoxTracking((t) => ({ ...t, [b.boxId]: e.target.value }))}
+                          className="h-9 flex-1 rounded-md border border-border bg-surface px-3 text-sm"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       <label className="mt-4 flex items-center gap-2 text-sm text-text-secondary">
         <input type="checkbox" checked={acknowledged} onChange={(e) => setAcknowledged(e.target.checked)} />
         Boxes are labelled and the carrier has picked up the shipment
       </label>
 
+      {error && (
+        <div role="alert" className="mt-4 rounded-md border border-danger-200 bg-danger-50 px-3 py-2 text-sm text-danger-700">
+          {error}
+        </div>
+      )}
+
       <div className="mt-6 flex justify-end gap-2 border-t border-border pt-4">
         <Button variant="outline" onClick={onClose} disabled={isSubmitting}>
           Cancel
         </Button>
-        <Button onClick={handleConfirm} disabled={!acknowledged || isSubmitting}>
-          {isSubmitting ? 'Marking…' : `Mark shipped & deduct ${formatUnits(units)} units`}
+        <Button onClick={handleConfirm} disabled={!acknowledged || isSubmitting || !legs || legs.length === 0 || !trackingComplete}>
+          {isSubmitting ? 'Confirming with Amazon…' : `Confirm with Amazon & deduct ${formatUnits(units)} units`}
         </Button>
       </div>
     </Modal>
@@ -374,15 +488,18 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
   onClose,
 }) => {
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   if (!isOpen) return null
 
   const handleConfirm = async () => {
     setIsSubmitting(true)
+    setError(null)
     try {
       await onConfirm()
       onClose()
-    } catch {
-      // keep the dialog open; caller shows the error toast
+    } catch (err) {
+      // keep the dialog open; the caller's toast sits under it, so show the reason here too
+      setError((err as Error).message || 'Something went wrong.')
     } finally {
       setIsSubmitting(false)
     }
@@ -391,6 +508,11 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
   return (
     <Modal isOpen onClose={isSubmitting ? () => {} : onClose} title={title} size="sm">
       <div className="text-sm text-text-muted">{message}</div>
+      {error && (
+        <div role="alert" className="mt-4 rounded-md border border-danger-200 bg-danger-50 px-3 py-2 text-sm text-danger-700">
+          {error}
+        </div>
+      )}
       <div className="mt-6 flex justify-end gap-2 border-t border-border pt-4">
         <Button variant="outline" onClick={onClose} disabled={isSubmitting}>
           Keep

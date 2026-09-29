@@ -9,6 +9,7 @@ import { InboundShipment, Marketplace, ReservedPoolItem } from './types'
 import { CreateShipmentInput } from './useShipments'
 import { MARKETPLACE_META, isOpen as isOpenShipment } from './workflow'
 import { formatUnits } from './ShipmentParts'
+import { ShipFromChoice, ShipFromPicker, shipFromRequest } from './ShipFromPicker'
 
 /**
  * New FBA shipment, per the "Shipment" canvas design: one row per SKU with its
@@ -36,7 +37,11 @@ interface FormState {
   marketplace: Marketplace
   /** Units to book per product id; strings keep the inputs editable. */
   book: Record<string, string>
+  shipFrom: ShipFromChoice | null
   submitting: CreateMode | null
+  /** Shown in the drawer itself: toasts sit underneath it. */
+  error: string | null
+  showAddressErrors: boolean
 }
 
 const defaultName = (marketplace: Marketplace) => {
@@ -82,9 +87,12 @@ const DrawerPanel: React.FC<Omit<CreateShipmentDrawerProps, 'isOpen'>> = ({
         .filter((p) => initialProductIds.includes(p.productId) && (unassigned[p.productId] ?? 0) > 0)
         .map((p) => [p.productId, String(unassigned[p.productId])])
     ),
+    shipFrom: null,
     submitting: null,
+    error: null,
+    showAddressErrors: false,
   }))
-  const { marketplace, book, submitting } = form
+  const { marketplace, book, shipFrom, submitting, error: submitError, showAddressErrors } = form
   const patch = (next: Partial<FormState>) => setForm((prev) => ({ ...prev, ...next }))
 
   useEffect(() => {
@@ -119,12 +127,15 @@ const DrawerPanel: React.FC<Omit<CreateShipmentDrawerProps, 'isOpen'>> = ({
   const canSubmit = booked.length > 0 && Object.keys(errors).length === 0 && !submitting
 
   const submit = async (mode: CreateMode) => {
-    patch({ submitting: mode })
+    const address = shipFromRequest(shipFrom)
+    if (!address) return patch({ showAddressErrors: true, error: 'Complete the ship-from address first.' })
+    patch({ submitting: mode, error: null })
     try {
       await onCreate(
         {
           name: defaultName(marketplace),
           marketplace,
+          ...address,
           items: booked.map(({ product: p, qty }) => ({
             productId: p.productId,
             sku: p.sku,
@@ -138,9 +149,9 @@ const DrawerPanel: React.FC<Omit<CreateShipmentDrawerProps, 'isOpen'>> = ({
         mode
       )
       onClose()
-    } catch {
-      // caller shows the error toast; keep the drawer open to fix and retry
-      patch({ submitting: null })
+    } catch (err) {
+      // The caller also toasts, but the toast sits under the drawer; keep it open to fix and retry
+      patch({ submitting: null, error: (err as Error).message || 'Could not create the shipment' })
     }
   }
 
@@ -180,6 +191,13 @@ const DrawerPanel: React.FC<Omit<CreateShipmentDrawerProps, 'isOpen'>> = ({
 
         {/* Body */}
         <div className="flex flex-1 flex-col gap-5 overflow-y-auto px-8 py-6">
+          <ShipFromPicker
+            value={shipFrom}
+            onChange={(next) => patch({ shipFrom: next, error: null })}
+            showErrors={showAddressErrors}
+            disabled={!!submitting}
+          />
+
           <div className="overflow-hidden !rounded-xl border border-slate-200">
             <div className="grid grid-cols-[260px_110px_minmax(0,1fr)_110px_150px] border-b border-slate-200 bg-slate-100 text-xs font-semibold text-slate-700">
               <div className="px-4 py-3">Product</div>
@@ -262,6 +280,11 @@ const DrawerPanel: React.FC<Omit<CreateShipmentDrawerProps, 'isOpen'>> = ({
         </div>
 
         {/* Footer */}
+        {submitError && (
+          <div role="alert" className="border-t border-red-200 bg-red-50 px-8 py-2.5 text-sm text-red-700">
+            {submitError}
+          </div>
+        )}
         <div className="flex items-center justify-between border-t border-slate-200 bg-slate-50 px-8 py-[18px]">
           <span className="text-sm text-slate-600">
             {booked.length} product{booked.length !== 1 && 's'} · {formatUnits(totalUnits)} units

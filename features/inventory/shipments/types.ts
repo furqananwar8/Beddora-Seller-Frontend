@@ -91,6 +91,27 @@ export interface AmazonShipmentLeg {
   /** AMAZON_PARTNERED_CARRIER | USE_YOUR_OWN_CARRIER */
   shippingSolution?: string
   status?: string
+  /** Own carrier: tracking was sent to Amazon when the shipment was marked as shipped. */
+  trackingSent?: boolean
+}
+
+/** What marking one Amazon shipment as shipped needs from the seller. */
+export interface ShipLegRequirement {
+  shipmentId: string
+  label: string
+  /** partnered: Amazon's carrier reports the pickup itself; own: Amazon needs tracking from us. */
+  solution: 'partnered' | 'own'
+  mode: 'parcel' | 'freight'
+  carrier?: string
+  boxes: { boxId: string; label: string }[]
+}
+
+/** Tracking entered for one own-carrier leg: a number per box (parcel) or BOL / freight bill numbers (freight). */
+export interface ShipTrackingInput {
+  shipmentId: string
+  boxes?: { boxId: string; trackingId: string }[]
+  billOfLadingNumber?: string
+  freightBillNumbers?: string[]
 }
 
 export interface InboundShipment {
@@ -111,6 +132,46 @@ export interface InboundShipment {
   shippedAt?: string
   /** Box and FNSKU label copies on our server, fetched in the background once labels are generated. */
   labels: Partial<Record<'box' | 'unit', LabelFileStatus>>
+  /** Where the shipment ships from (snapshot taken when it was created or sent to Amazon). */
+  shipFrom?: ShipFromAddress
+  /** Amazon's fee estimates, saved as each option was confirmed. */
+  fees?: ShipmentFees
+  /** Last time receiving status was pulled from Amazon. */
+  syncedAt?: string
+}
+
+export interface ShipFromAddress {
+  name: string
+  companyName?: string
+  addressLine1: string
+  addressLine2?: string
+  city: string
+  stateOrProvinceCode?: string
+  postalCode: string
+  /** 2-letter country code. */
+  countryCode: string
+  phoneNumber: string
+  email?: string
+}
+
+/** A saved entry of the ship-from address book (Settings). */
+export interface SavedShipFromAddress extends ShipFromAddress {
+  id: string
+  label: string
+  isDefault: boolean
+}
+
+export interface FeeLine {
+  kind: 'packing' | 'placement' | 'transport'
+  label: string
+  amount: number
+  currency: string
+}
+
+export interface ShipmentFees {
+  lines: FeeLine[]
+  /** One total per currency; different currencies are never added together. */
+  totals: { currency: string; amount: number }[]
 }
 
 /**
@@ -139,6 +200,7 @@ export interface AmazonOption {
   title: string
   description?: string
   fee?: number
+  currency?: string
   tag?: string
   legs?: AmazonShipmentLeg[]
   window?: DeliveryWindow
@@ -167,6 +229,7 @@ export interface PackingOption {
   title: string
   description?: string
   fee?: number
+  currency?: string
   groups: PackingGroup[]
 }
 

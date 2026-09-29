@@ -34,6 +34,7 @@ export const ROUTE_PERMISSIONS: RoutePermission[] = [
   // Settings
   { pattern: '/dashboard/settings/general', subject: 'settings:general' },
   { pattern: '/dashboard/settings/users', subject: 'settings:users' },
+  { pattern: '/dashboard/settings/addresses', subject: 'settings:general' },
   { pattern: '/dashboard/settings', subject: 'settings' },
 ]
 

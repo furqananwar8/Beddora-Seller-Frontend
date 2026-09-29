@@ -5,6 +5,8 @@ import { TableCell, TableRow } from '@/design-system/tables'
 import { Button } from '@/design-system/buttons'
 import { Spinner } from '@/design-system/loaders'
 import { cn } from '@/utils/cn'
+import { formatCurrency } from '@/utils/format'
+import { formatAddressLine } from './AddressForm'
 import {
   InboundShipment,
   InboundShipmentItem,
@@ -350,6 +352,43 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({
                   value={formatShortDate(shipment.shippedAt ?? shipment.createdAt)}
                 />
               </dl>
+
+              {/* Ship-from and Amazon's fee estimates */}
+              {(shipment.shipFrom || shipment.fees) && (
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  {shipment.shipFrom && (
+                    <div className="rounded-lg border border-border bg-surface p-4 text-sm">
+                      <div className="text-[11px] font-medium uppercase tracking-wider text-text-muted">Ship from</div>
+                      <div className="mt-1 font-medium text-text-primary">
+                        {shipment.shipFrom.companyName ?? shipment.shipFrom.name}
+                      </div>
+                      <div className="text-text-secondary">{formatAddressLine(shipment.shipFrom)}</div>
+                      <div className="text-xs text-text-muted">
+                        {shipment.shipFrom.name} · {shipment.shipFrom.phoneNumber}
+                      </div>
+                    </div>
+                  )}
+                  {shipment.fees && (
+                    <div className="rounded-lg border border-border bg-surface p-4 text-sm">
+                      <div className="flex items-baseline justify-between">
+                        <span className="text-[11px] font-medium uppercase tracking-wider text-text-muted">Amazon fees (estimate)</span>
+                        <span className="font-semibold text-text-primary">
+                          {shipment.fees.totals.map((t) => formatCurrency(t.amount, t.currency)).join(' + ')}
+                        </span>
+                      </div>
+                      <ul className="mt-2 space-y-0.5">
+                        {shipment.fees.lines.map((f, i) => (
+                          <li key={`${f.kind}-${i}`} className="flex justify-between gap-3 text-text-secondary">
+                            <span className="truncate">{f.label}</span>
+                            <span className="whitespace-nowrap">{formatCurrency(f.amount, f.currency)}</span>
+                          </li>
+                        ))}
+                      </ul>
+                      <p className="mt-2 text-[11px] text-text-muted">Quoted when each option was confirmed. Amazon&apos;s final charge can differ.</p>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Items */}
               <div className="overflow-hidden rounded-lg border border-border bg-surface">

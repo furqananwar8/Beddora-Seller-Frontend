@@ -76,6 +76,7 @@ export const ShipmentsScreen: React.FC = () => {
     confirmOptions,
     generateLabels,
     downloadLabels,
+    getShipRequirements,
     markShipped,
     cancelShipment,
     sync,
@@ -135,6 +136,12 @@ export const ShipmentsScreen: React.FC = () => {
 
   // ---- Derived ----
   const unassigned = useMemo(() => getUnassignedUnits(pool, shipments), [pool, shipments])
+
+  // Amazon is also polled in the background, so the latest of that and our own sync is what "synced" means
+  const lastSynced = useMemo(
+    () => shipments.reduce((latest, s) => (s.syncedAt && s.syncedAt > latest ? s.syncedAt : latest), lastSyncedAt),
+    [shipments, lastSyncedAt]
+  )
 
   const summary = useMemo(() => {
     const by = (st: ShipmentStatus) => shipments.filter((s) => s.status === st)
@@ -363,7 +370,7 @@ export const ShipmentsScreen: React.FC = () => {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-xs text-text-muted">Synced {formatRelative(lastSyncedAt)}</span>
+          <span className="text-xs text-text-muted">Synced {formatRelative(lastSynced)}</span>
           <Button variant="outline" onClick={handleSync} disabled={isSyncing}>
             {isSyncing ? (
               <span className="flex items-center gap-2"><Spinner size="sm" /> Syncing…</span>
@@ -569,11 +576,12 @@ export const ShipmentsScreen: React.FC = () => {
         onDownloadLabel={(type) => shippingTarget && handleDownloadLabel(shippingTarget.id, type)}
         downloadingLabels={shippingTarget ? downloadingFor(shippingTarget.id) : {}}
         onClose={closeDialog}
-        onConfirm={() => {
+        loadRequirements={getShipRequirements}
+        onConfirm={(tracking) => {
           const s = shippingTarget
           return run(
-            () => markShipped(s!.id),
-            `${s?.reference} marked as shipped. ${formatUnits(s ? getShipmentUnits(s) : 0)} units deducted from inventory.`,
+            () => markShipped(s!.id, tracking),
+            `${s?.reference} confirmed with Amazon and marked as shipped. ${formatUnits(s ? getShipmentUnits(s) : 0)} units deducted from inventory.`,
             'Could not mark as shipped'
           )
         }}

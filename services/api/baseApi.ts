@@ -28,6 +28,7 @@ export const tagTypes = [
   'InventoryKpis',
   'PurchaseOrders',
   'InboundShipments',
+  'ShipFromAddresses',
   'PPC',
   'PPCMetrics',
   'PPCOptimization',
