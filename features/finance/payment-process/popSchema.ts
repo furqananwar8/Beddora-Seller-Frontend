@@ -25,6 +25,8 @@ export const makePopSchema = (balance: number, needsFx: boolean) =>
       const amount = parseNumber(values.amount)
       if (!(amount > 0)) {
         ctx.addIssue({ code: 'custom', path: ['amount'], message: 'Enter an amount greater than 0' })
+      } else if (Math.abs(amount * 100 - Math.round(amount * 100)) > 1e-6) {
+        ctx.addIssue({ code: 'custom', path: ['amount'], message: 'Use at most 2 decimals' })
       } else if (!withinBalance(amount, balance)) {
         ctx.addIssue({ code: 'custom', path: ['amount'], message: 'Amount cannot exceed the balance' })
       }
