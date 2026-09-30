@@ -67,7 +67,13 @@ export const tagTypes = [
   'MoneyBack',
   'Alerts',
   'EbayProducts',
-  'ReportSyncManagement'
+  'ReportSyncManagement',
+  'FinancePartners',
+  'FinanceRequests',
+  'FinanceProcess',
+  'FinanceApprovers',
+  'FinanceExpenseTypes',
+  'Notifications'
 ] as const
 
 export type TagType = typeof tagTypes[number]
