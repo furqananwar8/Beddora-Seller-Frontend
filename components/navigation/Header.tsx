@@ -100,7 +100,7 @@ export const Header: React.FC<HeaderProps> = ({
           <HeaderClock />
           <NotificationBell />
           {onLogout && (
-            <Button variant="ghost" size="sm" onClick={onLogout}>
+            <Button variant="primary" size="sm" onClick={onLogout}>
               Logout
             </Button>
           )}
