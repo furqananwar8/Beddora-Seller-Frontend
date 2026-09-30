@@ -105,7 +105,7 @@ export const NotificationBell: React.FC = () => {
             </button>
           </div>
 
-          <div className="max-h-[calc(70vh-96px)] overflow-y-auto">
+          <div className="max-h-[360px] overflow-y-auto">
             {isLoading ? (
               <div className="flex justify-center py-10">
                 <Spinner />
