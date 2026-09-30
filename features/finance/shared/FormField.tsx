@@ -24,3 +24,6 @@ export const FormField: React.FC<FormFieldProps> = ({ label, htmlFor, required, 
 )
 
 export const fieldClass = (error?: string) => cn('ds-input', error ? 'ds-input-error' : 'ds-input-default', 'rounded-lg')
+
+/** Class for a native <select> that sits inside <SelectShell>. */
+export const selectClass = (error?: string) => cn(fieldClass(error), 'appearance-none pr-9')

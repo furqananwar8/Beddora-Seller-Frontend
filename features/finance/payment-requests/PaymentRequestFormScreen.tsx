@@ -12,6 +12,7 @@ import { StatusBadge } from '@/components/status-badge/StatusBadge'
 import { Button } from '@/design-system/buttons'
 import { Card } from '@/design-system/cards'
 import { Input, Select, Textarea } from '@/design-system/inputs'
+import { SelectShell } from '../shared/SelectShell'
 import { Spinner } from '@/design-system/loaders'
 import {
   FinanceDocument,
@@ -298,12 +299,14 @@ export const PaymentRequestFormScreen: React.FC = () => {
               <Input id="containerNo" className="rounded-lg" placeholder="MSKU 482193-0" {...register('containerNo')} />
             </FormField>
             <FormField label="Destination (Marketplace)" htmlFor="marketplaceId">
+              <SelectShell>
               <Select
                 id="marketplaceId"
-                className="rounded-lg"
+                className="appearance-none rounded-lg pr-9"
                 options={[{ value: '', label: 'Select destination' }, ...(marketplaces ?? []).map((m) => ({ value: String(m.id), label: m.name }))]}
                 {...register('marketplaceId')}
               />
+              </SelectShell>
             </FormField>
           </div>
           {duplicate && (
@@ -316,7 +319,9 @@ export const PaymentRequestFormScreen: React.FC = () => {
         <Section title="Amount & category">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-[1fr_2fr_2fr]">
             <FormField label="Currency" htmlFor="currency" required error={errors.currency?.message}>
-              <Select id="currency" className="rounded-lg" options={[{ value: '', label: 'Select' }, ...currencyOptions]} {...register('currency')} />
+              <SelectShell>
+              <Select id="currency" className="appearance-none rounded-lg pr-9" options={[{ value: '', label: 'Select' }, ...currencyOptions]} {...register('currency')} />
+              </SelectShell>
             </FormField>
             <FormField label="Amount" htmlFor="amount" required error={errors.amount?.message}>
               <Controller
@@ -341,12 +346,14 @@ export const PaymentRequestFormScreen: React.FC = () => {
               />
             </FormField>
             <FormField label="Expense Type" htmlFor="expenseTypeId" required error={errors.expenseTypeId?.message}>
+              <SelectShell>
               <Select
                 id="expenseTypeId"
-                className="rounded-lg"
+                className="appearance-none rounded-lg pr-9"
                 options={[{ value: '', label: 'Select expense type' }, ...(expenseTypes ?? []).map((t) => ({ value: String(t.id), label: t.name }))]}
                 {...register('expenseTypeId')}
               />
+              </SelectShell>
             </FormField>
           </div>
           <FormField label="Remarks" htmlFor="remarks" className="mt-4" error={errors.remarks?.message}>

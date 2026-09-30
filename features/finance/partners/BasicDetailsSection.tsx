@@ -5,7 +5,8 @@ import { Control, Controller, FieldErrors, UseFormRegister } from 'react-hook-fo
 import { Card, CardContent, CardHeader, CardTitle } from '@/design-system/cards/Card'
 import { SegmentedToggle } from '@/components/segmented-toggle/SegmentedToggle'
 import type { PartnerType } from '@/services/api/finance.api'
-import { FormField, fieldClass } from '../shared/FormField'
+import { FormField, fieldClass, selectClass } from '../shared/FormField'
+import { SelectShell } from '../shared/SelectShell'
 import { CountrySelect } from './CountrySelect'
 import { CURRENCIES, PARTNER_TYPE_OPTIONS, type PartnerFormValues } from './partnerSchema'
 
@@ -59,13 +60,15 @@ export const BasicDetailsSection: React.FC<BasicDetailsSectionProps> = ({ regist
       </FormField>
 
       <FormField label="Currency" htmlFor="partner-currency" required error={errors.currency?.message}>
-        <select id="partner-currency" className={fieldClass(errors.currency?.message)} {...register('currency')}>
+        <SelectShell>
+          <select id="partner-currency" className={selectClass(errors.currency?.message)} {...register('currency')}>
           {CURRENCIES.map((currency) => (
             <option key={currency} value={currency}>
               {currency}
             </option>
           ))}
         </select>
+        </SelectShell>
       </FormField>
     </CardContent>
   </Card>

@@ -21,6 +21,7 @@ import {
 import { useDebounce } from '@/utils/debounce'
 import { cn } from '@/utils/cn'
 import { ScreenSearch } from '../shared/ScreenSearch'
+import { SelectShell } from '../shared/SelectShell'
 import { ApproversModal } from './ApproversModal'
 import { ExpenseTypesModal } from './ExpenseTypesModal'
 import { RejectDialog } from './RejectDialog'
@@ -180,7 +181,7 @@ export const PaymentRequestScreen: React.FC = () => {
             <label htmlFor="filter-expense-type" className="ds-input-label">
               Expense type
             </label>
-            <div className="relative">
+            <SelectShell>
             <Select
               id="filter-expense-type"
               className="h-10 appearance-none rounded-lg py-0 pr-9"
@@ -191,10 +192,7 @@ export const PaymentRequestScreen: React.FC = () => {
               }}
               options={[{ value: '', label: 'All' }, ...(expenseTypes ?? []).map((t) => ({ value: String(t.id), label: t.name }))]}
             />
-              <svg className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </div>
+            </SelectShell>
           </div>
           <div className="w-full min-w-0 sm:w-56">
             <span className="ds-input-label">Date</span>

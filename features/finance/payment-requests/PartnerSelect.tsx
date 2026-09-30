@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { PartnerOption, useGetPartnerOptionsQuery } from '@/services/api/finance.api'
 import { useDebounce } from '@/utils/debounce'
+import { Chevron } from '../shared/SelectShell'
 import { cn } from '@/utils/cn'
 import { fieldClass } from '../shared/FormField'
 
@@ -60,9 +61,7 @@ export const PartnerSelect: React.FC<PartnerSelectProps> = ({ id, selected, erro
         className={cn(fieldClass(error), 'flex items-center justify-between text-left')}
       >
         <span className={cn('truncate', !selected && 'text-text-muted')}>{selected?.name ?? 'Select a partner'}</span>
-        <span aria-hidden className="ml-2 text-xs text-text-muted">
-          ▾
-        </span>
+        <Chevron className="ml-2" />
       </button>
 
       {open && (
