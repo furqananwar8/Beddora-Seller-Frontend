@@ -22,7 +22,7 @@ interface PartnerTableProps {
 }
 
 export const PartnerTable: React.FC<PartnerTableProps> = ({ rows, isLoading, isFetching, isError, onOpen }) => (
-  <div className={cn('max-h-[calc(100vh-360px)] min-h-[240px] overflow-auto', isFetching && 'opacity-70 transition-opacity')}>
+  <div className={cn('max-h-[calc(100vh-360px)] overflow-auto', isFetching && 'opacity-70 transition-opacity')}>
     <Table className="min-w-full">
       <TableHeader className="sticky top-0 z-10 bg-surface shadow-sm">
         <TableRow>

@@ -179,7 +179,7 @@ export const PaymentRequestScreen: React.FC = () => {
       </div>
 
       <div className={cn('overflow-hidden rounded-lg border border-border shadow-sm', isFetching && 'opacity-70 transition-opacity')}>
-        <div className="max-h-[calc(100vh-360px)] min-h-[240px] overflow-auto">
+        <div className="max-h-[calc(100vh-360px)] overflow-auto">
           <RequestsTable
             rows={rows}
             isLoading={isLoading}
