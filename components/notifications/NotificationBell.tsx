@@ -78,9 +78,9 @@ export const NotificationBell: React.FC = () => {
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
       >
-        {NavIcons.bell}
+        <span className="block [&>svg]:h-6 [&>svg]:w-6">{NavIcons.bell}</span>
         {unread > 0 && (
-          <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-danger-600 px-1 text-[10px] font-bold text-text-inverse">
+          <span className="absolute -right-1 -top-1 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-danger-600 px-1 text-[11px] font-bold leading-none text-text-inverse ring-2 ring-surface">
             {unread > 99 ? '99+' : unread}
           </span>
         )}
