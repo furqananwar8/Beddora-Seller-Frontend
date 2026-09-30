@@ -291,10 +291,10 @@ export const InventoryPlannerScreen: React.FC = () => {
   }
 
   return (
-    <Container size="full" className="py-8">
+    <Container size="full" className="py-4 sm:py-8">
       {/* Page Title & Multi-Channel Sync Status */}
-      <div className="flex justify-between items-center mb-4 px-1">
-        <h1 className="text-2xl font-bold text-text-primary">Inventory Planner</h1>
+      <div className="flex flex-wrap justify-between items-center gap-2 mb-4 px-1">
+        <h1 className="text-xl sm:text-2xl font-bold text-text-primary">Inventory Planner</h1>
         <div className="flex items-center gap-2 bg-success-50 border border-success-200 text-success-700 px-3 py-1 rounded-full text-xs font-medium">
           <span className="w-2 h-2 bg-success-500 rounded-full animate-pulse" />
           <span>Multi-Channel Sync Active</span>
@@ -304,11 +304,11 @@ export const InventoryPlannerScreen: React.FC = () => {
       {/* Search, Filters & Header Actions (3 Vertical Dots) */}
       <div className="mb-6">
         <div className="bg-surface-secondary border-b border-border-primary rounded-lg">
-          <div className="px-6 py-4">
-            <div className="flex items-center gap-3">
+          <div className="px-3 sm:px-6 py-4">
+            <div className="flex flex-wrap items-center gap-3">
               
               {/* Search Bar */}
-              <div className="relative flex-1 max-w-2xl">
+              <div className="relative flex-1 min-w-[200px] max-w-2xl">
                 <svg
                   className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted"
                   fill="none"
@@ -332,7 +332,7 @@ export const InventoryPlannerScreen: React.FC = () => {
               </div>
 
               {/* Multi-Select Filters */}
-              <div className="flex items-center gap-2 flex-shrink-0">
+              <div className="flex flex-wrap items-center gap-2">
                 <MultiSelectInput
                   title="FBA"
                   options={FBA_OPTIONS}

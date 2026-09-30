@@ -30,10 +30,16 @@ export interface ProductInventoryItem {
   otherMarketReserve: number
   buffer: number
   balances: BucketBalances // raw per-bucket stock, echoed back when saving an allocation
+  // Whole SKU: all channels sold vs. all stock on hand (used to reorder from the supplier)
   salesVelocity: number // units per day, last 30 days
+  salesVelocity15: number // units per day, last 15 days
   daysOfStockLeft: number | null // null when there were no sales
   daysUntilNextOrder: number | null
   recommendedQuantity: number
+  // FBA only: FBA sales vs. stock set aside for FBA
+  pdsFba: number // FBA units sold in the last 30 days / 30
+  fbaDaysOfStockLeft: number | null
+  fbaDaysUntilNextOrder: number | null
 }
 
 export interface InventoryItemChange {

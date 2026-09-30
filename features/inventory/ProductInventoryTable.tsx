@@ -38,6 +38,10 @@ type SortColumn =
   | 'otherMarketReserve'
   | 'status'
   | 'salesVelocity'
+  | 'salesVelocity15'
+  | 'pdsFba'
+  | 'fbaDaysOfStockLeft'
+  | 'fbaDaysUntilNextOrder'
   | 'daysOfStockLeft'
   | 'daysUntilNextOrder'
   | 'recommendedQuantity'
@@ -51,7 +55,7 @@ interface ViewState {
 const INITIAL_VIEW: ViewState = { sortColumn: 'daysOfStockLeft', sortDirection: 'asc', currentPage: 1 }
 
 const ITEMS_PER_PAGE = 20
-const COLUMN_COUNT = 10
+const COLUMN_COUNT = 14
 const NO_SALES_HINT = 'No sales in the last 30 days'
 
 export const STATUS_OPTIONS: { value: InventoryItemStatus; label: string }[] = [
@@ -230,10 +234,14 @@ export const ProductInventoryTable = ({
                 <SortableHead column="amazonReserve" label="Amazon reserve" className="min-w-[130px]" />
                 <SortableHead column="otherMarketReserve" label="Other market reserve" className="min-w-[160px]" />
                 <SortableHead column="status" label="Status" className="min-w-[160px]" />
-                <SortableHead column="salesVelocity" label="Sales velocity" className="min-w-[120px]" />
+                <SortableHead column="salesVelocity" label="Sales velocity (30d)" className="min-w-[130px]" />
+                <SortableHead column="salesVelocity15" label="Sales velocity (15d)" className="min-w-[130px]" />
                 <SortableHead column="daysOfStockLeft" label="Days of stock left" className="min-w-[140px]" />
                 <SortableHead column="daysUntilNextOrder" label="Days until next order" className="min-w-[160px]" />
                 <SortableHead column="recommendedQuantity" label="Recommended qty" className="min-w-[140px]" />
+                <SortableHead column="pdsFba" label="PDS (FBA)" className="min-w-[110px]" />
+                <SortableHead column="fbaDaysOfStockLeft" label="Days of FBA stock left" className="min-w-[150px]" />
+                <SortableHead column="fbaDaysUntilNextOrder" label="Days until next FBA order" className="min-w-[170px]" />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -344,6 +352,11 @@ export const ProductInventoryTable = ({
                         </span>
                       </TableCell>
                       <TableCell className={CELL_CLASS}>
+                        <span title={product.salesVelocity15 === 0 ? NO_SALES_HINT : 'Units per day, last 15 days'}>
+                          {formatNumber(product.salesVelocity15, 2)}
+                        </span>
+                      </TableCell>
+                      <TableCell className={CELL_CLASS}>
                         <DaysBadge days={product.daysOfStockLeft} />
                       </TableCell>
                       <TableCell className={CELL_CLASS}>
@@ -351,6 +364,17 @@ export const ProductInventoryTable = ({
                       </TableCell>
                       <TableCell className={CELL_CLASS}>
                         <span className="text-primary-600">{formatNumber(product.recommendedQuantity, 0)}</span>
+                      </TableCell>
+                      <TableCell className={CELL_CLASS}>
+                        <span title={product.pdsFba === 0 ? NO_SALES_HINT : 'FBA units sold in the last 30 days / 30'}>
+                          {formatNumber(product.pdsFba, 2)}
+                        </span>
+                      </TableCell>
+                      <TableCell className={CELL_CLASS}>
+                        <DaysBadge days={product.fbaDaysOfStockLeft} />
+                      </TableCell>
+                      <TableCell className={CELL_CLASS}>
+                        <DaysBadge days={product.fbaDaysUntilNextOrder} />
                       </TableCell>
                     </TableRow>
                   )
@@ -362,7 +386,7 @@ export const ProductInventoryTable = ({
       </div>
 
       {totalPages > 1 && (
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="text-sm text-text-muted">
             Showing {(view.currentPage - 1) * ITEMS_PER_PAGE + 1} to{' '}
             {Math.min(view.currentPage * ITEMS_PER_PAGE, searchedProducts.length)} of {searchedProducts.length} items
