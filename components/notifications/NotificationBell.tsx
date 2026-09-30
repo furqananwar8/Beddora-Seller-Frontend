@@ -1,6 +1,7 @@
 'use client'
 
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { formatDistanceToNow } from 'date-fns'
 import { NavIcons } from '@/components/navigation/icons'
@@ -22,6 +23,9 @@ export const NotificationBell: React.FC = () => {
   const [open, setOpen] = useState(false)
   const [limit, setLimit] = useState(PAGE_SIZE)
   const wrapperRef = useRef<HTMLDivElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
+  const [panelTop, setPanelTop] = useState(64)
+  const [panelRight, setPanelRight] = useState(12)
 
   const { data: unread = 0 } = useGetUnreadCountQuery()
   const { data, isLoading, isFetching } = useGetNotificationsQuery({ page: 1, limit })
@@ -31,7 +35,8 @@ export const NotificationBell: React.FC = () => {
   useEffect(() => {
     if (!open) return
     const onPointerDown = (event: MouseEvent) => {
-      if (!wrapperRef.current?.contains(event.target as Node)) setOpen(false)
+      const target = event.target as Node
+      if (!wrapperRef.current?.contains(target) && !panelRef.current?.contains(target)) setOpen(false)
     }
     const onKey = (event: KeyboardEvent) => event.key === 'Escape' && setOpen(false)
     document.addEventListener('mousedown', onPointerDown)
@@ -40,6 +45,19 @@ export const NotificationBell: React.FC = () => {
       document.removeEventListener('mousedown', onPointerDown)
       document.removeEventListener('keydown', onKey)
     }
+  }, [open])
+
+  // The panel is portalled to <body> so no sticky table header or other stacking context can cover it.
+  useLayoutEffect(() => {
+    if (!open || !wrapperRef.current) return
+    const place = () => {
+      const rect = wrapperRef.current!.getBoundingClientRect()
+      setPanelTop(rect.bottom + 8)
+      setPanelRight(Math.max(12, window.innerWidth - rect.right))
+    }
+    place()
+    window.addEventListener('resize', place)
+    return () => window.removeEventListener('resize', place)
   }, [open])
 
   const openNotification = (notification: AppNotification) => {
@@ -68,8 +86,13 @@ export const NotificationBell: React.FC = () => {
         )}
       </button>
 
-      {open && (
-        <div className="fixed inset-x-3 top-16 z-50 max-h-[70vh] overflow-hidden rounded-xl border border-border bg-surface shadow-lg sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:mt-2 sm:w-96">
+      {open &&
+        createPortal(
+        <div
+          ref={panelRef}
+          style={{ top: panelTop, right: panelRight }}
+          className="fixed z-[9500] max-h-[70vh] w-[calc(100vw-24px)] overflow-hidden rounded-xl border border-border bg-surface shadow-lg sm:w-96"
+        >
           <div className="flex items-center justify-between border-b border-border px-4 py-3">
             <h2 className="text-sm font-semibold text-text-primary">Notifications</h2>
             <button
@@ -124,7 +147,8 @@ export const NotificationBell: React.FC = () => {
               {isFetching ? 'Loading…' : 'Load older notifications'}
             </button>
           )}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   )
