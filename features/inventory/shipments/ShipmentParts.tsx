@@ -305,8 +305,10 @@ export const DialogFooter: React.FC<{
   <div className="mt-6 flex flex-col-reverse gap-3 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
     <div>
       {onBack && (
-        <Button variant="ghost" onClick={onBack} disabled={backDisabled}>
-          <span aria-hidden>←</span> Back
+        <Button variant="outline" onClick={onBack} disabled={backDisabled}>
+          <span className="flex items-center gap-2">
+            <span aria-hidden>←</span> Back
+          </span>
         </Button>
       )}
     </div>
