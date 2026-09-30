@@ -70,3 +70,7 @@ dump.rdb
 .cache
 .eslintcache
 .stylelintcache
+# Local AI tooling (graphify, Claude Code): not part of the app or deployment
+graphify-out/
+.claude/
+CLAUDE.md
