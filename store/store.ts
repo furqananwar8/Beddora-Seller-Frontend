@@ -1,8 +1,8 @@
-import { configureStore, combineReducers } from '@reduxjs/toolkit'
+import { configureStore, combineReducers, createListenerMiddleware } from '@reduxjs/toolkit'
 import { persistReducer, persistStore } from 'redux-persist'
 import { authPersistConfig } from './persist.config'
 import { baseApi } from '@/services/api/baseApi'
-import authReducer from './auth.slice'
+import authReducer, { clearCredentials } from './auth.slice'
 import accountsReducer from './accounts.slice'
 import permissionsReducer from './permissions.slice'
 import uiReducer from './ui.slice'
@@ -69,6 +69,16 @@ const rootReducer = combineReducers({
   amazon: amazonReducer,
 })
 
+// Signing out must drop every cached API response: otherwise the next person to sign in on this browser
+// briefly sees the previous user's data, including what they are allowed to do.
+const sessionListener = createListenerMiddleware()
+sessionListener.startListening({
+  actionCreator: clearCredentials,
+  effect: (_action, api) => {
+    api.dispatch(baseApi.util.resetApiState())
+  },
+})
+
 export const store = configureStore({
   reducer: rootReducer,
   middleware: (getDefaultMiddleware) =>
@@ -76,7 +86,7 @@ export const store = configureStore({
       serializableCheck: {
         ignoredActions: ['persist/PERSIST', 'persist/REHYDRATE'],
       },
-    }).concat(baseApi.middleware),
+    }).prepend(sessionListener.middleware).concat(baseApi.middleware),
 })
 
 export const persistor = persistStore(store)
