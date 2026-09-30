@@ -16,7 +16,6 @@ import {
   type PaymentMethod,
 } from '@/services/api/finance.api'
 import { useDebounce } from '@/utils/debounce'
-import { FinanceScreenBar } from '../shared/FinanceScreenBar'
 import { formatPartnerNo } from '../shared/format'
 import { useFinanceFeedback } from '../shared/useFinanceFeedback'
 import { BasicDetailsSection } from './BasicDetailsSection'
@@ -155,7 +154,6 @@ export const PartnerForm: React.FC<PartnerFormProps> = ({ partner }) => {
 
   return (
     <div className="mx-auto w-full max-w-4xl px-3 py-4 sm:px-6 sm:py-8">
-      <FinanceScreenBar trail={['Finance', 'Partner Profile']} searchPlaceholder="Search partners..." search="" onSearchChange={() => router.push(LIST)} />
 
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">

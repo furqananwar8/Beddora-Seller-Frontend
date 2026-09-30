@@ -186,7 +186,7 @@ const PopForm: React.FC<{ row: PaymentDocumentListItem; onClose: () => void }> =
                   {...register('fxRate')}
                 />
                 <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-text-muted">
-                  {row.currency}→{BASE_CURRENCY}
+                  {row.currency} to {BASE_CURRENCY}
                 </span>
               </div>
             </FormField>

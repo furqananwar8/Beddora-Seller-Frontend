@@ -8,7 +8,7 @@ import { SegmentedToggle } from '@/components/segmented-toggle/SegmentedToggle'
 import { Button } from '@/design-system/buttons'
 import { useGetPartnersQuery, type PartnerType } from '@/services/api/finance.api'
 import { useDebounce } from '@/utils/debounce'
-import { FinanceScreenBar } from '../shared/FinanceScreenBar'
+import { ScreenSearch } from '../shared/ScreenSearch'
 import { PartnerTable } from './PartnerTable'
 
 const PAGE_SIZE = 20
@@ -32,11 +32,10 @@ export const PartnerListScreen: React.FC = () => {
 
   return (
     <Container size="full" className="py-4 sm:py-8">
-      <FinanceScreenBar
-        trail={['Finance', 'Partner Profile']}
-        searchPlaceholder="Search partners..."
-        search={search}
-        onSearchChange={(value) => {
+      <ScreenSearch
+        placeholder="Search partners..."
+        value={search}
+        onChange={(value) => {
           setSearch(value)
           setPage(1)
         }}

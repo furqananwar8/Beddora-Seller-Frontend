@@ -10,7 +10,7 @@ import {
   useGetPaymentDocumentSummaryQuery,
 } from '@/services/api/finance.api'
 import { useDebounce } from '@/utils/debounce'
-import { FinanceScreenBar } from '../shared/FinanceScreenBar'
+import { ScreenSearch } from '../shared/ScreenSearch'
 import { DOC_STATUS_META } from '../shared/statusMeta'
 import { MarkPaidConfirm } from './MarkPaidConfirm'
 import { PaymentDetailModal } from './PaymentDetailModal'
@@ -63,11 +63,10 @@ export const PaymentProcessScreen: React.FC = () => {
 
   return (
     <Container size="full" className="py-4 sm:py-8">
-      <FinanceScreenBar
-        trail={['Finance', 'Payment Process']}
-        searchPlaceholder="Search Doc#, partner..."
-        search={search}
-        onSearchChange={(value) => {
+      <ScreenSearch
+        placeholder="Search Doc#, partner..."
+        value={search}
+        onChange={(value) => {
           setSearch(value)
           setPage(1)
         }}

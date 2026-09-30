@@ -19,7 +19,7 @@ import {
 } from '@/services/api/finance.api'
 import { useDebounce } from '@/utils/debounce'
 import { cn } from '@/utils/cn'
-import { FinanceScreenBar } from '../shared/FinanceScreenBar'
+import { ScreenSearch } from '../shared/ScreenSearch'
 import { ApproversModal } from './ApproversModal'
 import { ExpenseTypesModal } from './ExpenseTypesModal'
 import { RejectDialog } from './RejectDialog'
@@ -111,11 +111,10 @@ export const PaymentRequestScreen: React.FC = () => {
 
   return (
     <Container size="full" className="py-4 sm:py-8">
-      <FinanceScreenBar
-        trail={['Finance', 'Payment Request']}
-        searchPlaceholder="Search requests..."
-        search={search}
-        onSearchChange={(value) => {
+      <ScreenSearch
+        placeholder="Search requests..."
+        value={search}
+        onChange={(value) => {
           setSearch(value)
           setPage(1)
         }}

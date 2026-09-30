@@ -324,7 +324,7 @@ export const financeApi = baseApi.injectEndpoints({
       transformResponse: unwrap,
       invalidatesTags: ['FinanceExpenseTypes'],
     }),
-    getMarketplaces: b.query<Marketplace[], void>({
+    getFinanceMarketplaces: b.query<Marketplace[], void>({
       query: () => '/finance/marketplaces',
       transformResponse: unwrap,
     }),
@@ -461,7 +461,7 @@ export const {
   useGetExpenseTypesQuery,
   useCreateExpenseTypeMutation,
   useUpdateExpenseTypeMutation,
-  useGetMarketplacesQuery,
+  useGetFinanceMarketplacesQuery,
   useGetApproverStatusQuery,
   useGetApproversQuery,
   useGetApproverCandidatesQuery,

@@ -19,7 +19,7 @@ import {
   useAddRequestDocumentsMutation,
   useCreatePaymentRequestMutation,
   useGetExpenseTypesQuery,
-  useGetMarketplacesQuery,
+  useGetFinanceMarketplacesQuery,
   useGetPartnerQuery,
   useGetPaymentRequestQuery,
   useLazyCheckDuplicateInvoiceQuery,
@@ -27,7 +27,6 @@ import {
   useSubmitPaymentRequestMutation,
   useUpdatePaymentRequestMutation,
 } from '@/services/api/finance.api'
-import { FinanceScreenBar } from '../shared/FinanceScreenBar'
 import { FormField } from '../shared/FormField'
 import { formatMoney, formatRequestNo, toDateInputValue } from '../shared/format'
 import { REQUEST_STATUS_META } from '../shared/statusMeta'
@@ -81,7 +80,7 @@ export const PaymentRequestFormScreen: React.FC = () => {
   const { data: detail, isLoading: loadingDetail, isError: detailError } = useGetPaymentRequestQuery(requestId ?? 0, { skip: requestId === null })
 
   const { data: expenseTypes } = useGetExpenseTypesQuery()
-  const { data: marketplaces } = useGetMarketplacesQuery()
+  const { data: marketplaces } = useGetFinanceMarketplacesQuery()
   const [checkDuplicate] = useLazyCheckDuplicateInvoiceQuery()
   const [createRequest] = useCreatePaymentRequestMutation()
   const [updateRequest] = useUpdatePaymentRequestMutation()
@@ -212,7 +211,6 @@ export const PaymentRequestFormScreen: React.FC = () => {
   if (editId !== null && (detailError || editBlocked)) {
     return (
       <Container size="full" className="py-4 sm:py-8">
-        <FinanceScreenBar trail={['Finance', 'Payment Request', 'Edit']} searchPlaceholder="Search..." search="" onSearchChange={() => undefined} />
         <div className="py-16 text-center">
           <p className="font-medium text-danger-600">{editBlocked ? 'This request can no longer be edited.' : 'Could not load this payment request.'}</p>
           <Link href={LIST_URL} className="mt-3 inline-block text-sm text-primary-600 hover:underline">
@@ -225,14 +223,6 @@ export const PaymentRequestFormScreen: React.FC = () => {
 
   return (
     <Container size="full" className="py-4 sm:py-8">
-      <FinanceScreenBar
-        trail={['Finance', 'Payment Request', editId ? `Edit ${formatRequestNo(editId)}` : 'New request']}
-        searchPlaceholder="Search requests..."
-        search=""
-        onSearchChange={(value) => {
-          if (value) router.push(LIST_URL)
-        }}
-      />
 
       <form
         noValidate
@@ -244,7 +234,7 @@ export const PaymentRequestFormScreen: React.FC = () => {
           <StatusBadge label={requestId ? `${statusMeta.label} · ${formatRequestNo(requestId)}` : 'Draft'} tone={statusMeta.tone} />
         </div>
 
-        <Section title="Vendor" note="who is being paid">
+        <Section title="Partner" note="who is being paid">
           <FormField label="Partner" htmlFor="partner" required error={errors.partnerId?.message}>
             <PartnerSelect id="partner" selected={shownPartner} error={errors.partnerId?.message} onSelect={pickPartner} />
           </FormField>
@@ -356,7 +346,7 @@ export const PaymentRequestFormScreen: React.FC = () => {
             Save draft
           </Button>
           <Button type="submit" disabled={busy} isLoading={saving === 'submit'}>
-            Process For Approval →
+            Process For Approval
           </Button>
         </div>
       </form>
