@@ -11,7 +11,7 @@ import { useDebounce } from '@/utils/debounce'
 import { ScreenSearch } from '../shared/ScreenSearch'
 import { PartnerTable } from './PartnerTable'
 
-const PAGE_SIZE = 20
+const PAGE_SIZE = 10
 const BASE = '/dashboard/finance/partner-profile'
 
 type TypeFilter = 'ALL' | PartnerType

@@ -19,7 +19,7 @@ import { PaymentTable } from './PaymentTable'
 import { PopUploadDialog } from './PopUploadDialog'
 import type { RowAction } from './RowActions'
 
-const PAGE_SIZE = 20
+const PAGE_SIZE = 10
 
 export const PaymentProcessScreen: React.FC = () => {
   const router = useRouter()

@@ -27,7 +27,7 @@ import { RequestDetailModal } from './RequestDetailModal'
 import { RequestsTable } from './RequestsTable'
 import { useRequestActions } from './useRequestActions'
 
-const PAGE_SIZE = 20
+const PAGE_SIZE = 10
 
 type TabId = RequestStatus | 'ALL'
 type DateRange = 'this-month' | 'last-month' | 'all'
