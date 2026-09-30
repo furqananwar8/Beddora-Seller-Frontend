@@ -46,10 +46,10 @@ const FILTER_PRESETS: DateRangePreset[] = [
       return { startDate: format(startOfMonth(last), 'yyyy-MM-dd'), endDate: format(endOfMonth(last), 'yyyy-MM-dd') }
     },
   },
-  // Custom keeps the picker open: the user picks days, then presses Apply.
-  { id: 'custom', label: 'Custom', getRange: () => ({ startDate: format(startOfMonth(new Date()), 'yyyy-MM-dd'), endDate: format(new Date(), 'yyyy-MM-dd') }) },
   // Empty range clears the date filter.
   { id: 'all', label: 'All time', getRange: () => ({ startDate: '', endDate: '' }) },
+  // Custom keeps the picker open: the user picks days, then presses Apply.
+  { id: 'custom', label: 'Custom', getRange: () => ({ startDate: format(startOfMonth(new Date()), 'yyyy-MM-dd'), endDate: format(new Date(), 'yyyy-MM-dd') }) },
 ]
 
 const THIS_MONTH: DateRangeValue = { ...FILTER_PRESETS[0].getRange(), presetId: 'thisMonth' }
