@@ -35,7 +35,7 @@ const amountLine = (payload: TimelineEvent['payload'], key: string): string | un
   return value === undefined ? undefined : `${currency ?? ''} ${value.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`.trim()
 }
 
-const stamp = (value: string) => format(new Date(value), 'dd MMM, HH:mm')
+const stamp = (value: string) => format(new Date(value), 'dd MMM, hh:mm a')
 
 function toStep(event: TimelineEvent): Step {
   const by = event.actor?.name ?? 'system'
@@ -109,7 +109,14 @@ export const ApprovalTimeline: React.FC<{ events: TimelineEvent[]; status: Reque
           <span className={cn('flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold', step.tone)}>{step.glyph}</span>
           <div className="min-w-0">
             <p className="break-words text-sm font-medium text-text-primary">{step.title}</p>
-            {step.sub && <p className="whitespace-pre-line break-words text-xs text-text-muted">{step.sub}</p>}
+            {step.sub && (
+              <div className="mt-1 space-y-1 text-xs text-text-muted">
+                {step.sub.split('
+').map((line, i) => (
+                  <p key={i} className="break-words">{line}</p>
+                ))}
+              </div>
+            )}
           </div>
         </li>
       ))}
