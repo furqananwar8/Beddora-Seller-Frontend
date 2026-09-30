@@ -46,7 +46,7 @@ export const ApproversModal: React.FC<{ isOpen: boolean; onClose: () => void }> 
     <Modal isOpen={isOpen} onClose={onClose} title="Approvers" size="md">
       <p className="mb-3 text-sm text-text-muted">
         People who can approve or reject payment requests (this grants them the finance payment-approval permission). Adding someone here gives them
-        the &apos;Payment Approval&apos; permission only. Other permissions, such as Finance Settings, are assigned in Settings &gt; Users.
+        the &apos;Payment Approval&apos; permission only. Other permissions, such as Expense Types and Approver Management, are assigned in Settings &gt; Users.
       </p>
       <h3 className="mb-2 text-sm font-semibold text-text-primary">Current approvers</h3>
       {isLoading ? (

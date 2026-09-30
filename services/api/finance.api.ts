@@ -330,7 +330,7 @@ export const financeApi = baseApi.injectEndpoints({
     }),
 
     /* approvers */
-    getApproverStatus: b.query<{ isApprover: boolean; canManageSettings: boolean }, void>({
+    getApproverStatus: b.query<{ isApprover: boolean; canManageExpenseTypes: boolean; canManageApprovers: boolean }, void>({
       query: () => '/finance/approvers/me',
       transformResponse: unwrap,
       providesTags: ['FinanceApprovers'],

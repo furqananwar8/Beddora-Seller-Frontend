@@ -69,7 +69,8 @@ export const PaymentRequestScreen: React.FC = () => {
 
   const { data: approverStatus } = useGetApproverStatusQuery()
   const isApprover = approverStatus?.isApprover ?? false
-  const canManageSettings = approverStatus?.canManageSettings ?? false
+  const canManageExpenseTypes = approverStatus?.canManageExpenseTypes ?? false
+  const canManageApprovers = approverStatus?.canManageApprovers ?? false
 
   const [search, setSearch] = useState('')
   const debouncedSearch = useDebounce(search, 300)
@@ -144,15 +145,15 @@ export const PaymentRequestScreen: React.FC = () => {
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-bold text-text-primary sm:text-2xl">Payment Requests</h1>
         <div className="flex flex-wrap items-center gap-2">
-          {canManageSettings && (
-            <>
-              <Button variant="secondary" size="sm" onClick={() => setShowTypes(true)}>
-                Expense types
-              </Button>
-              <Button variant="secondary" size="sm" onClick={() => setShowApprovers(true)}>
-                Approvers
-              </Button>
-            </>
+          {canManageExpenseTypes && (
+            <Button variant="secondary" size="sm" onClick={() => setShowTypes(true)}>
+              Expense types
+            </Button>
+          )}
+          {canManageApprovers && (
+            <Button variant="secondary" size="sm" onClick={() => setShowApprovers(true)}>
+              Approvers
+            </Button>
           )}
           <Link href="/dashboard/finance/payment-request/new" className="ds-button ds-button-primary ds-button-sm">
             New request
@@ -254,8 +255,8 @@ export const PaymentRequestScreen: React.FC = () => {
 
       <RejectDialog requestId={rejectId} submitting={actions.rejecting} onConfirm={actions.reject} onClose={() => setRejectId(null)} />
       <RequestDetailModal requestId={openId} onClose={() => setOpen(null)} />
-      {canManageSettings && <ExpenseTypesModal isOpen={showTypes} onClose={() => setShowTypes(false)} />}
-      {canManageSettings && <ApproversModal isOpen={showApprovers} onClose={() => setShowApprovers(false)} />}
+      {canManageExpenseTypes && <ExpenseTypesModal isOpen={showTypes} onClose={() => setShowTypes(false)} />}
+      {canManageApprovers && <ApproversModal isOpen={showApprovers} onClose={() => setShowApprovers(false)} />}
     </Container>
   )
 }
