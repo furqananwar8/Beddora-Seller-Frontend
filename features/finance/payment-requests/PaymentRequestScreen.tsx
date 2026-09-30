@@ -178,7 +178,7 @@ export const PaymentRequestScreen: React.FC = () => {
             </label>
             <Select
               id="filter-expense-type"
-              className="rounded-lg"
+              className="h-10 rounded-lg py-0"
               value={expenseTypeId}
               onChange={(e) => {
                 setExpenseTypeId(e.target.value)
@@ -189,7 +189,7 @@ export const PaymentRequestScreen: React.FC = () => {
           </div>
           <div className="w-full min-w-0 sm:w-56">
             <span className="ds-input-label">Date</span>
-            <div className="w-full sm:w-56 [&>div]:block [&>div]:w-full [&>div>button]:w-full [&>div>button]:py-2.5 [&>div>button>span]:flex-1 [&>div>button>span]:text-left">
+            <div className="w-full sm:w-56 [&>div]:block [&>div]:w-full [&>div>button]:h-10 [&>div>button]:w-full [&>div>button]:py-0 [&>div>button>span]:flex-1 [&>div>button>span]:text-left">
               <DateRangePicker
                 presets={FILTER_PRESETS}
                 value={draftRange}
