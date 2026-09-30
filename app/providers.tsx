@@ -9,6 +9,7 @@ import { RouteGuard } from '@/components/navigation/RouteGuard'
 import { PersistGate } from 'redux-persist/integration/react'
 import { AbilityProvider } from '@/casl/AbilityProvider'
 import { SyncEventListener } from '@/components/sync/SyncEventListener'
+import { RealtimeProvider } from '@/components/realtime/RealtimeProvider'
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
@@ -20,7 +21,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
               {/* Headless SSE Sync Event Listener */}
               <SyncEventListener />
 
-              {children}
+              <RealtimeProvider>
+                {children}
+              </RealtimeProvider>
               <ToastContainer />
             </RouteGuard>
           </AbilityProvider>

@@ -5,7 +5,7 @@ import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { toggleSidebar } from '@/store/ui.slice'
 import { Select } from '@/design-system/inputs'
 import { Button } from '@/design-system/buttons'
-import { NavIcons } from './icons'
+import { NotificationBell } from '@/components/notifications/NotificationBell'
 import { HeaderClock } from '../header-clock/HeaderClock'
 
 /**
@@ -98,11 +98,9 @@ export const Header: React.FC<HeaderProps> = ({
 
         <div className="ds-header-actions">
           <HeaderClock />
-          <button className="ds-icon-button" aria-label="Notifications">
-            {NavIcons.bell}
-          </button>
+          <NotificationBell />
           {onLogout && (
-            <Button variant="ghost" size="sm" onClick={onLogout}>
+            <Button variant="primary" size="sm" onClick={onLogout}>
               Logout
             </Button>
           )}

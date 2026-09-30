@@ -116,6 +116,33 @@ export default function DashboardLayout({
             ],
           },
           {
+            label: 'Finance',
+            subject: 'finance',
+            action: 'read',
+            href: '/dashboard/finance/partner-profile',
+            icon: NavIcons.finance,
+            children: [
+              {
+                label: 'Partner Profile',
+                subject: 'finance:partner-profile',
+                action: 'read',
+                href: '/dashboard/finance/partner-profile',
+              },
+              {
+                label: 'Payment Request',
+                subject: 'finance:payment-request',
+                action: 'read',
+                href: '/dashboard/finance/payment-request',
+              },
+              {
+                label: 'Payment Process',
+                subject: 'finance:payment-process',
+                action: 'read',
+                href: '/dashboard/finance/payment-process',
+              },
+            ],
+          },
+          {
             label: 'Breakeven Analysis',
             subject: 'breakeven-analysis',
             action: 'read',
@@ -180,8 +207,7 @@ export default function DashboardLayout({
               },
               {
                 label: 'Addresses',
-                // Same access as General: a separate subject would need granting to every role first
-                subject: 'settings:general',
+                subject: 'settings:addresses',
                 action: 'read',
                 href: '/dashboard/settings/addresses',
               },
