@@ -73,14 +73,14 @@ export const NotificationBell: React.FC = () => {
     <div ref={wrapperRef} className="relative">
       <button
         type="button"
-        className="ds-icon-button relative"
+        className="relative p-2 text-text-muted transition-colors hover:text-text-primary"
         aria-label={unread > 0 ? `Notifications, ${unread} unread` : 'Notifications'}
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
       >
         <span className="block [&>svg]:h-6 [&>svg]:w-6">{NavIcons.bell}</span>
         {unread > 0 && (
-          <span className="absolute -right-1 -top-1 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-danger-600 px-1 text-[11px] font-bold leading-none text-text-inverse ring-2 ring-surface">
+          <span className="absolute -right-1 -top-1 ds-circle flex h-5 min-w-[20px] items-center justify-center bg-danger-600 px-1 text-[11px] font-bold leading-none text-text-inverse ring-2 ring-surface">
             {unread > 99 ? '99+' : unread}
           </span>
         )}

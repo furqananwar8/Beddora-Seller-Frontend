@@ -540,5 +540,10 @@
   .rounded-bl {
     border-radius: 0 !important;
   }
+
+  /* Opt-in circle for count badges: the square-corner reset above would otherwise flatten rounded-full. */
+  .ds-circle {
+    border-radius: 9999px !important;
+  }
 }
 
