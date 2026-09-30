@@ -1,6 +1,8 @@
 'use client'
 
 import React from 'react'
+import { useRouter } from 'next/navigation'
+import { RowActionsMenu } from '@/components/row-actions-menu/RowActionsMenu'
 import { Spinner } from '@/design-system/loaders'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/design-system/tables'
 import type { PartnerListItem } from '@/services/api/finance.api'
@@ -11,7 +13,8 @@ import { partnerTypeLabel } from './partnerSchema'
 
 const HEAD = 'text-center align-middle'
 const CELL = 'text-center align-middle'
-const COLUMNS = 7
+const COLUMNS = 8
+const BASE = '/dashboard/finance/partner-profile'
 
 interface PartnerTableProps {
   rows: PartnerListItem[]
@@ -21,7 +24,9 @@ interface PartnerTableProps {
   onOpen: (id: number) => void
 }
 
-export const PartnerTable: React.FC<PartnerTableProps> = ({ rows, isLoading, isFetching, isError, onOpen }) => (
+export const PartnerTable: React.FC<PartnerTableProps> = ({ rows, isLoading, isFetching, isError, onOpen }) => {
+  const router = useRouter()
+  return (
   <div className={cn('max-h-[calc(100vh-360px)] overflow-auto', isFetching && 'opacity-70 transition-opacity')}>
     <Table className="min-w-full">
       <TableHeader className="sticky top-0 z-10 bg-surface shadow-sm">
@@ -33,6 +38,7 @@ export const PartnerTable: React.FC<PartnerTableProps> = ({ rows, isLoading, isF
           <TableHead className={HEAD}>Currency</TableHead>
           <TableHead className={cn(HEAD, 'min-w-[140px]')}>Payment method</TableHead>
           <TableHead className={HEAD}>Last paid</TableHead>
+          <TableHead className={HEAD}>Actions</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -69,10 +75,17 @@ export const PartnerTable: React.FC<PartnerTableProps> = ({ rows, isLoading, isF
               <TableCell className={CELL}>{row.currency}</TableCell>
               <TableCell className={CELL}>{row.paymentMethod ?? '—'}</TableCell>
               <TableCell className={CELL}>{row.lastPaidAt ? formatDay(row.lastPaidAt) : '—'}</TableCell>
+              <TableCell className={CELL}>
+                <RowActionsMenu
+                  label={row.name}
+                  items={[{ key: 'update', label: 'Update profile', onSelect: () => router.push(`${BASE}/${row.id}`) }]}
+                />
+              </TableCell>
             </TableRow>
           ))
         )}
       </TableBody>
     </Table>
   </div>
-)
+  )
+}

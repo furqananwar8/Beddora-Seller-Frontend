@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect, useRef } from 'react'
 import { format } from 'date-fns'
 import type { RequestStatus, TimelineEvent } from '@/services/api/finance.api'
 import { cn } from '@/utils/cn'
@@ -65,17 +65,26 @@ export const ApprovalTimeline: React.FC<{ events: TimelineEvent[]; status: Reque
     steps.push({ key: 'awaiting', title: 'Awaiting decision', sub: 'Approve or Reject', glyph: '…', tone: TONE.pending })
   }
 
+  const scroller = useRef<HTMLDivElement>(null)
+  const count = steps.length
+  useEffect(() => {
+    const el = scroller.current
+    if (el) el.scrollTop = el.scrollHeight
+  }, [count])
+
   return (
-    <ol className="space-y-4">
+    <div ref={scroller} className="min-h-0 flex-1 overflow-x-auto overflow-y-auto p-4">
+      <ol className="space-y-4">
       {steps.map((step) => (
         <li key={step.key} className="flex items-start gap-3">
           <span className={cn('flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold', step.tone)}>{step.glyph}</span>
           <div className="min-w-0">
-            <p className="text-sm font-medium text-text-primary">{step.title}</p>
+            <p className="break-words text-sm font-medium text-text-primary">{step.title}</p>
             {step.sub && <p className="break-words text-xs text-text-muted">{step.sub}</p>}
           </div>
         </li>
       ))}
-    </ol>
+      </ol>
+    </div>
   )
 }

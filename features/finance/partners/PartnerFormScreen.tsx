@@ -1,6 +1,6 @@
 'use client'
 
-import React from 'react'
+import React, { Suspense } from 'react'
 import { Spinner } from '@/design-system/loaders'
 import { useGetPartnerQuery } from '@/services/api/finance.api'
 import { PartnerForm } from './PartnerForm'
@@ -11,8 +11,8 @@ interface PartnerFormScreenProps {
 }
 
 export const PartnerFormScreen: React.FC<PartnerFormScreenProps> = ({ mode, partnerId }) => {
-  if (mode === 'create') return <PartnerForm />
-  return <EditPartner partnerId={partnerId ?? 0} />
+  // PartnerForm reads the query string (returnTo), which needs a Suspense boundary.
+  return <Suspense fallback={null}>{mode === 'create' ? <PartnerForm /> : <EditPartner partnerId={partnerId ?? 0} />}</Suspense>
 }
 
 const EditPartner: React.FC<{ partnerId: number }> = ({ partnerId }) => {

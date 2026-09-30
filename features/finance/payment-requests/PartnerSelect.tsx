@@ -12,6 +12,10 @@ interface PartnerSelectProps {
   selected: PartnerOption | null
   error?: string
   onSelect: (partner: PartnerOption) => void
+  /** Where '+ Add new partner' leads; defaults to the plain partner form. */
+  addPartnerHref?: string
+  /** Runs just before navigating to add a partner, e.g. to stash the form. */
+  onAddPartner?: () => void
 }
 
 const Chip: React.FC<{ children: React.ReactNode }> = ({ children }) => (
@@ -29,7 +33,7 @@ export const PartnerChips: React.FC<{ partner: PartnerOption }> = ({ partner }) 
 )
 
 /** Searchable partner dropdown that ends with a link to create a new partner. */
-export const PartnerSelect: React.FC<PartnerSelectProps> = ({ id, selected, error, onSelect }) => {
+export const PartnerSelect: React.FC<PartnerSelectProps> = ({ id, selected, error, onSelect, addPartnerHref, onAddPartner }) => {
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
   const debounced = useDebounce(search, 250)
@@ -92,7 +96,8 @@ export const PartnerSelect: React.FC<PartnerSelectProps> = ({ id, selected, erro
             {isFetching && <li className="px-2 py-3 text-center text-sm text-text-muted">Searching...</li>}
           </ul>
           <Link
-            href="/dashboard/finance/partner-profile/new"
+            href={addPartnerHref ?? '/dashboard/finance/partner-profile/new'}
+            onClick={onAddPartner}
             className="mt-1 block rounded-md border-t border-border px-2 pb-1 pt-3 text-sm font-medium text-primary-600 hover:underline"
           >
             + Add new partner

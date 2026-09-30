@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
+import { useAppSelector } from '@/store/hooks'
 import { Button } from '@/design-system/buttons'
 import { Modal } from '@/design-system/modals'
 import { Spinner } from '@/design-system/loaders'
@@ -15,6 +16,7 @@ import { useFinanceFeedback } from '../shared/useFinanceFeedback'
 
 export const ApproversModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
   const { success, failure } = useFinanceFeedback()
+  const currentUserId = useAppSelector((state) => state.auth.user?.id)
   const [search, setSearch] = useState('')
   const debounced = useDebounce(search, 300)
   const { data: approvers, isLoading } = useGetApproversQuery(undefined, { skip: !isOpen })
@@ -42,6 +44,10 @@ export const ApproversModal: React.FC<{ isOpen: boolean; onClose: () => void }> 
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Approvers" size="md">
+      <p className="mb-3 text-sm text-text-muted">
+        People who can approve or reject payment requests (this grants them the finance payment-approval permission). Adding someone here gives them
+        the &apos;Payment Approval&apos; permission only. Other permissions, such as Finance Settings, are assigned in Settings &gt; Users.
+      </p>
       <h3 className="mb-2 text-sm font-semibold text-text-primary">Current approvers</h3>
       {isLoading ? (
         <div className="flex justify-center py-6">
@@ -49,17 +55,25 @@ export const ApproversModal: React.FC<{ isOpen: boolean; onClose: () => void }> 
         </div>
       ) : (
         <ul className="divide-y divide-border/50">
-          {(approvers ?? []).map((approver) => (
+          {(approvers ?? []).map((approver) => {
+            const isSelf = currentUserId !== undefined && String(approver.user.id) === String(currentUserId)
+            return (
             <li key={approver.user.id} className="flex items-center justify-between gap-3 py-2">
               <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-text-primary">{approver.user.name ?? approver.user.email}</p>
+                <p className="truncate text-sm font-medium text-text-primary">
+                  {approver.user.name ?? approver.user.email}
+                  {isSelf && <span className="ml-2 text-xs font-normal text-text-muted">You</span>}
+                </p>
                 <p className="truncate text-xs text-text-muted">{approver.user.email}</p>
               </div>
-              <Button size="sm" variant="outline" disabled={removing} onClick={() => removeUser(approver.user.id)}>
-                Remove
-              </Button>
+              {!isSelf && (
+                <Button size="sm" variant="outline" disabled={removing} onClick={() => removeUser(approver.user.id)}>
+                  Remove
+                </Button>
+              )}
             </li>
-          ))}
+            )
+          })}
           {(approvers ?? []).length === 0 && <li className="py-4 text-center text-sm text-text-muted">No approvers yet.</li>}
         </ul>
       )}

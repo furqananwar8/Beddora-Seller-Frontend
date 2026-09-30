@@ -1,18 +1,20 @@
 'use client'
 
 import React from 'react'
+import Link from 'next/link'
 import { PaginationFooter } from '@/components/pagination-footer/PaginationFooter'
 import { StatusBadge } from '@/components/status-badge/StatusBadge'
 import { Spinner } from '@/design-system/loaders'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/design-system/tables'
 import type { Page, PaymentDocumentListItem } from '@/services/api/finance.api'
 import { cn } from '@/utils/cn'
-import { formatCurrencyAmount, formatDocNo } from '../shared/format'
+import { formatCurrencyAmount, formatDocNo, formatRequestNo } from '../shared/format'
 import { DOC_STATUS_META } from '../shared/statusMeta'
 import { RowAction, RowActions } from './RowActions'
 
 const HEAD = 'text-center align-middle'
 const CELL = 'text-center align-middle'
+const COLUMNS = 9
 
 interface PaymentTableProps {
   page: Page<PaymentDocumentListItem> | undefined
@@ -34,6 +36,8 @@ export const PaymentTable: React.FC<PaymentTableProps> = ({ page, isLoading, isF
           <TableHeader className="sticky top-0 z-10 bg-surface shadow-sm">
             <TableRow>
               <TableHead className={HEAD}>Doc #</TableHead>
+              <TableHead className={HEAD}>Request</TableHead>
+              <TableHead className={cn(HEAD, 'min-w-[130px]')}>Invoice</TableHead>
               <TableHead className={cn(HEAD, 'min-w-[160px]')}>Partner</TableHead>
               <TableHead className={HEAD}>Amount</TableHead>
               <TableHead className={HEAD}>Paid</TableHead>
@@ -45,7 +49,7 @@ export const PaymentTable: React.FC<PaymentTableProps> = ({ page, isLoading, isF
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={7}>
+                <TableCell colSpan={COLUMNS}>
                   <div className="flex justify-center py-12">
                     <Spinner />
                   </div>
@@ -53,7 +57,7 @@ export const PaymentTable: React.FC<PaymentTableProps> = ({ page, isLoading, isF
               </TableRow>
             ) : isError || rows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7}>
+                <TableCell colSpan={COLUMNS}>
                   <div className={isError ? 'py-12 text-center font-medium text-danger-600' : 'py-12 text-center text-text-muted'}>
                     {isError ? 'Could not load payments.' : 'No approved requests awaiting payment.'}
                   </div>
@@ -68,6 +72,18 @@ export const PaymentTable: React.FC<PaymentTableProps> = ({ page, isLoading, isF
                       <button type="button" onClick={() => onOpen(row)} className="font-medium text-text-primary underline-offset-2 hover:underline">
                         {formatDocNo(row.id)}
                       </button>
+                    </TableCell>
+                    <TableCell className={cn(CELL, 'whitespace-nowrap')}>
+                      <Link
+                        href={`/dashboard/finance/payment-request?open=${row.requestId}`}
+                        className="font-medium text-primary-600 underline-offset-2 hover:underline"
+                      >
+                        {formatRequestNo(row.requestId)}
+                      </Link>
+                    </TableCell>
+                    <TableCell className={CELL}>
+                      <div className="break-words text-text-primary">{row.invoiceNo || '—'}</div>
+                      {row.containerNo && <div className="break-words text-xs text-text-muted">{row.containerNo}</div>}
                     </TableCell>
                     <TableCell className={CELL}>{row.partner.name}</TableCell>
                     <TableCell className={cn(CELL, 'whitespace-nowrap')}>{formatCurrencyAmount(row.currency, row.amount)}</TableCell>

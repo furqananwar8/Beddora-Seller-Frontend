@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Button } from '@/design-system/buttons'
@@ -16,6 +16,7 @@ import {
   type PaymentMethod,
 } from '@/services/api/finance.api'
 import { useDebounce } from '@/utils/debounce'
+import { safeFinanceReturnTo, withQueryParam } from '../payment-requests/requestDraftStore'
 import { formatPartnerNo } from '../shared/format'
 import { useFinanceFeedback } from '../shared/useFinanceFeedback'
 import { BasicDetailsSection } from './BasicDetailsSection'
@@ -40,6 +41,7 @@ interface PartnerFormProps {
 
 export const PartnerForm: React.FC<PartnerFormProps> = ({ partner }) => {
   const router = useRouter()
+  const returnTo = safeFinanceReturnTo(useSearchParams().get('returnTo'))
   const { success, failure } = useFinanceFeedback()
   const editing = Boolean(partner)
 
@@ -144,7 +146,7 @@ export const PartnerForm: React.FC<PartnerFormProps> = ({ partner }) => {
         return
       }
       success('Partner created')
-      router.push(LIST)
+      router.push(returnTo ? withQueryParam(returnTo, 'partnerId', String(created.id)) : LIST)
     } catch (error) {
       failure(error, 'Could not save the partner')
     } finally {
@@ -162,9 +164,15 @@ export const PartnerForm: React.FC<PartnerFormProps> = ({ partner }) => {
             {partner ? formatPartnerNo(partner.id) : 'New'}
           </span>
         </div>
-        <Button type="button" variant="outline" onClick={() => router.push(LIST)}>
-          All partners ({countData?.totalRecords ?? 0})
-        </Button>
+        {returnTo && !editing ? (
+          <Button type="button" variant="outline" onClick={() => router.push(withQueryParam(returnTo, 'restore', '1'))}>
+            Back to payment request
+          </Button>
+        ) : (
+          <Button type="button" variant="outline" onClick={() => router.push(LIST)}>
+            All partners ({countData?.totalRecords ?? 0})
+          </Button>
+        )}
       </div>
 
       <form onSubmit={submit} noValidate className="flex flex-col gap-4">
@@ -180,7 +188,12 @@ export const PartnerForm: React.FC<PartnerFormProps> = ({ partner }) => {
         />
 
         <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-          <Button type="button" variant="outline" onClick={() => router.push(LIST)} disabled={saving}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => router.push(returnTo && !editing ? withQueryParam(returnTo, 'restore', '1') : LIST)}
+            disabled={saving}
+          >
             Cancel
           </Button>
           <Button type="submit" isLoading={saving}>
