@@ -66,7 +66,6 @@ export const Modal: React.FC<ModalProps> = ({
     xl: 'max-w-4xl',
   }
 
-  console.log('Modal rendering with isOpen=true')
   
   return (
     <div className="ds-modal-wrap" onClick={onClose} style={{ zIndex: 9999 }}>
