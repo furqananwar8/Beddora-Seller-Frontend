@@ -12,7 +12,7 @@ import { PaymentDocumentListItem, useAddPopMutation, useGetFxTodayQuery } from '
 import { FormField, fieldClass } from '../shared/FormField'
 import { formatCurrencyAmount, formatDay, formatDocNo, formatMoney, todayInputValue } from '../shared/format'
 import { financeErrorMessage, useFinanceFeedback } from '../shared/useFinanceFeedback'
-import { convertedAmount, parseNumber, remainingAfter, round2 } from './popMath'
+import { convertedAmount, parseNumber, remainingAfter, round2, withinBalance } from './popMath'
 import { PopFormValues, makePopSchema } from './popSchema'
 
 const BASE_CURRENCY = 'CAD'
@@ -132,7 +132,9 @@ const PopForm: React.FC<{ row: PaymentDocumentListItem; onClose: () => void }> =
           hint={
             type === 'FULL'
               ? `Locked to the remaining balance ${formatCurrencyAmount(row.currency, row.balance)}`
-              : `Max ${formatCurrencyAmount(row.currency, row.balance)} · remaining after this: ${formatCurrencyAmount(row.currency, remaining)}`
+              : Number.isFinite(amount) && !withinBalance(amount, row.balance)
+                ? `Exceeds the balance ${formatCurrencyAmount(row.currency, row.balance)} by ${formatCurrencyAmount(row.currency, amount - row.balance)}`
+                : `Max ${formatCurrencyAmount(row.currency, row.balance)} · remaining after this: ${formatCurrencyAmount(row.currency, remaining)}`
           }
         >
           <input

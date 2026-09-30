@@ -98,6 +98,16 @@ export interface PartnerDetail {
 
 export type RequestStatus = 'DRAFT' | 'PENDING_APPROVAL' | 'APPROVED' | 'REJECTED'
 
+/** An existing live request for the same partner and invoice, with what has been paid against it. */
+export interface DuplicateInvoice {
+  id: number
+  status: RequestStatus
+  currency: string
+  amount: number
+  paidAmount: number
+  remaining: number
+}
+
 export interface PaymentRequestListItem {
   id: number
   invoiceNo: string
@@ -377,7 +387,7 @@ export const financeApi = baseApi.injectEndpoints({
       transformResponse: unwrap,
       providesTags: ['FinanceRequests'],
     }),
-    checkDuplicateInvoice: b.query<{ id: number; status: RequestStatus } | null, { partnerId: number; invoiceNo: string; excludeId?: number }>({
+    checkDuplicateInvoice: b.query<DuplicateInvoice | null, { partnerId: number; invoiceNo: string; excludeId?: number }>({
       query: (params) => ({ url: '/finance/payment-requests/duplicate-check', params }),
       transformResponse: unwrap,
     }),

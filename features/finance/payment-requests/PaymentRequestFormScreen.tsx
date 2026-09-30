@@ -26,12 +26,13 @@ import {
   useGetPartnerQuery,
   useGetPaymentRequestQuery,
   useLazyCheckDuplicateInvoiceQuery,
+  type DuplicateInvoice,
   useRemoveRequestDocumentMutation,
   useSubmitPaymentRequestMutation,
   useUpdatePaymentRequestMutation,
 } from '@/services/api/finance.api'
 import { FormField } from '../shared/FormField'
-import { formatMoney, formatRequestNo, toDateInputValue } from '../shared/format'
+import { formatCurrencyAmount, formatMoney, formatRequestNo, toDateInputValue } from '../shared/format'
 import { REQUEST_STATUS_META } from '../shared/statusMeta'
 import { useFinanceFeedback } from '../shared/useFinanceFeedback'
 import { DocumentChips } from '../shared/DocumentChips'
@@ -113,7 +114,7 @@ export const PaymentRequestFormScreen: React.FC = () => {
   const [partner, setPartner] = useState<PartnerOption | null>(null)
   const [files, setFiles] = useState<File[]>([])
   const [fileError, setFileError] = useState<string | undefined>()
-  const [duplicate, setDuplicate] = useState<{ invoiceNo: string; id: number } | null>(null)
+  const [duplicate, setDuplicate] = useState<(DuplicateInvoice & { invoiceNo: string }) | null>(null)
   const [saving, setSaving] = useState<'draft' | 'submit' | null>(null)
   const [removingId, setRemovingId] = useState<string | null>(null)
   const uploadedCount = useRef(0)
@@ -167,7 +168,7 @@ export const PaymentRequestFormScreen: React.FC = () => {
     }
     try {
       const found = await checkDuplicate({ partnerId: Number(partnerId), invoiceNo: invoiceNo.trim(), excludeId: requestId ?? undefined }, false).unwrap()
-      setDuplicate(found ? { invoiceNo: invoiceNo.trim(), id: found.id } : null)
+      setDuplicate(found ? { invoiceNo: invoiceNo.trim(), ...found } : null)
     } catch {
       setDuplicate(null)
     }
@@ -313,6 +314,12 @@ export const PaymentRequestFormScreen: React.FC = () => {
           {duplicate && (
             <p role="alert" className="mt-3 rounded-lg border border-warning-300 bg-warning-50 px-3 py-2 text-sm text-warning-700">
               Invoice {duplicate.invoiceNo} already has request {formatRequestNo(duplicate.id)} for this partner.
+              {duplicate.paidAmount > 0 && (
+                <span className="mt-1 block">
+                  {formatCurrencyAmount(duplicate.currency, duplicate.paidAmount)} of {formatCurrencyAmount(duplicate.currency, duplicate.amount)} already paid
+                  {duplicate.remaining > 0 ? `, ${formatCurrencyAmount(duplicate.currency, duplicate.remaining)} still outstanding.` : ' (paid in full).'}
+                </span>
+              )}
             </p>
           )}
         </Section>
