@@ -66,16 +66,14 @@ function toStep(event: TimelineEvent): Step {
       const paid = amountLine(event.payload, 'amount')
       const left = money(event.payload, 'remaining')
       const progress = paid ? `${paid} paid${left !== undefined ? (left > 0 ? ` · ${amountLine(event.payload, 'remaining')} remaining` : ' · fully covered') : ''}` : undefined
-      return { key: String(event.id), title: 'Proof of payment added', sub: [progress, `by ${by} · ${when}`].filter(Boolean).join('
-'), glyph: '$', tone: TONE.info }
+      return { key: String(event.id), title: 'Proof of payment added', sub: [progress, `by ${by} · ${when}`].filter(Boolean).join('\n'), glyph: '$', tone: TONE.info }
     }
     case 'PAID': {
       const balance = money(event.payload, 'balance')
       const paid = amountLine(event.payload, 'paidAmount')
       const total = amountLine(event.payload, 'amount')
       const summary = paid && total ? (balance && balance > 0 ? `${paid} of ${total} paid · ${amountLine(event.payload, 'balance')} not paid` : `${total} paid in full`) : undefined
-      return { key: String(event.id), title: balance && balance > 0 ? 'Marked as paid (partial)' : 'Paid', sub: [summary, `by ${by} · ${when}`].filter(Boolean).join('
-'), glyph: '✓', tone: TONE.done }
+      return { key: String(event.id), title: balance && balance > 0 ? 'Marked as paid (partial)' : 'Paid', sub: [summary, `by ${by} · ${when}`].filter(Boolean).join('\n'), glyph: '✓', tone: TONE.done }
     }
   }
 }
