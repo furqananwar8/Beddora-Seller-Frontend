@@ -187,9 +187,8 @@ export const PaymentRequestScreen: React.FC = () => {
               options={[{ value: '', label: 'All' }, ...(expenseTypes ?? []).map((t) => ({ value: String(t.id), label: t.name }))]}
             />
           </div>
-          <div className="w-full min-w-0 sm:w-auto">
+          <div className="w-full min-w-0 sm:w-56">
             <span className="ds-input-label">Date</span>
-            <div className="flex items-stretch gap-2">
             <div className="w-full sm:w-56 [&>div]:block [&>div]:w-full [&>div>button]:w-full [&>div>button]:py-2.5 [&>div>button>span]:flex-1 [&>div>button>span]:text-left">
               <DateRangePicker
                 presets={FILTER_PRESETS}
@@ -197,6 +196,18 @@ export const PaymentRequestScreen: React.FC = () => {
                 placement="right"
                 placeholder="Custom range"
                 keepOpenPresetIds={['custom']}
+                applyAction={
+                  draftIsCustom
+                    ? {
+                        label: 'Apply',
+                        disabled: !canApplyCustom,
+                        onApply: () => {
+                          setDateRange({ ...draftRange, presetId: 'custom' })
+                          setPage(1)
+                        },
+                      }
+                    : undefined
+                }
                 onChange={(range) => {
                   setDraftRange(range)
                   // Presets apply straight away; a custom range waits for Apply.
@@ -206,20 +217,6 @@ export const PaymentRequestScreen: React.FC = () => {
                   }
                 }}
               />
-            </div>
-            {draftIsCustom && (
-              <Button
-                size="sm"
-                className="shrink-0 whitespace-nowrap"
-                disabled={!canApplyCustom}
-                onClick={() => {
-                  setDateRange({ ...draftRange, presetId: 'custom' })
-                  setPage(1)
-                }}
-              >
-                Apply date range
-              </Button>
-            )}
             </div>
           </div>
         </div>

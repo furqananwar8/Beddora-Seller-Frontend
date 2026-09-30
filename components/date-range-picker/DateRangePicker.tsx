@@ -84,6 +84,13 @@ export interface DateRangePickerProps {
 
   keepOpenPresetIds?: string[]
 
+  /** Optional footer button for flows where a chosen range is committed explicitly. Closes the popup after onApply. */
+  applyAction?: {
+    label: string
+    disabled?: boolean
+    onApply: () => void
+  }
+
   selectionMode?: 'range' | 'single'
 
   disableFutureDates?: boolean
@@ -592,6 +599,7 @@ export default function DateRangePicker({
   displayFormat = 'MMM d, yyyy',
   placeholder = 'Select date range',
   keepOpenPresetIds = [],
+  applyAction,
   selectionMode = 'range',
   disableFutureDates = false,
 }: DateRangePickerProps) {
@@ -1324,6 +1332,19 @@ export default function DateRangePicker({
                       ? 'Select date'
                       : 'Select a date range'}
               </div>
+              {applyAction && (
+                <button
+                  type="button"
+                  disabled={applyAction.disabled}
+                  onClick={() => {
+                    applyAction.onApply()
+                    setIsOpen(false)
+                  }}
+                  className="ds-button ds-button-primary ds-button-sm shrink-0"
+                >
+                  {applyAction.label}
+                </button>
+              )}
             </div>
           </div>
         </div>
