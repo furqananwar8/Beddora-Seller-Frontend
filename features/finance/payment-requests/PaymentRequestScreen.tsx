@@ -187,9 +187,10 @@ export const PaymentRequestScreen: React.FC = () => {
               options={[{ value: '', label: 'All' }, ...(expenseTypes ?? []).map((t) => ({ value: String(t.id), label: t.name }))]}
             />
           </div>
-          <div className="w-full min-w-0 sm:w-56">
+          <div className="w-full min-w-0 sm:w-auto">
             <span className="ds-input-label">Date</span>
-            <div className="[&>div]:block [&>div]:w-full [&>div>button]:w-full [&>div>button]:py-2.5 [&>div>button>span]:flex-1 [&>div>button>span]:text-left">
+            <div className="flex items-stretch gap-2">
+            <div className="w-full sm:w-56 [&>div]:block [&>div]:w-full [&>div>button]:w-full [&>div>button]:py-2.5 [&>div>button>span]:flex-1 [&>div>button>span]:text-left">
               <DateRangePicker
                 presets={FILTER_PRESETS}
                 value={draftRange}
@@ -209,7 +210,7 @@ export const PaymentRequestScreen: React.FC = () => {
             {draftIsCustom && (
               <Button
                 size="sm"
-                className="mt-2 w-full"
+                className="shrink-0 whitespace-nowrap"
                 disabled={!canApplyCustom}
                 onClick={() => {
                   setDateRange({ ...draftRange, presetId: 'custom' })
@@ -219,6 +220,7 @@ export const PaymentRequestScreen: React.FC = () => {
                 Apply date range
               </Button>
             )}
+            </div>
           </div>
         </div>
       </div>
