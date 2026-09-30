@@ -2,9 +2,14 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import {
+  CarrierEntry,
   OptionKind,
+  RewindResponse,
+  RewindTarget,
   useCancelShipmentMutation,
   useConfirmShipmentOptionsMutation,
+  useRewindShipmentMutation,
+  useSubmitShipmentCarrierMutation,
   useCreateShipmentMutation,
   useGenerateShipmentLabelsMutation,
   useGetPackingPlanMutation,
@@ -35,7 +40,7 @@ import {
   ShipTrackingInput,
 } from './types'
 
-export type { OptionKind }
+export type { CarrierEntry, OptionKind, RewindResponse, RewindTarget }
 
 /**
  * sandbox: the backend sends the Amazon steps to the SP-API sandbox (FBA_SANDBOX)
@@ -56,6 +61,9 @@ export interface ShipmentsController {
   submitPacking: (id: string, submission: PackingSubmission) => Promise<InboundShipment>
   getOptions: (shipment: InboundShipment, kind: OptionKind) => Promise<AmazonOption[]>
   confirmOptions: (id: string, kind: OptionKind, chosen: AmazonOption[]) => Promise<InboundShipment>
+  submitCarrier: (id: string, carriers: CarrierEntry[]) => Promise<InboundShipment>
+  /** Back: redo an earlier step (optionally with a new ship-from address). */
+  rewind: (id: string, to: RewindTarget, shipFrom?: ShipFromRequest) => Promise<RewindResponse>
   generateLabels: (id: string) => Promise<InboundShipment>
   downloadLabels: (id: string, type: LabelType) => Promise<Blob>
   setShipFrom: (id: string, choice: ShipFromRequest) => Promise<InboundShipment>
@@ -133,6 +141,8 @@ export const useShipments = (): ShipmentsController => {
   const [packing] = useSubmitPackingMutation()
   const [options] = useGetShipmentOptionsMutation()
   const [confirm] = useConfirmShipmentOptionsMutation()
+  const [carrier] = useSubmitShipmentCarrierMutation()
+  const [rewindShipment] = useRewindShipmentMutation()
   const [labels] = useGenerateShipmentLabelsMutation()
   const [labelFile] = useDownloadShipmentLabelsMutation()
   const [syncAll] = useSyncShipmentsMutation()
@@ -179,6 +189,17 @@ export const useShipments = (): ShipmentsController => {
     [confirm]
   )
 
+  const submitCarrier = useCallback(
+    (id: string, carriers: CarrierEntry[]) => call(carrier({ id, carriers }), 'Could not save the carrier'),
+    [carrier]
+  )
+
+  const rewind = useCallback(
+    (id: string, to: RewindTarget, shipFrom?: ShipFromRequest) =>
+      call(rewindShipment({ id, to, ...shipFrom }), 'Could not go back to that step'),
+    [rewindShipment]
+  )
+
   const generateLabels = useCallback((id: string) => call(labels(id), 'Could not generate labels'), [labels])
 
   const downloadLabels = useCallback(
@@ -220,6 +241,8 @@ export const useShipments = (): ShipmentsController => {
     submitPacking,
     getOptions,
     confirmOptions,
+    submitCarrier,
+    rewind,
     generateLabels,
     downloadLabels,
     markShipped,

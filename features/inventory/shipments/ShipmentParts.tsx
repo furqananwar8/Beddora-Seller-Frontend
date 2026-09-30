@@ -292,3 +292,24 @@ const HoverTooltip: React.FC<{ text: string; children: React.ReactElement }> = (
     </>
   )
 }
+
+/**
+ * Footer shared by the step dialogs. Back (left) returns to the previous step;
+ * the actions sit on the right and stack under it on narrow screens.
+ */
+export const DialogFooter: React.FC<{
+  onBack?: () => void
+  backDisabled?: boolean
+  children: React.ReactNode
+}> = ({ onBack, backDisabled, children }) => (
+  <div className="mt-6 flex flex-col-reverse gap-3 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
+    <div>
+      {onBack && (
+        <Button variant="ghost" onClick={onBack} disabled={backDisabled}>
+          <span aria-hidden>←</span> Back
+        </Button>
+      )}
+    </div>
+    <div className="flex flex-col-reverse gap-2 sm:flex-row">{children}</div>
+  </div>
+)

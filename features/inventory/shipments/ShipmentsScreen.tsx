@@ -19,7 +19,7 @@ import {
 import { useDebounce } from '@/utils/debounce'
 import { cn } from '@/utils/cn'
 import { AmazonOption, InboundShipment, LabelType, Marketplace, PackingSubmission, ShipmentStatus } from './types'
-import { CreateShipmentInput, OptionKind, ShipmentsMode, useShipments } from './useShipments'
+import { CarrierEntry, CreateShipmentInput, OptionKind, RewindTarget, ShipFromRequest, ShipmentsMode, useShipments } from './useShipments'
 import {
   MARKETPLACE_META,
   NEXT_ACTION,
@@ -33,6 +33,8 @@ import { ShipmentRow, SHIPMENT_TABLE_COLUMNS } from './ShipmentRow'
 import { CreateMode, CreateShipmentDrawer } from './CreateShipmentDrawer'
 import { ConfirmModal, MarkShippedModal, OptionPickerModal } from './ShipmentDialogs'
 import { PackingModal } from './PackingModal'
+import { CarrierModal } from './CarrierModal'
+import { EditShipFromModal } from './EditShipFromModal'
 import { formatRelative, formatUnits, unitsLabel } from './ShipmentParts'
 
 type StatusFilter = 'all' | ShipmentStatus
@@ -42,8 +44,13 @@ type Dialog =
   | { type: 'create'; preselect: string[] }
   | { type: 'options'; id: string; kind: OptionKind }
   | { type: 'packing'; id: string }
+  | { type: 'carrier'; id: string }
   | { type: 'ship'; id: string }
   | { type: 'cancel'; id: string }
+  /** Edit the ship-from address of a shipment that already has an Amazon plan. */
+  | { type: 'shipFrom'; id: string }
+  /** Confirm going back; cancelling returns to the dialog it came from. */
+  | { type: 'rewind'; id: string; to: RewindTarget; resume: Dialog }
   | null
 
 const STATUS_ORDER: ShipmentStatus[] = ['in_progress', 'shipped', 'receiving', 'closed', 'cancelled']
@@ -51,7 +58,14 @@ const STATUS_ORDER: ShipmentStatus[] = ['in_progress', 'shipped', 'receiving', '
 const ACTION_TO_OPTION: Partial<Record<NextAction, OptionKind>> = {
   choose_placement: 'placement',
   choose_window: 'window',
-  choose_transport: 'transport',
+}
+
+/** What the seller redoes when going back to each target. */
+const REWIND_LABEL: Record<RewindTarget, string> = {
+  packing: 'box contents',
+  placement: 'the destination warehouse',
+  window: 'the delivery window',
+  carrier: 'the carrier',
 }
 
 const LABEL_NAMES: Record<LabelType, string> = {
@@ -74,6 +88,8 @@ export const ShipmentsScreen: React.FC = () => {
     submitPacking,
     getOptions,
     confirmOptions,
+    submitCarrier,
+    rewind,
     generateLabels,
     downloadLabels,
     setShipFrom,
@@ -125,7 +141,10 @@ export const ShipmentsScreen: React.FC = () => {
    */
   const closeIfCurrent = (current: Dialog) => () =>
     setUi((prev) => (JSON.stringify(prev.dialog) === JSON.stringify(current) ? { ...prev, dialog: null } : prev))
-  const dialogId = (type: 'options' | 'packing' | 'ship' | 'cancel') =>
+  /** Like closeIfCurrent, but cancelling drops back to the dialog the user came from. */
+  const closeTo = (current: Dialog, resume: Dialog) => () =>
+    setUi((prev) => (JSON.stringify(prev.dialog) === JSON.stringify(current) ? { ...prev, dialog: resume } : prev))
+  const dialogId = (type: 'options' | 'packing' | 'carrier' | 'ship' | 'cancel' | 'shipFrom') =>
     dialog && dialog.type === type ? dialog.id : null
 
   // Deep link from Planner: /shipments?create=1&productIds=1,2,3
@@ -241,6 +260,7 @@ export const ShipmentsScreen: React.FC = () => {
     const kind = ACTION_TO_OPTION[action]
     if (kind) return openDialog({ type: 'options', id: shipment.id, kind })
     if (action === 'set_packing') return openDialog({ type: 'packing', id: shipment.id })
+    if (action === 'enter_carrier') return openDialog({ type: 'carrier', id: shipment.id })
     if (action === 'mark_shipped') return openDialog({ type: 'ship', id: shipment.id })
     if (action === 'generate_labels') {
       closeDialog()
@@ -262,6 +282,7 @@ export const ShipmentsScreen: React.FC = () => {
     const optionKind = ACTION_TO_OPTION[action]
     if (optionKind) return openDialog({ type: 'options', id, kind: optionKind })
     if (action === 'set_packing') return openDialog({ type: 'packing', id })
+    if (action === 'enter_carrier') return openDialog({ type: 'carrier', id })
     if (action === 'mark_shipped') return openDialog({ type: 'ship', id })
     if (action === 'generate_labels') return continueFlow(shipment)
     if (action === 'submit_plan') {
@@ -282,11 +303,35 @@ export const ShipmentsScreen: React.FC = () => {
     const copy: Record<OptionKind, string> = {
       placement: 'Warehouse confirmed',
       window: chosen.length ? 'Delivery window booked' : 'No delivery window needed',
-      transport: 'Carrier booked',
     }
     const updated = await confirmOptions(id, kind, chosen)
     dispatch(addNotification({ message: `${updated.reference}: ${copy[kind]}`, type: 'success' }))
     await continueFlow(updated)
+  }
+
+  const handleSubmitCarrier = async (id: string, carriers: CarrierEntry[]) => {
+    const updated = await submitCarrier(id, carriers)
+    dispatch(addNotification({ message: `${updated.reference}: carrier saved and Amazon updated`, type: 'success' }))
+    await continueFlow(updated)
+  }
+
+  /** Redoes an earlier step, then reopens the dialog for wherever the shipment landed. */
+  const performRewind = async (id: string, to: RewindTarget, shipFrom?: ShipFromRequest) => {
+    const { shipment, notice } = await rewind(id, to, shipFrom)
+    dispatch(addNotification({ message: `${shipment.reference}: back to ${REWIND_LABEL[to]}`, type: 'success' }))
+    if (notice) dispatch(addNotification({ message: notice, type: 'warning' }))
+    await continueFlow(shipment)
+  }
+
+  /** Steps that only change our own record go back straight away; the rest recreate the Amazon plan, so they ask first. */
+  const handleBack = (id: string, to: RewindTarget) => {
+    if (to === 'carrier') {
+      performRewind(id, to).catch((err: Error) =>
+        dispatch(addNotification({ message: err.message || 'Could not go back', type: 'error' }))
+      )
+      return
+    }
+    openDialog({ type: 'rewind', id, to, resume: dialog })
   }
 
   const handleSubmitPacking = async (id: string, submission: PackingSubmission) => {
@@ -361,11 +406,11 @@ export const ShipmentsScreen: React.FC = () => {
   const shippingTarget = byId(dialogId('ship'))
 
   return (
-    <Container size="full" className="py-8">
+    <Container size="full" className="py-4 sm:py-8">
       {/* Header */}
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4 px-1">
         <div>
-          <h1 className="text-2xl font-bold text-text-primary">Shipments</h1>
+          <h1 className="text-xl font-bold text-text-primary sm:text-2xl">Shipments</h1>
           <p className="mt-1 text-sm text-text-muted">
             Split your FBA reserved stock into Amazon inbound shipments and track them to receipt.
           </p>
@@ -445,7 +490,7 @@ export const ShipmentsScreen: React.FC = () => {
           })}
         </div>
 
-        <div className="relative min-w-[240px] flex-1">
+        <div className="relative min-w-0 flex-1 basis-full sm:min-w-[240px] sm:basis-auto">
           <svg className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
@@ -563,7 +608,25 @@ export const ShipmentsScreen: React.FC = () => {
         shipment={byId(dialogId('options'))}
         loadOptions={getOptions}
         onConfirm={handleConfirmOptions}
+        onBack={() => dialog?.type === 'options' && handleBack(dialog.id, dialog.kind === 'placement' ? 'packing' : 'placement')}
+        onEditShipFrom={() => dialog?.type === 'options' && openDialog({ type: 'shipFrom', id: dialog.id })}
         onClose={closeIfCurrent(dialog?.type === 'options' ? dialog : null)}
+      />
+
+      <CarrierModal
+        shipment={byId(dialogId('carrier'))}
+        onConfirm={(carriers) => handleSubmitCarrier(dialogId('carrier')!, carriers)}
+        onBack={() => dialog?.type === 'carrier' && handleBack(dialog.id, 'window')}
+        onClose={closeIfCurrent(dialog?.type === 'carrier' ? dialog : null)}
+      />
+
+      <EditShipFromModal
+        shipment={byId(dialogId('shipFrom'))}
+        onConfirm={(choice) => performRewind(dialogId('shipFrom')!, 'placement', choice)}
+        onClose={closeTo(
+          dialog?.type === 'shipFrom' ? dialog : null,
+          dialog?.type === 'shipFrom' ? { type: 'options', id: dialog.id, kind: 'placement' } : null
+        )}
       />
 
       <PackingModal
@@ -577,6 +640,7 @@ export const ShipmentsScreen: React.FC = () => {
         shipment={shippingTarget}
         onDownloadLabel={(type) => shippingTarget && handleDownloadLabel(shippingTarget.id, type)}
         downloadingLabels={shippingTarget ? downloadingFor(shippingTarget.id) : {}}
+        onBack={() => shippingTarget && handleBack(shippingTarget.id, 'carrier')}
         onClose={closeDialog}
         loadRequirements={getShipRequirements}
         onConfirm={(tracking) => {
@@ -587,6 +651,15 @@ export const ShipmentsScreen: React.FC = () => {
             'Could not mark as shipped'
           )
         }}
+      />
+
+      <ConfirmModal
+        isOpen={dialog?.type === 'rewind'}
+        title={`Go back to ${dialog?.type === 'rewind' ? REWIND_LABEL[dialog.to] : ''}?`}
+        message="Amazon locks each step once it is confirmed, so going back cancels the inbound plan and creates a new one. Your earlier choices are re-applied automatically where Amazon offers the same options; anything it can't match, you choose again."
+        confirmLabel="Go back"
+        onClose={closeTo(dialog?.type === 'rewind' ? dialog : null, dialog?.type === 'rewind' ? dialog.resume : null)}
+        onConfirm={() => performRewind((dialog as { id: string }).id, (dialog as { to: RewindTarget }).to)}
       />
 
       <ConfirmModal

@@ -8,11 +8,11 @@ import { formatCurrency } from '@/utils/format'
 import { cn } from '@/utils/cn'
 import { AmazonOption, InboundShipment, LabelType, ShipLegRequirement, ShipTrackingInput } from './types'
 import { OptionKind } from './useShipments'
-import { LabelButton, ProductThumb, formatUnits, formatWindow, unitsLabel } from './ShipmentParts'
+import { DialogFooter, LabelButton, ProductThumb, formatUnits, formatWindow, unitsLabel } from './ShipmentParts'
 import { MARKETPLACE_META, getShipmentUnits, shipsAsFreight } from './workflow'
 
 // ============================================
-// OPTION PICKER (placement / delivery window / transport)
+// OPTION PICKER (placement / delivery window)
 // ============================================
 
 const OPTION_COPY: Record<OptionKind, { title: string; description: string; confirm: string }> = {
@@ -27,19 +27,18 @@ const OPTION_COPY: Record<OptionKind, { title: string; description: string; conf
     description: 'Pick the window when the shipment will arrive at the fulfillment center.',
     confirm: 'Confirm window',
   },
-  transport: {
-    title: 'Choose carrier',
-    description: 'Book transportation for this shipment.',
-    confirm: 'Confirm carrier',
-  },
 }
 
 interface OptionPickerModalProps {
   kind: OptionKind | null
   shipment: InboundShipment | null
   loadOptions: (shipment: InboundShipment, kind: OptionKind) => Promise<AmazonOption[]>
-  /** One option for placement; one per Amazon shipment for windows and carriers. */
+  /** One option for placement; one per Amazon shipment for windows. */
   onConfirm: (options: AmazonOption[]) => Promise<void>
+  /** Back to the previous step. */
+  onBack: () => void
+  /** Placement only: change where the shipment ships from. */
+  onEditShipFrom?: () => void
   onClose: () => void
 }
 
@@ -52,7 +51,7 @@ interface OptionGroup {
   options: AmazonOption[]
 }
 
-/** Placement is one choice for the plan; windows and carriers are one choice per Amazon shipment. */
+/** Placement is one choice for the plan; windows are one choice per Amazon shipment. */
 const groupOptions = (kind: OptionKind, options: AmazonOption[]): OptionGroup[] => {
   if (kind === 'placement') return options.length ? [{ key: 'plan', options }] : []
   const groups = new Map<string, OptionGroup>()
@@ -79,6 +78,8 @@ export const OptionPickerModal: React.FC<OptionPickerModalProps> = ({
   shipment,
   loadOptions,
   onConfirm,
+  onBack,
+  onEditShipFrom,
   onClose,
 }) => {
   const [state, setState] = useState<PickerState>(EMPTY_PICKER)
@@ -151,7 +152,7 @@ export const OptionPickerModal: React.FC<OptionPickerModalProps> = ({
       {noWindowsOffered && (
         <div className="rounded-md border border-border bg-surface-secondary px-3 py-2.5 text-sm text-text-secondary">
           Amazon has no delivery window to choose for these shipments, which is normal for partnered-carrier small
-          parcel. Continue to pick a carrier.
+          parcel. Continue to enter your carrier.
         </div>
       )}
 
@@ -227,7 +228,12 @@ export const OptionPickerModal: React.FC<OptionPickerModalProps> = ({
         ))}
       </div>
 
-      <div className="mt-6 flex justify-end gap-2 border-t border-border pt-4">
+      <DialogFooter onBack={onBack} backDisabled={isConfirming}>
+        {kind === 'placement' && onEditShipFrom && (
+          <Button variant="outline" onClick={onEditShipFrom} disabled={isConfirming}>
+            Edit ship-from address
+          </Button>
+        )}
         <Button variant="outline" onClick={onClose} disabled={isConfirming}>
           Cancel
         </Button>
@@ -245,7 +251,7 @@ export const OptionPickerModal: React.FC<OptionPickerModalProps> = ({
             copy.confirm
           )}
         </Button>
-      </div>
+      </DialogFooter>
     </Modal>
   )
 }
@@ -262,6 +268,8 @@ interface MarkShippedModalProps {
   /** Asks Amazon what it needs to mark this shipment as shipped (tracking for own-carrier legs). */
   loadRequirements: (id: string) => Promise<ShipLegRequirement[]>
   onConfirm: (tracking: ShipTrackingInput[]) => Promise<void>
+  /** Back to the carrier step. */
+  onBack: () => void
   onClose: () => void
 }
 
@@ -271,6 +279,7 @@ export const MarkShippedModal: React.FC<MarkShippedModalProps> = ({
   downloadingLabels,
   loadRequirements,
   onConfirm,
+  onBack,
   onClose,
 }) => {
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -452,14 +461,14 @@ export const MarkShippedModal: React.FC<MarkShippedModalProps> = ({
         </div>
       )}
 
-      <div className="mt-6 flex justify-end gap-2 border-t border-border pt-4">
+      <DialogFooter onBack={onBack} backDisabled={isSubmitting}>
         <Button variant="outline" onClick={onClose} disabled={isSubmitting}>
           Cancel
         </Button>
         <Button onClick={handleConfirm} disabled={!acknowledged || isSubmitting || !legs || legs.length === 0 || !trackingComplete}>
           {isSubmitting ? 'Confirming with Amazon…' : `Confirm with Amazon & deduct ${unitsLabel(units)}`}
         </Button>
-      </div>
+      </DialogFooter>
     </Modal>
   )
 }

@@ -291,7 +291,7 @@ export const PackingModal: React.FC<PackingModalProps> = ({ shipment, loadPlan, 
         </>
       )}
 
-      <div className="mt-6 flex items-center justify-between gap-2 border-t border-border pt-4">
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-4">
         <span className="text-xs text-text-muted">{option ? `${formatUnits(totalBoxes)} boxes` : ''}</span>
         <div className="flex gap-2">
           <Button variant="outline" onClick={onClose} disabled={isSubmitting}>
@@ -359,15 +359,15 @@ const SkuBoxes: React.FC<{
           {formatUnits(packed)} / {formatUnits(item.quantity)} packed
         </span>
       </div>
-      <div className="space-y-2 p-3">
-        <div className="grid grid-cols-[repeat(6,minmax(0,1fr))_2rem] gap-2 text-[11px] font-medium text-text-muted">
+      <div className="space-y-2 overflow-x-auto p-3">
+        <div className="grid min-w-[620px] grid-cols-[repeat(6,minmax(0,1fr))_2rem] gap-2 text-[11px] font-medium text-text-muted">
           {columns.map((c) => (
             <span key={c.field}>{c.label}</span>
           ))}
           <span />
         </div>
         {rows.map((row, index) => (
-          <div key={index} className="grid grid-cols-[repeat(6,minmax(0,1fr))_2rem] items-center gap-2">
+          <div key={index} className="grid min-w-[620px] grid-cols-[repeat(6,minmax(0,1fr))_2rem] items-center gap-2">
             {columns.map((c) => (
               <input
                 key={c.field}

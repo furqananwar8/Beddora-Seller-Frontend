@@ -42,7 +42,7 @@ export type NextAction =
   | 'set_packing'
   | 'choose_placement'
   | 'choose_window'
-  | 'choose_transport'
+  | 'enter_carrier'
   | 'generate_labels'
   | 'mark_shipped'
 
@@ -68,14 +68,14 @@ export const NEXT_ACTION: Record<ShipmentStage, { action: NextAction; label: str
     hint: 'Warehouse confirmed. Request a ship date / delivery window.',
   },
   window_confirmed: {
-    action: 'choose_transport',
-    label: 'Choose carrier',
-    hint: 'Delivery window booked. Select a carrier to book transport.',
+    action: 'enter_carrier',
+    label: 'Enter carrier',
+    hint: 'Delivery window booked. Enter the carrier you booked; Amazon is told you ship with your own carrier.',
   },
   transport_confirmed: {
     action: 'generate_labels',
     label: 'Generate labels',
-    hint: 'Carrier booked. Generate pallet, box and FNSKU unit labels.',
+    hint: 'Carrier saved. Generate pallet, box and FNSKU unit labels.',
   },
   labels_ready: {
     action: 'mark_shipped',

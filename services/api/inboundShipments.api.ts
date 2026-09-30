@@ -12,7 +12,21 @@ import type {
   ShipTrackingInput,
 } from '@/features/inventory/shipments/types'
 
-export type OptionKind = 'placement' | 'window' | 'transport'
+export type OptionKind = 'placement' | 'window'
+
+/** The step a shipment can go back to and redo. */
+export type RewindTarget = 'packing' | 'placement' | 'window' | 'carrier'
+
+export interface RewindResponse {
+  shipment: InboundShipment
+  /** Set when an earlier answer couldn't be replayed, so the seller lands on that step instead. */
+  notice?: string
+}
+
+export interface CarrierEntry {
+  shipmentId: string
+  carrier: string
+}
 
 export interface ShipmentLineInput {
   inventoryItemId: number
@@ -116,6 +130,21 @@ export const inboundShipmentsApi = baseApi.injectEndpoints({
       invalidatesTags: ['InboundShipments'],
     }),
 
+    /** The seller's own carrier per Amazon shipment; the backend tells Amazon the shipment ships with it. */
+    submitShipmentCarrier: builder.mutation<InboundShipment, { id: string; carriers: CarrierEntry[] }>({
+      query: ({ id, carriers }) => ({ url: `/inventory/shipments/${id}/carrier`, method: 'POST', body: { carriers } }),
+      invalidatesTags: ['InboundShipments'],
+    }),
+
+    /** Back: redo an earlier step. A new ship-from address can ride along when redoing packing or the warehouse. */
+    rewindShipment: builder.mutation<
+      RewindResponse,
+      { id: string; to: RewindTarget; shipFromAddressId?: number; shipFromAddress?: ShipFromAddress; saveShipFromAddress?: boolean }
+    >({
+      query: ({ id, ...body }) => ({ url: `/inventory/shipments/${id}/rewind`, method: 'POST', body }),
+      invalidatesTags: ['InboundShipments'],
+    }),
+
     generateShipmentLabels: builder.mutation<InboundShipment, string>({
       query: (id) => ({ url: `/inventory/shipments/${id}/labels`, method: 'POST' }),
       invalidatesTags: ['InboundShipments'],
@@ -153,6 +182,8 @@ export const {
   useSubmitPackingMutation,
   useGetShipmentOptionsMutation,
   useConfirmShipmentOptionsMutation,
+  useSubmitShipmentCarrierMutation,
+  useRewindShipmentMutation,
   useGenerateShipmentLabelsMutation,
   useDownloadShipmentLabelsMutation,
   useSyncShipmentsMutation,
