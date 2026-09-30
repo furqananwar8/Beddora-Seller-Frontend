@@ -24,6 +24,12 @@ export const ROUTE_PERMISSIONS: RoutePermission[] = [
   { pattern: '/dashboard/inventory/adjustments', subject: 'inventory:planner' },
   { pattern: '/dashboard/inventory', subject: 'inventory' },
 
+  // Finance
+  { pattern: '/dashboard/finance/partner-profile', subject: 'finance:partner-profile' },
+  { pattern: '/dashboard/finance/payment-request', subject: 'finance:payment-request' },
+  { pattern: '/dashboard/finance/payment-process', subject: 'finance:payment-process' },
+  { pattern: '/dashboard/finance', subject: 'finance' },
+
   // Breakeven
   { pattern: '/breakeven-analysis', subject: 'breakeven-analysis' },
 
@@ -56,6 +62,7 @@ export const SUBJECT_ROUTE_MAP: Record<string, string> = {
   'profit:products': '/dashboard/profit/products',
   'ppc:dayparting': '/dayparting',
   'inventory:planner': '/dashboard/inventory/planner',
+  'finance:payment-request': '/dashboard/finance/payment-request',
   'breakeven-analysis:sku-wise': '/breakeven-analysis',
   'alerts:dashboard': '/dashboard/alerts/dashboard',
   'alerts:settings': '/dashboard/alerts/settings',

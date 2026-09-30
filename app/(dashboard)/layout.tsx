@@ -115,6 +115,33 @@ export default function DashboardLayout({
             ],
           },
           {
+            label: 'Finance',
+            subject: 'finance',
+            action: 'read',
+            href: '/dashboard/finance/partner-profile',
+            icon: NavIcons.finance,
+            children: [
+              {
+                label: 'Partner Profile',
+                subject: 'finance:partner-profile',
+                action: 'read',
+                href: '/dashboard/finance/partner-profile',
+              },
+              {
+                label: 'Payment Request',
+                subject: 'finance:payment-request',
+                action: 'read',
+                href: '/dashboard/finance/payment-request',
+              },
+              {
+                label: 'Payment Process',
+                subject: 'finance:payment-process',
+                action: 'read',
+                href: '/dashboard/finance/payment-process',
+              },
+            ],
+          },
+          {
             label: 'Breakeven Analysis',
             subject: 'breakeven-analysis',
             action: 'read',
@@ -221,6 +248,8 @@ export default function DashboardLayout({
   const [periodValue, setPeriodValue] = useState('last-30-days')
   const [activeDashboardTab, setActiveDashboardTabState] = useState('tiles')
   const pathname = usePathname()
+  // Finance screens carry their own search and bell instead of the global header
+  const hideHeader = pathname?.startsWith('/dashboard/finance') ?? false
 
   React.useEffect(() => {
     const handler = (event: MessageEvent) => {
@@ -368,6 +397,7 @@ export default function DashboardLayout({
               <DashboardTabSync onTabChange={setActiveDashboardTabState} />
             </Suspense>
           )}
+          {!hideHeader && (
           <Header
             user={user || undefined}
             onLogout={handleLogout}
@@ -382,6 +412,7 @@ export default function DashboardLayout({
             activeDashboardTab={showDashboardTabs ? activeDashboardTab : undefined}
             onDashboardTabChange={showDashboardTabs ? setActiveDashboardTab : undefined}
           />
+          )}
           <main className="ds-content">{children}</main>
         </div>
       </div>
