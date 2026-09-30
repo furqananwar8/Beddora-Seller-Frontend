@@ -20,6 +20,8 @@ export const ROUTE_PERMISSIONS: RoutePermission[] = [
 
   // Inventory
   { pattern: '/dashboard/inventory/planner', subject: 'inventory:planner' },
+  { pattern: '/dashboard/inventory/shipments', subject: 'inventory:planner' },
+  { pattern: '/dashboard/inventory/adjustments', subject: 'inventory:planner' },
   { pattern: '/dashboard/inventory', subject: 'inventory' },
 
   // Breakeven
@@ -33,6 +35,7 @@ export const ROUTE_PERMISSIONS: RoutePermission[] = [
   // Settings
   { pattern: '/dashboard/settings/general', subject: 'settings:general' },
   { pattern: '/dashboard/settings/users', subject: 'settings:users' },
+  { pattern: '/dashboard/settings/addresses', subject: 'settings:general' },
   { pattern: '/dashboard/settings', subject: 'settings' },
 ]
 

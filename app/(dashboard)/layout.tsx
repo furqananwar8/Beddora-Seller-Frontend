@@ -99,6 +99,20 @@ export default function DashboardLayout({
                 action: 'read',
                 href: '/dashboard/inventory/planner',
               },
+              {
+                label: 'Shipments',
+                // Shares the Planner permission until the backend seeds 'inventory:shipments'.
+                subject: 'inventory:planner',
+                action: 'read',
+                href: '/dashboard/inventory/shipments',
+              },
+              {
+                label: 'Adjustments',
+                // Shares the Planner permission until the backend seeds 'inventory:adjustments'.
+                subject: 'inventory:planner',
+                action: 'read',
+                href: '/dashboard/inventory/adjustments',
+              },
             ],
           },
           {
@@ -163,6 +177,13 @@ export default function DashboardLayout({
                 subject: 'settings:users',
                 action: 'read',
                 href: '/dashboard/settings/users',
+              },
+              {
+                label: 'Addresses',
+                // Same access as General: a separate subject would need granting to every role first
+                subject: 'settings:general',
+                action: 'read',
+                href: '/dashboard/settings/addresses',
               },
             ],
           },

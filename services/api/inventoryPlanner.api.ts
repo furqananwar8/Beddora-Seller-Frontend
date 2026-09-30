@@ -1,13 +1,7 @@
 import { baseApi } from './baseApi'
 
-/**
- * Stock Location Types
- */
 export type StockLocation = 'fba' | 'fbm' | 'prep' | 'awd' | 'ordered'
 
-/**
- * Inventory Summary by Location
- */
 export interface InventorySummary {
   location: StockLocation
   units: number
@@ -16,36 +10,51 @@ export interface InventorySummary {
   potentialProfit: number
 }
 
-/**
- * Product Inventory Item
- */
+export type InventoryItemStatus = 'ACTIVE' | 'INACTIVE' | 'DISCONTINUED'
+
+export type StockBucket = 'UNALLOCATED' | 'FBA_POOL' | 'FBA_RESERVED' | 'BUFFER' | 'FBM'
+export type BucketBalances = Record<StockBucket, number>
+
+/** One planner row: warehouse stock synced from the InBound_Logs sheet. */
 export interface ProductInventoryItem {
   id: string
   sku: string
-  asin: string
-  title: string
-  imageUrl?: string
-  fbaFbmStock: number
-  reserved: number
-  salesVelocity: number // units per day
-  daysOfStockLeft: number
-  sentToFba: number
-  prepCenterStock: number
-  ordered: number
-  daysUntilNextOrder: number
+  sheetSku: string // SKU as written in the sheet; stays fixed when sku is edited
+  description: string
+  status: InventoryItemStatus
+  lastReceivedDate: string | null // yyyy-mm-dd
+  totalQuantity: number
+  unallocated: number
+  amazonReserve: number
+  amazonAllocated: number // on FBA shipments not yet shipped to Amazon
+  otherMarketReserve: number
+  buffer: number
+  balances: BucketBalances // raw per-bucket stock, echoed back when saving an allocation
+  // Whole SKU: all channels sold vs. all stock on hand (used to reorder from the supplier)
+  salesVelocity: number // units per day, last 30 days
+  daysOfStockLeft: number | null // null when there were no sales
+  daysUntilNextOrder: number | null
   recommendedQuantity: number
-  stockValue: number
-  stock?: any
-  roi: number
-  comment?: string
-  supplier?: string
-  leadTime?: number
-  tags?: string[]
+  // FBA only: FBA sales vs. stock set aside for FBA
+  pdsFba: number // FBA units sold in the last 30 days / 30
+  fbaDaysOfStockLeft: number | null
+  fbaDaysUntilNextOrder: number | null
 }
 
-/**
- * Inventory Planner Filters
- */
+export interface InventoryItemChange {
+  id: string
+  status?: InventoryItemStatus
+  description?: string
+  sku?: string
+}
+
+/** Returned with HTTP 409 when a SKU clashes; nothing is saved. */
+export interface InventorySkuConflict {
+  id: number
+  sku: string
+  reason: 'duplicate_in_request' | 'used_by_other_item'
+}
+
 export interface InventoryPlannerFilters {
   accountId?: string
   marketplace?: string
@@ -60,9 +69,6 @@ export interface InventoryPlannerFilters {
   tags?: string[]
 }
 
-/**
- * Shipment Plan Request
- */
 export interface CreateShipmentPlanRequest {
   productIds: string[]
   destinationFulfillmentCenter?: string
@@ -70,9 +76,6 @@ export interface CreateShipmentPlanRequest {
   notes?: string
 }
 
-/**
- * Purchase Order Request
- */
 export interface CreatePurchaseOrderRequest {
   productIds: string[]
   supplierId?: string
@@ -80,14 +83,82 @@ export interface CreatePurchaseOrderRequest {
   notes?: string
 }
 
-/**
- * Inventory Planner API
- */
+export interface ChannelTarget {
+  id: string // e.g. "Walmart.CA"
+  channel: 'Shopify' | 'Walmart' | 'Temu' | 'TikTok' | 'Amazon'
+  region: 'US' | 'CA' | 'MX'
+  name: string
+  connected: boolean
+}
+
+/** Target split for one item; `fba` includes units held by FBA shipments. */
+export interface AllocationSplit {
+  fba: number
+  buffer: number
+  fbm: number
+}
+
+export interface AllocationItemInput extends AllocationSplit {
+  inventoryItemId: number
+  expected: BucketBalances // balances the drawer showed; a mismatch means stock changed meanwhile
+}
+
+export interface SaveAllocationItem extends AllocationItemInput {
+  channels: string[]
+}
+
+/** One stock movement the backend's planner will record, e.g. UNALLOCATED → FBM 25. */
+export interface PlannedMove {
+  from: StockBucket
+  to: StockBucket
+  quantity: number
+  reason: 'ALLOCATE' | 'REALLOCATE'
+}
+
+export interface ItemAllocationResult {
+  inventoryItemId: number
+  sku: string
+  before: BucketBalances
+  after: BucketBalances
+  moves: PlannedMove[]
+}
+
+export interface PushResult {
+  inventoryItemId: number
+  sku: string
+  channel: string
+  quantity: number
+  success: boolean
+  action?: string
+  error?: string
+}
+
+export interface SaveAllocationResponse {
+  allocationId: string
+  items: ItemAllocationResult[]
+  pushResults: PushResult[]
+}
+
+export interface AllocationPreview {
+  items: ItemAllocationResult[]
+  conflicts: AllocationConflict[]
+}
+
+/** Returned with HTTP 409 when an item changed or can't take the split; nothing is saved. */
+export interface AllocationConflict {
+  inventoryItemId: number
+  sku: string
+  reason: 'stock_changed' | 'invalid_split' | 'not_found'
+  message: string
+}
+
+export interface PushStockItem {
+  inventoryItemId: number
+  channels: string[]
+}
+
 export const inventoryPlannerApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
-    /**
-     * Get inventory summary by location
-     */
     getInventorySummary: builder.query<InventorySummary[], InventoryPlannerFilters>({
       query: (filters) => ({
         url: '/inventory/planner/summary',
@@ -96,20 +167,44 @@ export const inventoryPlannerApi = baseApi.injectEndpoints({
       providesTags: ['Inventory'],
     }),
 
-    /**
-     * Get product inventory items
-     */
     getProductInventory: builder.query<ProductInventoryItem[], InventoryPlannerFilters>({
       query: (filters) => ({
-        url: '/inventory/products',   // <-- CHANGED from '/inventory/planner/products'
+        url: '/inventory/products',
         params: filters,
       }),
       providesTags: ['Inventory'],
     }),
 
-    /**
-     * Update product inventory settings
-     */
+    /** Saves edits to one or more rows, all or nothing. */
+    updateInventoryItems: builder.mutation<{ success: boolean; updated: number }, InventoryItemChange[]>({
+      query: (items) => ({
+        url: '/inventory/items',
+        method: 'PATCH',
+        body: { items: items.map(({ id, ...change }) => ({ id: Number(id), ...change })) },
+      }),
+      invalidatesTags: ['Inventory'],
+    }),
+
+    getChannelTargets: builder.query<ChannelTarget[], void>({
+      query: () => ({ url: '/inventory/channels' }),
+    }),
+
+    /** The movements a save would record right now, from the same rules as saving. */
+    previewAllocation: builder.query<AllocationPreview, AllocationItemInput[]>({
+      query: (items) => ({ url: '/inventory/allocations/preview', method: 'POST', body: { items } }),
+    }),
+
+    /** Saves the FBA / buffer / FBM split, then pushes FBM stock to each item's channels. */
+    saveAllocation: builder.mutation<SaveAllocationResponse, SaveAllocationItem[]>({
+      query: (items) => ({ url: '/inventory/allocations', method: 'POST', body: { items } }),
+      invalidatesTags: ['Inventory'],
+    }),
+
+    /** Pushes current FBM stock without changing the split (retries, push to all). */
+    pushStock: builder.mutation<{ results: PushResult[] }, PushStockItem[]>({
+      query: (items) => ({ url: '/inventory/push', method: 'POST', body: { items } }),
+    }),
+
     updateProductInventory: builder.mutation<
       void,
       {
@@ -127,9 +222,6 @@ export const inventoryPlannerApi = baseApi.injectEndpoints({
       invalidatesTags: ['Inventory'],
     }),
 
-    /**
-     * Create shipment plan
-     */
     createShipmentPlan: builder.mutation<
       { shipmentPlanId: string; url: string },
       CreateShipmentPlanRequest
@@ -142,9 +234,6 @@ export const inventoryPlannerApi = baseApi.injectEndpoints({
       invalidatesTags: ['Inventory'],
     }),
 
-    /**
-     * Create purchase order
-     */
     createPurchaseOrder: builder.mutation<
       { purchaseOrderId: string; url: string },
       CreatePurchaseOrderRequest
@@ -157,9 +246,6 @@ export const inventoryPlannerApi = baseApi.injectEndpoints({
       invalidatesTags: ['Inventory', 'PurchaseOrders'],
     }),
 
-    /**
-     * Export inventory data
-     */
     exportInventoryData: builder.mutation<
       { downloadUrl: string },
       { filters: InventoryPlannerFilters; format: 'csv' | 'xlsx' }
@@ -171,9 +257,6 @@ export const inventoryPlannerApi = baseApi.injectEndpoints({
       }),
     }),
 
-    /**
-     * Import inventory data
-     */
     importInventoryData: builder.mutation<
       { imported: number; errors: string[] },
       FormData
@@ -191,6 +274,11 @@ export const inventoryPlannerApi = baseApi.injectEndpoints({
 export const {
   useGetInventorySummaryQuery,
   useGetProductInventoryQuery,
+  useUpdateInventoryItemsMutation,
+  useGetChannelTargetsQuery,
+  usePreviewAllocationQuery,
+  useSaveAllocationMutation,
+  usePushStockMutation,
   useUpdateProductInventoryMutation,
   useCreateShipmentPlanMutation,
   useCreatePurchaseOrderMutation,
