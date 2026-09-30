@@ -309,8 +309,8 @@ export const ShipmentsScreen: React.FC = () => {
     await continueFlow(updated)
   }
 
-  const handleSubmitCarrier = async (id: string, carriers: CarrierEntry[]) => {
-    const updated = await submitCarrier(id, carriers)
+  const handleSubmitCarrier = async (id: string, carriers: CarrierEntry[], readyToShipDate?: string) => {
+    const updated = await submitCarrier(id, carriers, readyToShipDate)
     dispatch(addNotification({ message: `${updated.reference}: carrier saved and Amazon updated`, type: 'success' }))
     await continueFlow(updated)
   }
@@ -615,7 +615,7 @@ export const ShipmentsScreen: React.FC = () => {
 
       <CarrierModal
         shipment={byId(dialogId('carrier'))}
-        onConfirm={(carriers) => handleSubmitCarrier(dialogId('carrier')!, carriers)}
+        onConfirm={(carriers, readyToShipDate) => handleSubmitCarrier(dialogId('carrier')!, carriers, readyToShipDate)}
         onBack={() => dialog?.type === 'carrier' && handleBack(dialog.id, 'window')}
         onClose={closeIfCurrent(dialog?.type === 'carrier' ? dialog : null)}
       />

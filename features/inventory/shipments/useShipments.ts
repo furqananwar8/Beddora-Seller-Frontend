@@ -61,7 +61,7 @@ export interface ShipmentsController {
   submitPacking: (id: string, submission: PackingSubmission) => Promise<InboundShipment>
   getOptions: (shipment: InboundShipment, kind: OptionKind) => Promise<AmazonOption[]>
   confirmOptions: (id: string, kind: OptionKind, chosen: AmazonOption[]) => Promise<InboundShipment>
-  submitCarrier: (id: string, carriers: CarrierEntry[]) => Promise<InboundShipment>
+  submitCarrier: (id: string, carriers: CarrierEntry[], readyToShipDate?: string) => Promise<InboundShipment>
   /** Back: redo an earlier step (optionally with a new ship-from address). */
   rewind: (id: string, to: RewindTarget, shipFrom?: ShipFromRequest) => Promise<RewindResponse>
   generateLabels: (id: string) => Promise<InboundShipment>
@@ -190,7 +190,8 @@ export const useShipments = (): ShipmentsController => {
   )
 
   const submitCarrier = useCallback(
-    (id: string, carriers: CarrierEntry[]) => call(carrier({ id, carriers }), 'Could not save the carrier'),
+    (id: string, carriers: CarrierEntry[], readyToShipDate?: string) =>
+      call(carrier({ id, carriers, readyToShipDate }), 'Could not save the carrier'),
     [carrier]
   )
 

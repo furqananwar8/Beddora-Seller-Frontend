@@ -131,8 +131,8 @@ export const inboundShipmentsApi = baseApi.injectEndpoints({
     }),
 
     /** The seller's own carrier per Amazon shipment; the backend tells Amazon the shipment ships with it. */
-    submitShipmentCarrier: builder.mutation<InboundShipment, { id: string; carriers: CarrierEntry[] }>({
-      query: ({ id, carriers }) => ({ url: `/inventory/shipments/${id}/carrier`, method: 'POST', body: { carriers } }),
+    submitShipmentCarrier: builder.mutation<InboundShipment, { id: string; carriers: CarrierEntry[]; readyToShipDate?: string }>({
+      query: ({ id, ...body }) => ({ url: `/inventory/shipments/${id}/carrier`, method: 'POST', body }),
       invalidatesTags: ['InboundShipments'],
     }),
 
