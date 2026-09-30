@@ -23,7 +23,7 @@ export const RowActions: React.FC<RowActionsProps> = ({ row, onSelect }) => {
       label={formatDocNo(row.id)}
       items={[
         ...(canProcessPayments && row.status !== 'PAID' && row.balance > 0 ? [{ key: 'upload', label: 'Upload POP', onSelect: () => onSelect('upload') }] : []),
-        ...(canProcessPayments
+        ...(canProcessPayments && row.status !== 'PAID'
           ? [{ key: 'mark-paid', label: 'Mark paid', onSelect: () => onSelect('mark-paid'), disabled: !row.canMarkPaid, disabledReason: 'Upload proof of payment first.' }]
           : []),
         ...(showView ? [{ key: 'view', label: 'View POP', onSelect: () => onSelect('view') }] : []),
