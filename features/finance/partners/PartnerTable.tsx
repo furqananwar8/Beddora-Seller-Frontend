@@ -3,6 +3,7 @@
 import React from 'react'
 import { useRouter } from 'next/navigation'
 import { RowActionsMenu } from '@/components/row-actions-menu/RowActionsMenu'
+import { useFinanceCapabilities } from '../shared/useFinanceCapabilities'
 import { Spinner } from '@/design-system/loaders'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/design-system/tables'
 import type { PartnerListItem } from '@/services/api/finance.api'
@@ -26,6 +27,7 @@ interface PartnerTableProps {
 
 export const PartnerTable: React.FC<PartnerTableProps> = ({ rows, isLoading, isFetching, isError, onOpen }) => {
   const router = useRouter()
+  const { canWritePartners } = useFinanceCapabilities()
   return (
   <div className={cn('max-h-[calc(100vh-360px)] overflow-auto', isFetching && 'opacity-70 transition-opacity')}>
     <Table className="min-w-full">
@@ -78,7 +80,7 @@ export const PartnerTable: React.FC<PartnerTableProps> = ({ rows, isLoading, isF
               <TableCell className={CELL}>
                 <RowActionsMenu
                   label={row.name}
-                  items={[{ key: 'update', label: 'Update profile', onSelect: () => router.push(`${BASE}/${row.id}`) }]}
+                  items={[{ key: 'update', label: canWritePartners ? 'Update profile' : 'View profile', onSelect: () => router.push(`${BASE}/${row.id}`) }]}
                 />
               </TableCell>
             </TableRow>

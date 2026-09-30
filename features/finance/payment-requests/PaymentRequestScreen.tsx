@@ -71,6 +71,7 @@ export const PaymentRequestScreen: React.FC = () => {
   const isApprover = approverStatus?.isApprover ?? false
   const canManageExpenseTypes = approverStatus?.canManageExpenseTypes ?? false
   const canManageApprovers = approverStatus?.canManageApprovers ?? false
+  const canCreateRequests = approverStatus?.canCreateRequests ?? false
 
   const [search, setSearch] = useState('')
   const debouncedSearch = useDebounce(search, 300)
@@ -155,9 +156,11 @@ export const PaymentRequestScreen: React.FC = () => {
               Approvers
             </Button>
           )}
-          <Link href="/dashboard/finance/payment-request/new" className="ds-button ds-button-primary ds-button-sm">
-            New request
-          </Link>
+          {canCreateRequests && (
+            <Link href="/dashboard/finance/payment-request/new" className="ds-button ds-button-primary ds-button-sm">
+              New request
+            </Link>
+          )}
         </div>
       </div>
 

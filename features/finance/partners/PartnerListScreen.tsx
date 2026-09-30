@@ -9,6 +9,7 @@ import { Button } from '@/design-system/buttons'
 import { useGetPartnersQuery, type PartnerType } from '@/services/api/finance.api'
 import { useDebounce } from '@/utils/debounce'
 import { ScreenSearch } from '../shared/ScreenSearch'
+import { useFinanceCapabilities } from '../shared/useFinanceCapabilities'
 import { PartnerTable } from './PartnerTable'
 
 const PAGE_SIZE = 10
@@ -18,6 +19,7 @@ type TypeFilter = 'ALL' | PartnerType
 
 export const PartnerListScreen: React.FC = () => {
   const router = useRouter()
+  const { canWritePartners } = useFinanceCapabilities()
   const [search, setSearch] = useState('')
   const debouncedSearch = useDebounce(search, 300)
   const [type, setType] = useState<TypeFilter>('ALL')
@@ -57,7 +59,7 @@ export const PartnerListScreen: React.FC = () => {
               { value: 'SUPPLIER', label: 'Supplier' },
             ]}
           />
-          <Button onClick={() => router.push(`${BASE}/new`)}>+ New partner</Button>
+          {canWritePartners && <Button onClick={() => router.push(`${BASE}/new`)}>+ New partner</Button>}
         </div>
       </div>
 
