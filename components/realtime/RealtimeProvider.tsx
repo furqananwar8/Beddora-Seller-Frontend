@@ -2,10 +2,8 @@
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef } from 'react'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
-import { addNotification } from '@/store/ui.slice'
 import { baseApi, TagType } from '@/services/api/baseApi'
 import { REALTIME_TOPICS, RealtimeMessage } from '@/services/realtime/topics'
-import type { AppNotification } from '@/services/api/notifications.api'
 
 type Handler = (message: RealtimeMessage) => void
 
@@ -16,12 +14,6 @@ interface RealtimeContextValue {
 const RealtimeContext = createContext<RealtimeContextValue>({ subscribe: () => () => undefined })
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
-
-const TOAST_TYPE: Record<string, 'success' | 'warning' | 'info'> = {
-  approved: 'success',
-  paid: 'success',
-  rejected: 'warning',
-}
 
 /**
  * One EventSource for the whole app. Incoming events invalidate the cached
@@ -66,10 +58,6 @@ export const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           return
         }
         dispatch(baseApi.util.invalidateTags(tags))
-        if (topic === 'notification' && message.type === 'created') {
-          const notification = message.data as unknown as AppNotification
-          dispatch(addNotification({ message: notification.title, type: TOAST_TYPE[notification.type] ?? 'info' }))
-        }
         handlers.current.get(topic)?.forEach((handler) => handler(message))
       }
       source.addEventListener(topic, listener)
