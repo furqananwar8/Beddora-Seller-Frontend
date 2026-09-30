@@ -111,8 +111,7 @@ export const ApprovalTimeline: React.FC<{ events: TimelineEvent[]; status: Reque
             <p className="break-words text-sm font-medium text-text-primary">{step.title}</p>
             {step.sub && (
               <div className="mt-1 space-y-1 text-xs text-text-muted">
-                {step.sub.split('
-').map((line, i) => (
+                {step.sub.split('\n').map((line, i) => (
                   <p key={i} className="break-words">{line}</p>
                 ))}
               </div>
