@@ -1,7 +1,8 @@
 import React, { useState } from 'react'
 import { Modal } from '@/design-system/modals/Modal'
 import { Button } from '@/design-system/buttons'
-import { Input, Select } from '@/design-system/inputs'
+import { Input } from '@/design-system/inputs'
+import { MultiSelectInput } from '@/components/multi-select-input/MultiSelectInput'
 import { AdjustmentRow, BoxDimensions } from '@/services/api/inventoryAdjustments.api'
 
 type Field = 'unitsPerBox' | 'length' | 'width' | 'height' | 'weight'
@@ -28,6 +29,42 @@ const toDraft = (box: BoxDimensions | null): Draft => ({
 const isValid = (draft: Draft, { field, integer }: (typeof FIELDS)[number]) => {
   const value = Number(draft[field])
   return draft[field].trim() !== '' && value > 0 && (!integer || Number.isInteger(value))
+}
+
+const DIMENSION_UNITS: { id: BoxDimensions['dimensionUnit']; name: string }[] = [
+  { id: 'IN', name: 'Inches' },
+  { id: 'CM', name: 'Centimetres' },
+]
+const WEIGHT_UNITS: { id: BoxDimensions['weightUnit']; name: string }[] = [
+  { id: 'LB', name: 'Pounds' },
+  { id: 'KG', name: 'Kilograms' },
+]
+
+/** Labelled single-select using the app's shared dropdown. */
+function UnitPicker<T extends string>({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string
+  value: T
+  options: { id: T; name: string }[]
+  onChange: (value: T) => void
+}) {
+  return (
+    <div>
+      <span className="ds-input-label">{label}</span>
+      <MultiSelectInput
+        single
+        title={label}
+        className="w-full"
+        options={options}
+        value={[value]}
+        onChange={(picked) => picked[0] && onChange(picked[0] as T)}
+      />
+    </div>
+  )
 }
 
 interface FormProps {
@@ -83,23 +120,17 @@ const Form: React.FC<FormProps> = ({ row, saving, error, onSave, onClose }) => {
             error={touched && !isValid(draft, f) ? 'Required, greater than 0' : undefined}
           />
         ))}
-        <Select
+        <UnitPicker
           label="Size unit"
           value={draft.dimensionUnit}
-          onChange={(e) => set({ dimensionUnit: e.target.value as Draft['dimensionUnit'] })}
-          options={[
-            { value: 'IN', label: 'Inches' },
-            { value: 'CM', label: 'Centimetres' },
-          ]}
+          options={DIMENSION_UNITS}
+          onChange={(dimensionUnit) => set({ dimensionUnit })}
         />
-        <Select
+        <UnitPicker
           label="Weight unit"
           value={draft.weightUnit}
-          onChange={(e) => set({ weightUnit: e.target.value as Draft['weightUnit'] })}
-          options={[
-            { value: 'LB', label: 'Pounds' },
-            { value: 'KG', label: 'Kilograms' },
-          ]}
+          options={WEIGHT_UNITS}
+          onChange={(weightUnit) => set({ weightUnit })}
         />
       </div>
 

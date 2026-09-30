@@ -3,7 +3,9 @@ import { Modal } from '@/design-system/modals/Modal'
 import { Button } from '@/design-system/buttons'
 import { Input } from '@/design-system/inputs'
 import { AdjustmentRow } from '@/services/api/inventoryAdjustments.api'
+import { cn } from '@/utils/cn'
 import { BUCKET_ROWS } from './buckets'
+import { previewAdjustment } from './adjustmentMath'
 
 const n = (value: number) => value.toLocaleString()
 
@@ -30,6 +32,10 @@ const Form: React.FC<FormProps> = ({ row, saving, error, onSave, onClose }) => {
   const quantity = Number(raw)
   const valid = raw.trim() !== '' && Number.isInteger(quantity) && quantity >= row.minimum
   const delta = valid ? quantity - row.onHand : 0
+  const after = valid ? previewAdjustment(row.balances, quantity) : row.balances
+
+  // Red for units removed, green for units added
+  const tone = delta < 0 ? 'text-danger-600' : 'text-emerald-700'
 
   return (
     <div className="flex flex-col gap-4">
@@ -38,16 +44,32 @@ const Form: React.FC<FormProps> = ({ row, saving, error, onSave, onClose }) => {
         <div className="font-mono text-sm text-text-muted">{row.sku}</div>
       </div>
 
-      <dl className="grid grid-cols-2 gap-x-6 gap-y-1 rounded-md border border-border bg-secondary-50 p-3 text-sm">
-        {BUCKET_ROWS.map(({ bucket, label }) => (
-          <React.Fragment key={bucket}>
-            <dt className="text-text-muted">{label}</dt>
-            <dd className="text-right font-medium">{n(row.balances[bucket])}</dd>
-          </React.Fragment>
-        ))}
-        <dt className="border-t border-border pt-1 font-semibold">On hand</dt>
-        <dd className="border-t border-border pt-1 text-right font-semibold">{n(row.onHand)}</dd>
-      </dl>
+      <table className="w-full rounded-md border border-border bg-secondary-50 text-sm">
+        <thead>
+          <tr className="text-text-muted">
+            <th className="px-3 py-2 text-left font-medium" />
+            <th className="px-3 py-2 text-right font-medium">Current</th>
+            <th className="px-3 py-2 text-right font-medium">After</th>
+          </tr>
+        </thead>
+        <tbody>
+          {BUCKET_ROWS.map(({ bucket, label }) => {
+            const changed = after[bucket] !== row.balances[bucket]
+            return (
+              <tr key={bucket}>
+                <td className="px-3 py-1 text-text-muted">{label}</td>
+                <td className="px-3 py-1 text-right font-medium">{n(row.balances[bucket])}</td>
+                <td className={cn('px-3 py-1 text-right font-medium', changed && tone)}>{n(after[bucket])}</td>
+              </tr>
+            )
+          })}
+          <tr className="border-t border-border font-semibold">
+            <td className="px-3 py-2">On hand</td>
+            <td className="px-3 py-2 text-right">{n(row.onHand)}</td>
+            <td className={cn('px-3 py-2 text-right', delta !== 0 && tone)}>{n(valid ? quantity : row.onHand)}</td>
+          </tr>
+        </tbody>
+      </table>
 
       <Input
         label="New quantity"
@@ -65,10 +87,11 @@ const Form: React.FC<FormProps> = ({ row, saving, error, onSave, onClose }) => {
       />
 
       {valid && delta !== 0 && (
-        <p className="text-sm text-text-muted">
+        <p className={cn('text-sm font-medium', tone)}>
           {delta > 0
-            ? `Adds ${n(delta)} unallocated unit${delta === 1 ? '' : 's'}.`
-            : `Removes ${n(-delta)} unit${delta === -1 ? '' : 's'}.`}
+            ? `Adds ${n(delta)} unit${delta === 1 ? '' : 's'}`
+            : `Removes ${n(-delta)} unit${delta === -1 ? '' : 's'}`}
+          {` · final on hand ${n(quantity)}`}
         </p>
       )}
       {error && <p className="text-sm text-danger-600">{error}</p>}

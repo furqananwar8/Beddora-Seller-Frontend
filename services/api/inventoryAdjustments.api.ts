@@ -26,6 +26,21 @@ export interface AdjustmentRow {
   boxDimensions: BoxDimensions | null
 }
 
+export interface AdjustmentListParams {
+  search?: string
+  page: number
+  limit: number
+}
+
+export interface AdjustmentPage {
+  success: boolean
+  data: AdjustmentRow[]
+  totalRecords: number
+  page: number
+  limit: number
+  totalPages: number
+}
+
 export interface AdjustQuantityRequest {
   id: string
   quantity: number
@@ -40,8 +55,8 @@ export interface AdjustQuantityResponse {
 
 export const inventoryAdjustmentsApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
-    getAdjustments: builder.query<AdjustmentRow[], string | void>({
-      query: (search) => ({ url: '/inventory/adjustments', params: search ? { search } : undefined }),
+    getAdjustments: builder.query<AdjustmentPage, AdjustmentListParams>({
+      query: ({ search, page, limit }) => ({ url: '/inventory/adjustments', params: { search: search || undefined, page, limit } }),
       providesTags: ['InventoryAdjustments'],
     }),
 
