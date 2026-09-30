@@ -15,7 +15,7 @@ import {
   usePushStockMutation,
   useSaveAllocationMutation,
 } from '@/services/api/inventoryPlanner.api'
-import { AssignMode, assignRemaining, isSplitChanged, splitError, splitFromBalances } from './allocationMath'
+import { AssignMode, assignByPercent, assignRemaining, isSplitChanged, splitError, splitFromBalances } from './allocationMath'
 
 export type AllocationStep = 'split' | 'channels' | 'review' | 'result'
 
@@ -95,6 +95,18 @@ export function useAllocationDrawer(items: ProductInventoryItem[]) {
       setState((prev) => ({
         ...prev,
         splits: { ...prev.splits, [itemId]: assignRemaining(item.balances, prev.splits[itemId], mode) },
+      }))
+    },
+    [items]
+  )
+
+  const assignPercent = useCallback(
+    (itemId: string, fbaPercent: number) => {
+      const item = items.find((i) => i.id === itemId)
+      if (!item) return
+      setState((prev) => ({
+        ...prev,
+        splits: { ...prev.splits, [itemId]: assignByPercent(item.balances, prev.splits[itemId], fbaPercent) },
       }))
     },
     [items]
@@ -188,6 +200,7 @@ export function useAllocationDrawer(items: ProductInventoryItem[]) {
     channelsFor,
     setSplitField,
     assign,
+    assignPercent,
     toggleChannel,
     setColumn,
     goTo,

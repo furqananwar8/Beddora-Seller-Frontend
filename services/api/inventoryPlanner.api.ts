@@ -26,6 +26,7 @@ export interface ProductInventoryItem {
   totalQuantity: number
   unallocated: number
   amazonReserve: number
+  amazonAllocated: number // on FBA shipments not yet shipped to Amazon
   otherMarketReserve: number
   buffer: number
   balances: BucketBalances // raw per-bucket stock, echoed back when saving an allocation

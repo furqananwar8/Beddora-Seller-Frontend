@@ -1,10 +1,11 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { ProductInventoryItem } from '@/services/api/inventoryPlanner.api'
 import { cn } from '@/utils/cn'
 import { AllocationDrawerModel } from './useAllocationDrawer'
 import { STOCK_LEGEND, StockBar } from './StockBar'
 import { Chip, Tile } from './drawerUi'
-import { onHand, parseUnits, splitFromBalances, unassigned } from './allocationMath'
+import { AllocationSlider } from './AllocationSlider'
+import { DEFAULT_FBA_PERCENT, onHand, parseUnits, splitFromBalances, unassigned } from './allocationMath'
 
 const n = (value: number) => value.toLocaleString()
 
@@ -48,6 +49,7 @@ const NumberField = ({
 const joinHint = (...parts: (string | false | undefined)[]) => parts.filter(Boolean).join(' · ') || undefined
 
 const SplitCard = ({ item, model }: { item: ProductInventoryItem; model: AllocationDrawerModel }) => {
+  const [sliderOpen, setSliderOpen] = useState(false)
   const { balances } = item
   const split = model.state.splits[item.id]
   const base = splitFromBalances(balances)
@@ -95,11 +97,22 @@ const SplitCard = ({ item, model }: { item: ProductInventoryItem; model: Allocat
               {item.lastReceivedDate && ` from the ${item.lastReceivedDate} entry`}
             </span>
             <div className="flex gap-2">
+              <Chip
+                aria-pressed={sliderOpen}
+                className={sliderOpen ? 'bg-amber-100' : undefined}
+                onClick={() => {
+                  if (!sliderOpen) model.assignPercent(item.id, DEFAULT_FBA_PERCENT)
+                  setSliderOpen((open) => !open)
+                }}
+              >
+                Allocation slider
+              </Chip>
               <Chip onClick={() => model.assign(item.id, 'fba')} disabled={left <= 0}>All to FBA</Chip>
               <Chip onClick={() => model.assign(item.id, 'fbm')} disabled={left <= 0}>All to FBM</Chip>
               <Chip onClick={() => model.assign(item.id, 'even')} disabled={left <= 0}>Split evenly</Chip>
             </div>
           </div>
+          {sliderOpen && <AllocationSlider itemId={item.sku} newUnits={newUnits} onChange={(pct) => model.assignPercent(item.id, pct)} />}
           <div className="flex items-end gap-3">
             <div className="w-40">
               <NumberField id={fieldId('new-fba')} label="To FBA" tone="amber" value={newFba} onChange={(u) => set('fba')(base.fba + u)} />

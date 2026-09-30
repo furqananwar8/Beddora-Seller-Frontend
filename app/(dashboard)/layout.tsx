@@ -105,6 +105,13 @@ export default function DashboardLayout({
                 action: 'read',
                 href: '/dashboard/inventory/shipments',
               },
+              {
+                label: 'Adjustments',
+                // Shares the Planner permission until the backend seeds 'inventory:adjustments'.
+                subject: 'inventory:planner',
+                action: 'read',
+                href: '/dashboard/inventory/adjustments',
+              },
             ],
           },
           {

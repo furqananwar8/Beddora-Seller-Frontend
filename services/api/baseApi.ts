@@ -24,6 +24,7 @@ export const tagTypes = [
   'Permissions',
   'Profit',
   'Inventory',
+  'InventoryAdjustments',
   'InventoryForecast',
   'InventoryKpis',
   'PurchaseOrders',

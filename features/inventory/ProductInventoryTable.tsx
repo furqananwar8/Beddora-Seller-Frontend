@@ -316,6 +316,11 @@ export const ProductInventoryTable = ({
                             {formatNumber(product.unallocated, 0)} unallocated
                           </div>
                         )}
+                        {product.amazonAllocated > 0 && (
+                          <div className="text-xs text-primary-700" title="On FBA shipments that haven't been shipped to Amazon yet">
+                            {formatNumber(product.amazonAllocated, 0)} Amazon allocated
+                          </div>
+                        )}
                       </TableCell>
                       <TableCell className={CELL_CLASS}>{formatNumber(product.amazonReserve, 0)}</TableCell>
                       <TableCell className={CELL_CLASS}>{formatNumber(product.otherMarketReserve, 0)}</TableCell>

@@ -44,6 +44,23 @@ export function assignRemaining(b: BucketBalances, split: AllocationSplit, mode:
   return { ...split, fba: split.fba + toFba, fbm: split.fbm + (left - toFba) }
 }
 
+/** Share of new units the slider sends to FBA: 0 = all FBM (left), 100 = all FBA (right). */
+export const DEFAULT_FBA_PERCENT = 50
+
+/**
+ * Divides the new (unallocated) units between FBA and FBM by percentage, on top of
+ * the current stock. Units already set aside for the buffer are left alone, and
+ * rounding leftovers go to FBM so the percentages always add up to every unit.
+ */
+export function assignByPercent(b: BucketBalances, split: AllocationSplit, fbaPercent: number): AllocationSplit {
+  const base = splitFromBalances(b)
+  const bufferedFromNew = Math.max(0, split.buffer - base.buffer)
+  const pool = Math.max(0, b.UNALLOCATED - bufferedFromNew)
+  const pct = Math.min(100, Math.max(0, fbaPercent))
+  const toFba = Math.round((pool * pct) / 100)
+  return { ...split, fba: base.fba + toFba, fbm: base.fbm + (pool - toFba) }
+}
+
 const BUCKET_LABEL: Record<StockBucket, string> = {
   UNALLOCATED: 'unassigned',
   FBA_POOL: 'FBA',
