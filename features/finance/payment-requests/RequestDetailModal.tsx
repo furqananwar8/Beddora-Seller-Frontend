@@ -12,7 +12,7 @@ import { financeErrorMessage } from '../shared/useFinanceFeedback'
 import { formatCurrencyAmount, formatDay, formatRequestNo } from '../shared/format'
 import { REQUEST_STATUS_META } from '../shared/statusMeta'
 import { ApprovalTimeline } from './ApprovalTimeline'
-import { DocumentChips } from './DocumentChips'
+import { DocumentChips } from '../shared/DocumentChips'
 import { RejectDialog } from './RejectDialog'
 import { useRequestActions } from './useRequestActions'
 
@@ -98,8 +98,10 @@ const DetailBody: React.FC<DetailBodyProps> = ({ detail, onClose }) => {
           )}
         </section>
 
-        <section className="rounded-xl border border-border p-4">
-          <h3 className="mb-3 text-sm font-semibold text-text-primary">Approval progress</h3>
+        <section className="flex max-h-[360px] min-w-0 flex-col rounded-xl border border-border lg:max-h-[480px]">
+          <h3 className="sticky top-0 z-10 rounded-t-xl border-b border-border bg-surface px-4 py-3 text-sm font-semibold text-text-primary">
+            Approval progress
+          </h3>
           <ApprovalTimeline events={detail.events} status={detail.status} />
         </section>
       </div>

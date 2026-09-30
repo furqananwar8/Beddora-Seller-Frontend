@@ -4,7 +4,7 @@ import React from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/design-system/cards/Card'
 import { FileDropzone } from '@/components/file-dropzone/FileDropzone'
 import type { FinanceDocument } from '@/services/api/finance.api'
-import { DocumentChips } from './DocumentChips'
+import { DocumentChips } from '../shared/DocumentChips'
 
 interface DocumentsSectionProps {
   /** Create mode only: files are uploaded together with the new partner. */
@@ -22,7 +22,7 @@ export const DocumentsSection: React.FC<DocumentsSectionProps> = ({ files = [], 
     <CardContent className="flex flex-col gap-3">
       {existing ? (
         existing.length > 0 ? (
-          <DocumentChips documents={existing} />
+          <DocumentChips documents={existing} emptyText={null} />
         ) : (
           <p className="text-sm text-text-muted">No documents uploaded.</p>
         )

@@ -3,7 +3,7 @@
 import React from 'react'
 import { Button } from '@/design-system/buttons'
 import type { FinanceDocument } from '@/services/api/finance.api'
-import { DocumentChips } from './DocumentChips'
+import { DocumentChips } from '../shared/DocumentChips'
 
 export interface PaymentMethodCardData {
   label: string
@@ -55,6 +55,6 @@ export const PaymentMethodCard: React.FC<PaymentMethodCardProps> = ({ method, st
       )}
     </dl>
 
-    <DocumentChips documents={method.documents ?? []} pendingNames={method.pendingFiles} className="mt-3" />
+    <DocumentChips documents={method.documents ?? []} pendingNames={method.pendingFiles} emptyText={null} className="mt-3" />
   </div>
 )

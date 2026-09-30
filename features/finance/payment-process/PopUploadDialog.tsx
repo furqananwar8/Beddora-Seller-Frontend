@@ -7,6 +7,7 @@ import { Button } from '@/design-system/buttons'
 import { Modal } from '@/design-system/modals'
 import { SegmentedToggle } from '@/components/segmented-toggle/SegmentedToggle'
 import { FileDropzone } from '@/components/file-dropzone/FileDropzone'
+import { SingleDatePicker } from '@/components/single-date-picker/SingleDatePicker'
 import { PaymentDocumentListItem, useAddPopMutation, useGetFxTodayQuery } from '@/services/api/finance.api'
 import { FormField, fieldClass } from '../shared/FormField'
 import { formatCurrencyAmount, formatDay, formatDocNo, formatMoney, todayInputValue } from '../shared/format'
@@ -151,7 +152,13 @@ const PopForm: React.FC<{ row: PaymentDocumentListItem; onClose: () => void }> =
         </FormField>
 
         <FormField label="Payment Date" htmlFor="pop-date" required error={errors.paymentDate?.message}>
-          <input id="pop-date" type="date" className={fieldClass(errors.paymentDate?.message)} {...register('paymentDate')} />
+          <Controller
+            control={control}
+            name="paymentDate"
+            render={({ field }) => (
+              <SingleDatePicker id="pop-date" value={field.value} onChange={field.onChange} error={errors.paymentDate?.message} />
+            )}
+          />
         </FormField>
 
         <FormField label="Reference / UTR" htmlFor="pop-reference" error={errors.reference?.message}>

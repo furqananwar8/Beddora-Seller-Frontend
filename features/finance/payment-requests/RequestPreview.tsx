@@ -3,7 +3,7 @@
 import React from 'react'
 import { Spinner } from '@/design-system/loaders'
 import { useGetPaymentRequestQuery } from '@/services/api/finance.api'
-import { DocumentChips } from './DocumentChips'
+import { DocumentChips } from '../shared/DocumentChips'
 
 const Field: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
   <div className="min-w-0">

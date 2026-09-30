@@ -3,8 +3,7 @@
 import React from 'react'
 import type { Pop } from '@/services/api/finance.api'
 import { formatCurrencyAmount, formatDay, formatMoney } from '../shared/format'
-import { downloadFinanceDocument } from '../shared/downloadDocument'
-import { useFinanceFeedback } from '../shared/useFinanceFeedback'
+import { DocumentChips } from '../shared/DocumentChips'
 
 const Item: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
   <div className="min-w-0">
@@ -14,16 +13,6 @@ const Item: React.FC<{ label: string; children: React.ReactNode }> = ({ label, c
 )
 
 export const PopList: React.FC<{ pops: Pop[] }> = ({ pops }) => {
-  const feedback = useFinanceFeedback()
-
-  const download = async (id: string, name: string) => {
-    try {
-      await downloadFinanceDocument(id, name)
-    } catch (error) {
-      feedback.failure(error, 'Could not download the file')
-    }
-  }
-
   if (pops.length === 0) return <p className="text-sm text-text-muted">No proof of payment uploaded yet.</p>
 
   return (
@@ -46,17 +35,8 @@ export const PopList: React.FC<{ pops: Pop[] }> = ({ pops }) => {
             </dl>
             {pop.documents.length > 0 && (
               <div className="mt-2 flex flex-wrap gap-2">
-                {pop.documents.map((doc) => (
-                  <button
-                    key={doc.id}
-                    type="button"
-                    onClick={() => download(doc.id, doc.originalName)}
-                    className="max-w-full truncate rounded-md border border-border px-2 py-1 text-xs text-text-primary hover:bg-secondary-50"
-                    title={doc.originalName}
-                  >
-                    Download {doc.originalName}
-                  </button>
-                ))}
+                <DocumentChips documents={pop.documents} />
+
               </div>
             )}
           </li>

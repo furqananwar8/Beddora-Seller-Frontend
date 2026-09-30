@@ -1,6 +1,8 @@
 'use client'
 
-import React, { useId, useState } from 'react'
+import React, { useId, useRef, useState } from 'react'
+import { Button } from '@/design-system/buttons'
+import { FilePreviewDialog, PreviewTarget } from '@/components/file-preview/FilePreviewDialog'
 import { cn } from '@/utils/cn'
 
 const DEFAULT_TYPES = ['application/pdf', 'image/jpeg', 'image/png']
@@ -36,7 +38,10 @@ export const FileDropzone: React.FC<FileDropzoneProps> = ({
 }) => {
   const inputId = useId()
   const [dragging, setDragging] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
   const [rejected, setRejected] = useState<string | null>(null)
+  const [queue, setQueue] = useState<File[]>([])
+  const [viewing, setViewing] = useState<number | null>(null)
   const acceptLabel = accept.map((type) => EXTENSION[type] ?? type).join(', ')
 
   const take = (incoming: FileList | File[]) => {
@@ -53,8 +58,24 @@ export const FileDropzone: React.FC<FileDropzoneProps> = ({
       return true
     })
     setRejected(problems[0] ?? null)
-    if (valid.length) onChange(multiple ? [...files, ...valid] : valid.slice(0, 1))
+    // Nothing is attached until the user confirms each file in the preview.
+    if (valid.length) setQueue(multiple ? valid : valid.slice(0, 1))
   }
+
+  const current = queue[0] ?? null
+  const confirmCurrent = () => {
+    if (!current) return
+    onChange(multiple ? [...files, current] : [current])
+    setQueue((pending) => pending.slice(1))
+  }
+  const chooseAnother = () => {
+    setQueue([])
+    inputRef.current?.click()
+  }
+  const viewed = viewing === null ? null : (files[viewing] ?? null)
+
+  const previewTarget = (file: File | null): PreviewTarget | null =>
+    file ? { name: file.name, mimeType: file.type, sizeBytes: file.size, file } : null
 
   const shownError = error ?? rejected
 
@@ -90,6 +111,7 @@ export const FileDropzone: React.FC<FileDropzoneProps> = ({
           </span>
         </label>
         <input
+          ref={inputRef}
           id={inputId}
           type="file"
           className="sr-only"
@@ -106,9 +128,14 @@ export const FileDropzone: React.FC<FileDropzoneProps> = ({
             {files.map((file, index) => (
               <li key={`${file.name}-${index}`} className="flex max-w-full items-center gap-2 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs shadow-sm">
                 <span className="rounded bg-danger-600 px-1.5 py-0.5 text-[10px] font-bold text-text-inverse">{kindOf(file)}</span>
-                <span className="max-w-[160px] truncate text-text-primary" title={file.name}>
+                <button
+                  type="button"
+                  title={`Preview ${file.name}`}
+                  onClick={() => setViewing(index)}
+                  className="max-w-[160px] truncate text-text-primary hover:underline"
+                >
                   {file.name}
-                </span>
+                </button>
                 <button
                   type="button"
                   aria-label={`Remove ${file.name}`}
@@ -124,6 +151,44 @@ export const FileDropzone: React.FC<FileDropzoneProps> = ({
         )}
       </div>
       {shownError && <p className="mt-1 text-xs text-danger-600">{shownError}</p>}
+
+      <FilePreviewDialog
+        target={previewTarget(current)}
+        onClose={() => setQueue([])}
+        caption={queue.length > 1 ? `${queue.length} files left to review` : undefined}
+        footer={
+          <>
+            <Button type="button" variant="outline" onClick={chooseAnother}>
+              Choose a different file
+            </Button>
+            <Button type="button" variant="primary" onClick={confirmCurrent}>
+              Use this file
+            </Button>
+          </>
+        }
+      />
+      <FilePreviewDialog
+        target={current ? null : previewTarget(viewed)}
+        onClose={() => setViewing(null)}
+        footer={
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={disabled}
+              onClick={() => {
+                if (viewing !== null) onChange(files.filter((_, position) => position !== viewing))
+                setViewing(null)
+              }}
+            >
+              Remove
+            </Button>
+            <Button type="button" variant="primary" onClick={() => setViewing(null)}>
+              Close
+            </Button>
+          </>
+        }
+      />
     </div>
   )
 }

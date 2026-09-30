@@ -3,8 +3,9 @@
 import React, { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
-import { endOfMonth, startOfMonth, subMonths } from 'date-fns'
+import { endOfDay, endOfMonth, format, parseISO, startOfDay, startOfMonth, subMonths } from 'date-fns'
 import { Container } from '@/components/layout'
+import DateRangePicker, { DateRangePreset, DateRangeValue } from '@/components/date-range-picker/DateRangePicker'
 import { PaginationFooter } from '@/components/pagination-footer/PaginationFooter'
 import { Button } from '@/design-system/buttons'
 import { Select } from '@/design-system/inputs'
@@ -30,18 +31,31 @@ import { useRequestActions } from './useRequestActions'
 const PAGE_SIZE = 10
 
 type TabId = RequestStatus | 'ALL'
-type DateRange = 'this-month' | 'last-month' | 'all'
 
-const DATE_OPTIONS = [
-  { value: 'this-month', label: 'Date: This month' },
-  { value: 'last-month', label: 'Date: Last month' },
-  { value: 'all', label: 'Date: All' },
+const FILTER_PRESETS: DateRangePreset[] = [
+  {
+    id: 'thisMonth',
+    label: 'This Month',
+    getRange: () => ({ startDate: format(startOfMonth(new Date()), 'yyyy-MM-dd'), endDate: format(endOfMonth(new Date()), 'yyyy-MM-dd') }),
+  },
+  {
+    id: 'lastMonth',
+    label: 'Last Month',
+    getRange: () => {
+      const last = subMonths(new Date(), 1)
+      return { startDate: format(startOfMonth(last), 'yyyy-MM-dd'), endDate: format(endOfMonth(last), 'yyyy-MM-dd') }
+    },
+  },
+  // Empty range clears the date filter.
+  { id: 'all', label: 'All time', getRange: () => ({ startDate: '', endDate: '' }) },
 ]
 
-function rangeFor(range: DateRange): { dateFrom?: string; dateTo?: string } {
-  if (range === 'all') return {}
-  const base = range === 'this-month' ? new Date() : subMonths(new Date(), 1)
-  return { dateFrom: startOfMonth(base).toISOString(), dateTo: endOfMonth(base).toISOString() }
+const THIS_MONTH: DateRangeValue = { ...FILTER_PRESETS[0].getRange(), presetId: 'thisMonth' }
+
+/** Custom range (or preset) to ISO bounds covering whole days; all time sends no bounds. */
+function rangeFor(range: DateRangeValue): { dateFrom?: string; dateTo?: string } {
+  if (!range.startDate || !range.endDate) return {}
+  return { dateFrom: startOfDay(parseISO(range.startDate)).toISOString(), dateTo: endOfDay(parseISO(range.endDate)).toISOString() }
 }
 
 export const PaymentRequestScreen: React.FC = () => {
@@ -59,7 +73,7 @@ export const PaymentRequestScreen: React.FC = () => {
   const [page, setPage] = useState(1)
   const [chosenTab, setChosenTab] = useState<TabId | null>(null)
   const [expenseTypeId, setExpenseTypeId] = useState('')
-  const [dateRange, setDateRange] = useState<DateRange>('this-month')
+  const [dateRange, setDateRange] = useState<DateRangeValue>(THIS_MONTH)
   const [rejectId, setRejectId] = useState<number | null>(null)
   const [busyId, setBusyId] = useState<number | null>(null)
   const [showTypes, setShowTypes] = useState(false)
@@ -150,30 +164,36 @@ export const PaymentRequestScreen: React.FC = () => {
             }}
           />
         </div>
-        <div className="flex flex-wrap gap-2">
-          <div className="w-44">
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="w-full min-w-0 sm:w-48">
+            <label htmlFor="filter-expense-type" className="ds-input-label">
+              Expense type
+            </label>
             <Select
-              aria-label="Expense type"
+              id="filter-expense-type"
               className="rounded-lg"
               value={expenseTypeId}
               onChange={(e) => {
                 setExpenseTypeId(e.target.value)
                 setPage(1)
               }}
-              options={[{ value: '', label: 'Expense type: All' }, ...(expenseTypes ?? []).map((t) => ({ value: String(t.id), label: t.name }))]}
+              options={[{ value: '', label: 'All' }, ...(expenseTypes ?? []).map((t) => ({ value: String(t.id), label: t.name }))]}
             />
           </div>
-          <div className="w-44">
-            <Select
-              aria-label="Date"
-              className="rounded-lg"
-              value={dateRange}
-              onChange={(e) => {
-                setDateRange(e.target.value as DateRange)
-                setPage(1)
-              }}
-              options={DATE_OPTIONS}
-            />
+          <div className="w-full min-w-0 sm:w-56">
+            <span className="ds-input-label">Date</span>
+            <div className="[&>div]:block [&>div]:w-full [&>div>button]:w-full [&>div>button]:py-2.5 [&>div>button>span]:flex-1 [&>div>button>span]:text-left">
+              <DateRangePicker
+                presets={FILTER_PRESETS}
+                value={dateRange}
+                placement="right"
+                placeholder="Custom range"
+                onChange={(range) => {
+                  setDateRange(range)
+                  setPage(1)
+                }}
+              />
+            </div>
           </div>
         </div>
       </div>
