@@ -81,9 +81,9 @@ export const AdjustmentsScreen: React.FC = () => {
   }
 
   return (
-    <Container size="full" className="py-8">
-      <div className="mb-6 px-1">
-        <h1 className="text-2xl font-bold text-text-primary">Adjustments</h1>
+    <Container size="full" className="py-4 sm:py-8">
+      <div className="mb-4 px-1 sm:mb-6">
+        <h1 className="text-xl font-bold sm:text-2xl text-text-primary">Adjustments</h1>
         <p className="mt-1 text-sm text-text-muted">Correct on-hand quantities and box dimensions for each SKU.</p>
       </div>
 
@@ -96,11 +96,11 @@ export const AdjustmentsScreen: React.FC = () => {
           setSearch(e.target.value)
           setPage(1)
         }}
-        className="mb-4 w-full max-w-md rounded-md border border-border bg-surface px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-secondary-200"
+        className="mb-4 w-full sm:max-w-md rounded-md border border-border bg-surface px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-secondary-200"
       />
 
       <div className={cn('overflow-hidden rounded-lg border border-border shadow-sm', isFetching && 'opacity-70 transition-opacity')}>
-        <div className="max-h-[calc(100vh-320px)] overflow-auto">
+        <div className="max-h-[calc(100vh-320px)] min-h-[240px] overflow-auto">
         <Table className="min-w-full">
           <TableHeader className="sticky top-0 z-10 bg-surface shadow-sm">
             <TableRow>

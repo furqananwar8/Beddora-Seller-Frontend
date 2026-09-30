@@ -44,7 +44,7 @@ const Form: React.FC<FormProps> = ({ row, saving, error, onSave, onClose }) => {
         <div className="font-mono text-sm text-text-muted">{row.sku}</div>
       </div>
 
-      <table className="w-full rounded-md border border-border bg-secondary-50 text-sm">
+      <table className="w-full table-fixed rounded-md border border-border bg-secondary-50 text-sm">
         <thead>
           <tr className="text-text-muted">
             <th className="px-3 py-2 text-left font-medium" />
@@ -96,7 +96,7 @@ const Form: React.FC<FormProps> = ({ row, saving, error, onSave, onClose }) => {
       )}
       {error && <p className="text-sm text-danger-600">{error}</p>}
 
-      <div className="flex justify-end gap-2">
+      <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
         <Button variant="outline" onClick={onClose} disabled={saving}>
           Cancel
         </Button>

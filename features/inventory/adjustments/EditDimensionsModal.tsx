@@ -107,7 +107,7 @@ const Form: React.FC<FormProps> = ({ row, saving, error, onSave, onClose }) => {
         <div className="font-mono text-sm text-text-muted">{row.sku}</div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {FIELDS.map((f) => (
           <Input
             key={f.field}
@@ -136,7 +136,7 @@ const Form: React.FC<FormProps> = ({ row, saving, error, onSave, onClose }) => {
 
       {error && <p className="text-sm text-danger-600">{error}</p>}
 
-      <div className="flex justify-end gap-2">
+      <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
         <Button variant="outline" onClick={onClose} disabled={saving}>
           Cancel
         </Button>
