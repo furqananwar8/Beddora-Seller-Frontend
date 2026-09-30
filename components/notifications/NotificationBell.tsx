@@ -127,7 +127,7 @@ export const NotificationBell: React.FC = () => {
                       <span className={cn('mt-1.5 h-2 w-2 shrink-0 rounded-full', notification.readAt ? 'bg-transparent' : 'bg-danger-500')} />
                       <span className="min-w-0 flex-1">
                         <span className="block text-sm font-medium text-text-primary">{notification.title}</span>
-                        {notification.body && <span className="mt-0.5 block text-xs text-text-muted">{notification.body}</span>}
+                        {notification.body && <span className="mt-0.5 block whitespace-pre-line text-xs text-text-muted">{notification.body}</span>}
                         <span className="mt-1 block text-[11px] text-text-subtle">{formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}</span>
                       </span>
                     </button>

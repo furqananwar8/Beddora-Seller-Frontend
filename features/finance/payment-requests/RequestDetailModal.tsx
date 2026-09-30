@@ -24,6 +24,13 @@ const Row: React.FC<{ label: string; children: React.ReactNode }> = ({ label, ch
   </div>
 )
 
+const PAYMENT_STATUS = {
+  PAYMENT_PENDING: 'Awaiting payment',
+  PARTIALLY_PAID: 'Partially paid',
+  POP_UPLOADED: 'Fully covered, awaiting confirmation',
+  PAID: 'Marked as paid',
+} as const
+
 const Summary: React.FC<{ detail: PaymentRequestDetail }> = ({ detail }) => (
   <dl className="divide-y divide-border/50">
     <Row label="Partner">
@@ -38,6 +45,19 @@ const Summary: React.FC<{ detail: PaymentRequestDetail }> = ({ detail }) => (
     <Row label="Amount">
       <span className="text-base">{formatCurrencyAmount(detail.currency, detail.amount)}</span>
     </Row>
+    {detail.paymentDocument && (
+      <>
+        <Row label="Payment">{PAYMENT_STATUS[detail.paymentDocument.status]}</Row>
+        <Row label="Paid">
+          <span className="text-success-700">{formatCurrencyAmount(detail.currency, detail.paymentDocument.paidAmount)}</span>
+        </Row>
+        <Row label="Remaining">
+          <span className={detail.paymentDocument.balance > 0 ? 'text-danger-600' : 'text-text-primary'}>
+            {formatCurrencyAmount(detail.currency, detail.paymentDocument.balance)}
+          </span>
+        </Row>
+      </>
+    )}
     <Row label="Remarks">{detail.remarks || '-'}</Row>
     <Row label="Documents">
       <DocumentChips documents={detail.documents} />

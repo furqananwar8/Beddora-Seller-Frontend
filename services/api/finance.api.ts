@@ -157,7 +157,7 @@ export interface PaymentRequestDetail {
   decidedBy: UserRef | null
   documents: FinanceDocument[]
   events: TimelineEvent[]
-  paymentDocument: { id: number; status: DocStatus; paidAmount: number } | null
+  paymentDocument: { id: number; status: DocStatus; currency: string; amount: number; paidAmount: number; balance: number } | null
   can: { edit: boolean; submit: boolean; withdraw: boolean; decide: boolean }
 }
 

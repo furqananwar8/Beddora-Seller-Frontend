@@ -24,6 +24,17 @@ const text = (payload: TimelineEvent['payload'], key: string): string | undefine
   return typeof value === 'string' && value.trim() ? value : undefined
 }
 
+const money = (payload: TimelineEvent['payload'], key: string): number | undefined => {
+  const value = payload?.[key]
+  return typeof value === 'number' ? value : undefined
+}
+
+const amountLine = (payload: TimelineEvent['payload'], key: string): string | undefined => {
+  const value = money(payload, key)
+  const currency = text(payload, 'currency')
+  return value === undefined ? undefined : `${currency ?? ''} ${value.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`.trim()
+}
+
 const stamp = (value: string) => format(new Date(value), 'dd MMM, HH:mm')
 
 function toStep(event: TimelineEvent): Step {
@@ -51,10 +62,21 @@ function toStep(event: TimelineEvent): Step {
       return { key: String(event.id), title: 'Rejected', sub: withNote(`by ${by} · ${when}`), glyph: '✕', tone: TONE.danger }
     case 'WITHDRAWN':
       return { key: String(event.id), title: 'Withdrawn', sub: `by ${by} · ${when}`, glyph: '↩', tone: TONE.neutral }
-    case 'POP_ADDED':
-      return { key: String(event.id), title: 'Proof of payment added', sub: `by ${by} · ${when}`, glyph: '$', tone: TONE.info }
-    case 'PAID':
-      return { key: String(event.id), title: 'Paid', sub: `by ${by} · ${when}`, glyph: '✓', tone: TONE.done }
+    case 'POP_ADDED': {
+      const paid = amountLine(event.payload, 'amount')
+      const left = money(event.payload, 'remaining')
+      const progress = paid ? `${paid} paid${left !== undefined ? (left > 0 ? ` · ${amountLine(event.payload, 'remaining')} remaining` : ' · fully covered') : ''}` : undefined
+      return { key: String(event.id), title: 'Proof of payment added', sub: [progress, `by ${by} · ${when}`].filter(Boolean).join('
+'), glyph: '$', tone: TONE.info }
+    }
+    case 'PAID': {
+      const balance = money(event.payload, 'balance')
+      const paid = amountLine(event.payload, 'paidAmount')
+      const total = amountLine(event.payload, 'amount')
+      const summary = paid && total ? (balance && balance > 0 ? `${paid} of ${total} paid · ${amountLine(event.payload, 'balance')} not paid` : `${total} paid in full`) : undefined
+      return { key: String(event.id), title: balance && balance > 0 ? 'Marked as paid (partial)' : 'Paid', sub: [summary, `by ${by} · ${when}`].filter(Boolean).join('
+'), glyph: '✓', tone: TONE.done }
+    }
   }
 }
 
@@ -80,7 +102,7 @@ export const ApprovalTimeline: React.FC<{ events: TimelineEvent[]; status: Reque
           <span className={cn('flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold', step.tone)}>{step.glyph}</span>
           <div className="min-w-0">
             <p className="break-words text-sm font-medium text-text-primary">{step.title}</p>
-            {step.sub && <p className="break-words text-xs text-text-muted">{step.sub}</p>}
+            {step.sub && <p className="whitespace-pre-line break-words text-xs text-text-muted">{step.sub}</p>}
           </div>
         </li>
       ))}
