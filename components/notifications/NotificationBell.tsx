@@ -73,7 +73,7 @@ export const NotificationBell: React.FC = () => {
     <div ref={wrapperRef} className="relative">
       <button
         type="button"
-        className="relative p-2 text-text-muted transition-colors hover:text-text-primary"
+        className="relative p-2 text-text-muted focus:outline-none"
         aria-label={unread > 0 ? `Notifications, ${unread} unread` : 'Notifications'}
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
