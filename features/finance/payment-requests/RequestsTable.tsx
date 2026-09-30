@@ -13,7 +13,7 @@ import { RequestPreview } from './RequestPreview'
 
 const HEAD = 'text-center align-middle'
 const CELL = 'text-center align-middle'
-const COLS = 9
+const COLS = 10
 
 const Paperclip = () => (
   <svg className="ml-1 inline h-3.5 w-3.5 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-label="Has documents">
@@ -50,6 +50,7 @@ export const RequestsTable: React.FC<RequestsTableProps> = ({ rows, isLoading, i
           <TableHead className={HEAD}>Payment #</TableHead>
           <TableHead className={cn(HEAD, 'min-w-[180px]')}>Supplier / Partner name</TableHead>
           <TableHead className={HEAD}>Amount</TableHead>
+          <TableHead className={HEAD}>Remaining</TableHead>
           <TableHead className={HEAD}>Curr.</TableHead>
           <TableHead className={HEAD}>Invoice</TableHead>
           <TableHead className={HEAD}>Container no</TableHead>
@@ -94,6 +95,9 @@ export const RequestsTable: React.FC<RequestsTableProps> = ({ rows, isLoading, i
                   </TableCell>
                   <TableCell className={cn(CELL, 'font-medium text-text-primary')}>{row.partner.name}</TableCell>
                   <TableCell className={CELL}>{formatMoney(row.amount)}</TableCell>
+                  <TableCell className={cn(CELL, row.payment && row.payment.remaining > 0 && 'font-medium text-danger-600')}>
+                    {row.payment ? formatMoney(row.payment.remaining) : '-'}
+                  </TableCell>
                   <TableCell className={CELL}>{row.currency}</TableCell>
                   <TableCell className={CELL}>
                     {row.invoiceNo}

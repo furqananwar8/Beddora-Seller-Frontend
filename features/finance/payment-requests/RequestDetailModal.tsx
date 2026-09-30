@@ -28,7 +28,7 @@ const PAYMENT_STATUS = {
   PAYMENT_PENDING: 'Awaiting payment',
   PARTIALLY_PAID: 'Partially paid',
   POP_UPLOADED: 'Fully covered, awaiting confirmation',
-  PAID: 'Marked as paid',
+  PAID: 'Closed',
 } as const
 
 const Summary: React.FC<{ detail: PaymentRequestDetail }> = ({ detail }) => (
@@ -47,7 +47,9 @@ const Summary: React.FC<{ detail: PaymentRequestDetail }> = ({ detail }) => (
     </Row>
     {detail.paymentDocument && (
       <>
-        <Row label="Payment">{PAYMENT_STATUS[detail.paymentDocument.status]}</Row>
+        <Row label="Payment">
+          {detail.paymentDocument.status === 'PAID' && detail.paymentDocument.balance > 0 ? 'Closed with a balance outstanding' : PAYMENT_STATUS[detail.paymentDocument.status]}
+        </Row>
         <Row label="Paid">
           <span className="text-success-700">{formatCurrencyAmount(detail.currency, detail.paymentDocument.paidAmount)}</span>
         </Row>

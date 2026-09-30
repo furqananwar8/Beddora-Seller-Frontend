@@ -113,6 +113,7 @@ export interface PaymentRequestListItem {
   requestedBy: UserRef
   decidedBy: UserRef | null
   documentCount: number
+  payment: { paidAmount: number; remaining: number; status: DocStatus } | null
 }
 
 export interface PaymentRequestListParams extends PageParams {
