@@ -151,7 +151,7 @@ export interface PaymentRequestDetail {
   decidedAt: string | null
   partner: { id: number; name: string; type: PartnerType; country: string | null; currency: string }
   expenseType: { id: number; name: string }
-  marketplace: { id: number; name: string } | null
+  marketplace: { id: number; name: string; code?: string } | null
   marketplaceId: number | null
   requestedBy: UserRef
   decidedBy: UserRef | null

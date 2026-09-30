@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { PartnerOption, useGetPartnerOptionsQuery } from '@/services/api/finance.api'
 import { useDebounce } from '@/utils/debounce'
+import { countryLabel } from '../shared/countryLabel'
 import { Chevron } from '../shared/SelectShell'
 import { cn } from '@/utils/cn'
 import { fieldClass } from '../shared/FormField'
@@ -27,7 +28,7 @@ const Chip: React.FC<{ children: React.ReactNode }> = ({ children }) => (
 export const PartnerChips: React.FC<{ partner: PartnerOption }> = ({ partner }) => (
   <div className="mt-2 flex flex-wrap gap-1.5">
     <Chip>{partner.type === 'VENDOR' ? 'Vendor' : 'Supplier'}</Chip>
-    {partner.country && <Chip>{partner.country}</Chip>}
+    {partner.country && <Chip>{countryLabel(partner.country)}</Chip>}
     <Chip>{partner.currency}</Chip>
     {partner.paymentMethod && <Chip>{partner.paymentMethod}</Chip>}
   </div>

@@ -1,5 +1,6 @@
 'use client'
 
+import { countryLabel } from '../shared/countryLabel'
 import React, { useState } from 'react'
 import Link from 'next/link'
 import { Button } from '@/design-system/buttons'
@@ -32,7 +33,7 @@ const Summary: React.FC<{ detail: PaymentRequestDetail }> = ({ detail }) => (
       {detail.invoiceNo} · {formatDay(detail.invoiceDate)}
     </Row>
     <Row label="Container #">{detail.containerNo || '-'}</Row>
-    <Row label="Destination">{detail.marketplace?.name ?? '-'}</Row>
+    <Row label="Destination">{detail.marketplace ? countryLabel(detail.marketplace.code) || detail.marketplace.name : '-'}</Row>
     <Row label="Expense type">{detail.expenseType.name}</Row>
     <Row label="Amount">
       <span className="text-base">{formatCurrencyAmount(detail.currency, detail.amount)}</span>

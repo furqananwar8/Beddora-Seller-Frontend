@@ -12,6 +12,7 @@ import { StatusBadge } from '@/components/status-badge/StatusBadge'
 import { Button } from '@/design-system/buttons'
 import { Card } from '@/design-system/cards'
 import { Input, Select, Textarea } from '@/design-system/inputs'
+import { countryLabel } from '../shared/countryLabel'
 import { SelectShell } from '../shared/SelectShell'
 import { Spinner } from '@/design-system/loaders'
 import {
@@ -303,7 +304,7 @@ export const PaymentRequestFormScreen: React.FC = () => {
               <Select
                 id="marketplaceId"
                 className="appearance-none rounded-lg pr-9"
-                options={[{ value: '', label: 'Select destination' }, ...(marketplaces ?? []).map((m) => ({ value: String(m.id), label: m.name }))]}
+                options={[{ value: '', label: 'Select destination' }, ...(marketplaces ?? []).map((m) => ({ value: String(m.id), label: countryLabel(m.code) || m.name }))]}
                 {...register('marketplaceId')}
               />
               </SelectShell>
