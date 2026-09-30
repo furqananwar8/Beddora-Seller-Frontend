@@ -24,7 +24,7 @@ export const NotificationBell: React.FC = () => {
   const wrapperRef = useRef<HTMLDivElement>(null)
 
   const { data: unread = 0 } = useGetUnreadCountQuery()
-  const { data, isLoading, isFetching } = useGetNotificationsQuery({ page: 1, limit }, { skip: !open })
+  const { data, isLoading, isFetching } = useGetNotificationsQuery({ page: 1, limit })
   const [markRead] = useMarkNotificationReadMutation()
   const [markAll] = useMarkAllNotificationsReadMutation()
 
