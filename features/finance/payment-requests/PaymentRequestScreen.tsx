@@ -46,6 +46,8 @@ const FILTER_PRESETS: DateRangePreset[] = [
       return { startDate: format(startOfMonth(last), 'yyyy-MM-dd'), endDate: format(endOfMonth(last), 'yyyy-MM-dd') }
     },
   },
+  // Custom keeps the picker open: the user picks days, then presses Apply.
+  { id: 'custom', label: 'Custom', getRange: () => ({ startDate: format(startOfMonth(new Date()), 'yyyy-MM-dd'), endDate: format(new Date(), 'yyyy-MM-dd') }) },
   // Empty range clears the date filter.
   { id: 'all', label: 'All time', getRange: () => ({ startDate: '', endDate: '' }) },
 ]
@@ -74,7 +76,11 @@ export const PaymentRequestScreen: React.FC = () => {
   const [page, setPage] = useState(1)
   const [chosenTab, setChosenTab] = useState<TabId | null>(null)
   const [expenseTypeId, setExpenseTypeId] = useState('')
+  // `dateRange` is what the lists use; `draftRange` is what the picker shows while a custom range is being chosen.
   const [dateRange, setDateRange] = useState<DateRangeValue>(THIS_MONTH)
+  const [draftRange, setDraftRange] = useState<DateRangeValue>(THIS_MONTH)
+  const draftIsCustom = !draftRange.presetId || draftRange.presetId === 'custom'
+  const canApplyCustom = draftIsCustom && Boolean(draftRange.startDate && draftRange.endDate) && (draftRange.startDate !== dateRange.startDate || draftRange.endDate !== dateRange.endDate)
   const [rejectId, setRejectId] = useState<number | null>(null)
   const [busyId, setBusyId] = useState<number | null>(null)
   const [showTypes, setShowTypes] = useState(false)
@@ -186,15 +192,33 @@ export const PaymentRequestScreen: React.FC = () => {
             <div className="[&>div]:block [&>div]:w-full [&>div>button]:w-full [&>div>button]:py-2.5 [&>div>button>span]:flex-1 [&>div>button>span]:text-left">
               <DateRangePicker
                 presets={FILTER_PRESETS}
-                value={dateRange}
+                value={draftRange}
                 placement="right"
                 placeholder="Custom range"
+                keepOpenPresetIds={['custom']}
                 onChange={(range) => {
-                  setDateRange(range)
-                  setPage(1)
+                  setDraftRange(range)
+                  // Presets apply straight away; a custom range waits for Apply.
+                  if (range.presetId && range.presetId !== 'custom') {
+                    setDateRange(range)
+                    setPage(1)
+                  }
                 }}
               />
             </div>
+            {draftIsCustom && (
+              <Button
+                size="sm"
+                className="mt-2 w-full"
+                disabled={!canApplyCustom}
+                onClick={() => {
+                  setDateRange({ ...draftRange, presetId: 'custom' })
+                  setPage(1)
+                }}
+              >
+                Apply date range
+              </Button>
+            )}
           </div>
         </div>
       </div>
