@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
-import { Button } from '@/design-system/buttons'
+import { RowActionsMenu } from '@/components/row-actions-menu/RowActionsMenu'
 import { Spinner } from '@/design-system/loaders'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/design-system/tables'
 import { StatusBadge } from '@/components/status-badge/StatusBadge'
@@ -105,18 +105,18 @@ export const RequestsTable: React.FC<RequestsTableProps> = ({ rows, isLoading, i
                     <StatusBadge label={meta.label} tone={meta.tone} />
                   </TableCell>
                   <TableCell className={CELL}>
-                    {decidable ? (
-                      <div className="flex justify-center gap-2" onClick={(event) => event.stopPropagation()}>
-                        <Button size="sm" disabled={busy} onClick={() => onApprove(row.id)}>
-                          ✓ Approve
-                        </Button>
-                        <Button size="sm" variant="danger" disabled={busy} onClick={() => onReject(row.id)}>
-                          ✕ Reject
-                        </Button>
-                      </div>
-                    ) : (
-                      <span className="text-text-muted">-</span>
-                    )}
+                    <RowActionsMenu
+                      label={`Payment#${row.id}`}
+                      items={[
+                        { key: 'open', label: 'View details', onSelect: () => onOpen(row.id) },
+                        ...(decidable
+                          ? [
+                              { key: 'approve', label: 'Approve', onSelect: () => onApprove(row.id), disabled: busy },
+                              { key: 'reject', label: 'Reject', onSelect: () => onReject(row.id), disabled: busy, tone: 'danger' as const },
+                            ]
+                          : []),
+                      ]}
+                    />
                   </TableCell>
                 </TableRow>
                 {expanded && (
