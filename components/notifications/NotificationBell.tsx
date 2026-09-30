@@ -81,7 +81,7 @@ export const NotificationBell: React.FC = () => {
         <span className="block [&>svg]:h-6 [&>svg]:w-6">{NavIcons.bell}</span>
         {unread > 0 && (
           <span className="absolute -right-1 -top-1 ds-circle flex h-5 min-w-[20px] items-center justify-center bg-danger-600 px-1 text-[11px] font-bold leading-none text-text-inverse ring-2 ring-surface">
-            {unread > 99 ? '99+' : unread}
+            {unread > 10 ? '10+' : unread}
           </span>
         )}
       </button>
