@@ -7,6 +7,7 @@ import { Controller, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Container } from '@/components/layout'
 import { FileDropzone } from '@/components/file-dropzone/FileDropzone'
+import { SingleDatePicker } from '@/components/single-date-picker/SingleDatePicker'
 import { StatusBadge } from '@/components/status-badge/StatusBadge'
 import { Button } from '@/design-system/buttons'
 import { Card } from '@/design-system/cards'
@@ -31,8 +32,9 @@ import { FormField } from '../shared/FormField'
 import { formatMoney, formatRequestNo, toDateInputValue } from '../shared/format'
 import { REQUEST_STATUS_META } from '../shared/statusMeta'
 import { useFinanceFeedback } from '../shared/useFinanceFeedback'
-import { DocumentChips } from './DocumentChips'
+import { DocumentChips } from '../shared/DocumentChips'
 import { PartnerChips, PartnerSelect } from './PartnerSelect'
+import { clearRequestDraft, peekRequestDraft, saveRequestDraft, withQueryParam } from './requestDraftStore'
 import {
   CURRENCIES,
   PaymentRequestFormValues,
@@ -45,6 +47,7 @@ import {
 } from './schema'
 
 const LIST_URL = '/dashboard/finance/payment-request'
+const NEW_URL = `${LIST_URL}/new`
 
 const Section: React.FC<{ title: string; note?: string; children: React.ReactNode }> = ({ title, note, children }) => (
   <Card className="p-4 sm:p-5">
@@ -74,6 +77,12 @@ export const PaymentRequestFormScreen: React.FC = () => {
   const editParam = Number(searchParams.get('edit'))
   const editId = Number.isInteger(editParam) && editParam > 0 ? editParam : null
   const { success, failure } = useFinanceFeedback()
+  const partnerParam = Number(searchParams.get('partnerId'))
+  const newPartnerId = Number.isInteger(partnerParam) && partnerParam > 0 ? partnerParam : null
+  const wantsRestore = newPartnerId !== null || searchParams.get('restore') === '1'
+  // Peek (not take) so a dev double-mount cannot lose it; it is cleared once applied.
+  const [draft] = useState(() => (wantsRestore ? peekRequestDraft() : null))
+  const [restored, setRestored] = useState(draft === null)
 
   const [savedId, setSavedId] = useState<number | null>(null)
   const requestId = editId ?? savedId
@@ -119,6 +128,31 @@ export const PaymentRequestFormScreen: React.FC = () => {
     reset(toFormValues(detail))
     setPartner({ id: detail.partner.id, name: detail.partner.name, type: detail.partner.type, country: detail.partner.country, currency: detail.partner.currency, paymentMethod: null })
   }, [editId, detail, reset])
+
+  // Bring back what was typed before the detour to create a partner (after any edit hydration).
+  useEffect(() => {
+    if (restored || !draft) return
+    if (editId && !hydrated.current) return
+    reset(draft.values)
+    setFiles(draft.files)
+    setPartner(draft.partner)
+    clearRequestDraft()
+    setRestored(true)
+  }, [restored, draft, editId, detail, reset])
+
+  // Preselect the partner that was just created.
+  const { data: newPartner } = useGetPartnerQuery(newPartnerId ?? 0, { skip: newPartnerId === null })
+  const appliedNewPartner = useRef(false)
+  useEffect(() => {
+    if (!restored || !newPartner || appliedNewPartner.current) return
+    if (editId && !hydrated.current) return
+    appliedNewPartner.current = true
+    pickPartner({ id: newPartner.id, name: newPartner.name, type: newPartner.type, country: newPartner.country, currency: newPartner.currency, paymentMethod: null })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [restored, newPartner, editId, detail])
+
+  const addPartnerHref = `/dashboard/finance/partner-profile/new?returnTo=${encodeURIComponent(editId ? withQueryParam(NEW_URL, 'edit', String(editId)) : NEW_URL)}`
+  const stashDraft = () => saveRequestDraft({ values: getValues(), files, partner })
 
   const currency = watch('currency')
   const currencyOptions = [...new Set([...CURRENCIES, ...(currency ? [currency] : [])])].map((code) => ({ value: code, label: code }))
@@ -236,7 +270,7 @@ export const PaymentRequestFormScreen: React.FC = () => {
 
         <Section title="Partner" note="who is being paid">
           <FormField label="Partner" htmlFor="partner" required error={errors.partnerId?.message}>
-            <PartnerSelect id="partner" selected={shownPartner} error={errors.partnerId?.message} onSelect={pickPartner} />
+            <PartnerSelect id="partner" selected={shownPartner} error={errors.partnerId?.message} onSelect={pickPartner} addPartnerHref={addPartnerHref} onAddPartner={stashDraft} />
           </FormField>
           {shownPartner && <PartnerChips partner={shownPartner} />}
         </Section>
@@ -252,7 +286,13 @@ export const PaymentRequestFormScreen: React.FC = () => {
               />
             </FormField>
             <FormField label="Invoice Date" htmlFor="invoiceDate" required error={errors.invoiceDate?.message}>
-              <Input id="invoiceDate" type="date" className="rounded-lg" {...register('invoiceDate')} />
+              <Controller
+                control={control}
+                name="invoiceDate"
+                render={({ field }) => (
+                  <SingleDatePicker id="invoiceDate" value={field.value} onChange={field.onChange} error={errors.invoiceDate?.message} />
+                )}
+              />
             </FormField>
             <FormField label="Container #" htmlFor="containerNo" error={errors.containerNo?.message}>
               <Input id="containerNo" className="rounded-lg" placeholder="MSKU 482193-0" {...register('containerNo')} />

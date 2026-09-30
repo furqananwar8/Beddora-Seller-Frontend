@@ -177,7 +177,7 @@ export interface Marketplace {
 export interface Approver {
   user: { id: number; name: string | null; email: string }
   addedBy: UserRef | null
-  addedAt: string
+  addedAt?: string | null
 }
 
 export interface UserCandidate {
@@ -330,7 +330,7 @@ export const financeApi = baseApi.injectEndpoints({
     }),
 
     /* approvers */
-    getApproverStatus: b.query<{ isApprover: boolean }, void>({
+    getApproverStatus: b.query<{ isApprover: boolean; canManageSettings: boolean }, void>({
       query: () => '/finance/approvers/me',
       transformResponse: unwrap,
       providesTags: ['FinanceApprovers'],

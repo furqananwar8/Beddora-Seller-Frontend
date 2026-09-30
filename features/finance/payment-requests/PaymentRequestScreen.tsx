@@ -67,6 +67,7 @@ export const PaymentRequestScreen: React.FC = () => {
 
   const { data: approverStatus } = useGetApproverStatusQuery()
   const isApprover = approverStatus?.isApprover ?? false
+  const canManageSettings = approverStatus?.canManageSettings ?? false
 
   const [search, setSearch] = useState('')
   const debouncedSearch = useDebounce(search, 300)
@@ -137,7 +138,7 @@ export const PaymentRequestScreen: React.FC = () => {
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-bold text-text-primary sm:text-2xl">Payment Requests</h1>
         <div className="flex flex-wrap items-center gap-2">
-          {isApprover && (
+          {canManageSettings && (
             <>
               <Button variant="secondary" size="sm" onClick={() => setShowTypes(true)}>
                 Expense types
@@ -225,8 +226,8 @@ export const PaymentRequestScreen: React.FC = () => {
 
       <RejectDialog requestId={rejectId} submitting={actions.rejecting} onConfirm={actions.reject} onClose={() => setRejectId(null)} />
       <RequestDetailModal requestId={openId} onClose={() => setOpen(null)} />
-      <ExpenseTypesModal isOpen={showTypes} onClose={() => setShowTypes(false)} />
-      <ApproversModal isOpen={showApprovers} onClose={() => setShowApprovers(false)} />
+      {canManageSettings && <ExpenseTypesModal isOpen={showTypes} onClose={() => setShowTypes(false)} />}
+      {canManageSettings && <ApproversModal isOpen={showApprovers} onClose={() => setShowApprovers(false)} />}
     </Container>
   )
 }
