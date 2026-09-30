@@ -32,7 +32,6 @@ export interface ProductInventoryItem {
   balances: BucketBalances // raw per-bucket stock, echoed back when saving an allocation
   // Whole SKU: all channels sold vs. all stock on hand (used to reorder from the supplier)
   salesVelocity: number // units per day, last 30 days
-  salesVelocity15: number // units per day, last 15 days
   daysOfStockLeft: number | null // null when there were no sales
   daysUntilNextOrder: number | null
   recommendedQuantity: number

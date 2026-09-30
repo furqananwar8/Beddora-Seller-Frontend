@@ -38,7 +38,6 @@ type SortColumn =
   | 'otherMarketReserve'
   | 'status'
   | 'salesVelocity'
-  | 'salesVelocity15'
   | 'pdsFba'
   | 'fbaDaysOfStockLeft'
   | 'fbaDaysUntilNextOrder'
@@ -55,7 +54,7 @@ interface ViewState {
 const INITIAL_VIEW: ViewState = { sortColumn: 'daysOfStockLeft', sortDirection: 'asc', currentPage: 1 }
 
 const ITEMS_PER_PAGE = 20
-const COLUMN_COUNT = 14
+const COLUMN_COUNT = 13
 const NO_SALES_HINT = 'No sales in the last 30 days'
 
 export const STATUS_OPTIONS: { value: InventoryItemStatus; label: string }[] = [
@@ -230,18 +229,17 @@ export const ProductInventoryTable = ({
                   />
                 </TableHead>
                 <SortableHead column="description" label="Product" className="min-w-[320px]" />
-                <SortableHead column="totalQuantity" label="Total quantity" className="min-w-[130px]" />
-                <SortableHead column="amazonReserve" label="Amazon reserve" className="min-w-[130px]" />
-                <SortableHead column="otherMarketReserve" label="Other market reserve" className="min-w-[160px]" />
+                <SortableHead column="totalQuantity" label="Total quantity" className="min-w-[170px]" />
+                <SortableHead column="amazonReserve" label="Amazon reserve" className="min-w-[170px]" />
+                <SortableHead column="otherMarketReserve" label="Other market reserve" className="min-w-[210px]" />
                 <SortableHead column="status" label="Status" className="min-w-[160px]" />
-                <SortableHead column="salesVelocity" label="Sales velocity (30d)" className="min-w-[130px]" />
-                <SortableHead column="salesVelocity15" label="Sales velocity (15d)" className="min-w-[130px]" />
-                <SortableHead column="daysOfStockLeft" label="Days of stock left" className="min-w-[140px]" />
-                <SortableHead column="daysUntilNextOrder" label="Days until next order" className="min-w-[160px]" />
-                <SortableHead column="recommendedQuantity" label="Recommended qty" className="min-w-[140px]" />
-                <SortableHead column="pdsFba" label="PDS (FBA)" className="min-w-[110px]" />
-                <SortableHead column="fbaDaysOfStockLeft" label="Days of FBA stock left" className="min-w-[150px]" />
-                <SortableHead column="fbaDaysUntilNextOrder" label="Days until next FBA order" className="min-w-[170px]" />
+                <SortableHead column="salesVelocity" label="Sales velocity (30d)" className="min-w-[210px]" />
+                <SortableHead column="daysOfStockLeft" label="Days of stock left" className="min-w-[200px]" />
+                <SortableHead column="daysUntilNextOrder" label="Days until next order" className="min-w-[220px]" />
+                <SortableHead column="recommendedQuantity" label="Recommended qty" className="min-w-[175px]" />
+                <SortableHead column="pdsFba" label="PDS (FBA)" className="min-w-[130px]" />
+                <SortableHead column="fbaDaysOfStockLeft" label="Days of FBA stock left" className="min-w-[230px]" />
+                <SortableHead column="fbaDaysUntilNextOrder" label="Days until next FBA order" className="min-w-[250px]" />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -351,11 +349,7 @@ export const ProductInventoryTable = ({
                           {formatNumber(product.salesVelocity, 2)}
                         </span>
                       </TableCell>
-                      <TableCell className={CELL_CLASS}>
-                        <span title={product.salesVelocity15 === 0 ? NO_SALES_HINT : 'Units per day, last 15 days'}>
-                          {formatNumber(product.salesVelocity15, 2)}
-                        </span>
-                      </TableCell>
+
                       <TableCell className={CELL_CLASS}>
                         <DaysBadge days={product.daysOfStockLeft} />
                       </TableCell>
