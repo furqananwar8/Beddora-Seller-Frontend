@@ -15,7 +15,7 @@ export interface RowActionItem {
 }
 
 interface RowActionsMenuProps {
-  /** Names the row for screen readers, e.g. "Doc#12". */
+  /** Names the row for screen readers, e.g. "PP#10012". */
   label: string
   items: RowActionItem[]
 }

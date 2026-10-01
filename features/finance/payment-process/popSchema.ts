@@ -7,6 +7,7 @@ export interface PopFormValues {
   paymentDate: string
   fxRate: string
   reference: string
+  currency: string
   files: File[]
 }
 
@@ -19,7 +20,9 @@ export const makePopSchema = (balance: number, needsFx: boolean) =>
       paymentDate: z.string().min(1, 'Payment date is required'),
       fxRate: z.string(),
       reference: z.string().max(100, 'Keep the reference under 100 characters'),
-      files: z.array(z.custom<File>((value) => value instanceof File)).min(1, 'Upload the proof of payment'),
+      currency: z.string().min(1, 'Choose a currency'),
+      // The proof is optional: a payment can be recorded now and its document come later
+      files: z.array(z.custom<File>((value) => value instanceof File)),
     })
     .superRefine((values, ctx) => {
       const amount = parseNumber(values.amount)

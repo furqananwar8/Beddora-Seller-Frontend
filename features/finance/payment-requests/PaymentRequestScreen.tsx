@@ -113,11 +113,11 @@ export const PaymentRequestScreen: React.FC = () => {
 
   const count = (value?: number) => (value === undefined ? '' : ` ${value}`)
   const tabs = [
-    { id: 'PENDING_APPROVAL', label: `Pending for Approval${count(summary?.byStatus.PENDING_APPROVAL)}` },
-    { id: 'APPROVED', label: `Approved${count(summary?.byStatus.APPROVED)}` },
-    { id: 'REJECTED', label: `Rejected${count(summary?.byStatus.REJECTED)}` },
-    { id: 'ALL', label: `All${count(summary?.all)}` },
-    { id: 'DRAFT', label: `Draft${count(summary?.byStatus.DRAFT)}` },
+    { id: 'PENDING_APPROVAL', label: `PENDING FOR APPROVAL${count(summary?.byStatus.PENDING_APPROVAL)}` },
+    { id: 'APPROVED', label: `APPROVED${count(summary?.byStatus.APPROVED)}` },
+    { id: 'REJECTED', label: `REJECTED${count(summary?.byStatus.REJECTED)}` },
+    { id: 'ALL', label: `ALL${count(summary?.all)}` },
+    { id: 'DRAFT', label: `DRAFT${count(summary?.byStatus.DRAFT)}` },
   ]
 
   const setOpen = (id: number | null) => {
@@ -238,6 +238,7 @@ export const PaymentRequestScreen: React.FC = () => {
             canDecide={isApprover}
             busyId={busyId}
             onOpen={setOpen}
+            onEdit={(id) => router.push(`/dashboard/finance/payment-request/new?edit=${id}`)}
             onApprove={(id) => withBusy(id, () => actions.approve(id))}
             onReject={setRejectId}
           />

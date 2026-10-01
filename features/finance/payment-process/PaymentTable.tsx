@@ -9,12 +9,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import type { Page, PaymentDocumentListItem } from '@/services/api/finance.api'
 import { cn } from '@/utils/cn'
 import { formatCurrencyAmount, formatDocNo, formatRequestNo } from '../shared/format'
+import { PAYMENT_STATE_META, paymentStateOf } from '../shared/paymentState'
 import { DOC_STATUS_META } from '../shared/statusMeta'
 import { RowAction, RowActions } from './RowActions'
 
 const HEAD = 'text-center align-middle'
 const CELL = 'text-center align-middle'
-const COLUMNS = 9
+const COLUMNS = 11
 
 interface PaymentTableProps {
   page: Page<PaymentDocumentListItem> | undefined
@@ -42,7 +43,9 @@ export const PaymentTable: React.FC<PaymentTableProps> = ({ page, isLoading, isF
               <TableHead className={HEAD}>Amount</TableHead>
               <TableHead className={HEAD}>Paid</TableHead>
               <TableHead className={HEAD}>Balance</TableHead>
+              <TableHead className={cn(HEAD, 'min-w-[180px]')}>Remarks</TableHead>
               <TableHead className={HEAD}>Status</TableHead>
+              <TableHead className={cn(HEAD, 'min-w-[130px]')}>Payment status</TableHead>
               <TableHead className={cn(HEAD, 'min-w-[260px]')}>Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -66,6 +69,7 @@ export const PaymentTable: React.FC<PaymentTableProps> = ({ page, isLoading, isF
             ) : (
               rows.map((row) => {
                 const meta = DOC_STATUS_META[row.status]
+                const payment = PAYMENT_STATE_META[paymentStateOf(row.paidAmount, row.amount)]
                 return (
                   <TableRow key={row.id}>
                     <TableCell className={CELL}>
@@ -90,7 +94,19 @@ export const PaymentTable: React.FC<PaymentTableProps> = ({ page, isLoading, isF
                     <TableCell className={cn(CELL, 'whitespace-nowrap')}>{formatCurrencyAmount(row.currency, row.paidAmount)}</TableCell>
                     <TableCell className={cn(CELL, 'whitespace-nowrap font-medium')}>{formatCurrencyAmount(row.currency, row.balance)}</TableCell>
                     <TableCell className={CELL}>
+                      {row.remarks ? (
+                        <div className="mx-auto max-w-[220px] truncate" title={row.remarks}>
+                          {row.remarks}
+                        </div>
+                      ) : (
+                        '-'
+                      )}
+                    </TableCell>
+                    <TableCell className={CELL}>
                       <StatusBadge label={meta.label} tone={meta.tone} />
+                    </TableCell>
+                    <TableCell className={CELL}>
+                      <StatusBadge label={payment.label} tone={payment.tone} />
                     </TableCell>
                     <TableCell className={CELL}>
                       <RowActions row={row} onSelect={(action) => onAction(row, action)} />

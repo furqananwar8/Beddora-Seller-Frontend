@@ -118,12 +118,15 @@ export interface PaymentRequestListItem {
   status: RequestStatus
   createdAt: string
   decisionNote: string | null
+  remarks: string | null
   partner: { id: number; name: string; type: PartnerType }
   expenseType: { id: number; name: string }
   requestedBy: UserRef
   decidedBy: UserRef | null
   documentCount: number
   payment: { paidAmount: number; remaining: number; status: DocStatus } | null
+  /** The viewer may edit this request (their own draft or rejected one). */
+  canEdit: boolean
 }
 
 export interface PaymentRequestListParams extends PageParams {
@@ -177,6 +180,8 @@ export interface ExpenseType {
   name: string
   sortOrder: number
   isActive: boolean
+  /** How many payment requests use this type; only a type with none can be deleted. */
+  requestCount?: number
 }
 
 export interface Marketplace {
@@ -208,6 +213,7 @@ export interface PaymentDocumentListItem {
   expenseType: string
   invoiceNo: string
   containerNo: string | null
+  remarks: string | null
   currency: string
   amount: number
   paidAmount: number
@@ -249,13 +255,23 @@ export interface PaymentDocumentDetail {
   markedPaidBy: UserRef | null
   markedPaidAt: string | null
   pops: Pop[]
-  paymentMethod: { id: number; type: 'BANK' | 'CARD_LINK'; ibanLast4: string | null; paymentLink: string | null } | null
-  request: { id: number; invoiceNo: string; partner: { id: number; name: string } }
+  paymentMethod: { id: number; type: 'BANK' | 'CARD_LINK'; ibanLast4: string | null; accountNumberLast4: string | null; paymentLink: string | null } | null
+  request: {
+    id: number
+    invoiceNo: string
+    containerNo: string | null
+    remarks: string | null
+    partner: { id: number; name: string }
+    expenseType: { id: number; name: string }
+    /** Documents the requester attached to the request. */
+    documents: FinanceDocument[]
+  }
 }
 
 export interface BankDetails {
   type: 'BANK' | 'CARD_LINK'
   iban: string | null
+  accountNumber: string | null
   swiftCode: string | null
   routingNo: string | null
   accountHolder: string | null
@@ -332,6 +348,11 @@ export const financeApi = baseApi.injectEndpoints({
     }),
     updateExpenseType: b.mutation<ExpenseType, { id: number; patch: Partial<Pick<ExpenseType, 'name' | 'isActive'>> }>({
       query: ({ id, patch }) => ({ url: `/finance/expense-types/${id}`, method: 'PATCH', body: patch }),
+      transformResponse: unwrap,
+      invalidatesTags: ['FinanceExpenseTypes'],
+    }),
+    deleteExpenseType: b.mutation<{ id: number }, number>({
+      query: (id) => ({ url: `/finance/expense-types/${id}`, method: 'DELETE' }),
       transformResponse: unwrap,
       invalidatesTags: ['FinanceExpenseTypes'],
     }),
@@ -479,6 +500,7 @@ export const {
   useGetExpenseTypesQuery,
   useCreateExpenseTypeMutation,
   useUpdateExpenseTypeMutation,
+  useDeleteExpenseTypeMutation,
   useGetFinanceMarketplacesQuery,
   useGetApproverStatusQuery,
   useGetApproversQuery,

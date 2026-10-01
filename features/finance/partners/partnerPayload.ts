@@ -1,11 +1,11 @@
-import { normalizeIban, type PartnerFormValues, type PaymentMethodFormValues } from './partnerSchema'
+import { normalizeBankId, type PartnerFormValues, type PaymentMethodFormValues } from './partnerSchema'
 
 const appendIf = (body: FormData, key: string, value: string) => {
   if (value.trim() !== '') body.append(key, value.trim())
 }
 
 /** Multipart body for POST /finance/partners. */
-export function buildPartnerFormData(values: PartnerFormValues, files: File[]): FormData {
+export function buildPartnerFormData(values: PartnerFormValues): FormData {
   const body = new FormData()
   body.append('name', values.name.trim())
   body.append('type', values.type)
@@ -13,7 +13,6 @@ export function buildPartnerFormData(values: PartnerFormValues, files: File[]): 
   appendIf(body, 'email', values.email)
   appendIf(body, 'country', values.country)
   appendIf(body, 'address', values.address)
-  files.forEach((file) => body.append('documents', file))
   return body
 }
 
@@ -35,7 +34,8 @@ export function buildPaymentMethodFormData(values: PaymentMethodFormValues, file
   const body = new FormData()
   body.append('type', values.type)
   if (values.type === 'BANK') {
-    body.append('iban', normalizeIban(values.iban))
+    appendIf(body, 'iban', normalizeBankId(values.iban))
+    appendIf(body, 'accountNumber', normalizeBankId(values.accountNumber))
     body.append('swiftCode', values.swiftCode.trim().toUpperCase())
     appendIf(body, 'routingNo', values.routingNo)
     appendIf(body, 'accountHolder', values.accountHolder)

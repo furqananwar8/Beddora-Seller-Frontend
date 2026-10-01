@@ -13,7 +13,7 @@ const Item: React.FC<{ label: string; children: React.ReactNode }> = ({ label, c
 )
 
 export const PopList: React.FC<{ pops: Pop[] }> = ({ pops }) => {
-  if (pops.length === 0) return <p className="text-sm text-text-muted">No proof of payment uploaded yet.</p>
+  if (pops.length === 0) return <p className="text-sm text-text-muted">No payment recorded yet.</p>
 
   return (
     <ul className="space-y-3">
@@ -33,12 +33,13 @@ export const PopList: React.FC<{ pops: Pop[] }> = ({ pops }) => {
               <Item label="Reference">{pop.reference || '-'}</Item>
               <Item label="Processed by">{pop.processedBy.name ?? `User ${pop.processedBy.id}`}</Item>
             </dl>
-            {pop.documents.length > 0 && (
-              <div className="mt-2 flex flex-wrap gap-2">
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              {pop.documents.length > 0 ? (
                 <DocumentChips documents={pop.documents} />
-
-              </div>
-            )}
+              ) : (
+                <span className="text-xs text-text-muted">No proof file attached to this payment.</span>
+              )}
+            </div>
           </li>
         )
       })}

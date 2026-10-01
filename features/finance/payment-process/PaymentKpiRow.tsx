@@ -39,7 +39,7 @@ export const PaymentKpiRow: React.FC<PaymentKpiRowProps> = ({ summary, active, o
     },
     {
       status: 'POP_UPLOADED',
-      title: 'POP uploaded',
+      title: 'Payment recorded',
       value: summary?.byStatus.POP_UPLOADED ?? 0,
       subtitle: 'Ready to mark paid',
     },

@@ -10,24 +10,10 @@ export const PARTNER_TYPE_OPTIONS: Array<{ value: PartnerType; label: string }> 
 
 export const partnerTypeLabel = (type: PartnerType): string => (type === 'VENDOR' ? 'Vendor' : 'Supplier')
 
-/* ─────────────── IBAN (ISO 13616 mod-97) ─────────────── */
+/* ─────────────── Bank identifiers ─────────────── */
 
-export const normalizeIban = (value: string): string => value.replace(/\s+/g, '').toUpperCase()
-
-export function isValidIban(value: string): boolean {
-  const iban = normalizeIban(value)
-  if (!/^[A-Z]{2}[0-9]{2}[A-Z0-9]{11,30}$/.test(iban)) return false
-  const rearranged = iban.slice(4) + iban.slice(0, 4)
-  let remainder = 0
-  for (const char of rearranged) {
-    const digits = /[A-Z]/.test(char) ? String(char.charCodeAt(0) - 55) : char
-    for (const digit of digits) remainder = (remainder * 10 + Number(digit)) % 97
-  }
-  return remainder === 1
-}
-
-/** Groups an IBAN in blocks of four for display while typing. */
-export const formatIban = (value: string): string => normalizeIban(value).replace(/(.{4})/g, '$1 ').trim()
+/** IBANs and account numbers are free text: spaces are dropped and letters upper-cased, nothing else is checked. */
+export const normalizeBankId = (value: string): string => value.replace(/\s+/g, '').toUpperCase()
 
 /* ─────────────── Partner profile ─────────────── */
 
@@ -69,7 +55,8 @@ const SWIFT =/^[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}([A-Z0-9]{3})?$/
 export const paymentMethodSchema = z
   .object({
     type: z.enum(['BANK', 'CARD_LINK']),
-    iban: z.string(),
+    iban: z.string().max(80, 'IBAN is too long'),
+    accountNumber: z.string().max(80, 'Account number is too long'),
     swiftCode: z.string(),
     routingNo: z.string(),
     accountHolder: z.string().max(150, 'Account holder is too long'),
@@ -79,8 +66,8 @@ export const paymentMethodSchema = z
     const fail = (path: keyof typeof values, message: string) => ctx.addIssue({ code: z.ZodIssueCode.custom, path: [path], message })
 
     if (values.type === 'BANK') {
-      if (!values.iban.trim()) fail('iban', 'IBAN is required')
-      else if (!isValidIban(values.iban)) fail('iban', 'Enter a valid IBAN (checksum failed)')
+      // An IBAN or an account number is enough; one of them must be given
+      if (!values.iban.trim() && !values.accountNumber.trim()) fail('accountNumber', 'Enter an IBAN or an account number')
 
       const swift = values.swiftCode.trim().toUpperCase()
       if (!swift) fail('swiftCode', 'SWIFT code is required')
@@ -100,6 +87,7 @@ export type PaymentMethodFormValues = z.infer<typeof paymentMethodSchema>
 export const emptyPaymentMethodValues: PaymentMethodFormValues = {
   type: 'BANK',
   iban: '',
+  accountNumber: '',
   swiftCode: '',
   routingNo: '',
   accountHolder: '',
@@ -115,5 +103,5 @@ export interface StagedPaymentMethod {
 
 /** Label matching what the API returns for saved methods. */
 export function stagedMethodLabel(values: PaymentMethodFormValues): string {
-  return values.type === 'BANK' ? `Bank ••${normalizeIban(values.iban).slice(-4)}` : 'Card link'
+  return values.type === 'BANK' ? `Bank ••${normalizeBankId(values.iban || values.accountNumber).slice(-4)}` : 'Card link'
 }

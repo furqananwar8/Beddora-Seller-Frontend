@@ -20,7 +20,6 @@ import { safeFinanceReturnTo, withQueryParam } from '../payment-requests/request
 import { formatPartnerNo } from '../shared/format'
 import { useFinanceFeedback } from '../shared/useFinanceFeedback'
 import { BasicDetailsSection } from './BasicDetailsSection'
-import { DocumentsSection } from './DocumentsSection'
 import { PaymentDetailsSection } from './PaymentDetailsSection'
 import { PaymentMethodDialog } from './PaymentMethodDialog'
 import { buildPartnerFormData, buildPartnerPatch, buildPaymentMethodFormData } from './partnerPayload'
@@ -45,7 +44,6 @@ export const PartnerForm: React.FC<PartnerFormProps> = ({ partner }) => {
   const { success, failure } = useFinanceFeedback()
   const editing = Boolean(partner)
 
-  const [files, setFiles] = useState<File[]>([])
   const [staged, setStaged] = useState<StagedPaymentMethod[]>([])
   const [dialogOpen, setDialogOpen] = useState(false)
   const [removingId, setRemovingId] = useState<number | null>(null)
@@ -135,7 +133,7 @@ export const PartnerForm: React.FC<PartnerFormProps> = ({ partner }) => {
         return
       }
 
-      const created = await createPartner(buildPartnerFormData(values, files)).unwrap()
+      const created = await createPartner(buildPartnerFormData(values)).unwrap()
       try {
         for (const item of staged) {
           await addMethod({ partnerId: created.id, body: buildPaymentMethodFormData(item.values, item.files) }).unwrap()
@@ -177,7 +175,6 @@ export const PartnerForm: React.FC<PartnerFormProps> = ({ partner }) => {
 
       <form onSubmit={submit} noValidate className="flex flex-col gap-4">
         <BasicDetailsSection register={register} control={control} errors={errors} similarNames={similarNames} />
-        <DocumentsSection files={files} onFilesChange={setFiles} existing={partner?.documents} />
         <PaymentDetailsSection
           saved={partner?.paymentMethods ?? []}
           staged={staged}

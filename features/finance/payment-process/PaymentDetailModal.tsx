@@ -9,6 +9,7 @@ import { formatCurrencyAmount, formatDocNo, formatRequestNo } from '../shared/fo
 import { DOC_STATUS_META } from '../shared/statusMeta'
 import { BankDetailsPanel } from './BankDetailsPanel'
 import { PopList } from './PopList'
+import { RequestInfo } from './RequestInfo'
 
 const Item: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
   <div className="min-w-0">
@@ -53,6 +54,10 @@ export const PaymentDetailModal: React.FC<PaymentDetailModalProps> = ({ docId, o
             <Item label="Paid">{formatCurrencyAmount(data.currency, data.paidAmount)}</Item>
             <Item label="Balance">{formatCurrencyAmount(data.currency, data.balance)}</Item>
           </dl>
+
+          <Section title="Request">
+            <RequestInfo request={data.request} />
+          </Section>
 
           <Section title="Proofs of payment">
             <PopList pops={data.pops} />

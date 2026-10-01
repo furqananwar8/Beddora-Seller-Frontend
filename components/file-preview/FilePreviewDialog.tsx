@@ -21,6 +21,8 @@ interface FilePreviewDialogProps {
   footer?: React.ReactNode
   /** Shown above the preview, e.g. "File 2 of 3". */
   caption?: string
+  /** Rendered above the caption, e.g. tabs to switch between several files. */
+  header?: React.ReactNode
 }
 
 const formatSize = (bytes?: number) => {
@@ -70,28 +72,16 @@ function useTargetUrl(target: PreviewTarget | null) {
 }
 
 /** Preview of an image or PDF (other types show their details) with caller supplied actions. */
-export const FilePreviewDialog: React.FC<FilePreviewDialogProps> = ({ target, onClose, footer, caption }) => {
+export const FilePreviewDialog: React.FC<FilePreviewDialogProps> = ({ target, onClose, footer, caption, header }) => {
   const { url, loading, failed } = useTargetUrl(target)
   const isImage = target?.mimeType.startsWith('image/')
   const isPdf = target?.mimeType === 'application/pdf'
-  const open = !!target
-
-  // The preview often sits on top of another modal: take Escape first so only the preview closes.
-  useEffect(() => {
-    if (!open) return
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return
-      event.stopPropagation()
-      onClose()
-    }
-    window.addEventListener('keydown', onKey, true)
-    return () => window.removeEventListener('keydown', onKey, true)
-  }, [open, onClose])
 
   return (
     <Modal isOpen={!!target} onClose={onClose} title={target?.name} size="xl">
       {target && (
         <div className="space-y-4">
+          {header}
           {caption && <p className="text-xs text-text-muted">{caption}</p>}
           <div className="flex h-[55vh] min-h-[240px] items-center justify-center overflow-auto rounded-lg border border-border bg-secondary-50">
             {loading && <Spinner size="lg" />}

@@ -12,7 +12,6 @@ import { StatusBadge } from '@/components/status-badge/StatusBadge'
 import { Button } from '@/design-system/buttons'
 import { Card } from '@/design-system/cards'
 import { Input, Select, Textarea } from '@/design-system/inputs'
-import { countryLabel } from '../shared/countryLabel'
 import { SelectShell } from '../shared/SelectShell'
 import { Spinner } from '@/design-system/loaders'
 import {
@@ -195,10 +194,6 @@ export const PaymentRequestFormScreen: React.FC = () => {
   }
 
   const persist = async (values: PaymentRequestFormValues, submit: boolean) => {
-    if (submit && files.length + existingDocuments.length + uploadedCount.current === 0) {
-      setFileError('Attach at least one document (invoice, BOL or packing list) before sending for approval')
-      return
-    }
     setFileError(undefined)
     setSaving(submit ? 'submit' : 'draft')
     try {
@@ -268,7 +263,7 @@ export const PaymentRequestFormScreen: React.FC = () => {
       >
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-xl font-bold text-text-primary sm:text-2xl">Payment Request Creation</h1>
-          <StatusBadge label={requestId ? `${statusMeta.label} · ${formatRequestNo(requestId)}` : 'Draft'} tone={statusMeta.tone} />
+          <StatusBadge label={requestId ? `${statusMeta.label} · ${formatRequestNo(requestId)}` : 'DRAFT'} tone={statusMeta.tone} />
         </div>
 
         <Section title="Partner" note="who is being paid">
@@ -305,7 +300,7 @@ export const PaymentRequestFormScreen: React.FC = () => {
               <Select
                 id="marketplaceId"
                 className="appearance-none rounded-lg pr-9"
-                options={[{ value: '', label: 'Select destination' }, ...(marketplaces ?? []).map((m) => ({ value: String(m.id), label: countryLabel(m.code) || m.name }))]}
+                options={[{ value: '', label: 'Select destination' }, ...(marketplaces ?? []).map((m) => ({ value: String(m.id), label: m.name }))]}
                 {...register('marketplaceId')}
               />
               </SelectShell>
@@ -369,7 +364,7 @@ export const PaymentRequestFormScreen: React.FC = () => {
           </FormField>
         </Section>
 
-        <Section title="Upload documents" note="invoice, BOL, packing list">
+        <Section title="Upload documents">
           {existingDocuments.length > 0 && (
             <div className="mb-3">
               <DocumentChips documents={existingDocuments} onRemove={removeExisting} removingId={removingId} />

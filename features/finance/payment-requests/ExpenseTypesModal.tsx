@@ -7,6 +7,7 @@ import { Spinner } from '@/design-system/loaders'
 import {
   ExpenseType,
   useCreateExpenseTypeMutation,
+  useDeleteExpenseTypeMutation,
   useGetExpenseTypesQuery,
   useUpdateExpenseTypeMutation,
 } from '@/services/api/finance.api'
@@ -16,7 +17,11 @@ import { useFinanceFeedback } from '../shared/useFinanceFeedback'
 const ExpenseTypeRow: React.FC<{ item: ExpenseType }> = ({ item }) => {
   const { failure } = useFinanceFeedback()
   const [update, { isLoading }] = useUpdateExpenseTypeMutation()
+  const [remove, { isLoading: deleting }] = useDeleteExpenseTypeMutation()
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [name, setName] = useState(item.name)
+  // A type no request has used yet can be deleted; once it has history it can only be deactivated
+  const deletable = item.requestCount === 0
   const dirty = name.trim() !== item.name && name.trim().length > 0
 
   const patch = async (value: { name?: string; isActive?: boolean }) => {
@@ -24,6 +29,15 @@ const ExpenseTypeRow: React.FC<{ item: ExpenseType }> = ({ item }) => {
       await update({ id: item.id, patch: value }).unwrap()
     } catch (error) {
       failure(error, 'Could not update the expense type')
+    }
+  }
+
+  const deleteType = async () => {
+    try {
+      await remove(item.id).unwrap()
+    } catch (error) {
+      setConfirmingDelete(false)
+      failure(error, 'Could not delete the expense type')
     }
   }
 
@@ -40,9 +54,33 @@ const ExpenseTypeRow: React.FC<{ item: ExpenseType }> = ({ item }) => {
           Save
         </Button>
       )}
-      <Button size="sm" variant="outline" disabled={isLoading} onClick={() => patch({ isActive: !item.isActive })}>
-        {item.isActive ? 'Deactivate' : 'Activate'}
-      </Button>
+      {confirmingDelete ? (
+        <>
+          <Button size="sm" variant="danger" isLoading={deleting} onClick={deleteType}>
+            Confirm delete
+          </Button>
+          <Button size="sm" variant="outline" disabled={deleting} onClick={() => setConfirmingDelete(false)}>
+            Keep
+          </Button>
+        </>
+      ) : (
+        <>
+          <Button size="sm" variant="outline" disabled={isLoading} onClick={() => patch({ isActive: !item.isActive })}>
+            {item.isActive ? 'Deactivate' : 'Activate'}
+          </Button>
+          {deletable ? (
+            <Button size="sm" variant="outline" className="text-danger-600" disabled={isLoading} onClick={() => setConfirmingDelete(true)}>
+              Delete
+            </Button>
+          ) : (
+            item.requestCount !== undefined && (
+              <span className="text-xs text-text-muted" title="It stays for the history; deactivate it to stop using it.">
+                Used by {item.requestCount}
+              </span>
+            )
+          )}
+        </>
+      )}
     </li>
   )
 }
