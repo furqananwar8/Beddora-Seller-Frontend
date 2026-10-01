@@ -180,6 +180,8 @@ export interface ExpenseType {
   name: string
   sortOrder: number
   isActive: boolean
+  /** How many payment requests use this type; only a type with none can be deleted. */
+  requestCount?: number
 }
 
 export interface Marketplace {
@@ -349,6 +351,11 @@ export const financeApi = baseApi.injectEndpoints({
       transformResponse: unwrap,
       invalidatesTags: ['FinanceExpenseTypes'],
     }),
+    deleteExpenseType: b.mutation<{ id: number }, number>({
+      query: (id) => ({ url: `/finance/expense-types/${id}`, method: 'DELETE' }),
+      transformResponse: unwrap,
+      invalidatesTags: ['FinanceExpenseTypes'],
+    }),
     getFinanceMarketplaces: b.query<Marketplace[], void>({
       query: () => '/finance/marketplaces',
       transformResponse: unwrap,
@@ -493,6 +500,7 @@ export const {
   useGetExpenseTypesQuery,
   useCreateExpenseTypeMutation,
   useUpdateExpenseTypeMutation,
+  useDeleteExpenseTypeMutation,
   useGetFinanceMarketplacesQuery,
   useGetApproverStatusQuery,
   useGetApproversQuery,
