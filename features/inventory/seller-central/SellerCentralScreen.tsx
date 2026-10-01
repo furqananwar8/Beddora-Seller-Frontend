@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { differenceInCalendarDays, format, parseISO, subDays } from 'date-fns'
 import { Container } from '@/components/layout'
 import DateRangePicker, { DateRangePreset, DateRangeValue } from '@/components/date-range-picker/DateRangePicker'
@@ -50,12 +50,22 @@ const lastDays = (days: number) => ({
   endDate: format(new Date(), DAY_FORMAT),
 })
 
-/** Ready-made ranges inside the picker; the calendar covers anything else. */
-const SYNC_PRESETS: DateRangePreset[] = [7, 30, 90, 120].map((days) => ({
-  id: String(days),
-  label: `Last ${days} days`,
-  getRange: () => lastDays(days),
-}))
+const CUSTOM_PRESET_ID = 'custom'
+
+/** Ready-made ranges, plus "Custom range" for picking any two dates and pressing Apply. */
+const syncPresets = (current: DateRangeValue): DateRangePreset[] => [
+  ...[7, 30, 90, 120].map((days) => ({
+    id: String(days),
+    label: `Last ${days} days`,
+    getRange: () => lastDays(days),
+  })),
+  {
+    id: CUSTOM_PRESET_ID,
+    label: 'Custom range',
+    // Starts from what is shown now; the calendar changes it from there
+    getRange: () => ({ startDate: current.startDate ?? lastDays(30).startDate, endDate: current.endDate ?? lastDays(30).endDate }),
+  },
+]
 
 const daysIn = (range: DateRangeValue): number =>
   range.startDate && range.endDate ? differenceInCalendarDays(parseISO(range.endDate), parseISO(range.startDate)) + 1 : 0
@@ -70,6 +80,9 @@ export const SellerCentralScreen: React.FC = () => {
   const [page, setPage] = useState(1)
   const [openPlan, setOpenPlan] = useState<string | null>(null)
   const [range, setRange] = useState<DateRangeValue>(() => ({ ...lastDays(30), presetId: '30' }))
+  // Presets apply at once; dates picked on the calendar only count after Apply is pressed
+  const [applied, setApplied] = useState(true)
+  const presets = useMemo(() => syncPresets(range), [range])
 
   const { data: config } = useGetShipmentsConfigQuery()
   const { data, isLoading, isFetching, isError } = useGetSellerCentralPlansQuery({
@@ -89,7 +102,7 @@ export const SellerCentralScreen: React.FC = () => {
   const rows = data?.data ?? []
   const rangeDays = daysIn(range)
   const tooLong = rangeDays > MAX_SYNC_DAYS
-  const rangeReady = rangeDays > 0 && !tooLong
+  const rangeReady = rangeDays > 0 && !tooLong && applied
 
   const notify = (message: string, type: 'success' | 'error' | 'info') => dispatch(addNotification({ message, type }))
 
@@ -104,9 +117,29 @@ export const SellerCentralScreen: React.FC = () => {
         'info'
       )
     } catch (err) {
-      notify(apiErrorMessage(err, 'Could not start the sync'), 'error')
+      const timedOut = (err as { status?: string })?.status === 'TIMEOUT_ERROR'
+      notify(timedOut ? 'The server didn’t answer in time. Check your connection and try again.' : apiErrorMessage(err, 'Could not start the sync'), 'error')
     }
   }
+
+  const selected = rangeDays > 0 ? `${n(rangeDays)} day${rangeDays === 1 ? '' : 's'}` : null
+  const lastResult = syncStatus?.result
+  const statusLine = syncing
+    ? `Syncing ${syncStatus?.range ? `${syncStatus.range.from} to ${syncStatus.range.to}` : 'now'}. You can leave this page; we’ll notify you when it’s done.`
+    : tooLong
+    ? `That’s ${n(rangeDays)} days. Pick at most ${MAX_SYNC_DAYS} days at a time.`
+    : !applied && selected
+    ? `${selected} chosen. Press Apply in the calendar to use these dates.`
+    : syncStatus?.error
+    ? `The last sync failed: ${syncStatus.error}`
+    : [
+        selected ? `${selected} selected` : 'Pick the days to sync',
+        lastResult
+          ? `last sync: ${n(lastResult.added)} new, ${n(lastResult.detailed)} updated${lastResult.failed ? `, ${n(lastResult.failed)} couldn’t be read` : ''}`
+          : data?.lastSyncedAt
+          ? `last synced ${formatRelative(data.lastSyncedAt)}`
+          : 'never synced',
+      ].join(' · ')
 
   return (
     <Container size="full" className="py-4 sm:py-8">
@@ -126,8 +159,17 @@ export const SellerCentralScreen: React.FC = () => {
             >
               <DateRangePicker
                 value={range}
-                onChange={(next) => setRange(next)}
-                presets={SYNC_PRESETS}
+                onChange={(next) => {
+                  setRange(next)
+                  setApplied(Boolean(next.presetId) && next.presetId !== CUSTOM_PRESET_ID)
+                }}
+                presets={presets}
+                keepOpenPresetIds={[CUSTOM_PRESET_ID]}
+                applyAction={{
+                  label: 'Apply',
+                  disabled: applied || rangeDays === 0,
+                  onApply: () => setApplied(true),
+                }}
                 disableFutureDates
                 placement="right"
                 placeholder="Select days to sync"
@@ -144,14 +186,8 @@ export const SellerCentralScreen: React.FC = () => {
               )}
             </Button>
           </div>
-          <span className={cn('text-xs lg:text-right', tooLong ? 'text-danger-600' : 'text-text-muted')} aria-live="polite">
-            {syncing
-              ? `Syncing ${syncStatus?.range ? `${syncStatus.range.from} to ${syncStatus.range.to}` : 'now'}. You can leave this page; we’ll notify you when it’s done.`
-              : tooLong
-              ? `That’s ${n(rangeDays)} days. Pick at most ${MAX_SYNC_DAYS} days at a time.`
-              : `${rangeDays > 0 ? `${n(rangeDays)} day${rangeDays === 1 ? '' : 's'} selected` : 'Pick the days to sync'} · ${
-                  data?.lastSyncedAt ? `Last synced ${formatRelative(data.lastSyncedAt)}` : 'Never synced'
-                }`}
+          <span className={cn('text-xs lg:text-right', tooLong || (!syncing && syncStatus?.error) ? 'text-danger-600' : 'text-text-muted')} aria-live="polite">
+            {statusLine}
           </span>
         </div>
       </div>

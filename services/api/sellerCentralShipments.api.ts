@@ -111,7 +111,8 @@ export const sellerCentralShipmentsApi = baseApi.injectEndpoints({
 
     /** Starts the sync in the background; its end arrives as an SSE event. */
     startSellerCentralSync: builder.mutation<StartSellerCentralSyncResponse, SellerCentralSyncRange>({
-      query: (range) => ({ url: '/inventory/seller-central/sync', method: 'POST', body: range }),
+      // Starting is instant on the server, so a request that hangs is an error, not a long sync
+      query: (range) => ({ url: '/inventory/seller-central/sync', method: 'POST', body: range, timeout: 20_000 }),
       invalidatesTags: ['SellerCentralSync'],
     }),
 
