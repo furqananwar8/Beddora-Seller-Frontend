@@ -290,10 +290,12 @@ export const SellerCentralScreen: React.FC = () => {
                 rows.map((plan) => (
                   <TableRow key={plan.inboundPlanId}>
                     <TableCell className={CELL}>
-                      <div className="flex items-center justify-center gap-2 font-medium text-text-primary">
-                        {planTitle(plan.name)}
-                        {plan.isNew && <Badge variant="success">New</Badge>}
-                      </div>
+                      {(plan.name.trim() || plan.isNew) && (
+                        <div className="flex items-center justify-center gap-2 font-medium text-text-primary">
+                          {plan.name.trim() && <span>{plan.name}</span>}
+                          {plan.isNew && <Badge variant="success">New</Badge>}
+                        </div>
+                      )}
                       <div className="font-mono text-xs text-text-muted">{plan.inboundPlanId}</div>
                     </TableCell>
                     <TableCell className={CELL}>{plan.marketplaces.join(', ') || '—'}</TableCell>
@@ -307,7 +309,7 @@ export const SellerCentralScreen: React.FC = () => {
                     <TableCell className={cn(CELL, 'text-sm text-text-muted')}>{plan.updatedAt ? formatDateTime(plan.updatedAt) : '—'}</TableCell>
                     <TableCell className={CELL}>
                       <RowActionsMenu
-                        label={planTitle(plan.name)}
+                        label={plan.name.trim() || plan.inboundPlanId}
                         items={[
                           { key: 'view', label: 'View details', onSelect: () => setOpenPlan(plan.inboundPlanId) },
                           {
