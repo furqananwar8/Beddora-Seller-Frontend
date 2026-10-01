@@ -3,6 +3,12 @@
 import { useEffect } from 'react'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { addNotification } from '@/store/ui.slice'
+import { baseApi } from '@/services/api/baseApi'
+
+/** Events that mean cached data is stale: the tags to refetch when one arrives, keyed by the event's `data.kind`. */
+const INVALIDATE_ON: Record<string, Parameters<typeof baseApi.util.invalidateTags>[0]> = {
+  'seller-central:sync': ['SellerCentralShipments', 'SellerCentralSync'],
+}
 
 export const SyncEventListener: React.FC = () => {
   const dispatch = useAppDispatch()
@@ -37,6 +43,9 @@ export const SyncEventListener: React.FC = () => {
         console.log('📩 [SSE EVENT RECEIVED]:', payload)
 
         if (payload.type === 'connected') return
+
+        const stale = INVALIDATE_ON[payload.data?.kind]
+        if (stale) dispatch(baseApi.util.invalidateTags(stale))
 
         if (payload.message && payload.toastType) {
           dispatch(

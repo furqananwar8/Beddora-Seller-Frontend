@@ -22,6 +22,7 @@ export const ROUTE_PERMISSIONS: RoutePermission[] = [
   { pattern: '/dashboard/inventory/planner', subject: 'inventory:planner' },
   { pattern: '/dashboard/inventory/shipments', subject: 'inventory:planner' },
   { pattern: '/dashboard/inventory/adjustments', subject: 'inventory:planner' },
+  { pattern: '/dashboard/inventory/seller-central', subject: 'inventory:planner' },
   { pattern: '/dashboard/inventory', subject: 'inventory' },
 
   // Finance

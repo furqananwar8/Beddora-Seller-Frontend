@@ -34,6 +34,7 @@ import { CreateMode, CreateShipmentDrawer } from './CreateShipmentDrawer'
 import { ConfirmModal, MarkShippedModal, OptionPickerModal } from './ShipmentDialogs'
 import { PackingModal } from './PackingModal'
 import { CarrierModal } from './CarrierModal'
+import { LabelFormatProvider, useLabelFormatState } from './labelFormats'
 import { EditShipFromModal } from './EditShipFromModal'
 import { formatRelative, formatUnits, unitsLabel } from './ShipmentParts'
 
@@ -80,6 +81,7 @@ export const ShipmentsScreen: React.FC = () => {
     shipments,
     pool,
     mode,
+    labelFormats: labelFormatCatalog,
     lastSyncedAt,
     createShipment,
     saveItems,
@@ -98,6 +100,8 @@ export const ShipmentsScreen: React.FC = () => {
     cancelShipment,
     sync,
   } = useShipments()
+
+  const labelFormats = useLabelFormatState(labelFormatCatalog)
 
   const router = useRouter()
   const pathname = usePathname()
@@ -355,7 +359,7 @@ export const ShipmentsScreen: React.FC = () => {
     const shipment = byId(id)
     setDownloading(key, true)
     try {
-      const file = await downloadLabels(id, type)
+      const file = await downloadLabels(id, type, type === 'pallet' ? undefined : labelFormats.selected[type])
       const ext = file.type === 'application/zip' ? 'zip' : 'pdf'
       saveFile(file, `${shipment?.reference ?? 'shipment'}-${LABEL_NAMES[type].toLowerCase().replace(/s+/g, '-')}.${ext}`)
     } catch (err) {
@@ -406,6 +410,7 @@ export const ShipmentsScreen: React.FC = () => {
   const shippingTarget = byId(dialogId('ship'))
 
   return (
+    <LabelFormatProvider value={labelFormats}>
     <Container size="full" className="py-4 sm:py-8">
       {/* Header */}
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4 px-1">
@@ -682,6 +687,7 @@ export const ShipmentsScreen: React.FC = () => {
         }
       />
     </Container>
+    </LabelFormatProvider>
   )
 }
 

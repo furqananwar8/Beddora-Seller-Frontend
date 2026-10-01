@@ -8,6 +8,7 @@ import { formatCurrency } from '@/utils/format'
 import { cn } from '@/utils/cn'
 import { AmazonOption, InboundShipment, LabelType, ShipLegRequirement, ShipTrackingInput } from './types'
 import { OptionKind } from './useShipments'
+import { LabelDownloadControl } from './labelFormats'
 import { DialogFooter, LabelButton, ProductThumb, formatUnits, formatWindow, unitsLabel } from './ShipmentParts'
 import { MARKETPLACE_META, getShipmentUnits, shipsAsFreight } from './workflow'
 
@@ -355,13 +356,15 @@ export const MarkShippedModal: React.FC<MarkShippedModalProps> = ({
     <Modal isOpen onClose={isSubmitting ? () => {} : onClose} title="Mark as shipped" size="md">
       <div className="mb-4 flex flex-wrap items-center gap-2 rounded-md border border-border bg-surface-secondary px-3 py-2.5">
         <span className="mr-auto text-sm text-text-secondary">Labels are ready. Print and stick them on before pickup.</span>
-        <LabelButton
+        <LabelDownloadControl
+          type="box"
           label="Box labels"
           status={shipment.labels?.box}
           isDownloading={!!downloadingLabels.box}
           onClick={() => onDownloadLabel('box')}
         />
-        <LabelButton
+        <LabelDownloadControl
+          type="unit"
           label="FNSKU unit labels"
           status={shipment.labels?.unit}
           isDownloading={!!downloadingLabels.unit}
