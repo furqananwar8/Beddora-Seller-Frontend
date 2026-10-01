@@ -1,9 +1,9 @@
 "use client"
 
 import React, { useEffect, useState } from 'react'
-import { format, subDays } from 'date-fns'
+import { differenceInCalendarDays, format, parseISO, subDays } from 'date-fns'
 import { Container } from '@/components/layout'
-import DateRangePicker, { DateRangeValue } from '@/components/date-range-picker/DateRangePicker'
+import DateRangePicker, { DateRangePreset, DateRangeValue } from '@/components/date-range-picker/DateRangePicker'
 import { PaginationFooter } from '@/components/pagination-footer/PaginationFooter'
 import { MultiSelectInput } from '@/components/multi-select-input/MultiSelectInput'
 import { Badge } from '@/design-system/badges'
@@ -41,29 +41,24 @@ const STATUS_OPTIONS = [
   { id: 'SHIPPED', name: 'Shipped' },
 ]
 
-const QUICK_RANGES = [
-  { id: '7', name: 'Last 7 days' },
-  { id: '30', name: 'Last 30 days' },
-  { id: '90', name: 'Last 90 days' },
-  { id: '180', name: 'Last 180 days' },
-]
-const CUSTOM_RANGE = { id: 'custom', name: 'Custom range' }
+/** Longest span the server accepts in one sync. */
+const MAX_SYNC_DAYS = 366
 
 const DAY_FORMAT = 'yyyy-MM-dd'
-const lastDays = (days: number): DateRangeValue => ({
+const lastDays = (days: number) => ({
   startDate: format(subDays(new Date(), days - 1), DAY_FORMAT),
   endDate: format(new Date(), DAY_FORMAT),
-  presetId: null,
 })
 
-/** Which quick range the picked dates match, else "custom". */
-const quickRangeOf = (range: DateRangeValue): string => {
-  const match = QUICK_RANGES.find((q) => {
-    const preset = lastDays(Number(q.id))
-    return preset.startDate === range.startDate && preset.endDate === range.endDate
-  })
-  return match?.id ?? CUSTOM_RANGE.id
-}
+/** Ready-made ranges inside the picker; the calendar covers anything else. */
+const SYNC_PRESETS: DateRangePreset[] = [7, 30, 90, 120].map((days) => ({
+  id: String(days),
+  label: `Last ${days} days`,
+  getRange: () => lastDays(days),
+}))
+
+const daysIn = (range: DateRangeValue): number =>
+  range.startDate && range.endDate ? differenceInCalendarDays(parseISO(range.endDate), parseISO(range.startDate)) + 1 : 0
 
 const n = (value: number) => value.toLocaleString()
 
@@ -74,7 +69,7 @@ export const SellerCentralScreen: React.FC = () => {
   const [status, setStatus] = useState<'ALL' | SellerCentralPlanStatus>('ALL')
   const [page, setPage] = useState(1)
   const [openPlan, setOpenPlan] = useState<string | null>(null)
-  const [range, setRange] = useState<DateRangeValue>(() => lastDays(30))
+  const [range, setRange] = useState<DateRangeValue>(() => ({ ...lastDays(30), presetId: '30' }))
 
   const { data: config } = useGetShipmentsConfigQuery()
   const { data, isLoading, isFetching, isError } = useGetSellerCentralPlansQuery({
@@ -92,7 +87,9 @@ export const SellerCentralScreen: React.FC = () => {
   useEffect(() => setPollMs(syncStatus?.running ? SYNC_POLL_MS : 0), [syncStatus?.running])
 
   const rows = data?.data ?? []
-  const rangeReady = Boolean(range.startDate && range.endDate)
+  const rangeDays = daysIn(range)
+  const tooLong = rangeDays > MAX_SYNC_DAYS
+  const rangeReady = rangeDays > 0 && !tooLong
 
   const notify = (message: string, type: 'success' | 'error' | 'info') => dispatch(addNotification({ message, type }))
 
@@ -113,38 +110,31 @@ export const SellerCentralScreen: React.FC = () => {
 
   return (
     <Container size="full" className="py-4 sm:py-8">
-      <div className="mb-4 flex flex-wrap items-end justify-between gap-4 px-1 sm:mb-6">
-        <div>
+      <div className="mb-4 flex flex-col gap-4 px-1 sm:mb-6 lg:flex-row lg:items-end lg:justify-between">
+        <div className="min-w-0">
           <h1 className="text-xl font-bold text-text-primary sm:text-2xl">Seller Central shipments</h1>
           <p className="mt-1 text-sm text-text-muted">
             Shipments created in Seller Central (Send to Amazon). Pick the days to sync, then open any shipment to see its details.
           </p>
         </div>
-        <div className="flex flex-col items-start gap-2 lg:items-end">
-          <div className="flex flex-wrap items-center gap-3">
-            <div className={cn('flex flex-wrap items-center gap-3', syncing && 'pointer-events-none opacity-60')} aria-disabled={syncing}>
-              <MultiSelectInput
-                single
-                title="Quick range"
-                className="min-w-[170px]"
-                options={range.startDate && quickRangeOf(range) === CUSTOM_RANGE.id ? [...QUICK_RANGES, CUSTOM_RANGE] : QUICK_RANGES}
-                value={[quickRangeOf(range)]}
-                onChange={(value) => {
-                  const days = Number(value[0])
-                  if (Number.isInteger(days)) setRange(lastDays(days))
-                }}
-              />
+        <div className="flex shrink-0 flex-col gap-2 lg:items-end">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            {/* Fixed width: the button's text changes as dates are picked, and the header must not reflow */}
+            <div
+              className={cn('w-full sm:w-[290px] [&>div]:block [&>div]:w-full', syncing && 'pointer-events-none opacity-60')}
+              aria-disabled={syncing}
+            >
               <DateRangePicker
                 value={range}
                 onChange={(next) => setRange(next)}
-                showPresets={false}
+                presets={SYNC_PRESETS}
                 disableFutureDates
-                placement="left"
+                placement="right"
                 placeholder="Select days to sync"
-                triggerClassName={cn(CONTROL, 'py-0')}
+                triggerClassName={cn(CONTROL, 'w-full justify-between py-0')}
               />
             </div>
-            <Button className={CONTROL} onClick={handleSync} disabled={syncing || !rangeReady}>
+            <Button className={cn(CONTROL, 'w-full sm:w-auto')} onClick={handleSync} disabled={syncing || !rangeReady}>
               {syncing ? (
                 <span className="flex items-center gap-2">
                   <Spinner size="sm" className="text-white" /> Sync in progress…
@@ -154,12 +144,14 @@ export const SellerCentralScreen: React.FC = () => {
               )}
             </Button>
           </div>
-          <span className="text-xs text-text-muted" aria-live="polite">
+          <span className={cn('text-xs lg:text-right', tooLong ? 'text-danger-600' : 'text-text-muted')} aria-live="polite">
             {syncing
               ? `Syncing ${syncStatus?.range ? `${syncStatus.range.from} to ${syncStatus.range.to}` : 'now'}. You can leave this page; we’ll notify you when it’s done.`
-              : data?.lastSyncedAt
-              ? `Last synced ${formatRelative(data.lastSyncedAt)}`
-              : 'Never synced'}
+              : tooLong
+              ? `That’s ${n(rangeDays)} days. Pick at most ${MAX_SYNC_DAYS} days at a time.`
+              : `${rangeDays > 0 ? `${n(rangeDays)} day${rangeDays === 1 ? '' : 's'} selected` : 'Pick the days to sync'} · ${
+                  data?.lastSyncedAt ? `Last synced ${formatRelative(data.lastSyncedAt)}` : 'Never synced'
+                }`}
           </span>
         </div>
       </div>

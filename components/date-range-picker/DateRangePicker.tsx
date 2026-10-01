@@ -3,6 +3,7 @@
 import React, {
   useState,
   useEffect,
+  useLayoutEffect,
   useRef,
   useCallback,
 } from 'react'
@@ -658,6 +659,14 @@ export default function DateRangePicker({
       null
     )
 
+  // The popup opens on the requested side, flips to the other when that would run
+  // off the screen, and as a last resort is pinned to the screen's left edge.
+  const [position, setPosition] =
+    useState<{
+      side: 'left' | 'right'
+      shift?: number
+    }>({ side: placement })
+
   const activePresets =
     presets ??
     getDefaultPresets()
@@ -704,6 +713,44 @@ export default function DateRangePicker({
     value?.endDate,
     value?.presetId,
   ])
+
+  useLayoutEffect(() => {
+    if (!isOpen || !containerRef.current) {
+      return
+    }
+
+    const margin = 8
+    const rect =
+      containerRef.current.getBoundingClientRect()
+    const width = Math.min(
+      640,
+      window.innerWidth - 32
+    )
+
+    const fits = (
+      side: 'left' | 'right'
+    ) =>
+      side === 'left'
+        ? rect.left + width <=
+          window.innerWidth - margin
+        : rect.right - width >= margin
+
+    const other =
+      placement === 'left'
+        ? 'right'
+        : 'left'
+
+    if (fits(placement)) {
+      setPosition({ side: placement })
+    } else if (fits(other)) {
+      setPosition({ side: other })
+    } else {
+      setPosition({
+        side: 'left',
+        shift: margin - rect.left,
+      })
+    }
+  }, [isOpen, placement])
 
   // ─────────────────────────────────────────────────────────────────────────
   // Close when clicking outside
@@ -1058,10 +1105,15 @@ export default function DateRangePicker({
 
       {isOpen && (
         <div
+          style={
+            position.shift !== undefined
+              ? { left: position.shift }
+              : undefined
+          }
           className={cn(
-            'absolute z-50 mt-2 flex w-[640px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-lg border border-border bg-surface shadow-lg',
+            'absolute z-50 mt-2 flex w-[640px] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-lg border border-border bg-surface shadow-lg sm:flex-row',
 
-            placement === 'left'
+            position.side === 'left'
               ? 'left-0'
               : 'right-0',
 
@@ -1071,8 +1123,8 @@ export default function DateRangePicker({
           {/* PRESETS */}
 
           {showPresets && (
-            <div className="w-[240px] shrink-0 border-r border-border p-2">
-              <div className="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-text-muted">
+            <div className="flex w-full shrink-0 flex-wrap gap-1 border-b border-border p-2 sm:block sm:w-[240px] sm:gap-0 sm:border-b-0 sm:border-r">
+              <div className="w-full px-3 py-2 text-xs font-semibold uppercase tracking-wider text-text-muted">
                 Presets
               </div>
 
@@ -1089,7 +1141,7 @@ export default function DateRangePicker({
                       )
                     }
                     className={cn(
-                      'flex w-full items-center justify-between rounded px-3 py-2.5 text-left text-sm transition-colors',
+                      'flex w-auto items-center justify-between rounded px-3 py-2.5 text-left text-sm transition-colors sm:w-full',
 
                       selectedPreset ===
                         preset.id
@@ -1174,7 +1226,7 @@ export default function DateRangePicker({
                   )}
                 </span>
 
-                <span className="w-[100px] text-center">
+                <span className="hidden w-[100px] text-center sm:block">
                   {format(
                     month2,
                     'MMM yyyy'
@@ -1254,7 +1306,8 @@ export default function DateRangePicker({
                 }
               />
 
-              <CalendarGrid
+              <div className="hidden min-w-0 flex-1 sm:block">
+                <CalendarGrid
                 year={getYear(
                   month2
                 )}
@@ -1292,6 +1345,7 @@ export default function DateRangePicker({
                   disableFutureDates
                 }
               />
+              </div>
             </div>
 
             {/* FOOTER */}
