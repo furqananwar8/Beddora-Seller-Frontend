@@ -1,7 +1,11 @@
 'use client'
 
-import React, { useState, useRef, useEffect } from 'react'
-import { AddUserModal } from '@/components/add-user-modal/AddUserModal'
+import React, { useMemo, useState } from 'react'
+import { AddUserModal, EditableAccess } from '@/components/add-user-modal/AddUserModal'
+import { PaginationFooter } from '@/components/pagination-footer/PaginationFooter'
+import { RowActionItem, RowActionsMenu } from '@/components/row-actions-menu/RowActionsMenu'
+import { SegmentedToggle } from '@/components/segmented-toggle/SegmentedToggle'
+import { ScreenSearch } from '@/features/finance/shared/ScreenSearch'
 import {
   Table,
   TableBody,
@@ -12,287 +16,270 @@ import {
 } from '@/design-system/tables'
 import { Button } from '@/design-system/buttons'
 import { TableSkeleton } from '@/design-system/loaders'
-import { 
-  useGetInvitesQuery, 
-  useDeleteInviteMutation, 
+import { useDebounce } from '@/hooks/useDebounce'
+import {
+  useGetInvitesQuery,
+  useDeleteInviteMutation,
   useResendInviteMutation,
-  Invite 
+  useUpdateInvitePermissionsMutation,
 } from '@/services/api/invites.api'
+import {
+  useGetManagedUsersQuery,
+  useUpdateManagedUserPermissionsMutation,
+} from '@/services/api/users.api'
 
-interface ActionDropdownProps {
-  invite: Invite
-  onUpdate: (invite: Invite) => void
-  onDelete: (invite: Invite) => void
-  onResend: (invite: Invite) => void
+const PAGE_SIZE = 10
+
+type Tab = 'active' | 'invited'
+type RowStatus = 'ACTIVE' | 'INACTIVE' | 'PENDING' | 'EXPIRED' | 'REVOKED'
+
+/** One table row, whether it is an existing user or a not-yet-accepted invite. */
+interface UserRow {
+  key: string
+  source: 'user' | 'invite'
+  id: number
+  email: string
+  name: string | null
+  status: RowStatus
+  validUntil: string | null
+  featurePermissionIds: number[]
 }
 
-const ActionDropdown: React.FC<ActionDropdownProps> = ({
-  invite,
-  onUpdate,
-  onDelete,
-  onResend,
-}) => {
-  const [isOpen, setIsOpen] = useState(false)
-  const [dropdownPosition, setDropdownPosition] = useState<{ top: number; left: number }>({
-    top: 0,
-    left: 0,
-  })
-  const buttonRef = useRef<HTMLButtonElement>(null)
-  const menuRef = useRef<HTMLDivElement>(null)
-
-  const toggleDropdown = () => {
-    if (!isOpen && buttonRef.current) {
-      const rect = buttonRef.current.getBoundingClientRect()
-      setDropdownPosition({
-        top: rect.bottom + window.scrollY + 4,
-        left: rect.right - 192,
-      })
-    }
-    setIsOpen((prev) => !prev)
-  }
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        buttonRef.current &&
-        !buttonRef.current.contains(event.target as Node) &&
-        menuRef.current &&
-        !menuRef.current.contains(event.target as Node)
-      ) {
-        setIsOpen(false)
-      }
-    }
-
-    const handleScroll = () => {
-      if (isOpen) setIsOpen(false)
-    }
-
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside)
-      window.addEventListener('scroll', handleScroll, true)
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-      window.removeEventListener('scroll', handleScroll, true)
-    }
-  }, [isOpen])
-
-  return (
-    <div className="inline-block text-center">
-      <button
-        ref={buttonRef}
-        type="button"
-        onClick={toggleDropdown}
-        className="inline-flex items-center justify-center w-8 h-8 rounded-full text-text-muted hover:text-text-primary hover:bg-surface-secondary transition-colors focus:outline-none"
-        aria-label="Actions"
-      >
-        •••
-      </button>
-
-      {isOpen && (
-        <div
-          ref={menuRef}
-          style={{
-            position: 'fixed',
-            top: `${dropdownPosition.top}px`,
-            left: `${dropdownPosition.left}px`,
-          }}
-          className="z-50 w-48 origin-top-right rounded-md bg-white border border-gray-200 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none divide-y divide-gray-100"
-        >
-          <div className="py-1 text-left">
-            <button
-              onClick={() => {
-                setIsOpen(false)
-                onUpdate(invite)
-              }}
-              className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-            >
-              Update
-            </button>
-            {invite.status !== 'ACCEPTED' && (
-              <button
-                onClick={() => {
-                  setIsOpen(false)
-                  onResend(invite)
-                }}
-                className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-              >
-                Resend invitation link
-              </button>
-            )}
-          </div>
-          <div className="py-1 text-left">
-            <button
-              onClick={() => {
-                setIsOpen(false)
-                onDelete(invite)
-              }}
-              className="w-full text-left px-4 py-2 text-sm text-danger-600 hover:bg-gray-100 transition-colors"
-            >
-              Delete
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  )
+const STATUS_STYLES: Record<RowStatus, string> = {
+  ACTIVE: 'bg-green-100 text-green-700',
+  PENDING: 'bg-amber-100 text-amber-800',
+  INACTIVE: 'bg-gray-100 text-gray-600',
+  EXPIRED: 'bg-gray-100 text-gray-600',
+  REVOKED: 'bg-gray-100 text-gray-600',
 }
+
+const CELL = 'text-center align-middle px-4 py-3'
+const HEAD = 'text-center align-middle px-4 py-3 font-semibold uppercase text-xs text-gray-500'
+
+const formatDate = (value: string | null) =>
+  value
+    ? new Date(value).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })
+    : '—'
 
 export default function UsersPage() {
+  const [tab, setTab] = useState<Tab>('active')
+  const [search, setSearch] = useState('')
+  const debouncedSearch = useDebounce(search, 300)
+  const [page, setPage] = useState(1)
   const [modalOpen, setModalOpen] = useState(false)
-  const [selectedInvite, setSelectedInvite] = useState<Invite | null>(null)
+  const [selectedRow, setSelectedRow] = useState<UserRow | null>(null)
 
-  const { data: invites = [], isLoading, error, refetch } = useGetInvitesQuery()
+  const listParams = { page, limit: PAGE_SIZE, search: debouncedSearch }
+  const usersQuery = useGetManagedUsersQuery(listParams, { skip: tab !== 'active' })
+  const invitesQuery = useGetInvitesQuery(listParams, { skip: tab !== 'invited' })
   const [deleteInvite] = useDeleteInviteMutation()
   const [resendInvite] = useResendInviteMutation()
+  const [updateInvitePermissions] = useUpdateInvitePermissionsMutation()
+  const [updateUserPermissions] = useUpdateManagedUserPermissionsMutation()
 
-  const handleOpenAddModal = () => {
-    setSelectedInvite(null)
-    setModalOpen(true)
+  const query = tab === 'active' ? usersQuery : invitesQuery
+  const pageData = query.data
+
+  const rows: UserRow[] = useMemo(() => {
+    if (tab === 'active') {
+      return (usersQuery.data?.data ?? []).map((user) => ({
+        key: `user-${user.id}`,
+        source: 'user',
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        status: user.isActive ? 'ACTIVE' : 'INACTIVE',
+        validUntil: null,
+        featurePermissionIds: user.featurePermissionIds,
+      }))
+    }
+    return (invitesQuery.data?.data ?? []).flatMap((invite) =>
+      invite.status === 'ACCEPTED'
+        ? []
+        : [
+            {
+              key: `invite-${invite.id}`,
+              source: 'invite' as const,
+              id: invite.id,
+              email: invite.email,
+              name: null,
+              status: invite.status,
+              validUntil: invite.validUntil,
+              featurePermissionIds: invite.featurePermissionIds ?? [],
+            },
+          ]
+    )
+  }, [tab, usersQuery.data, invitesQuery.data])
+
+  const refetch = () => query.refetch()
+
+  const closeModal = () => {
+    setModalOpen(false)
+    setSelectedRow(null)
   }
 
-  const handleUpdate = (invite: Invite) => {
-    setSelectedInvite(invite)
-    setModalOpen(true)
+  const handleUpdatePermissions = async (featurePermissionIds: number[]) => {
+    if (!selectedRow) return
+    const mutation =
+      selectedRow.source === 'user' ? updateUserPermissions : updateInvitePermissions
+    await mutation({ id: selectedRow.id, featurePermissionIds }).unwrap()
   }
 
-  const handleDelete = async (invite: Invite) => {
-    if (confirm(`Are you sure you want to delete ${invite.email}?`)) {
-      await deleteInvite(invite.id)
+  const handleDelete = async (row: UserRow) => {
+    if (confirm(`Are you sure you want to delete ${row.email}?`)) {
+      await deleteInvite(row.id)
       refetch()
     }
   }
 
-  const handleResend = async (invite: Invite) => {
-    await resendInvite(invite.id)
+  const handleResend = async (row: UserRow) => {
+    await resendInvite(row.id)
     refetch()
   }
 
-  if (isLoading) {
-    return (
-      <div className="p-6 space-y-4">
-        <div className="flex items-center justify-between mb-4">
-          <h1 className="text-xl font-semibold">Users</h1>
-        </div>
-        <TableSkeleton rows={6} columns={4} />
-      </div>
-    )
+  const actionsFor = (row: UserRow): RowActionItem[] => {
+    const update: RowActionItem = {
+      key: 'update',
+      label: 'Update',
+      onSelect: () => {
+        setSelectedRow(row)
+        setModalOpen(true)
+      },
+    }
+    if (row.source === 'user') return [update]
+    return [
+      update,
+      { key: 'resend', label: 'Resend invitation link', onSelect: () => handleResend(row) },
+      { key: 'delete', label: 'Delete', tone: 'danger', onSelect: () => handleDelete(row) },
+    ]
   }
 
-  if (error) {
-    return (
-      <div className="p-6">
-        <h1 className="text-xl font-semibold mb-4">Users</h1>
-        <div className="text-center py-8 text-danger-600">
-          Failed to load users. Please try again.
-        </div>
-      </div>
-    )
-  }
+  const editableAccess: EditableAccess | null = selectedRow
+    ? {
+        email: selectedRow.email,
+        validUntil: selectedRow.validUntil,
+        featurePermissionIds: selectedRow.featurePermissionIds,
+      }
+    : null
+
+  const showValidUntil = tab === 'invited'
+  const columnCount = showValidUntil ? 5 : 4
 
   return (
-    <div className="p-6 space-y-4">
-      <div className="flex items-center justify-between mb-4">
+    <div className="p-4 sm:p-6 space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-semibold text-text-primary">Users</h1>
-        <Button onClick={handleOpenAddModal} variant="primary">
+        <Button onClick={() => setModalOpen(true)} variant="primary">
           Add User
         </Button>
       </div>
 
-      <div className="w-full overflow-hidden rounded border border-gray-200 bg-white">
-        <Table className="w-full table-fixed border-collapse">
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-[35%] text-center align-middle px-4 py-3 font-semibold uppercase text-xs text-gray-500">
-                Email
-              </TableHead>
-              <TableHead className="w-[20%] text-center align-middle px-4 py-3 font-semibold uppercase text-xs text-gray-500">
-                Status
-              </TableHead>
-              <TableHead className="w-[25%] text-center align-middle px-4 py-3 font-semibold uppercase text-xs text-gray-500">
-                Valid until
-              </TableHead>
-              <TableHead className="w-[20%] text-center align-middle px-4 py-3 font-semibold uppercase text-xs text-gray-500">
-                Actions
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {invites.map((invite) => (
-              <TableRow
-                key={invite.id}
-                className="hover:bg-surface-secondary transition-colors"
-              >
-                {/* Email (Centered) */}
-                <TableCell className="w-[35%] text-center align-middle font-medium text-text-primary truncate px-4 py-3">
-                  {invite.email}
-                </TableCell>
+      <ScreenSearch
+        placeholder="Search users..."
+        value={search}
+        onChange={(value) => {
+          setSearch(value)
+          setPage(1)
+        }}
+      />
 
-                {/* Status (Centered) */}
-                <TableCell className="w-[20%] text-center align-middle px-4 py-3">
-                  <div className="flex items-center justify-center w-full">
-                    <span
-                      className={`inline-flex items-center justify-center rounded px-2.5 py-0.5 text-xs font-semibold ${
-                        invite.status === 'ACCEPTED'
-                          ? 'bg-green-100 text-green-700'
-                          : invite.status === 'PENDING'
-                          ? 'bg-amber-100 text-amber-800'
-                          : 'bg-gray-100 text-gray-600'
-                      }`}
-                    >
-                      {invite.status === 'ACCEPTED' ? 'ACTIVE' : invite.status}
-                    </span>
-                  </div>
-                </TableCell>
-
-                {/* Valid Until (Centered) */}
-                <TableCell className="w-[25%] text-center align-middle text-text-muted px-4 py-3">
-                  {invite.validUntil
-                    ? new Date(invite.validUntil).toLocaleDateString('en-GB', {
-                        day: '2-digit',
-                        month: '2-digit',
-                        year: 'numeric',
-                      })
-                    : '—'}
-                </TableCell>
-
-                {/* Actions (Centered) */}
-                <TableCell className="w-[20%] text-center align-middle px-4 py-3">
-                  <div className="flex items-center justify-center w-full">
-                    <ActionDropdown
-                      invite={invite}
-                      onUpdate={handleUpdate}
-                      onDelete={handleDelete}
-                      onResend={handleResend}
-                    />
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-
-            {invites.length === 0 && (
-              <TableRow>
-                <TableCell
-                  colSpan={4}
-                  className="text-center align-middle py-8 text-text-muted px-4"
-                >
-                  No users invited yet.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <SegmentedToggle<Tab>
+          ariaLabel="Filter users"
+          value={tab}
+          onChange={(value) => {
+            setTab(value)
+            setPage(1)
+          }}
+          options={[
+            { value: 'active', label: 'Active' },
+            { value: 'invited', label: 'Invited' },
+          ]}
+        />
       </div>
+
+      {query.isLoading ? (
+        <TableSkeleton rows={6} columns={columnCount} />
+      ) : query.isError ? (
+        <div className="text-center py-8 text-danger-600">
+          Failed to load users. Please try again.
+        </div>
+      ) : (
+        <div className="w-full overflow-hidden rounded border border-gray-200 bg-white">
+          <div className="overflow-x-auto">
+            <Table className="w-full min-w-[600px] border-collapse">
+              <TableHeader>
+                <TableRow>
+                  <TableHead className={HEAD}>Name</TableHead>
+                  <TableHead className={HEAD}>Email</TableHead>
+                  <TableHead className={HEAD}>Status</TableHead>
+                  {showValidUntil && <TableHead className={HEAD}>Valid until</TableHead>}
+                  <TableHead className={HEAD}>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {rows.map((row) => (
+                  <TableRow key={row.key} className="hover:bg-surface-secondary transition-colors">
+                    <TableCell className={`${CELL} font-medium text-text-primary`}>
+                      {row.name || '—'}
+                    </TableCell>
+                    <TableCell className={`${CELL} text-text-muted`}>{row.email}</TableCell>
+                    <TableCell className={CELL}>
+                      <span
+                        className={`inline-flex items-center justify-center rounded px-2.5 py-0.5 text-xs font-semibold ${STATUS_STYLES[row.status]}`}
+                      >
+                        {row.status}
+                      </span>
+                    </TableCell>
+                    {showValidUntil && (
+                      <TableCell className={`${CELL} text-text-muted`}>
+                        {formatDate(row.validUntil)}
+                      </TableCell>
+                    )}
+                    <TableCell className={CELL}>
+                      <div className="flex items-center justify-center">
+                        <RowActionsMenu label={row.email} items={actionsFor(row)} />
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+
+                {rows.length === 0 && (
+                  <TableRow>
+                    <TableCell
+                      colSpan={columnCount}
+                      className="text-center align-middle py-8 text-text-muted px-4"
+                    >
+                      {debouncedSearch
+                        ? 'No users match your search.'
+                        : tab === 'active'
+                        ? 'No active users yet.'
+                        : 'No pending invitations.'}
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+          {pageData && (
+            <PaginationFooter
+              page={pageData.page}
+              pageSize={pageData.limit}
+              totalItems={pageData.totalRecords}
+              totalPages={pageData.totalPages}
+              onPageChange={setPage}
+              itemLabel={tab === 'active' ? 'users' : 'invitations'}
+            />
+          )}
+        </div>
+      )}
 
       <AddUserModal
         open={modalOpen}
-        initialValues={selectedInvite}
-        onClose={() => {
-          setModalOpen(false)
-          setSelectedInvite(null)
-        }}
-        onSuccess={() => refetch()}
+        initialValues={editableAccess}
+        onUpdate={handleUpdatePermissions}
+        onClose={closeModal}
+        onSuccess={refetch}
       />
     </div>
   )

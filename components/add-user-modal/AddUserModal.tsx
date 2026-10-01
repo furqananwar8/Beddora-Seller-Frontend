@@ -3,19 +3,26 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { PermissionTree, PermissionNode } from '../permission-tree/PermissionTree'
 import {
-  Invite,
   useGetPermissionsQuery,
   useCreateInviteMutation,
-  useUpdateInvitePermissionsMutation,
 } from '@/services/api/invites.api'
 
-type Screen = 'form' | 'features' | 'accounts' | 'products'
+type Screen = 'form' | 'features'
+
+/** What the modal needs to edit an existing user or pending invite. */
+export interface EditableAccess {
+  email: string
+  validUntil: string | null
+  featurePermissionIds: number[]
+}
 
 interface Props {
   open: boolean
   onClose: () => void
   onSuccess: () => void
-  initialValues?: Invite | null
+  initialValues?: EditableAccess | null
+  /** Persists the edited feature permissions; the caller decides which endpoint to hit. */
+  onUpdate?: (featurePermissionIds: number[]) => Promise<unknown>
 }
 
 export const AddUserModal: React.FC<Props> = ({
@@ -23,58 +30,33 @@ export const AddUserModal: React.FC<Props> = ({
   onClose,
   onSuccess,
   initialValues,
+  onUpdate,
 }) => {
   const isEditing = Boolean(initialValues)
 
   const [screen, setScreen] = useState<Screen>('form')
   const [email, setEmail] = useState('')
   const [validUntil, setValidUntil] = useState<string | null>(null)
-  const [canEdit, setCanEdit] = useState(true)
   const [featureIds, setFeatureIds] = useState<number[]>([])
-  const [accountAccess, setAccountAccess] = useState({
-    full: true,
-    accountIds: [] as number[],
-  })
-  const [productAccess, setProductAccess] = useState({
-    full: true,
-    productIds: [] as number[],
-  })
+  const [updating, setUpdating] = useState(false)
 
   const { data: permissions = [], isLoading: permsLoading } =
     useGetPermissionsQuery(undefined, { skip: !open })
 
   const [createInvite, { isLoading: creating }] = useCreateInviteMutation()
-  const [updatePermissions, { isLoading: updating }] =
-    useUpdateInvitePermissionsMutation()
 
   const submitting = creating || updating
 
   useEffect(() => {
     if (open) {
       setScreen('form')
-      if (initialValues) {
-        setEmail(initialValues.email || '')
-        setValidUntil(
-          initialValues.validUntil
-            ? new Date(initialValues.validUntil).toISOString().split('T')[0]
-            : null
-        )
-        setCanEdit(initialValues.canEdit ?? true)
-        setFeatureIds(initialValues.featurePermissionIds || [])
-        setAccountAccess(
-          initialValues.accountAccess || { full: true, accountIds: [] }
-        )
-        setProductAccess(
-          initialValues.productAccess || { full: true, productIds: [] }
-        )
-      } else {
-        setEmail('')
-        setValidUntil(null)
-        setCanEdit(true)
-        setFeatureIds([])
-        setAccountAccess({ full: true, accountIds: [] })
-        setProductAccess({ full: true, productIds: [] })
-      }
+      setEmail(initialValues?.email ?? '')
+      setValidUntil(
+        initialValues?.validUntil
+          ? new Date(initialValues.validUntil).toISOString().split('T')[0]
+          : null
+      )
+      setFeatureIds(initialValues?.featurePermissionIds ?? [])
     }
   }, [open, initialValues])
 
@@ -142,40 +124,18 @@ export const AddUserModal: React.FC<Props> = ({
       : `${featureIds.length} selected`
   }, [featureIds, tree])
 
-  const accountLabel = accountAccess.full
-    ? 'Full access'
-    : `${accountAccess.accountIds.length} accounts`
-  const productLabel = productAccess.full
-    ? 'Full access'
-    : `${productAccess.productIds.length} products`
-
   const handleApply = async () => {
     if (!email.trim()) return
 
     try {
-      if (isEditing && initialValues) {
-        await updatePermissions({
-          id: initialValues.id,
-          featurePermissionIds: featureIds,
-          accountAccess: accountAccess.full
-            ? { full: true, accountIds: [] }
-            : accountAccess,
-          productAccess: productAccess.full
-            ? { full: true, productIds: [] }
-            : productAccess,
-        }).unwrap()
+      if (isEditing && onUpdate) {
+        setUpdating(true)
+        await onUpdate(featureIds)
       } else {
         await createInvite({
           email,
           featurePermissionIds: featureIds,
           validUntil: validUntil ? new Date(validUntil).toISOString() : null,
-          canEdit,
-          accountAccess: accountAccess.full
-            ? { full: true, accountIds: [] }
-            : accountAccess,
-          productAccess: productAccess.full
-            ? { full: true, productIds: [] }
-            : productAccess,
         }).unwrap()
       }
 
@@ -187,6 +147,8 @@ export const AddUserModal: React.FC<Props> = ({
           err.error ||
           `Failed to ${isEditing ? 'update permissions' : 'send invite'}`
       )
+    } finally {
+      setUpdating(false)
     }
   }
 
@@ -201,8 +163,6 @@ export const AddUserModal: React.FC<Props> = ({
             {screen === 'form' &&
               (isEditing ? 'Update user permissions' : 'Add user')}
             {screen === 'features' && 'Feature access permissions'}
-            {screen === 'accounts' && 'Account access'}
-            {screen === 'products' && 'Product access'}
           </h2>
           <button
             type="button"
@@ -253,38 +213,6 @@ export const AddUserModal: React.FC<Props> = ({
                 </div>
               </button>
 
-              <button
-                type="button"
-                onClick={() => setScreen('accounts')}
-                className="flex w-full items-center justify-between rounded border border-gray-200 px-3 py-2.5 text-left hover:bg-gray-50 transition-colors"
-              >
-                <span className="text-sm font-medium text-gray-700">
-                  Account access
-                </span>
-                <div className="flex items-center gap-2">
-                  <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs text-gray-700">
-                    {accountLabel}
-                  </span>
-                  <span className="text-gray-400">&rsaquo;</span>
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setScreen('products')}
-                className="flex w-full items-center justify-between rounded border border-gray-200 px-3 py-2.5 text-left hover:bg-gray-50 transition-colors"
-              >
-                <span className="text-sm font-medium text-gray-700">
-                  Product access
-                </span>
-                <div className="flex items-center gap-2">
-                  <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs text-gray-700">
-                    {productLabel}
-                  </span>
-                  <span className="text-gray-400">&rsaquo;</span>
-                </div>
-              </button>
-
               {/* Valid Until Checkbox - Disabled in Edit Mode */}
               <label
                 className={`flex items-center gap-2 ${
@@ -315,25 +243,6 @@ export const AddUserModal: React.FC<Props> = ({
                   className="w-full rounded border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed"
                 />
               )}
-
-              {/* Editing Mode Checkbox - Disabled in Edit Mode */}
-              <label
-                className={`flex items-center gap-2 ${
-                  isEditing ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
-                }`}
-              >
-                <input
-                  type="checkbox"
-                  checked={canEdit}
-                  disabled={isEditing}
-                  onChange={(e) => setCanEdit(e.target.checked)}
-                  className="h-4 w-4 rounded border-gray-300 text-blue-600 disabled:cursor-not-allowed"
-                />
-                <span className="text-sm text-gray-700">
-                  Enable the editing mode (including COG&apos;s, expenses,
-                  settings, etc.)
-                </span>
-              </label>
             </div>
           )}
 
@@ -369,98 +278,6 @@ export const AddUserModal: React.FC<Props> = ({
                   selectedIds={featureIds}
                   onChange={setFeatureIds}
                 />
-              )}
-            </div>
-          )}
-
-          {screen === 'accounts' && (
-            <div className="space-y-3">
-              <button
-                type="button"
-                onClick={() => setScreen('form')}
-                className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors"
-              >
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M15 19l-7-7 7-7"
-                  />
-                </svg>
-                Back to Settings
-              </button>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={accountAccess.full}
-                  onChange={(e) =>
-                    setAccountAccess({
-                      full: e.target.checked,
-                      accountIds: [],
-                    })
-                  }
-                  className="h-4 w-4 rounded border-gray-300 text-blue-600"
-                />
-                <span className="text-sm text-gray-700">
-                  Full account access
-                </span>
-              </label>
-              {!accountAccess.full && (
-                <p className="text-xs text-gray-500">
-                  Account picker would go here.
-                </p>
-              )}
-            </div>
-          )}
-
-          {screen === 'products' && (
-            <div className="space-y-3">
-              <button
-                type="button"
-                onClick={() => setScreen('form')}
-                className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors"
-              >
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M15 19l-7-7 7-7"
-                  />
-                </svg>
-                Back to Settings
-              </button>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={productAccess.full}
-                  onChange={(e) =>
-                    setProductAccess({
-                      full: e.target.checked,
-                      productIds: [],
-                    })
-                  }
-                  className="h-4 w-4 rounded border-gray-300 text-blue-600"
-                />
-                <span className="text-sm text-gray-700">
-                  Full product access
-                </span>
-              </label>
-              {!productAccess.full && (
-                <p className="text-xs text-gray-500">
-                  Product picker would go here.
-                </p>
               )}
             </div>
           )}

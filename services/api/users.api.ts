@@ -1,4 +1,5 @@
 import { baseApi } from './baseApi'
+import type { Page, PageParams } from './finance.api'
 
 /**
  * Users API endpoints
@@ -32,6 +33,16 @@ export interface UserListItem {
   verifiedAt: string | null
   createdAt: string
   roles: Role[]
+}
+
+/** A user administered from Settings > Users (seeded owners are excluded server-side). */
+export interface ManagedUser {
+  id: number
+  email: string
+  name: string | null
+  isActive: boolean
+  createdAt: string
+  featurePermissionIds: number[]
 }
 
 export interface UpdateUserRequest {
@@ -69,6 +80,24 @@ export const usersApi = baseApi.injectEndpoints({
       query: () => '/users',
       providesTags: ['Auth'],
     }),
+    getManagedUsers: builder.query<Page<ManagedUser>, PageParams>({
+      query: ({ search, ...params }) => ({
+        url: '/users/managed',
+        params: { ...params, search: search || undefined },
+      }),
+      providesTags: ['ManagedUsers'],
+    }),
+    updateManagedUserPermissions: builder.mutation<
+      { message: string },
+      { id: number; featurePermissionIds: number[] }
+    >({
+      query: ({ id, ...body }) => ({
+        url: `/users/managed/${id}/permissions`,
+        method: 'PUT',
+        body,
+      }),
+      invalidatesTags: ['ManagedUsers'],
+    }),
   }),
 })
 
@@ -77,4 +106,6 @@ export const {
   useUpdateCurrentUserMutation,
   useChangePasswordMutation,
   useListUsersQuery,
+  useGetManagedUsersQuery,
+  useUpdateManagedUserPermissionsMutation,
 } = usersApi
