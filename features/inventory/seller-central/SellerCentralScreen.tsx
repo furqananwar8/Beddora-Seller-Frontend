@@ -250,7 +250,7 @@ export const SellerCentralScreen: React.FC = () => {
       </div>
 
       <div className={cn('overflow-hidden rounded-lg border border-border shadow-sm', isFetching && 'opacity-70 transition-opacity')}>
-        <div className="max-h-[calc(100vh-340px)] min-h-[240px] overflow-auto">
+        <div className="max-h-[calc(100vh-340px)] overflow-auto">
           <Table className="min-w-full">
             <TableHeader className="sticky top-0 z-10 bg-surface shadow-sm">
               <TableRow>

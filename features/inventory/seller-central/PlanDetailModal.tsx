@@ -59,7 +59,7 @@ const TabTable: React.FC<{ columns: Column[]; empty: string; isEmpty: boolean; f
   children,
 }) => (
   <div className="overflow-hidden rounded-lg border border-border shadow-sm">
-    <div className="max-h-[min(380px,calc(100vh-380px))] min-h-[140px] overflow-auto">
+    <div className="max-h-[min(380px,calc(100vh-380px))] overflow-auto">
       <Table className="min-w-full">
         <TableHeader className="sticky top-0 z-10 bg-surface shadow-sm">
           <TableRow>
