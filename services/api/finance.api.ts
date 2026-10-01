@@ -254,7 +254,16 @@ export interface PaymentDocumentDetail {
   markedPaidAt: string | null
   pops: Pop[]
   paymentMethod: { id: number; type: 'BANK' | 'CARD_LINK'; ibanLast4: string | null; accountNumberLast4: string | null; paymentLink: string | null } | null
-  request: { id: number; invoiceNo: string; partner: { id: number; name: string } }
+  request: {
+    id: number
+    invoiceNo: string
+    containerNo: string | null
+    remarks: string | null
+    partner: { id: number; name: string }
+    expenseType: { id: number; name: string }
+    /** Documents the requester attached to the request. */
+    documents: FinanceDocument[]
+  }
 }
 
 export interface BankDetails {
