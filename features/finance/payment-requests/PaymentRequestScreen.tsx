@@ -238,6 +238,7 @@ export const PaymentRequestScreen: React.FC = () => {
             canDecide={isApprover}
             busyId={busyId}
             onOpen={setOpen}
+            onEdit={(id) => router.push(`/dashboard/finance/payment-request/new?edit=${id}`)}
             onApprove={(id) => withBusy(id, () => actions.approve(id))}
             onReject={setRejectId}
           />

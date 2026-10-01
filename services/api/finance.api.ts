@@ -118,12 +118,15 @@ export interface PaymentRequestListItem {
   status: RequestStatus
   createdAt: string
   decisionNote: string | null
+  remarks: string | null
   partner: { id: number; name: string; type: PartnerType }
   expenseType: { id: number; name: string }
   requestedBy: UserRef
   decidedBy: UserRef | null
   documentCount: number
   payment: { paidAmount: number; remaining: number; status: DocStatus } | null
+  /** The viewer may edit this request (their own draft or rejected one). */
+  canEdit: boolean
 }
 
 export interface PaymentRequestListParams extends PageParams {
@@ -208,6 +211,7 @@ export interface PaymentDocumentListItem {
   expenseType: string
   invoiceNo: string
   containerNo: string | null
+  remarks: string | null
   currency: string
   amount: number
   paidAmount: number

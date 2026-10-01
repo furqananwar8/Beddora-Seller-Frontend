@@ -8,12 +8,13 @@ import { StatusBadge } from '@/components/status-badge/StatusBadge'
 import type { PaymentRequestListItem } from '@/services/api/finance.api'
 import { cn } from '@/utils/cn'
 import { formatDay, formatMoney } from '../shared/format'
+import { PAYMENT_STATE_META, paymentStateOf } from '../shared/paymentState'
 import { REQUEST_STATUS_META } from '../shared/statusMeta'
 import { RequestPreview } from './RequestPreview'
 
 const HEAD = 'text-center align-middle'
 const CELL = 'text-center align-middle'
-const COLS = 10
+const COLS = 12
 
 const Paperclip = () => (
   <svg className="ml-1 inline h-3.5 w-3.5 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-label="Has documents">
@@ -28,11 +29,12 @@ interface RequestsTableProps {
   canDecide: boolean
   busyId: number | null
   onOpen: (id: number) => void
+  onEdit: (id: number) => void
   onApprove: (id: number) => void
   onReject: (id: number) => void
 }
 
-export const RequestsTable: React.FC<RequestsTableProps> = ({ rows, isLoading, isError, canDecide, busyId, onOpen, onApprove, onReject }) => {
+export const RequestsTable: React.FC<RequestsTableProps> = ({ rows, isLoading, isError, canDecide, busyId, onOpen, onEdit, onApprove, onReject }) => {
   const [expandedId, setExpandedId] = useState<number | null>(null)
 
   const message = (text: string, danger?: boolean) => (
@@ -55,7 +57,9 @@ export const RequestsTable: React.FC<RequestsTableProps> = ({ rows, isLoading, i
           <TableHead className={HEAD}>Invoice</TableHead>
           <TableHead className={HEAD}>Container no</TableHead>
           <TableHead className={HEAD}>Date</TableHead>
+          <TableHead className={cn(HEAD, 'min-w-[180px]')}>Remarks</TableHead>
           <TableHead className={HEAD}>Status</TableHead>
+          <TableHead className={cn(HEAD, 'min-w-[130px]')}>Payment status</TableHead>
           <TableHead className={HEAD}>Actions</TableHead>
         </TableRow>
       </TableHeader>
@@ -75,6 +79,7 @@ export const RequestsTable: React.FC<RequestsTableProps> = ({ rows, isLoading, i
         ) : (
           rows.map((row) => {
             const meta = REQUEST_STATUS_META[row.status]
+            const payment = PAYMENT_STATE_META[paymentStateOf(row.payment?.paidAmount, row.amount)]
             const expanded = expandedId === row.id
             const decidable = canDecide && row.status === 'PENDING_APPROVAL'
             const busy = busyId === row.id
@@ -106,12 +111,25 @@ export const RequestsTable: React.FC<RequestsTableProps> = ({ rows, isLoading, i
                   <TableCell className={CELL}>{row.containerNo || '-'}</TableCell>
                   <TableCell className={cn(CELL, 'whitespace-nowrap')}>{formatDay(row.createdAt, 'dd MMM')}</TableCell>
                   <TableCell className={CELL}>
+                    {row.remarks ? (
+                      <div className="mx-auto max-w-[220px] truncate" title={row.remarks}>
+                        {row.remarks}
+                      </div>
+                    ) : (
+                      '-'
+                    )}
+                  </TableCell>
+                  <TableCell className={CELL}>
                     <StatusBadge label={meta.label} tone={meta.tone} />
+                  </TableCell>
+                  <TableCell className={CELL}>
+                    <StatusBadge label={payment.label} tone={payment.tone} />
                   </TableCell>
                   <TableCell className={CELL}>
                     <RowActionsMenu
                       label={`Payment#${row.id}`}
                       items={[
+                        ...(row.canEdit ? [{ key: 'edit', label: 'Edit', onSelect: () => onEdit(row.id) }] : []),
                         { key: 'open', label: 'View details', onSelect: () => onOpen(row.id) },
                         ...(decidable
                           ? [

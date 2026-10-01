@@ -48,10 +48,10 @@ export function useRequestActions() {
     async (id: number) => {
       try {
         await withdrawMutation(id).unwrap()
-        success(`${formatRequestNo(id)} withdrawn and returned to Draft`)
+        success(`${formatRequestNo(id)} returned to Draft. Edit it and submit it again.`)
         return true
       } catch (error) {
-        failure(error, 'Could not withdraw the request')
+        failure(error, 'Could not resubmit the request')
         return false
       }
     },
