@@ -263,7 +263,7 @@ export const PaymentRequestFormScreen: React.FC = () => {
       >
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-xl font-bold text-text-primary sm:text-2xl">Payment Request Creation</h1>
-          <StatusBadge label={requestId ? `${statusMeta.label} · ${formatRequestNo(requestId)}` : 'Draft'} tone={statusMeta.tone} />
+          <StatusBadge label={requestId ? `${statusMeta.label} · ${formatRequestNo(requestId)}` : 'DRAFT'} tone={statusMeta.tone} />
         </div>
 
         <Section title="Partner" note="who is being paid">
