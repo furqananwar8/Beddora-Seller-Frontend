@@ -11,7 +11,6 @@ import { FormField, fieldClass } from '../shared/FormField'
 import { formatPartnerNo } from '../shared/format'
 import {
   emptyPaymentMethodValues,
-  formatIban,
   paymentMethodSchema,
   type PaymentMethodFormValues,
 } from './partnerSchema'
@@ -75,13 +74,21 @@ const DialogForm: React.FC<PaymentMethodDialogProps> = ({ partnerName, partnerId
 
       {type === 'BANK' ? (
         <>
-          <FormField label="IBAN" htmlFor="pm-iban" required error={errors.iban?.message}>
+          <FormField label="IBAN" htmlFor="pm-iban" error={errors.iban?.message ?? undefined}>
             <input
               id="pm-iban"
               autoComplete="off"
               placeholder="GB29 NWBK 6016 1331 9268 19"
-              className={`${fieldClass(errors.iban?.message)} font-mono`}
-              {...register('iban', { onChange: (event) => setValue('iban', formatIban(event.target.value)) })}
+              className={`${fieldClass(errors.iban?.message ?? errors.accountNumber?.message)} font-mono`}
+              {...register('iban')}
+            />
+          </FormField>
+          <FormField label="Account no" htmlFor="pm-account" error={errors.accountNumber?.message} hint="Enter the IBAN, the account number, or both">
+            <input
+              id="pm-account"
+              autoComplete="off"
+              className={`${fieldClass(errors.accountNumber?.message)} font-mono`}
+              {...register('accountNumber')}
             />
           </FormField>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -95,7 +102,7 @@ const DialogForm: React.FC<PaymentMethodDialogProps> = ({ partnerName, partnerId
                 {...register('swiftCode', { onChange: (event) => setValue('swiftCode', event.target.value.toUpperCase().replace(/\s+/g, '')) })}
               />
             </FormField>
-            <FormField label="Routing no" htmlFor="pm-routing" error={errors.routingNo?.message} hint="For US/CA banks">
+            <FormField label="Routing no" htmlFor="pm-routing" error={errors.routingNo?.message}>
               <input id="pm-routing" autoComplete="off" inputMode="numeric" className={fieldClass(errors.routingNo?.message)} {...register('routingNo')} />
             </FormField>
           </div>

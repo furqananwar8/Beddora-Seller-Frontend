@@ -25,7 +25,7 @@ export const BankDetailsPanel: React.FC<BankDetailsPanelProps> = ({ docId, metho
 
   if (!method) return <p className="text-sm text-text-muted">No payment method on file.</p>
 
-  const label = method.type === 'BANK' ? `Bank transfer${method.ibanLast4 ? ` ····${method.ibanLast4}` : ''}` : 'Payment link'
+  const label = method.type === 'BANK' ? `Bank transfer${method.ibanLast4 ?? method.accountNumberLast4 ? ` ····${method.ibanLast4 ?? method.accountNumberLast4}` : ''}` : 'Payment link'
 
   const show = async () => {
     setError(null)
@@ -55,6 +55,7 @@ export const BankDetailsPanel: React.FC<BankDetailsPanelProps> = ({ docId, metho
         <>
           <dl className="grid grid-cols-1 gap-2 rounded-lg bg-secondary-50 p-3 sm:grid-cols-2">
             <Row label="IBAN" value={details.iban} />
+            <Row label="Account no." value={details.accountNumber} />
             <Row label="SWIFT" value={details.swiftCode} />
             <Row label="Routing no." value={details.routingNo} />
             <Row label="Account holder" value={details.accountHolder} />

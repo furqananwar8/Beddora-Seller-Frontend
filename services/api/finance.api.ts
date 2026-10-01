@@ -249,13 +249,14 @@ export interface PaymentDocumentDetail {
   markedPaidBy: UserRef | null
   markedPaidAt: string | null
   pops: Pop[]
-  paymentMethod: { id: number; type: 'BANK' | 'CARD_LINK'; ibanLast4: string | null; paymentLink: string | null } | null
+  paymentMethod: { id: number; type: 'BANK' | 'CARD_LINK'; ibanLast4: string | null; accountNumberLast4: string | null; paymentLink: string | null } | null
   request: { id: number; invoiceNo: string; partner: { id: number; name: string } }
 }
 
 export interface BankDetails {
   type: 'BANK' | 'CARD_LINK'
   iban: string | null
+  accountNumber: string | null
   swiftCode: string | null
   routingNo: string | null
   accountHolder: string | null
