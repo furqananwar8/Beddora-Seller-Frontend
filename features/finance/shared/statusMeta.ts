@@ -11,6 +11,6 @@ export const REQUEST_STATUS_META: Record<RequestStatus, { label: string; tone: S
 export const DOC_STATUS_META: Record<DocStatus, { label: string; tone: StatusTone }> = {
   PAYMENT_PENDING: { label: 'PAYMENT PENDING', tone: 'info' },
   PARTIALLY_PAID: { label: 'PARTIALLY PAID', tone: 'warning' },
-  POP_UPLOADED: { label: 'POP UPLOADED', tone: 'success' },
+  POP_UPLOADED: { label: 'PAYMENT RECORDED', tone: 'success' },
   PAID: { label: 'PAID', tone: 'neutral' },
 }
