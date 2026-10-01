@@ -1,7 +1,9 @@
 "use client"
 
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
+import { format, subDays } from 'date-fns'
 import { Container } from '@/components/layout'
+import DateRangePicker, { DateRangeValue } from '@/components/date-range-picker/DateRangePicker'
 import { PaginationFooter } from '@/components/pagination-footer/PaginationFooter'
 import { MultiSelectInput } from '@/components/multi-select-input/MultiSelectInput'
 import { Badge } from '@/design-system/badges'
@@ -16,9 +18,9 @@ import { formatDateTime } from '@/utils/format'
 import { useGetShipmentsConfigQuery } from '@/services/api/inboundShipments.api'
 import {
   SellerCentralPlanStatus,
-  SellerCentralSyncResult,
   useGetSellerCentralPlansQuery,
-  useSyncSellerCentralPlansMutation,
+  useGetSellerCentralSyncStatusQuery,
+  useStartSellerCentralSyncMutation,
 } from '@/services/api/sellerCentralShipments.api'
 import { apiErrorMessage } from '../shipments/useShipments'
 import { formatRelative } from '../shipments/ShipmentParts'
@@ -28,6 +30,10 @@ import { PlanStatusBadge } from './PlanStatusBadge'
 const PAGE_SIZE = 20
 const HEAD = 'text-center align-middle'
 const CELL = 'text-center align-middle'
+/** Every control in the toolbars is this tall, so inputs, dropdowns, the date picker and buttons line up. */
+const CONTROL = 'h-[42px]'
+/** How often to ask the server whether the sync has ended, in case the live event never arrives. */
+const SYNC_POLL_MS = 5000
 
 const STATUS_OPTIONS = [
   { id: 'ALL', name: 'All statuses' },
@@ -35,13 +41,31 @@ const STATUS_OPTIONS = [
   { id: 'SHIPPED', name: 'Shipped' },
 ]
 
-const n = (value: number) => value.toLocaleString()
+const QUICK_RANGES = [
+  { id: '7', name: 'Last 7 days' },
+  { id: '30', name: 'Last 30 days' },
+  { id: '90', name: 'Last 90 days' },
+  { id: '180', name: 'Last 180 days' },
+]
+const CUSTOM_RANGE = { id: 'custom', name: 'Custom range' }
 
-const syncSummary = (r: SellerCentralSyncResult): string => {
-  const parts = [`${n(r.added)} new`, `${n(r.detailed)} updated`]
-  if (r.failed > 0) parts.push(`${n(r.failed)} couldn't be read`)
-  return `Synced from Amazon: ${parts.join(', ')}`
+const DAY_FORMAT = 'yyyy-MM-dd'
+const lastDays = (days: number): DateRangeValue => ({
+  startDate: format(subDays(new Date(), days - 1), DAY_FORMAT),
+  endDate: format(new Date(), DAY_FORMAT),
+  presetId: null,
+})
+
+/** Which quick range the picked dates match, else "custom". */
+const quickRangeOf = (range: DateRangeValue): string => {
+  const match = QUICK_RANGES.find((q) => {
+    const preset = lastDays(Number(q.id))
+    return preset.startDate === range.startDate && preset.endDate === range.endDate
+  })
+  return match?.id ?? CUSTOM_RANGE.id
 }
+
+const n = (value: number) => value.toLocaleString()
 
 export const SellerCentralScreen: React.FC = () => {
   const dispatch = useAppDispatch()
@@ -50,6 +74,7 @@ export const SellerCentralScreen: React.FC = () => {
   const [status, setStatus] = useState<'ALL' | SellerCentralPlanStatus>('ALL')
   const [page, setPage] = useState(1)
   const [openPlan, setOpenPlan] = useState<string | null>(null)
+  const [range, setRange] = useState<DateRangeValue>(() => lastDays(30))
 
   const { data: config } = useGetShipmentsConfigQuery()
   const { data, isLoading, isFetching, isError } = useGetSellerCentralPlansQuery({
@@ -58,17 +83,31 @@ export const SellerCentralScreen: React.FC = () => {
     page,
     limit: PAGE_SIZE,
   })
-  const [sync, { isLoading: syncing }] = useSyncSellerCentralPlansMutation()
-  const rows = data?.data ?? []
 
-  const notify = (message: string, type: 'success' | 'error') => dispatch(addNotification({ message, type }))
+  // The sync runs on the server; its end arrives as a live event that refreshes these queries
+  const [pollMs, setPollMs] = useState(0)
+  const { data: syncStatus } = useGetSellerCentralSyncStatusQuery(undefined, { pollingInterval: pollMs })
+  const [startSync, { isLoading: starting }] = useStartSellerCentralSyncMutation()
+  const syncing = starting || Boolean(syncStatus?.running)
+  useEffect(() => setPollMs(syncStatus?.running ? SYNC_POLL_MS : 0), [syncStatus?.running])
+
+  const rows = data?.data ?? []
+  const rangeReady = Boolean(range.startDate && range.endDate)
+
+  const notify = (message: string, type: 'success' | 'error' | 'info') => dispatch(addNotification({ message, type }))
 
   const handleSync = async () => {
+    if (!range.startDate || !range.endDate || syncing) return
     try {
-      notify(syncSummary(await sync().unwrap()), 'success')
-      setPage(1)
+      const { started } = await startSync({ from: range.startDate, to: range.endDate }).unwrap()
+      notify(
+        started
+          ? 'Sync in progress. It keeps running in the background, and we’ll tell you here when it’s done.'
+          : 'A sync is already in progress.',
+        'info'
+      )
     } catch (err) {
-      notify(apiErrorMessage(err, 'Sync from Amazon failed'), 'error')
+      notify(apiErrorMessage(err, 'Could not start the sync'), 'error')
     }
   }
 
@@ -78,22 +117,50 @@ export const SellerCentralScreen: React.FC = () => {
         <div>
           <h1 className="text-xl font-bold text-text-primary sm:text-2xl">Seller Central shipments</h1>
           <p className="mt-1 text-sm text-text-muted">
-            Shipments created in Seller Central (Send to Amazon). Sync to bring in new ones and open any to see its details.
+            Shipments created in Seller Central (Send to Amazon). Pick the days to sync, then open any shipment to see its details.
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <span className="text-xs text-text-muted">
-            {data?.lastSyncedAt ? `Synced ${formatRelative(data.lastSyncedAt)}` : 'Never synced'}
+        <div className="flex flex-col items-start gap-2 lg:items-end">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className={cn('flex flex-wrap items-center gap-3', syncing && 'pointer-events-none opacity-60')} aria-disabled={syncing}>
+              <MultiSelectInput
+                single
+                title="Quick range"
+                className="min-w-[170px]"
+                options={range.startDate && quickRangeOf(range) === CUSTOM_RANGE.id ? [...QUICK_RANGES, CUSTOM_RANGE] : QUICK_RANGES}
+                value={[quickRangeOf(range)]}
+                onChange={(value) => {
+                  const days = Number(value[0])
+                  if (Number.isInteger(days)) setRange(lastDays(days))
+                }}
+              />
+              <DateRangePicker
+                value={range}
+                onChange={(next) => setRange(next)}
+                showPresets={false}
+                disableFutureDates
+                placement="left"
+                placeholder="Select days to sync"
+                triggerClassName={cn(CONTROL, 'py-0')}
+              />
+            </div>
+            <Button className={CONTROL} onClick={handleSync} disabled={syncing || !rangeReady}>
+              {syncing ? (
+                <span className="flex items-center gap-2">
+                  <Spinner size="sm" className="text-white" /> Sync in progress…
+                </span>
+              ) : (
+                'Sync from Amazon'
+              )}
+            </Button>
+          </div>
+          <span className="text-xs text-text-muted" aria-live="polite">
+            {syncing
+              ? `Syncing ${syncStatus?.range ? `${syncStatus.range.from} to ${syncStatus.range.to}` : 'now'}. You can leave this page; we’ll notify you when it’s done.`
+              : data?.lastSyncedAt
+              ? `Last synced ${formatRelative(data.lastSyncedAt)}`
+              : 'Never synced'}
           </span>
-          <Button onClick={handleSync} disabled={syncing}>
-            {syncing ? (
-              <span className="flex items-center gap-2">
-                <Spinner size="sm" className="text-white" /> Syncing…
-              </span>
-            ) : (
-              'Sync from Amazon'
-            )}
-          </Button>
         </div>
       </div>
 
@@ -114,7 +181,10 @@ export const SellerCentralScreen: React.FC = () => {
             setSearch(e.target.value)
             setPage(1)
           }}
-          className="min-w-0 flex-1 basis-full rounded-md border border-border bg-surface px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-secondary-200 sm:min-w-[260px] sm:basis-auto sm:max-w-md"
+          className={cn(
+            CONTROL,
+            'min-w-0 flex-1 basis-full rounded-lg border border-border bg-surface px-3 text-sm focus:outline-none focus:ring-2 focus:ring-secondary-200 sm:min-w-[260px] sm:basis-auto sm:max-w-md'
+          )}
         />
         <MultiSelectInput
           single
@@ -161,7 +231,7 @@ export const SellerCentralScreen: React.FC = () => {
                         ? 'Could not load shipments.'
                         : debouncedSearch || status !== 'ALL'
                         ? 'No shipments match your filters.'
-                        : 'No Seller Central shipments yet. Press Sync from Amazon to look for them.'}
+                        : 'No Seller Central shipments yet. Pick the days to cover and press Sync from Amazon.'}
                     </div>
                   </TableCell>
                 </TableRow>

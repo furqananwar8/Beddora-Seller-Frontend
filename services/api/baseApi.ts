@@ -26,6 +26,7 @@ export const tagTypes = [
   'Inventory',
   'InventoryAdjustments',
   'SellerCentralShipments',
+  'SellerCentralSync',
   'InventoryForecast',
   'InventoryKpis',
   'PurchaseOrders',

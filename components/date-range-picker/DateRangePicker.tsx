@@ -94,6 +94,9 @@ export interface DateRangePickerProps {
   selectionMode?: 'range' | 'single'
 
   disableFutureDates?: boolean
+
+  /** Extra classes for the default trigger button, e.g. to match a neighbouring control's height. */
+  triggerClassName?: string
 }
 
 // ─── Default Presets ─────────────────────────────────────────────────────────
@@ -602,6 +605,7 @@ export default function DateRangePicker({
   applyAction,
   selectionMode = 'range',
   disableFutureDates = false,
+  triggerClassName,
 }: DateRangePickerProps) {
   const [isOpen, setIsOpen] =
     useState(false)
@@ -992,7 +996,8 @@ export default function DateRangePicker({
       className={cn(
         'flex min-w-0 items-center gap-2 rounded-lg border border-border bg-surface px-3 py-3 text-sm transition-colors hover:bg-surface-secondary',
         isOpen &&
-          'border-primary-500 ring-2 ring-primary-500'
+          'border-primary-500 ring-2 ring-primary-500',
+        triggerClassName
       )}
     >
       <svg

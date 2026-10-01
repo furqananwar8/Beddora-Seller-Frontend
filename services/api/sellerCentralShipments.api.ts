@@ -72,6 +72,28 @@ export interface SellerCentralSyncResult {
   failed: number
 }
 
+/** The days of Amazon changes to sync (yyyy-MM-dd, both included). */
+export interface SellerCentralSyncRange {
+  from: string
+  to: string
+}
+
+export interface SellerCentralSyncStatus {
+  running: boolean
+  range?: SellerCentralSyncRange
+  startedAt?: string
+  finishedAt?: string
+  result?: SellerCentralSyncResult
+  /** Why the last sync failed, when it did. */
+  error?: string
+}
+
+export interface StartSellerCentralSyncResponse {
+  /** False when a sync was already running and nothing new was started. */
+  started: boolean
+  status: SellerCentralSyncStatus
+}
+
 export const sellerCentralShipmentsApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getSellerCentralPlans: builder.query<SellerCentralPage, SellerCentralListParams>({
@@ -87,10 +109,15 @@ export const sellerCentralShipmentsApi = baseApi.injectEndpoints({
       providesTags: ['SellerCentralShipments'],
     }),
 
-    /** Pulls plans and their shipment details from Amazon. */
-    syncSellerCentralPlans: builder.mutation<SellerCentralSyncResult, void>({
-      query: () => ({ url: '/inventory/seller-central/sync', method: 'POST' }),
-      invalidatesTags: ['SellerCentralShipments'],
+    /** Starts the sync in the background; its end arrives as an SSE event. */
+    startSellerCentralSync: builder.mutation<StartSellerCentralSyncResponse, SellerCentralSyncRange>({
+      query: (range) => ({ url: '/inventory/seller-central/sync', method: 'POST', body: range }),
+      invalidatesTags: ['SellerCentralSync'],
+    }),
+
+    getSellerCentralSyncStatus: builder.query<SellerCentralSyncStatus, void>({
+      query: () => ({ url: '/inventory/seller-central/sync/status' }),
+      providesTags: ['SellerCentralSync'],
     }),
 
     refreshSellerCentralPlan: builder.mutation<SellerCentralPlanDetail, string>({
@@ -103,6 +130,7 @@ export const sellerCentralShipmentsApi = baseApi.injectEndpoints({
 export const {
   useGetSellerCentralPlansQuery,
   useGetSellerCentralPlanQuery,
-  useSyncSellerCentralPlansMutation,
+  useStartSellerCentralSyncMutation,
+  useGetSellerCentralSyncStatusQuery,
   useRefreshSellerCentralPlanMutation,
 } = sellerCentralShipmentsApi
