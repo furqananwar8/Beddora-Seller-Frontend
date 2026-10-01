@@ -113,6 +113,13 @@ export default function DashboardLayout({
                 action: 'read',
                 href: '/dashboard/inventory/adjustments',
               },
+              {
+                label: 'Seller Central',
+                // Shares the Planner permission until the backend seeds 'inventory:seller-central'.
+                subject: 'inventory:planner',
+                action: 'read',
+                href: '/dashboard/inventory/seller-central',
+              },
             ],
           },
           {
