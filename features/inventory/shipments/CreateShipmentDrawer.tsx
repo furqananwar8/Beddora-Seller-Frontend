@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useScrollLock } from '@/hooks/useScrollLock'
 import { DrawerButton } from '@/components/allocation-drawer/drawerUi'
@@ -95,12 +95,6 @@ const DrawerPanel: React.FC<Omit<CreateShipmentDrawerProps, 'isOpen'>> = ({
   const { marketplace, book, shipFrom, submitting, error: submitError, showAddressErrors } = form
   const patch = (next: Partial<FormState>) => setForm((prev) => ({ ...prev, ...next }))
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && !submitting && onClose()
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [submitting, onClose])
-
   const rows = useMemo(
     () =>
       pool
@@ -157,7 +151,8 @@ const DrawerPanel: React.FC<Omit<CreateShipmentDrawerProps, 'isOpen'>> = ({
 
   return createPortal(
     <div className="fixed inset-0 z-50 overscroll-none" role="dialog" aria-modal="true" aria-labelledby="create-shipment-title">
-      <div className="absolute inset-0 bg-black/40" onClick={() => !submitting && onClose()} />
+      {/* The dimmed area is deliberately inert: the drawer closes only from its own buttons */}
+      <div className="absolute inset-0 bg-black/40" />
 
       <div className="absolute inset-y-0 right-0 flex w-full max-w-[1120px] flex-col border-l border-slate-200 bg-white text-slate-900">
         {/* Header */}

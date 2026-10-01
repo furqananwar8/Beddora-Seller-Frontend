@@ -32,8 +32,6 @@ export interface SellerCentralPlan {
   marketplaces: string[]
   createdAt: string | null
   updatedAt: string | null
-  /** First seen in the last 7 days. */
-  isNew: boolean
   shipmentCount: number
   units: number
   skus: number

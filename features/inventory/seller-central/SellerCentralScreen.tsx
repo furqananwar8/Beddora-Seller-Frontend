@@ -7,7 +7,6 @@ import DateRangePicker, { DateRangePreset, DateRangeValue } from '@/components/d
 import { PaginationFooter } from '@/components/pagination-footer/PaginationFooter'
 import { RowActionsMenu } from '@/components/row-actions-menu/RowActionsMenu'
 import { MultiSelectInput } from '@/components/multi-select-input/MultiSelectInput'
-import { Badge } from '@/design-system/badges'
 import { Button } from '@/design-system/buttons'
 import { Spinner } from '@/design-system/loaders'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/design-system/tables'
@@ -29,6 +28,7 @@ import { formatRelative } from '../shipments/ShipmentParts'
 import { PlanDetailModal } from './PlanDetailModal'
 import { PlanStatusBadge } from './PlanStatusBadge'
 import { planTitle } from './planTitle'
+import { marketplaceLabels } from './marketplaceLabel'
 
 const PAGE_SIZE = 20
 const HEAD = 'text-center align-middle'
@@ -250,7 +250,7 @@ export const SellerCentralScreen: React.FC = () => {
       </div>
 
       <div className={cn('overflow-hidden rounded-lg border border-border shadow-sm', isFetching && 'opacity-70 transition-opacity')}>
-        <div className="max-h-[calc(100vh-340px)] min-h-[240px] overflow-auto">
+        <div className="max-h-[calc(100vh-340px)] overflow-auto">
           <Table className="min-w-full">
             <TableHeader className="sticky top-0 z-10 bg-surface shadow-sm">
               <TableRow>
@@ -290,13 +290,10 @@ export const SellerCentralScreen: React.FC = () => {
                 rows.map((plan) => (
                   <TableRow key={plan.inboundPlanId}>
                     <TableCell className={CELL}>
-                      <div className="flex items-center justify-center gap-2 font-medium text-text-primary">
-                        {planTitle(plan.name)}
-                        {plan.isNew && <Badge variant="success">New</Badge>}
-                      </div>
+                      {plan.name.trim() && <div className="font-medium text-text-primary">{plan.name}</div>}
                       <div className="font-mono text-xs text-text-muted">{plan.inboundPlanId}</div>
                     </TableCell>
-                    <TableCell className={CELL}>{plan.marketplaces.join(', ') || '—'}</TableCell>
+                    <TableCell className={CELL}>{marketplaceLabels(plan.marketplaces) || '—'}</TableCell>
                     <TableCell className={CELL}>
                       <PlanStatusBadge status={plan.status} />
                     </TableCell>
@@ -307,7 +304,7 @@ export const SellerCentralScreen: React.FC = () => {
                     <TableCell className={cn(CELL, 'text-sm text-text-muted')}>{plan.updatedAt ? formatDateTime(plan.updatedAt) : '—'}</TableCell>
                     <TableCell className={CELL}>
                       <RowActionsMenu
-                        label={planTitle(plan.name)}
+                        label={plan.name.trim() || plan.inboundPlanId}
                         items={[
                           { key: 'view', label: 'View details', onSelect: () => setOpenPlan(plan.inboundPlanId) },
                           {

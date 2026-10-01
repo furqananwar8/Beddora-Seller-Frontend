@@ -11,6 +11,8 @@ import { cn } from "@/lib/utils"
 interface DialogContextValue {
   open: boolean
   onOpenChange: (open: boolean) => void
+  /** Whether a click outside the dialog or the Escape key closes it. Off by default. */
+  dismissible: boolean
 }
 
 const DialogContext = React.createContext<DialogContextValue | null>(null)
@@ -30,9 +32,11 @@ interface DialogProps {
   open?: boolean
   defaultOpen?: boolean
   onOpenChange?: (open: boolean) => void
+  /** Let a click outside the dialog, or Escape, close it. Off by default: use the dialog's own buttons. */
+  dismissible?: boolean
 }
 
-function Dialog({ children, open: controlledOpen, defaultOpen, onOpenChange }: DialogProps) {
+function Dialog({ children, open: controlledOpen, defaultOpen, onOpenChange, dismissible = false }: DialogProps) {
   const [uncontrolledOpen, setUncontrolledOpen] = React.useState(defaultOpen ?? false)
   const isControlled = controlledOpen !== undefined
   const open = isControlled ? controlledOpen : uncontrolledOpen
@@ -46,7 +50,7 @@ function Dialog({ children, open: controlledOpen, defaultOpen, onOpenChange }: D
   )
 
   return (
-    <DialogContext.Provider value={{ open, onOpenChange: handleOpenChange }}>
+    <DialogContext.Provider value={{ open, onOpenChange: handleOpenChange, dismissible }}>
       {children}
     </DialogContext.Provider>
   )
@@ -111,7 +115,7 @@ function DialogClose({
 // -----------------------------------------------------------------------------
 
 function DialogContent({ children, className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  const { open, onOpenChange } = useDialog()
+  const { open, onOpenChange, dismissible } = useDialog()
   const [mounted, setMounted] = React.useState(false)
   const [visible, setVisible] = React.useState(false)
 
@@ -137,13 +141,13 @@ function DialogContent({ children, className, ...props }: React.HTMLAttributes<H
 
   // Escape key
   React.useEffect(() => {
-    if (!open && !mounted) return
+    if (!dismissible || (!open && !mounted)) return
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") onOpenChange(false)
     }
     document.addEventListener("keydown", onKeyDown)
     return () => document.removeEventListener("keydown", onKeyDown)
-  }, [open, mounted, onOpenChange])
+  }, [dismissible, open, mounted, onOpenChange])
 
   if (!mounted) return null
 
@@ -155,7 +159,7 @@ function DialogContent({ children, className, ...props }: React.HTMLAttributes<H
           "fixed inset-0 bg-black/40 backdrop-blur-sm transition-opacity duration-200",
           visible ? "opacity-100" : "opacity-0"
         )}
-        onClick={() => onOpenChange(false)}
+        onClick={dismissible ? () => onOpenChange(false) : undefined}
       />
 
       {/* Panel */}

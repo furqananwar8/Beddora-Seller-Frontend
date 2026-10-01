@@ -18,6 +18,7 @@ import { formatDateTime } from '@/utils/format'
 import { apiErrorMessage } from '../shipments/useShipments'
 import { PlanStatusBadge } from './PlanStatusBadge'
 import { planTitle } from './planTitle'
+import { marketplaceLabels } from './marketplaceLabel'
 
 const PAGE_SIZE = 10
 const HEAD = 'text-center align-middle'
@@ -58,7 +59,7 @@ const TabTable: React.FC<{ columns: Column[]; empty: string; isEmpty: boolean; f
   children,
 }) => (
   <div className="overflow-hidden rounded-lg border border-border shadow-sm">
-    <div className="max-h-[min(380px,calc(100vh-380px))] min-h-[140px] overflow-auto">
+    <div className="max-h-[min(380px,calc(100vh-380px))] overflow-auto">
       <Table className="min-w-full">
         <TableHeader className="sticky top-0 z-10 bg-surface shadow-sm">
           <TableRow>
@@ -116,7 +117,7 @@ const OverviewTab: React.FC<{ plan: SellerCentralPlanDetail }> = ({ plan }) => {
   const fields: [string, React.ReactNode][] = [
     ['Plan ID', <span key="id" className={MONO}>{plan.inboundPlanId}</span>],
     ['Status', <PlanStatusBadge key="status" status={plan.status} />],
-    ['Marketplace', plan.marketplaces.join(', ') || dash],
+    ['Marketplace', marketplaceLabels(plan.marketplaces) || dash],
     ['Shipments', plan.hasDetails ? n(plan.shipmentCount) : dash],
     ['Total units', plan.hasDetails ? n(plan.units) : dash],
     ['SKUs', plan.hasDetails ? n(plan.skus) : dash],
