@@ -29,6 +29,7 @@ import { formatRelative } from '../shipments/ShipmentParts'
 import { PlanDetailModal } from './PlanDetailModal'
 import { PlanStatusBadge } from './PlanStatusBadge'
 import { planTitle } from './planTitle'
+import { marketplaceLabels } from './marketplaceLabel'
 
 const PAGE_SIZE = 20
 const HEAD = 'text-center align-middle'
@@ -298,7 +299,7 @@ export const SellerCentralScreen: React.FC = () => {
                       )}
                       <div className="font-mono text-xs text-text-muted">{plan.inboundPlanId}</div>
                     </TableCell>
-                    <TableCell className={CELL}>{plan.marketplaces.join(', ') || '—'}</TableCell>
+                    <TableCell className={CELL}>{marketplaceLabels(plan.marketplaces) || '—'}</TableCell>
                     <TableCell className={CELL}>
                       <PlanStatusBadge status={plan.status} />
                     </TableCell>

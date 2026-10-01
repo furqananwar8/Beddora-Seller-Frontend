@@ -18,6 +18,7 @@ import { formatDateTime } from '@/utils/format'
 import { apiErrorMessage } from '../shipments/useShipments'
 import { PlanStatusBadge } from './PlanStatusBadge'
 import { planTitle } from './planTitle'
+import { marketplaceLabels } from './marketplaceLabel'
 
 const PAGE_SIZE = 10
 const HEAD = 'text-center align-middle'
@@ -116,7 +117,7 @@ const OverviewTab: React.FC<{ plan: SellerCentralPlanDetail }> = ({ plan }) => {
   const fields: [string, React.ReactNode][] = [
     ['Plan ID', <span key="id" className={MONO}>{plan.inboundPlanId}</span>],
     ['Status', <PlanStatusBadge key="status" status={plan.status} />],
-    ['Marketplace', plan.marketplaces.join(', ') || dash],
+    ['Marketplace', marketplaceLabels(plan.marketplaces) || dash],
     ['Shipments', plan.hasDetails ? n(plan.shipmentCount) : dash],
     ['Total units', plan.hasDetails ? n(plan.units) : dash],
     ['SKUs', plan.hasDetails ? n(plan.skus) : dash],
