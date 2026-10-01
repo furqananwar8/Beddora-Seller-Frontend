@@ -1,19 +1,28 @@
 "use client"
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
+import { PaginationFooter } from '@/components/pagination-footer/PaginationFooter'
 import { Modal } from '@/design-system/modals'
 import { Button } from '@/design-system/buttons'
 import { Spinner } from '@/design-system/loaders'
 import { Tabs } from '@/design-system/tabs/Tabs'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/design-system/tables'
 import {
   SellerCentralPlanDetail,
   SellerCentralShipment,
   useGetSellerCentralPlanQuery,
   useRefreshSellerCentralPlanMutation,
 } from '@/services/api/sellerCentralShipments.api'
+import { cn } from '@/utils/cn'
 import { formatDateTime } from '@/utils/format'
 import { apiErrorMessage } from '../shipments/useShipments'
 import { PlanStatusBadge } from './PlanStatusBadge'
+import { planTitle } from './planTitle'
+
+const PAGE_SIZE = 10
+const HEAD = 'text-center align-middle'
+const CELL = 'text-center align-middle'
+const MONO = 'font-mono text-xs'
 
 const n = (value: number) => value.toLocaleString()
 const dash = '—'
@@ -31,63 +40,102 @@ const TABS: { id: TabId; label: string }[] = [
   { id: 'shipFrom', label: 'Ship from' },
 ]
 
-const Field: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
-  <div className="min-w-0">
-    <dt className="text-xs text-text-muted">{label}</dt>
-    <dd className="break-words text-sm font-medium text-text-primary">{children}</dd>
-  </div>
-)
-
-const HEAD = 'px-3 py-2 text-center align-middle text-xs font-semibold uppercase tracking-wider text-text-muted'
-const CELL = 'px-3 py-2 text-center align-middle text-sm'
-
-/** A bordered, horizontally scrollable table shell shared by the tabs. */
-const DataTable: React.FC<{ headers: string[]; minWidth?: number; children: React.ReactNode }> = ({ headers, minWidth = 520, children }) => (
-  <div className="overflow-x-auto rounded-lg border border-border">
-    <table className="w-full text-sm" style={{ minWidth }}>
-      <thead className="bg-surface-secondary">
-        <tr>
-          {headers.map((h) => (
-            <th key={h} className={HEAD}>
-              {h}
-            </th>
-          ))}
-        </tr>
-      </thead>
-      <tbody className="divide-y divide-border">{children}</tbody>
-    </table>
-  </div>
-)
-
-const Empty: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <p className="rounded-md border border-border bg-surface-secondary px-3 py-6 text-center text-sm text-text-secondary">{children}</p>
-)
-
 const confirmationOf = (s: SellerCentralShipment) => s.confirmationId ?? s.shipmentId
+
+// ── Shared table pieces (the same Table, header and cell alignment as the Seller Central list)
+
+interface Column {
+  label: string
+  className?: string
+}
+
+/** A table framed like the list screen: sticky header, scrolls inside its frame, optional paging below. */
+const TabTable: React.FC<{ columns: Column[]; empty: string; isEmpty: boolean; footer?: React.ReactNode; children: React.ReactNode }> = ({
+  columns,
+  empty,
+  isEmpty,
+  footer,
+  children,
+}) => (
+  <div className="overflow-hidden rounded-lg border border-border shadow-sm">
+    <div className="max-h-[min(380px,calc(100vh-380px))] min-h-[140px] overflow-auto">
+      <Table className="min-w-full">
+        <TableHeader className="sticky top-0 z-10 bg-surface shadow-sm">
+          <TableRow>
+            {columns.map((c) => (
+              <TableHead key={c.label} className={cn(HEAD, c.className)}>
+                {c.label}
+              </TableHead>
+            ))}
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {isEmpty ? (
+            <TableRow>
+              <TableCell colSpan={columns.length}>
+                <div className="py-10 text-center text-text-muted">{empty}</div>
+              </TableCell>
+            </TableRow>
+          ) : (
+            children
+          )}
+        </TableBody>
+      </Table>
+    </div>
+    {footer}
+  </div>
+)
+
+/** Client-side paging for rows we already have (a plan can hold many items). */
+function usePaged<T>(rows: T[]) {
+  const [page, setPage] = useState(1)
+  const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE))
+  const current = Math.min(page, totalPages)
+  const visible = useMemo(() => rows.slice((current - 1) * PAGE_SIZE, current * PAGE_SIZE), [rows, current])
+  return { visible, page: current, totalPages, setPage }
+}
+
+const PagerFooter: React.FC<{ paged: ReturnType<typeof usePaged>; total: number; label: string }> = ({ paged, total, label }) =>
+  paged.totalPages > 1 ? (
+    <PaginationFooter
+      page={paged.page}
+      pageSize={PAGE_SIZE}
+      totalItems={total}
+      totalPages={paged.totalPages}
+      onPageChange={paged.setPage}
+      itemLabel={label}
+    />
+  ) : null
 
 // ── Tabs
 
+const FIELD_COLUMNS: Column[] = [{ label: 'Field', className: 'w-1/3' }, { label: 'Details' }]
+
 const OverviewTab: React.FC<{ plan: SellerCentralPlanDetail }> = ({ plan }) => {
   const boxes = plan.shipments.reduce((sum, s) => sum + s.boxes, 0)
+  const fields: [string, React.ReactNode][] = [
+    ['Plan ID', <span key="id" className={MONO}>{plan.inboundPlanId}</span>],
+    ['Status', <PlanStatusBadge key="status" status={plan.status} />],
+    ['Marketplace', plan.marketplaces.join(', ') || dash],
+    ['Shipments', plan.hasDetails ? n(plan.shipmentCount) : dash],
+    ['Total units', plan.hasDetails ? n(plan.units) : dash],
+    ['SKUs', plan.hasDetails ? n(plan.skus) : dash],
+    ['Boxes', plan.hasDetails && boxes > 0 ? n(boxes) : dash],
+    ['Destinations', plan.destinations.join(', ') || dash],
+    ['Created in Amazon', plan.createdAt ? formatDateTime(plan.createdAt) : dash],
+    ['Last changed in Amazon', plan.updatedAt ? formatDateTime(plan.updatedAt) : dash],
+    ['Last synced here', formatDateTime(plan.syncedAt)],
+  ]
   return (
-    <div className="space-y-4">
-      <dl className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
-        <Field label="Plan ID">
-          <span className="font-mono text-xs">{plan.inboundPlanId}</span>
-        </Field>
-        <Field label="Status">
-          <PlanStatusBadge status={plan.status} />
-        </Field>
-        <Field label="Marketplace">{plan.marketplaces.join(', ') || dash}</Field>
-        <Field label="Shipments">{plan.hasDetails ? n(plan.shipmentCount) : dash}</Field>
-        <Field label="Total units">{plan.hasDetails ? n(plan.units) : dash}</Field>
-        <Field label="SKUs">{plan.hasDetails ? n(plan.skus) : dash}</Field>
-        <Field label="Boxes">{plan.hasDetails && boxes > 0 ? n(boxes) : dash}</Field>
-        <Field label="Destinations">{plan.destinations.join(', ') || dash}</Field>
-        <Field label="Created in Amazon">{plan.createdAt ? formatDateTime(plan.createdAt) : dash}</Field>
-        <Field label="Last changed in Amazon">{plan.updatedAt ? formatDateTime(plan.updatedAt) : dash}</Field>
-        <Field label="Last synced here">{formatDateTime(plan.syncedAt)}</Field>
-      </dl>
+    <div className="space-y-3">
+      <TabTable columns={FIELD_COLUMNS} empty="" isEmpty={false}>
+        {fields.map(([label, value]) => (
+          <TableRow key={label}>
+            <TableCell className={cn(CELL, 'text-text-muted')}>{label}</TableCell>
+            <TableCell className={cn(CELL, 'font-medium text-text-primary')}>{value}</TableCell>
+          </TableRow>
+        ))}
+      </TabTable>
 
       {!plan.hasDetails && (
         <p className="rounded-md border border-warning-200 bg-warning-50 px-3 py-2 text-sm text-warning-800">
@@ -103,67 +151,107 @@ const OverviewTab: React.FC<{ plan: SellerCentralPlanDetail }> = ({ plan }) => {
   )
 }
 
-const ShipmentsTab: React.FC<{ plan: SellerCentralPlanDetail }> = ({ plan }) =>
-  plan.shipments.length === 0 ? (
-    <Empty>No shipments in this plan yet.</Empty>
-  ) : (
-    <DataTable headers={['FBA shipment ID', 'Name', 'Status', 'Destination', 'Units', 'Boxes']} minWidth={640}>
-      {plan.shipments.map((s) => (
-        <tr key={s.shipmentId}>
-          <td className={`${CELL} font-mono text-xs`}>{confirmationOf(s)}</td>
-          <td className={CELL}>{s.name ?? dash}</td>
-          <td className={CELL}>{s.status ? s.status.replace(/_/g, ' ') : dash}</td>
-          <td className={CELL}>
+const SHIPMENT_COLUMNS: Column[] = [
+  { label: 'FBA shipment ID', className: 'min-w-[150px]' },
+  { label: 'Name', className: 'min-w-[140px]' },
+  { label: 'Status', className: 'min-w-[130px]' },
+  { label: 'Destination', className: 'min-w-[150px]' },
+  { label: 'Units' },
+  { label: 'Boxes' },
+]
+
+const ShipmentsTab: React.FC<{ plan: SellerCentralPlanDetail }> = ({ plan }) => {
+  const paged = usePaged(plan.shipments)
+  return (
+    <TabTable
+      columns={SHIPMENT_COLUMNS}
+      isEmpty={plan.shipments.length === 0}
+      empty="No shipments in this plan yet."
+      footer={<PagerFooter paged={paged} total={plan.shipments.length} label="shipments" />}
+    >
+      {paged.visible.map((s) => (
+        <TableRow key={s.shipmentId}>
+          <TableCell className={cn(CELL, MONO)}>{confirmationOf(s)}</TableCell>
+          <TableCell className={CELL}>{s.name ?? dash}</TableCell>
+          <TableCell className={CELL}>{s.status ? s.status.replace(/_/g, ' ') : dash}</TableCell>
+          <TableCell className={CELL}>
             {s.destination ?? 'Not assigned'}
             {s.destinationCity && <div className="text-xs text-text-muted">{s.destinationCity}</div>}
-          </td>
-          <td className={CELL}>{n(s.units)}</td>
-          <td className={CELL}>{s.boxes > 0 ? n(s.boxes) : dash}</td>
-        </tr>
+          </TableCell>
+          <TableCell className={CELL}>{n(s.units)}</TableCell>
+          <TableCell className={CELL}>{s.boxes > 0 ? n(s.boxes) : dash}</TableCell>
+        </TableRow>
       ))}
-    </DataTable>
-  )
-
-const ItemsTab: React.FC<{ plan: SellerCentralPlanDetail }> = ({ plan }) => {
-  const rows = plan.shipments.flatMap((s) => s.items.map((item) => ({ item, shipment: s })))
-  if (rows.length === 0) return <Empty>No items in this plan yet.</Empty>
-  const total = rows.reduce((sum, r) => sum + r.item.quantity, 0)
-  return (
-    <DataTable headers={['MSKU', 'ASIN', 'FNSKU', 'Shipment', 'Quantity']} minWidth={620}>
-      {rows.map(({ item, shipment }) => (
-        <tr key={`${shipment.shipmentId}-${item.msku}`}>
-          <td className={`${CELL} font-mono text-xs`}>{item.msku}</td>
-          <td className={`${CELL} font-mono text-xs`}>{item.asin}</td>
-          <td className={`${CELL} font-mono text-xs`}>{item.fnsku}</td>
-          <td className={`${CELL} font-mono text-xs`}>{confirmationOf(shipment)}</td>
-          <td className={CELL}>{n(item.quantity)}</td>
-        </tr>
-      ))}
-      <tr className="bg-surface-secondary font-semibold">
-        <td className={CELL} colSpan={4}>
-          Total
-        </td>
-        <td className={CELL}>{n(total)}</td>
-      </tr>
-    </DataTable>
+    </TabTable>
   )
 }
 
-const DeliveryTab: React.FC<{ plan: SellerCentralPlanDetail }> = ({ plan }) =>
-  plan.shipments.length === 0 ? (
-    <Empty>No shipments in this plan yet.</Empty>
-  ) : (
-    <DataTable headers={['FBA shipment ID', 'Ready to ship', 'Delivery window', 'Tracking entered']} minWidth={700}>
-      {plan.shipments.map((s) => (
-        <tr key={s.shipmentId}>
-          <td className={`${CELL} font-mono text-xs`}>{confirmationOf(s)}</td>
-          <td className={CELL}>{dateRange(s.readyToShip)}</td>
-          <td className={CELL}>{dateRange(s.deliveryWindow)}</td>
-          <td className={CELL}>{s.trackingEntered > 0 ? n(s.trackingEntered) : dash}</td>
-        </tr>
-      ))}
-    </DataTable>
+const ITEM_COLUMNS: Column[] = [
+  { label: 'MSKU', className: 'min-w-[220px]' },
+  { label: 'ASIN', className: 'min-w-[120px]' },
+  { label: 'FNSKU', className: 'min-w-[120px]' },
+  { label: 'Shipment', className: 'min-w-[140px]' },
+  { label: 'Quantity' },
+]
+
+const ItemsTab: React.FC<{ plan: SellerCentralPlanDetail }> = ({ plan }) => {
+  const rows = useMemo(() => plan.shipments.flatMap((s) => s.items.map((item) => ({ item, shipment: s }))), [plan])
+  const paged = usePaged(rows)
+  const total = rows.reduce((sum, r) => sum + r.item.quantity, 0)
+  return (
+    <div className="space-y-2">
+      <TabTable
+        columns={ITEM_COLUMNS}
+        isEmpty={rows.length === 0}
+        empty="No items in this plan yet."
+        footer={<PagerFooter paged={paged} total={rows.length} label="items" />}
+      >
+        {paged.visible.map(({ item, shipment }) => (
+          <TableRow key={`${shipment.shipmentId}-${item.msku}`}>
+            <TableCell className={cn(CELL, MONO)}>{item.msku}</TableCell>
+            <TableCell className={cn(CELL, MONO)}>{item.asin}</TableCell>
+            <TableCell className={cn(CELL, MONO)}>{item.fnsku}</TableCell>
+            <TableCell className={cn(CELL, MONO)}>{confirmationOf(shipment)}</TableCell>
+            <TableCell className={CELL}>{n(item.quantity)}</TableCell>
+          </TableRow>
+        ))}
+      </TabTable>
+      {rows.length > 0 && (
+        <p className="text-right text-sm text-text-muted">
+          Total <span className="font-semibold text-text-primary">{n(total)}</span> units across {n(rows.length)} item lines
+        </p>
+      )}
+    </div>
   )
+}
+
+const DELIVERY_COLUMNS: Column[] = [
+  { label: 'FBA shipment ID', className: 'min-w-[150px]' },
+  { label: 'Ready to ship', className: 'min-w-[200px]' },
+  { label: 'Delivery window', className: 'min-w-[240px]' },
+  { label: 'Tracking entered' },
+]
+
+const DeliveryTab: React.FC<{ plan: SellerCentralPlanDetail }> = ({ plan }) => {
+  const paged = usePaged(plan.shipments)
+  return (
+    <TabTable
+      columns={DELIVERY_COLUMNS}
+      isEmpty={plan.shipments.length === 0}
+      empty="No shipments in this plan yet."
+      footer={<PagerFooter paged={paged} total={plan.shipments.length} label="shipments" />}
+    >
+      {paged.visible.map((s) => (
+        <TableRow key={s.shipmentId}>
+          <TableCell className={cn(CELL, MONO)}>{confirmationOf(s)}</TableCell>
+          <TableCell className={CELL}>{dateRange(s.readyToShip)}</TableCell>
+          <TableCell className={CELL}>{dateRange(s.deliveryWindow)}</TableCell>
+          <TableCell className={CELL}>{s.trackingEntered > 0 ? n(s.trackingEntered) : dash}</TableCell>
+        </TableRow>
+      ))}
+    </TabTable>
+  )
+}
 
 const ADDRESS_FIELDS: { key: string; label: string }[] = [
   { key: 'name', label: 'Name' },
@@ -181,19 +269,19 @@ const ADDRESS_FIELDS: { key: string; label: string }[] = [
 const ShipFromTab: React.FC<{ plan: SellerCentralPlanDetail }> = ({ plan }) => {
   const address = plan.sourceAddress
   const present = address ? ADDRESS_FIELDS.filter((f) => address[f.key]) : []
-  if (present.length === 0) return <Empty>Amazon didn&apos;t give a ship-from address for this plan.</Empty>
   return (
-    <dl className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
+    <TabTable columns={FIELD_COLUMNS} isEmpty={present.length === 0} empty="Amazon didn’t give a ship-from address for this plan.">
       {present.map((f) => (
-        <Field key={f.key} label={f.label}>
-          {address![f.key]}
-        </Field>
+        <TableRow key={f.key}>
+          <TableCell className={cn(CELL, 'text-text-muted')}>{f.label}</TableCell>
+          <TableCell className={cn(CELL, 'font-medium text-text-primary')}>{address![f.key]}</TableCell>
+        </TableRow>
       ))}
-    </dl>
+    </TabTable>
   )
 }
 
-/** Everything Amazon holds about one Seller Central shipment plan, split into tabs. */
+/** Everything Amazon holds about one Seller Central shipment plan, one table per tab. */
 export const PlanDetailModal: React.FC<{
   planId: string | null
   onClose: () => void
@@ -221,7 +309,7 @@ export const PlanDetailModal: React.FC<{
     : {}
 
   return (
-    <Modal isOpen={planId !== null} onClose={onClose} title={plan?.name ?? 'Shipment plan'} size="xl">
+    <Modal isOpen={planId !== null} onClose={onClose} title={plan ? planTitle(plan.name) : 'Shipment plan'} size="xl">
       {isLoading && (
         <div className="flex justify-center py-12">
           <Spinner />
@@ -241,13 +329,11 @@ export const PlanDetailModal: React.FC<{
             />
           </div>
 
-          <div className="min-h-[220px]">
-            {tab === 'overview' && <OverviewTab plan={plan} />}
-            {tab === 'shipments' && <ShipmentsTab plan={plan} />}
-            {tab === 'items' && <ItemsTab plan={plan} />}
-            {tab === 'delivery' && <DeliveryTab plan={plan} />}
-            {tab === 'shipFrom' && <ShipFromTab plan={plan} />}
-          </div>
+          {tab === 'overview' && <OverviewTab plan={plan} />}
+          {tab === 'shipments' && <ShipmentsTab plan={plan} />}
+          {tab === 'items' && <ItemsTab plan={plan} />}
+          {tab === 'delivery' && <DeliveryTab plan={plan} />}
+          {tab === 'shipFrom' && <ShipFromTab plan={plan} />}
 
           <div className="flex flex-col-reverse gap-2 border-t border-border pt-4 sm:flex-row sm:justify-end">
             <Button variant="outline" onClick={onClose}>

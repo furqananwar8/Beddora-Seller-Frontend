@@ -5,6 +5,7 @@ import { differenceInCalendarDays, format, parseISO, subDays } from 'date-fns'
 import { Container } from '@/components/layout'
 import DateRangePicker, { DateRangePreset, DateRangeValue } from '@/components/date-range-picker/DateRangePicker'
 import { PaginationFooter } from '@/components/pagination-footer/PaginationFooter'
+import { RowActionsMenu } from '@/components/row-actions-menu/RowActionsMenu'
 import { MultiSelectInput } from '@/components/multi-select-input/MultiSelectInput'
 import { Badge } from '@/design-system/badges'
 import { Button } from '@/design-system/buttons'
@@ -20,12 +21,14 @@ import {
   SellerCentralPlanStatus,
   useGetSellerCentralPlansQuery,
   useGetSellerCentralSyncStatusQuery,
+  useRefreshSellerCentralPlanMutation,
   useStartSellerCentralSyncMutation,
 } from '@/services/api/sellerCentralShipments.api'
 import { apiErrorMessage } from '../shipments/useShipments'
 import { formatRelative } from '../shipments/ShipmentParts'
 import { PlanDetailModal } from './PlanDetailModal'
 import { PlanStatusBadge } from './PlanStatusBadge'
+import { planTitle } from './planTitle'
 
 const PAGE_SIZE = 20
 const HEAD = 'text-center align-middle'
@@ -96,6 +99,8 @@ export const SellerCentralScreen: React.FC = () => {
   const [pollMs, setPollMs] = useState(0)
   const { data: syncStatus } = useGetSellerCentralSyncStatusQuery(undefined, { pollingInterval: pollMs })
   const [startSync, { isLoading: starting }] = useStartSellerCentralSyncMutation()
+  const [refreshPlan] = useRefreshSellerCentralPlanMutation()
+  const [refreshingId, setRefreshingId] = useState<string | null>(null)
   const syncing = starting || Boolean(syncStatus?.running)
   useEffect(() => setPollMs(syncStatus?.running ? SYNC_POLL_MS : 0), [syncStatus?.running])
 
@@ -105,6 +110,27 @@ export const SellerCentralScreen: React.FC = () => {
   const rangeReady = rangeDays > 0 && !tooLong && applied
 
   const notify = (message: string, type: 'success' | 'error' | 'info') => dispatch(addNotification({ message, type }))
+
+  const handleRefresh = async (planId: string, name: string) => {
+    setRefreshingId(planId)
+    try {
+      await refreshPlan(planId).unwrap()
+      notify(`${name} refreshed from Amazon`, 'success')
+    } catch (err) {
+      notify(apiErrorMessage(err, 'Could not refresh from Amazon'), 'error')
+    } finally {
+      setRefreshingId(null)
+    }
+  }
+
+  const handleCopy = async (planId: string) => {
+    try {
+      await navigator.clipboard.writeText(planId)
+      notify('Plan ID copied', 'success')
+    } catch {
+      notify('Could not copy to the clipboard', 'error')
+    }
+  }
 
   const handleSync = async () => {
     if (!range.startDate || !range.endDate || syncing) return
@@ -165,11 +191,8 @@ export const SellerCentralScreen: React.FC = () => {
                 }}
                 presets={presets}
                 keepOpenPresetIds={[CUSTOM_PRESET_ID]}
-                applyAction={{
-                  label: 'Apply',
-                  disabled: applied || rangeDays === 0,
-                  onApply: () => setApplied(true),
-                }}
+                // Only a custom range needs Apply; the fixed presets pick their range and close the picker themselves
+                applyAction={applied ? undefined : { label: 'Apply', disabled: rangeDays === 0, onApply: () => setApplied(true) }}
                 disableFutureDates
                 placement="right"
                 placeholder="Select days to sync"
@@ -268,7 +291,7 @@ export const SellerCentralScreen: React.FC = () => {
                   <TableRow key={plan.inboundPlanId}>
                     <TableCell className={CELL}>
                       <div className="flex items-center justify-center gap-2 font-medium text-text-primary">
-                        {plan.name}
+                        {planTitle(plan.name)}
                         {plan.isNew && <Badge variant="success">New</Badge>}
                       </div>
                       <div className="font-mono text-xs text-text-muted">{plan.inboundPlanId}</div>
@@ -283,9 +306,19 @@ export const SellerCentralScreen: React.FC = () => {
                     <TableCell className={cn(CELL, 'font-mono text-xs')}>{plan.destinations.join(', ') || '—'}</TableCell>
                     <TableCell className={cn(CELL, 'text-sm text-text-muted')}>{plan.updatedAt ? formatDateTime(plan.updatedAt) : '—'}</TableCell>
                     <TableCell className={CELL}>
-                      <Button variant="outline" size="sm" onClick={() => setOpenPlan(plan.inboundPlanId)}>
-                        View
-                      </Button>
+                      <RowActionsMenu
+                        label={planTitle(plan.name)}
+                        items={[
+                          { key: 'view', label: 'View details', onSelect: () => setOpenPlan(plan.inboundPlanId) },
+                          {
+                            key: 'refresh',
+                            label: refreshingId === plan.inboundPlanId ? 'Refreshing…' : 'Refresh from Amazon',
+                            disabled: refreshingId !== null || syncing,
+                            onSelect: () => handleRefresh(plan.inboundPlanId, planTitle(plan.name)),
+                          },
+                          { key: 'copy', label: 'Copy plan ID', onSelect: () => handleCopy(plan.inboundPlanId) },
+                        ]}
+                      />
                     </TableCell>
                   </TableRow>
                 ))
