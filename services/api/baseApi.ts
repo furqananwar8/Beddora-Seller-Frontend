@@ -56,6 +56,7 @@ export const tagTypes = [
   'SyncLogs',
   'QueueStats',
   'Invites',
+  'ManagedUsers',
   'FailedJobs',
   'RetryStats',
   'Repricer',

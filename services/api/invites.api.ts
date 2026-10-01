@@ -1,4 +1,5 @@
 import { baseApi } from './baseApi'
+import type { Page, PageParams } from './finance.api'
 
 export interface Permission {
   id: number
@@ -15,31 +16,21 @@ export interface Invite {
   email: string
   status: 'PENDING' | 'ACCEPTED' | 'EXPIRED' | 'REVOKED'
   validUntil: string | null
-  canEdit: boolean
   createdAt: string
   expiresAt: string
   acceptedAt: string | null
   featurePermissionIds?: number[]
-  accountAccess?: { full: boolean; accountIds: number[] } | null
-  productAccess?: { full: boolean; productIds: number[] } | null
 }
 
 export interface CreateInvitePayload {
   email: string
   featurePermissionIds: number[]
   validUntil?: string | null
-  canEdit?: boolean
-  accountAccess?: { full: boolean; accountIds: number[] } | null
-  productAccess?: { full: boolean; productIds: number[] } | null
 }
 
 export interface UpdateInvitePermissionsPayload {
   id: number
   featurePermissionIds?: number[]
-  canEdit?: boolean
-  validUntil?: string | null
-  accountAccess?: { full: boolean; accountIds: number[] } | null
-  productAccess?: { full: boolean; productIds: number[] } | null
 }
 
 export interface CreateInviteResponse {
@@ -60,8 +51,11 @@ export const invitesApi = baseApi.injectEndpoints({
       keepUnusedDataFor: 600,
     }),
 
-    getInvites: builder.query<Invite[], void>({
-      query: () => '/invites/list',
+    getInvites: builder.query<Page<Invite>, PageParams>({
+      query: ({ search, ...params }) => ({
+        url: '/invites/list',
+        params: { ...params, search: search || undefined },
+      }),
       providesTags: ['Invites'],
       keepUnusedDataFor: 60,
     }),
