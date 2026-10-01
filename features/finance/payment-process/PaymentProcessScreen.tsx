@@ -64,7 +64,7 @@ export const PaymentProcessScreen: React.FC = () => {
   return (
     <Container size="full" className="py-4 sm:py-8">
       <ScreenSearch
-        placeholder="Search Doc#, partner..."
+        placeholder="Search PP#, partner..."
         value={search}
         onChange={(value) => {
           setSearch(value)
