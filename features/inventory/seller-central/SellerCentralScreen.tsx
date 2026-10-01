@@ -7,7 +7,6 @@ import DateRangePicker, { DateRangePreset, DateRangeValue } from '@/components/d
 import { PaginationFooter } from '@/components/pagination-footer/PaginationFooter'
 import { RowActionsMenu } from '@/components/row-actions-menu/RowActionsMenu'
 import { MultiSelectInput } from '@/components/multi-select-input/MultiSelectInput'
-import { Badge } from '@/design-system/badges'
 import { Button } from '@/design-system/buttons'
 import { Spinner } from '@/design-system/loaders'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/design-system/tables'
@@ -291,12 +290,7 @@ export const SellerCentralScreen: React.FC = () => {
                 rows.map((plan) => (
                   <TableRow key={plan.inboundPlanId}>
                     <TableCell className={CELL}>
-                      {(plan.name.trim() || plan.isNew) && (
-                        <div className="flex items-center justify-center gap-2 font-medium text-text-primary">
-                          {plan.name.trim() && <span>{plan.name}</span>}
-                          {plan.isNew && <Badge variant="success">New</Badge>}
-                        </div>
-                      )}
+                      {plan.name.trim() && <div className="font-medium text-text-primary">{plan.name}</div>}
                       <div className="font-mono text-xs text-text-muted">{plan.inboundPlanId}</div>
                     </TableCell>
                     <TableCell className={CELL}>{marketplaceLabels(plan.marketplaces) || '—'}</TableCell>
