@@ -12,6 +12,14 @@ import type {
   ShipTrackingInput,
 } from '@/features/inventory/shipments/types'
 
+import type { LabelFormatCatalog } from '@/features/inventory/shipments/labelFormats'
+
+export interface ShipmentsConfig {
+  sandbox: boolean
+  /** Printable label sizes the backend offers for box and FNSKU labels. */
+  labelFormats?: LabelFormatCatalog
+}
+
 export type OptionKind = 'placement' | 'window'
 
 /** The step a shipment can go back to and redo. */
@@ -57,7 +65,7 @@ export const inboundShipmentsApi = baseApi.injectEndpoints({
     }),
 
     /** sandbox: true when the backend sends the Amazon steps to the SP-API sandbox (FBA_SANDBOX). */
-    getShipmentsConfig: builder.query<{ sandbox: boolean }, void>({
+    getShipmentsConfig: builder.query<ShipmentsConfig, void>({
       query: () => ({ url: '/inventory/shipments/config' }),
     }),
 
@@ -151,9 +159,10 @@ export const inboundShipmentsApi = baseApi.injectEndpoints({
     }),
 
     /** The label file from our server's copy (PDF, or a zip when Amazon split it into several). */
-    downloadShipmentLabels: builder.mutation<Blob, { id: string; type: LabelType }>({
-      query: ({ id, type }) => ({
+    downloadShipmentLabels: builder.mutation<Blob, { id: string; type: LabelType; format?: string }>({
+      query: ({ id, type, format }) => ({
         url: `/inventory/shipments/${id}/labels/${type}/file`,
+        params: format ? { format } : undefined,
         responseHandler: (response) => (response.ok ? response.blob() : response.json()),
       }),
       // A retry can turn a failed copy into a ready one

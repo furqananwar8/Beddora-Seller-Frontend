@@ -39,6 +39,7 @@ import {
   ShipLegRequirement,
   ShipTrackingInput,
 } from './types'
+import type { LabelFormatCatalog } from './labelFormats'
 
 export type { CarrierEntry, OptionKind, RewindResponse, RewindTarget }
 
@@ -51,6 +52,8 @@ export type ShipmentsMode = 'sandbox' | 'live'
 /** What the Shipments screens need from their data source. */
 export interface ShipmentsController {
   mode: ShipmentsMode
+  /** Printable label sizes per kind; undefined until the config has loaded. */
+  labelFormats?: LabelFormatCatalog
   shipments: InboundShipment[]
   pool: ReservedPoolItem[]
   lastSyncedAt: string
@@ -65,7 +68,7 @@ export interface ShipmentsController {
   /** Back: redo an earlier step (optionally with a new ship-from address). */
   rewind: (id: string, to: RewindTarget, shipFrom?: ShipFromRequest) => Promise<RewindResponse>
   generateLabels: (id: string) => Promise<InboundShipment>
-  downloadLabels: (id: string, type: LabelType) => Promise<Blob>
+  downloadLabels: (id: string, type: LabelType, format?: string) => Promise<Blob>
   setShipFrom: (id: string, choice: ShipFromRequest) => Promise<InboundShipment>
   getShipRequirements: (id: string) => Promise<ShipLegRequirement[]>
   markShipped: (id: string, tracking?: ShipTrackingInput[]) => Promise<InboundShipment>
@@ -204,7 +207,7 @@ export const useShipments = (): ShipmentsController => {
   const generateLabels = useCallback((id: string) => call(labels(id), 'Could not generate labels'), [labels])
 
   const downloadLabels = useCallback(
-    (id: string, type: LabelType) => call(labelFile({ id, type }), 'Could not download the labels'),
+    (id: string, type: LabelType, format?: string) => call(labelFile({ id, type, format }), 'Could not download the labels'),
     [labelFile]
   )
 
@@ -234,6 +237,7 @@ export const useShipments = (): ShipmentsController => {
     shipments,
     pool,
     mode: config?.sandbox ? 'sandbox' : 'live',
+    labelFormats: config?.labelFormats,
     lastSyncedAt,
     createShipment,
     saveItems,

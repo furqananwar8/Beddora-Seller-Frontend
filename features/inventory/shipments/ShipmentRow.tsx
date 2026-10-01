@@ -8,6 +8,7 @@ import { cn } from '@/utils/cn'
 import { formatCurrency } from '@/utils/format'
 import { formatAddressLine } from './AddressForm'
 import { ShipFromChoice, ShipFromPicker, shipFromRequest } from './ShipFromPicker'
+import { LabelDownloadControl } from './labelFormats'
 import type { ShipFromRequest } from './useShipments'
 import {
   InboundShipment,
@@ -29,7 +30,6 @@ import {
 import {
   ChevronIcon,
   FloatingMenu,
-  LabelButton,
   ProductThumb,
   StageProgress,
   StatusBadge,
@@ -649,8 +649,9 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({
                 <div className="flex flex-wrap items-center gap-2">
                   {labelsAvailable &&
                     labels.map((l) => (
-                      <LabelButton
+                      <LabelDownloadControl
                         key={l.type}
+                        type={l.type}
                         label={l.label}
                         status={l.type === 'pallet' ? undefined : shipment.labels?.[l.type]}
                         isDownloading={!!downloadingLabels[l.type]}
