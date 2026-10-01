@@ -1,8 +1,9 @@
 import React from 'react'
 import { Badge } from '@/design-system/badges'
 
-const VARIANT: Record<string, 'primary' | 'success' | 'secondary' | 'error'> = {
-  ACTIVE: 'primary',
+// Not 'primary': in this theme that variant renders as a dark block with unreadable text
+const VARIANT: Record<string, 'warning' | 'success' | 'secondary' | 'error'> = {
+  ACTIVE: 'warning',
   SHIPPED: 'success',
   VOIDED: 'secondary',
   ERRORED: 'error',
