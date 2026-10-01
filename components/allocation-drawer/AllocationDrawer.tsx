@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useEffect } from 'react'
+import React from 'react'
 import { createPortal } from 'react-dom'
 import { ProductInventoryItem } from '@/services/api/inventoryPlanner.api'
 import { useScrollLock } from '@/hooks/useScrollLock'
@@ -159,11 +159,6 @@ export const AllocationDrawer: React.FC<AllocationDrawerProps> = (props) => {
   const copy = stepCopy(model, items)
 
   useScrollLock()
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && close()
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  })
 
   const body: Record<AllocationStep, React.ReactNode> = {
     split: <SplitStep items={items} model={model} />,
@@ -175,7 +170,8 @@ export const AllocationDrawer: React.FC<AllocationDrawerProps> = (props) => {
   // Portal to <body> so scrolling over the drawer or backdrop never reaches the page's own scroll area
   return createPortal(
     <div className="fixed inset-0 z-50 overscroll-none" role="dialog" aria-modal="true" aria-labelledby="allocation-drawer-title">
-      <div className="absolute inset-0 bg-black/50" onClick={close} />
+      {/* The dimmed area is deliberately inert: the drawer closes only from its own buttons */}
+      <div className="absolute inset-0 bg-black/50" />
       <div className="absolute inset-y-0 right-0 w-full max-w-[1120px] bg-white border-l border-slate-200 shadow-2xl flex flex-col">
         <header className="px-8 pt-6 pb-5 border-b border-slate-200 bg-slate-50 flex flex-col gap-[18px]">
           <div className="flex items-start justify-between gap-4">

@@ -13,6 +13,8 @@ interface DialogContextValue {
   onOpenChange: (open: boolean) => void;
   titleId: string;
   descriptionId: string;
+  /** Whether a click outside or Escape closes the dialog. Off by default. */
+  dismissible: boolean;
 }
 
 const DialogContext = React.createContext<DialogContextValue | null>(null);
@@ -32,11 +34,14 @@ function DialogRoot({
   defaultOpen = false,
   open: controlledOpen,
   onOpenChange,
+  dismissible = false,
 }: {
   children: React.ReactNode;
   defaultOpen?: boolean;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  /** Let a click outside, or Escape, close the dialog. Off by default. */
+  dismissible?: boolean;
 }) {
   const [uncontrolledOpen, setUncontrolledOpen] = React.useState(defaultOpen);
   const isControlled = controlledOpen !== undefined;
@@ -55,7 +60,7 @@ function DialogRoot({
 
   return (
     <DialogContext.Provider
-      value={{ open, onOpenChange: handleOpenChange, titleId, descriptionId }}
+      value={{ open, onOpenChange: handleOpenChange, titleId, descriptionId, dismissible }}
     >
       {children}
     </DialogContext.Provider>
@@ -109,7 +114,7 @@ function DialogPortal({
 /* ------------------------------------------------------------------ */
 
 function DialogBackdrop({ className, ...props }: React.ComponentProps<"div">) {
-  const { open, onOpenChange } = useDialog();
+  const { open, onOpenChange, dismissible } = useDialog();
   if (!open) return null;
 
   return (
@@ -119,7 +124,7 @@ function DialogBackdrop({ className, ...props }: React.ComponentProps<"div">) {
         className
       )}
       data-state={open ? "open" : "closed"}
-      onClick={() => onOpenChange(false)}
+      onClick={dismissible ? () => onOpenChange(false) : undefined}
       {...props}
     />
   );
@@ -134,7 +139,7 @@ function DialogPopup({
   children,
   ...props
 }: React.ComponentProps<"div">) {
-  const { open, onOpenChange, titleId, descriptionId } = useDialog();
+  const { open, onOpenChange, titleId, descriptionId, dismissible } = useDialog();
   const ref = React.useRef<HTMLDivElement>(null);
 
   /* Lock body scroll */
@@ -149,13 +154,13 @@ function DialogPopup({
 
   /* Escape to close */
   React.useEffect(() => {
-    if (!open) return;
+    if (!open || !dismissible) return;
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") onOpenChange(false);
     };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [open, onOpenChange]);
+  }, [open, dismissible, onOpenChange]);
 
   /* Focus the dialog surface when opened */
   React.useEffect(() => {

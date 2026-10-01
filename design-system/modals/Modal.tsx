@@ -19,6 +19,10 @@ export interface ModalProps {
   children: React.ReactNode
   size?: 'sm' | 'md' | 'lg' | 'xl'
   className?: string
+  /** Close when the dimmed area outside the modal is clicked. Off by default: the close button is the way out. */
+  closeOnBackdropClick?: boolean
+  /** Close when Escape is pressed. Off by default for the same reason. */
+  closeOnEscape?: boolean
 }
 
 export const Modal: React.FC<ModalProps> = ({
@@ -28,6 +32,8 @@ export const Modal: React.FC<ModalProps> = ({
   children,
   size = 'md',
   className,
+  closeOnBackdropClick = false,
+  closeOnEscape = false,
 }) => {
   useEffect(() => {
     if (isOpen) {
@@ -42,20 +48,17 @@ export const Modal: React.FC<ModalProps> = ({
   }, [isOpen])
 
   useEffect(() => {
+    if (!isOpen || !closeOnEscape) return
+
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         onClose()
       }
     }
 
-    if (isOpen) {
-      document.addEventListener('keydown', handleEscape)
-    }
-
-    return () => {
-      document.removeEventListener('keydown', handleEscape)
-    }
-  }, [isOpen, onClose])
+    document.addEventListener('keydown', handleEscape)
+    return () => document.removeEventListener('keydown', handleEscape)
+  }, [isOpen, closeOnEscape, onClose])
 
   if (!isOpen) return null
 
@@ -68,7 +71,7 @@ export const Modal: React.FC<ModalProps> = ({
 
   
   return (
-    <div className="ds-modal-wrap" onClick={onClose} style={{ zIndex: 9999 }}>
+    <div className="ds-modal-wrap" onClick={closeOnBackdropClick ? onClose : undefined} style={{ zIndex: 9999 }}>
       {/* Backdrop */}
       <div className="ds-modal-backdrop" style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }} />
       
