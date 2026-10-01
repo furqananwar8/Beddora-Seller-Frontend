@@ -4,9 +4,9 @@ import type { StatusTone } from '@/components/status-badge/StatusBadge'
 export type PaymentState = 'UNPAID' | 'PARTIALLY_PAID' | 'FULLY_PAID'
 
 export const PAYMENT_STATE_META: Record<PaymentState, { label: string; tone: StatusTone }> = {
-  UNPAID: { label: 'Unpaid', tone: 'neutral' },
-  PARTIALLY_PAID: { label: 'Partially Paid', tone: 'warning' },
-  FULLY_PAID: { label: 'Fully Paid', tone: 'success' },
+  UNPAID: { label: 'UNPAID', tone: 'neutral' },
+  PARTIALLY_PAID: { label: 'PARTIALLY PAID', tone: 'warning' },
+  FULLY_PAID: { label: 'FULLY PAID', tone: 'success' },
 }
 
 /** Unpaid is the default: nothing recorded yet, or no payment document at all. */
