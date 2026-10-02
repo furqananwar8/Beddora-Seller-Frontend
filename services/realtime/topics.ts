@@ -11,6 +11,7 @@ export const REALTIME_TOPICS: Record<string, TagType[]> = {
   'finance.payment-request': ['FinanceRequests'],
   'finance.payment-process': ['FinanceProcess', 'FinanceRequests'],
   'procurement.product': ['ProcurementProducts'],
+  'procurement.purchase-order': ['ProcurementPurchaseOrders'],
 }
 
 export interface RealtimeMessage<T = Record<string, unknown>> {

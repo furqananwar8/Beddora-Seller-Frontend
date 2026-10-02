@@ -157,6 +157,7 @@ export default function DashboardLayout({
             icon: NavIcons.procurement,
             children: [
               { label: 'Products', subject: 'procurement:products', action: 'read', href: '/dashboard/procurement/products' },
+              { label: 'Purchase Orders', subject: 'procurement:purchase-orders', action: 'read', href: '/dashboard/procurement/purchase-orders' },
             ],
           },
           {

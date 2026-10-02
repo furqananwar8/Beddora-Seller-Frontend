@@ -9,7 +9,9 @@ const SKU = /^[A-Z0-9][A-Z0-9._\-/]*$/
 const optionalNumber = (label: string) =>
   z.string().trim().refine((value) => value === '' || (Number.isFinite(Number(value)) && Number(value) > 0), `${label} must be a number above 0`)
 
-const skuField = z
+export const nameField = z.string().trim().min(1, 'Name is required').max(150, 'Name is too long')
+
+export const skuField = z
   .string()
   .trim()
   .min(1, 'SKU is required')
@@ -61,7 +63,7 @@ export const variationSchema = z.object({
 
 export const productFormSchema = z
   .object({
-    name: z.string().trim().min(1, 'Name is required').max(150, 'Name is too long'),
+    name: nameField,
     sku: skuField,
     category: z.custom<CategoryRef | null>(),
     material: z.string().trim().max(120, 'Too long'),

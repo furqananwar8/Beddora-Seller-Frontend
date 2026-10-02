@@ -7,7 +7,10 @@ import { useAppAbility } from '@/hooks/useAppAbility'
 import { cn } from '@/utils/cn'
 
 /** The module's screens, in the order of the data chain. A tab shows once its screen exists and the user may read it. */
-export const PROCUREMENT_TABS = [{ label: 'Products', href: '/dashboard/procurement/products', subject: 'procurement:products' }] as const
+export const PROCUREMENT_TABS = [
+  { label: 'Products', href: '/dashboard/procurement/products', subject: 'procurement:products' },
+  { label: 'Purchase Orders', href: '/dashboard/procurement/purchase-orders', subject: 'procurement:purchase-orders' },
+] as const
 
 /** Same shell on every procurement screen: one tab per screen the user can open. */
 export const ProcurementTabs: React.FC = () => {

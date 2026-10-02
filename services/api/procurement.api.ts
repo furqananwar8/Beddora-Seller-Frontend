@@ -107,6 +107,155 @@ export interface ProductBody extends VariantInput, ShippingInput {
   expectedUpdatedAt?: string
 }
 
+/* ─────────────── Purchase orders ─────────────── */
+
+export type PoDestination = 'US' | 'CA'
+export type PoCurrency = 'USD' | 'CAD'
+export type PoStatus = 'PENDING_APPROVAL' | 'IN_PROGRESS' | 'READY_TO_SHIP'
+export type EtdAlertLevel = 'OVERDUE' | 'SOON' | 'OK' | 'NONE'
+export type PaymentState = 'UNPAID' | 'PARTIALLY_PAID' | 'PAID'
+
+export interface EtdAlert {
+  level: EtdAlertLevel
+  daysLeft: number
+}
+
+export interface PoPayment {
+  status: PaymentState
+  paidPercent: number
+  requestCount: number
+}
+
+export interface PurchaseOrderListItem {
+  id: number
+  poNo: string
+  supplier: { id: number; name: string }
+  destination: PoDestination
+  currency: PoCurrency
+  productionDate: string | null
+  etd: string
+  etdAlert: EtdAlert
+  skuCount: number
+  units: number
+  packed: number
+  status: PoStatus
+  payment: PoPayment
+  isOpen: boolean
+  rejectionReason: string | null
+  createdAt: string
+}
+
+export interface PurchaseOrderListParams extends PageParams {
+  supplierIds?: number[]
+  destinations?: PoDestination[]
+  statuses?: PoStatus[]
+  paymentStatuses?: PaymentState[]
+  etdAlerts?: Array<Exclude<EtdAlertLevel, 'NONE'>>
+  productNames?: string[]
+  colors?: string[]
+  skus?: string[]
+  etdFrom?: string
+  etdTo?: string
+  open?: 'ALL' | 'OPEN' | 'CLOSED'
+}
+
+export interface PoLine {
+  id: number
+  product: PoProduct
+  unitsOrdered: number
+  allocated: number
+  remaining: number
+}
+
+export interface PoEvent {
+  id: number
+  type: string
+  actor: { id: number; name: string | null } | null
+  payload: Record<string, unknown> | null
+  createdAt: string
+}
+
+export interface SupplierRef {
+  id: number
+  name: string
+  contactName: string | null
+  country: string | null
+  currency: string
+}
+
+export interface PurchaseOrderDetail {
+  id: number
+  poNo: string
+  supplier: SupplierRef
+  contactName: string | null
+  destination: PoDestination
+  currency: PoCurrency
+  productionDate: string | null
+  etd: string
+  etdAlert: EtdAlert
+  carton: { lengthCm: number | null; widthCm: number | null; heightCm: number | null; unit: LengthUnit }
+  masterCartons: number | null
+  status: PoStatus
+  isOpen: boolean
+  closedAt: string | null
+  payment: PoPayment
+  rejectionReason: string | null
+  rejectedAt: string | null
+  approvedAt: string | null
+  decidedBy: { id: number; name: string | null } | null
+  createdBy: { id: number; name: string | null }
+  createdAt: string
+  updatedAt: string
+  source: { id: number; poNo: string } | null
+  derived: Array<{ id: number; poNo: string }>
+  lines: PoLine[]
+  totals: { units: number; allocated: number }
+  remainingForNewPo: number
+  events: PoEvent[]
+  can: { edit: boolean; decide: boolean; toggleOpen: boolean; createFromRemaining: boolean }
+}
+
+export interface PurchaseOrderBody {
+  supplierId: number
+  contactName: string | null
+  destination: PoDestination
+  currency: PoCurrency
+  productionDate: string | null
+  etd: string
+  cartonLength: number | null
+  cartonWidth: number | null
+  cartonHeight: number | null
+  cartonUnit: LengthUnit
+  masterCartons: number | null
+  lines: Array<{ productId: number; unitsOrdered: number }>
+  sourcePurchaseOrderId?: number
+  expectedUpdatedAt?: string
+}
+
+export interface RemainingDraft {
+  sourcePurchaseOrderId: number
+  sourcePoNo: string
+  supplier: SupplierRef
+  contactName: string | null
+  destination: PoDestination
+  currency: PoCurrency
+  lines: Array<{ product: PoProduct; unitsOrdered: number }>
+}
+
+export interface PoFilterOptions {
+  suppliers: Array<{ id: number; name: string }>
+  productNames: string[]
+  colors: string[]
+  skus: string[]
+}
+
+export interface SupplierOption extends SupplierRef {
+  type: 'SUPPLIER' | 'VENDOR'
+}
+
+/** Arrays go to the API as comma-separated values; empty ones are left out. */
+const csv = (values?: Array<string | number>) => (values && values.length ? values.join(',') : undefined)
+
 export const procurementApi = baseApi.injectEndpoints({
   endpoints: (b) => ({
     getPoProducts: b.query<Page<PoProductListItem>, ProductListParams>({
@@ -159,6 +308,76 @@ export const procurementApi = baseApi.injectEndpoints({
       invalidatesTags: ['ProcurementProducts'],
     }),
 
+    /* purchase orders */
+    getPurchaseOrders: b.query<Page<PurchaseOrderListItem>, PurchaseOrderListParams>({
+      query: ({ search, supplierIds, destinations, statuses, paymentStatuses, etdAlerts, productNames, colors, skus, ...params }) => ({
+        url: '/procurement/purchase-orders',
+        params: {
+          ...params,
+          search: search || undefined,
+          supplierIds: csv(supplierIds),
+          destinations: csv(destinations),
+          statuses: csv(statuses),
+          paymentStatuses: csv(paymentStatuses),
+          etdAlerts: csv(etdAlerts),
+          productNames: csv(productNames),
+          colors: csv(colors),
+          skus: csv(skus),
+        },
+      }),
+      providesTags: ['ProcurementPurchaseOrders'],
+    }),
+    getPurchaseOrderSummary: b.query<{ all: number; open: number; overdue: number }, void>({
+      query: () => '/procurement/purchase-orders/summary',
+      transformResponse: unwrap,
+      providesTags: ['ProcurementPurchaseOrders'],
+    }),
+    getPurchaseOrderFilterOptions: b.query<PoFilterOptions, void>({
+      query: () => '/procurement/purchase-orders/filter-options',
+      transformResponse: unwrap,
+      providesTags: ['ProcurementPurchaseOrders'],
+    }),
+    getPurchaseOrder: b.query<PurchaseOrderDetail, number>({
+      query: (id) => `/procurement/purchase-orders/${id}`,
+      transformResponse: unwrap,
+      providesTags: ['ProcurementPurchaseOrders'],
+    }),
+    getPurchaseOrderRemaining: b.query<RemainingDraft, number>({
+      query: (id) => `/procurement/purchase-orders/${id}/remaining`,
+      transformResponse: unwrap,
+    }),
+    createPurchaseOrder: b.mutation<PurchaseOrderDetail, PurchaseOrderBody>({
+      query: (body) => ({ url: '/procurement/purchase-orders', method: 'POST', body }),
+      transformResponse: unwrap,
+      invalidatesTags: ['ProcurementPurchaseOrders'],
+    }),
+    updatePurchaseOrder: b.mutation<PurchaseOrderDetail, { id: number; body: PurchaseOrderBody }>({
+      query: ({ id, body }) => ({ url: `/procurement/purchase-orders/${id}`, method: 'PUT', body }),
+      transformResponse: unwrap,
+      invalidatesTags: ['ProcurementPurchaseOrders'],
+    }),
+    setPurchaseOrderOpen: b.mutation<PurchaseOrderDetail, { id: number; isOpen: boolean }>({
+      query: ({ id, isOpen }) => ({ url: `/procurement/purchase-orders/${id}/open`, method: 'POST', body: { isOpen } }),
+      transformResponse: unwrap,
+      invalidatesTags: ['ProcurementPurchaseOrders'],
+    }),
+    approvePurchaseOrder: b.mutation<PurchaseOrderDetail, number>({
+      query: (id) => ({ url: `/procurement/purchase-orders/${id}/approve`, method: 'POST' }),
+      transformResponse: unwrap,
+      invalidatesTags: ['ProcurementPurchaseOrders'],
+    }),
+    rejectPurchaseOrder: b.mutation<PurchaseOrderDetail, { id: number; reason: string }>({
+      query: ({ id, reason }) => ({ url: `/procurement/purchase-orders/${id}/reject`, method: 'POST', body: { reason } }),
+      transformResponse: unwrap,
+      invalidatesTags: ['ProcurementPurchaseOrders'],
+    }),
+    /** Tagged with the finance partners so a supplier added in another tab shows up (live via SSE). */
+    getSupplierOptions: b.query<SupplierOption[], string | void>({
+      query: (search) => ({ url: '/procurement/suppliers/options', params: { search: search || undefined } }),
+      transformResponse: unwrap,
+      providesTags: ['FinancePartners'],
+    }),
+
     /* categories */
     getPoCategories: b.query<CategoryRef[], void>({
       query: () => '/procurement/categories',
@@ -186,4 +405,15 @@ export const {
   useRemovePoProductPhotoMutation,
   useGetPoCategoriesQuery,
   useCreatePoCategoryMutation,
+  useGetPurchaseOrdersQuery,
+  useGetPurchaseOrderSummaryQuery,
+  useGetPurchaseOrderFilterOptionsQuery,
+  useGetPurchaseOrderQuery,
+  useGetPurchaseOrderRemainingQuery,
+  useCreatePurchaseOrderMutation,
+  useUpdatePurchaseOrderMutation,
+  useSetPurchaseOrderOpenMutation,
+  useApprovePurchaseOrderMutation,
+  useRejectPurchaseOrderMutation,
+  useGetSupplierOptionsQuery,
 } = procurementApi

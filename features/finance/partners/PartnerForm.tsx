@@ -42,7 +42,10 @@ interface PartnerFormProps {
 
 export const PartnerForm: React.FC<PartnerFormProps> = ({ partner }) => {
   const router = useRouter()
-  const returnTo = safeFinanceReturnTo(useSearchParams().get('returnTo'))
+  const searchParams = useSearchParams()
+  const returnTo = safeFinanceReturnTo(searchParams.get('returnTo'))
+  /** `?type=SUPPLIER` preselects the type, e.g. from a procurement "+ New supplier" link. */
+  const presetType = searchParams.get('type') === 'SUPPLIER' ? 'SUPPLIER' : undefined
   const { success, failure } = useFinanceFeedback()
   const editing = Boolean(partner)
 
@@ -81,7 +84,7 @@ export const PartnerForm: React.FC<PartnerFormProps> = ({ partner }) => {
           address: partner.address ?? '',
           currency: partner.currency,
         }
-      : emptyPartnerValues,
+      : { ...emptyPartnerValues, ...(presetType && { type: presetType }) },
   })
 
   const name = watch('name')
