@@ -144,8 +144,8 @@ export const PoSupplierSection: React.FC<SupplierSectionProps> = ({ form, readOn
   )
 }
 
-/** Business-calendar today in the browser; good enough for the hint, the server owns the real countdown. */
-const todayIso = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Toronto' }).format(new Date())
+/** Business-calendar today (the app's Los Angeles day, as the header clock shows); the server owns the real countdown. */
+const todayIso = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles' }).format(new Date())
 
 function daysUntil(day: string): number | null {
   if (!day) return null
@@ -209,20 +209,24 @@ export const PoOrderDetailsSection: React.FC<SectionProps> = ({ form, readOnly }
           htmlFor="po-etd"
           required
           error={errors.etd?.message}
-          hint={etd ? `Reminder emails from ${formatCalendarDay(minusDays(etd, 10))} · daily if overdue` : 'On or after the production date'}
+          hint={
+            etd ? (
+              <span className="flex flex-wrap items-center gap-1.5">
+                <EtdCountdown etd={etd} />
+                <span>Reminders from {formatCalendarDay(minusDays(etd, 10))} · daily if overdue</span>
+              </span>
+            ) : (
+              'On or after the production date'
+            )
+          }
         >
-          <div className="flex items-center gap-2">
-            <div className="min-w-0 flex-1">
-              <Controller
-                control={control}
-                name="etd"
-                render={({ field }) => (
-                  <SingleDatePicker id="po-etd" value={field.value} onChange={field.onChange} min={productionDate || undefined} placeholder="Select date" error={errors.etd?.message} disabled={readOnly} />
-                )}
-              />
-            </div>
-            <EtdCountdown etd={etd} />
-          </div>
+          <Controller
+            control={control}
+            name="etd"
+            render={({ field }) => (
+              <SingleDatePicker id="po-etd" value={field.value} onChange={field.onChange} min={productionDate || undefined} placeholder="Select date" error={errors.etd?.message} disabled={readOnly} />
+            )}
+          />
         </FormField>
 
         <FormField label="Carton (box) dimensions" htmlFor="po-carton-length" error={errors.cartonLength?.message} className="sm:col-span-2">

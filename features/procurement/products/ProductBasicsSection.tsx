@@ -86,13 +86,7 @@ export const ProductBasicsSection: React.FC<ProductBasicsSectionProps> = ({ form
           </div>
         </FormField>
 
-        <div className="hidden lg:block" />
-
-        <FormField label="Description (optional)" htmlFor="product-description" error={errors.description?.message} className="sm:col-span-2">
-          <textarea id="product-description" rows={4} className={`${fieldClass(errors.description?.message)} resize-y`} disabled={readOnly} {...register('description')} />
-        </FormField>
-
-        <FormField label="Photo (optional)">
+        <FormField label="Photo (optional)" className="sm:col-span-2">
           <PhotoField
             productId={product?.id}
             version={product?.updatedAt}
@@ -104,6 +98,10 @@ export const ProductBasicsSection: React.FC<ProductBasicsSectionProps> = ({ form
             disabled={readOnly}
           />
         </FormField>
+        <FormField label="Description (optional)" htmlFor="product-description" error={errors.description?.message} className="sm:col-span-2 lg:col-span-3">
+          <textarea id="product-description" rows={4} className={`${fieldClass(errors.description?.message)} resize-y`} disabled={readOnly} {...register('description')} />
+        </FormField>
+
       </CardContent>
     </Card>
   )

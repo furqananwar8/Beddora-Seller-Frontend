@@ -129,7 +129,7 @@ export const VariationsSection: React.FC<VariationsSectionProps> = ({ form, prod
                           </button>
                         </td>
                         <td className={CELL}>
-                          <input readOnly tabIndex={-1} value={variantNameOf(masterName, row.color, row.sizeName) || '—'} className={cn(input(), 'min-w-[12rem] bg-secondary-50 text-text-muted')} aria-label="Variant name" />
+                          <input readOnly tabIndex={-1} value={variantNameOf(masterName, row.color, row.sizeName) || '—'} className={cn(input(), 'min-w-[15rem] bg-secondary-50 text-text-muted')} aria-label="Variant name" />
                         </td>
                         <td className={CELL}>
                           <SkuInput

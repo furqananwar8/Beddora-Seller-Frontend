@@ -1,62 +1,41 @@
 "use client"
 
 import * as React from "react"
-import { cn } from "@/lib/utils"
+import { cn } from "@/utils/cn"
 
-interface SwitchProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "onChange" | "size"> {
+interface SwitchProps extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "onChange" | "type" | "role"> {
   size?: "sm" | "default"
   checked?: boolean
   onCheckedChange?: (checked: boolean) => void
 }
 
-function Switch({
-  className,
-  size = "default",
-  checked,
-  onCheckedChange,
-  disabled,
-  ...props
-}: SwitchProps) {
+/** On / off switch. A button with role="switch", so it is keyboard- and screen-reader-operable. */
+function Switch({ className, size = "default", checked = false, onCheckedChange, disabled, ...props }: SwitchProps) {
   return (
-    <label
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      disabled={disabled}
+      onClick={() => onCheckedChange?.(!checked)}
       className={cn(
-        "relative inline-flex items-center",
-        disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer",
+        "relative inline-flex shrink-0 items-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2",
+        "disabled:cursor-not-allowed disabled:opacity-50",
+        size === "default" ? "h-5 w-9" : "h-4 w-7",
+        checked ? "bg-primary-600" : "bg-secondary-300",
         className
       )}
+      {...props}
     >
-      <input
-        type="checkbox"
-        role="switch"
-        className="sr-only peer"
-        checked={checked}
-        onChange={(e) => onCheckedChange?.(e.target.checked)}
-        disabled={disabled}
-        {...props}
-      />
-      {/* Track */}
-      <div
+      <span
+        aria-hidden
         className={cn(
-          "relative inline-flex shrink-0 items-center rounded-full border border-transparent shadow-xs transition-colors outline-none",
-          "after:absolute after:-inset-x-3 after:-inset-y-2",
-          "peer-focus-visible:border-ring peer-focus-visible:ring-3 peer-focus-visible:ring-ring/50",
-          size === "default" && "h-[18.4px] w-[32px]",
-          size === "sm" && "h-[14px] w-[24px]",
-          checked ? "bg-primary" : "bg-input dark:bg-input/80"
+          "pointer-events-none absolute rounded-full bg-white shadow transition-all",
+          size === "default" ? "top-0.5 h-4 w-4" : "top-0.5 h-3 w-3",
+          checked ? (size === "default" ? "left-[18px]" : "left-[14px]") : "left-0.5"
         )}
-      >
-        {/* Thumb */}
-        <span
-          className={cn(
-            "pointer-events-none block rounded-full bg-background ring-0 transition-transform",
-            "translate-x-[2px]",
-            size === "default" && "size-4 peer-checked:translate-x-[14px]",
-            size === "sm" && "size-3 peer-checked:translate-x-[10px]",
-            "dark:bg-primary-foreground"
-          )}
-        />
-      </div>
-    </label>
+      />
+    </button>
   )
 }
 
