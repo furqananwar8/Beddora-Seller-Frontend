@@ -46,7 +46,10 @@ export interface PartnerListItem {
   id: number
   name: string
   type: PartnerType
+  contactName: string | null
   country: string | null
+  province: string | null
+  city: string | null
   currency: string
   email: string | null
   paymentMethod: string | null
@@ -62,6 +65,8 @@ export interface PartnerOption {
   id: number
   name: string
   type: PartnerType
+  /** Default point of contact, prefilled wherever the partner is picked. */
+  contactName: string | null
   country: string | null
   currency: string
   paymentMethod: string | null
@@ -83,8 +88,13 @@ export interface PartnerDetail {
   id: number
   name: string
   type: PartnerType
+  contactName: string | null
   email: string | null
   country: string | null
+  province: string | null
+  city: string | null
+  postalCode: string | null
+  /** Street line. */
   address: string | null
   currency: string
   createdAt: string

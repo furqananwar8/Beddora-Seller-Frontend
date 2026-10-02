@@ -10,8 +10,12 @@ export function buildPartnerFormData(values: PartnerFormValues): FormData {
   body.append('name', values.name.trim())
   body.append('type', values.type)
   body.append('currency', values.currency)
+  appendIf(body, 'contactName', values.contactName)
   appendIf(body, 'email', values.email)
   appendIf(body, 'country', values.country)
+  appendIf(body, 'province', values.province)
+  appendIf(body, 'city', values.city)
+  appendIf(body, 'postalCode', values.postalCode)
   appendIf(body, 'address', values.address)
   return body
 }
@@ -23,8 +27,12 @@ export function buildPartnerPatch(values: PartnerFormValues): Record<string, unk
     name: values.name.trim(),
     type: values.type,
     currency: values.currency,
+    contactName: orNull(values.contactName),
     email: orNull(values.email),
     country: orNull(values.country),
+    province: orNull(values.province),
+    city: orNull(values.city),
+    postalCode: orNull(values.postalCode),
     address: orNull(values.address),
   }
 }

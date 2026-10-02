@@ -35,7 +35,7 @@ import { formatCurrencyAmount, formatMoney, formatRequestNo, toDateInputValue } 
 import { REQUEST_STATUS_META } from '../shared/statusMeta'
 import { useFinanceFeedback } from '../shared/useFinanceFeedback'
 import { DocumentChips } from '../shared/DocumentChips'
-import { PartnerChips, PartnerSelect } from './PartnerSelect'
+import { PartnerChips, PartnerSelect, toPartnerOption } from './PartnerSelect'
 import { clearRequestDraft, peekRequestDraft, saveRequestDraft, withQueryParam } from './requestDraftStore'
 import {
   CURRENCIES,
@@ -128,7 +128,7 @@ export const PaymentRequestFormScreen: React.FC = () => {
     if (!editId || !detail || hydrated.current) return
     hydrated.current = true
     reset(toFormValues(detail))
-    setPartner({ id: detail.partner.id, name: detail.partner.name, type: detail.partner.type, country: detail.partner.country, currency: detail.partner.currency, paymentMethod: null })
+    setPartner(toPartnerOption(detail.partner))
   }, [editId, detail, reset])
 
   // Bring back what was typed before the detour to create a partner (after any edit hydration).
@@ -149,7 +149,7 @@ export const PaymentRequestFormScreen: React.FC = () => {
     if (!restored || !newPartner || appliedNewPartner.current) return
     if (editId && !hydrated.current) return
     appliedNewPartner.current = true
-    pickPartner({ id: newPartner.id, name: newPartner.name, type: newPartner.type, country: newPartner.country, currency: newPartner.currency, paymentMethod: null })
+    pickPartner(toPartnerOption(newPartner))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [restored, newPartner, editId, detail])
 

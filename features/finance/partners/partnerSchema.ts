@@ -20,21 +20,32 @@ export const normalizeBankId = (value: string): string => value.replace(/\s+/g, 
 export const partnerSchema = z.object({
   name: z.string().trim().min(1, 'Name is required').max(150, 'Name is too long'),
   type: z.enum(['VENDOR', 'SUPPLIER']),
+  contactName: z.string().trim().max(150, 'Contact name is too long'),
   country: z.string().max(2),
+  province: z.string().max(10),
+  city: z.string().trim().max(120, 'City is too long'),
+  postalCode: z.string().trim().max(12, 'Postal code is too long'),
   email: z
     .string()
     .trim()
     .refine((value) => value === '' || z.string().email().safeParse(value).success, 'Enter a valid email address'),
-  address: z.string().trim().max(500, 'Address is too long'),
+  address: z.string().trim().max(500, 'Street address is too long'),
   currency: z.string().min(1, 'Currency is required'),
 })
 
 export type PartnerFormValues = z.infer<typeof partnerSchema>
 
+/** Fields the server may flag in its `issues`, so its messages land on the right input. */
+export const PARTNER_FIELDS = ['name', 'type', 'contactName', 'email', 'country', 'province', 'city', 'postalCode', 'address', 'currency'] as const
+
 export const emptyPartnerValues: PartnerFormValues = {
   name: '',
   type: 'VENDOR',
+  contactName: '',
   country: '',
+  province: '',
+  city: '',
+  postalCode: '',
   email: '',
   address: '',
   currency: 'CAD',
