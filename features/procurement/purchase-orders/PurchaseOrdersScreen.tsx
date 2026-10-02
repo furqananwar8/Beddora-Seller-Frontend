@@ -40,7 +40,6 @@ type AlertFilter = Exclude<EtdAlertLevel, 'NONE'>
 type OpenFilter = 'ALL' | 'OPEN' | 'CLOSED'
 
 interface Filters extends Record<string, unknown> {
-  productNames: string[]
   colors: string[]
   destinations: PoDestination[]
   statuses: PoStatus[]
@@ -51,7 +50,6 @@ interface Filters extends Record<string, unknown> {
 }
 
 const DEFAULT_FILTERS: Filters = {
-  productNames: [],
   colors: [],
   destinations: [],
   statuses: [],
@@ -98,7 +96,6 @@ export const PurchaseOrdersScreen: React.FC = () => {
     page,
     limit: PAGE_SIZE,
     search: debouncedSearch,
-    productNames: applied.productNames,
     colors: applied.colors,
     destinations: applied.destinations,
     statuses: applied.statuses,
@@ -161,14 +158,9 @@ export const PurchaseOrdersScreen: React.FC = () => {
                   setSearch(event.target.value)
                   setPage(1)
                 }}
-                placeholder="PO #, supplier, contact or SKU"
+                placeholder="PO #, supplier, contact, product or SKU"
                 className="ds-input ds-input-default rounded-lg"
               />
-            </FormField>
-          </FilterItem>
-          <FilterItem>
-            <FormField label="Product name" htmlFor="po-product">
-              <FilterMultiSelect id="po-product" options={strings(options?.productNames)} value={draft.productNames} onChange={(v) => setDraft('productNames', v)} anyLabel="Any product" highlighted={box('productNames')} loading={loadingOptions} />
             </FormField>
           </FilterItem>
           <FilterItem>

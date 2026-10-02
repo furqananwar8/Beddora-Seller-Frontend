@@ -150,7 +150,6 @@ export interface PurchaseOrderListParams extends PageParams {
   statuses?: PoStatus[]
   paymentStatuses?: PaymentState[]
   etdAlerts?: Array<Exclude<EtdAlertLevel, 'NONE'>>
-  productNames?: string[]
   colors?: string[]
   etdFrom?: string
   etdTo?: string
@@ -240,9 +239,8 @@ export interface RemainingDraft {
   lines: Array<{ product: PoProduct; unitsOrdered: number }>
 }
 
-/** Supplier and SKU have no box of their own: the search covers them. */
+/** Supplier, product and SKU have no box of their own: the search covers them. */
 export interface PoFilterOptions {
-  productNames: string[]
   colors: string[]
 }
 
@@ -307,7 +305,7 @@ export const procurementApi = baseApi.injectEndpoints({
 
     /* purchase orders */
     getPurchaseOrders: b.query<Page<PurchaseOrderListItem>, PurchaseOrderListParams>({
-      query: ({ search, destinations, statuses, paymentStatuses, etdAlerts, productNames, colors, ...params }) => ({
+      query: ({ search, destinations, statuses, paymentStatuses, etdAlerts, colors, ...params }) => ({
         url: '/procurement/purchase-orders',
         params: {
           ...params,
@@ -316,7 +314,6 @@ export const procurementApi = baseApi.injectEndpoints({
           statuses: csv(statuses),
           paymentStatuses: csv(paymentStatuses),
           etdAlerts: csv(etdAlerts),
-          productNames: csv(productNames),
           colors: csv(colors),
         },
       }),
