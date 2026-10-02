@@ -35,12 +35,6 @@ export const emptyFormValues: PaymentRequestFormValues = {
   remarks: '',
 }
 
-export const rejectSchema = z.object({
-  reason: z.string().trim().min(1, 'A reason is required').max(1000, 'Keep it under 1000 characters'),
-})
-
-export type RejectFormValues = z.infer<typeof rejectSchema>
-
 /** JSON body for PATCH, shared by edit and the save-after-create retry path. */
 export function toUpdateBody(values: PaymentRequestFormValues) {
   return {

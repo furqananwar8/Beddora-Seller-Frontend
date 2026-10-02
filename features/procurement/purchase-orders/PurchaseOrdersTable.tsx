@@ -14,7 +14,11 @@ const COLUMNS = 12
 
 export interface PoRowActions {
   canWrite: boolean
+  /** Holds the PO approval permission. */
+  canDecide: boolean
   onOpen: (row: PurchaseOrderListItem) => void
+  onApprove: (row: PurchaseOrderListItem) => void
+  onReject: (row: PurchaseOrderListItem) => void
   onClose: (row: PurchaseOrderListItem) => void
   onReopen: (row: PurchaseOrderListItem) => void
   onFromRemaining: (row: PurchaseOrderListItem) => void
@@ -25,6 +29,12 @@ function actionsFor(row: PurchaseOrderListItem, actions: PoRowActions): RowActio
   const items: RowActionItem[] = [
     { key: 'view', label: 'View purchase order', onSelect: () => actions.onOpen(row) },
   ]
+  if (actions.canDecide && pending) {
+    items.push(
+      { key: 'approve', label: 'Approve & lock', onSelect: () => actions.onApprove(row) },
+      { key: 'reject', label: 'Reject with reason…', tone: 'danger', onSelect: () => actions.onReject(row) }
+    )
+  }
   if (!actions.canWrite) return items
   items.push({
     key: 'edit',
@@ -99,14 +109,7 @@ export const PurchaseOrdersTable: React.FC<PurchaseOrdersTableProps> = ({ rows, 
         </TableRow>
       ) : (
         rows.map((row) => (
-          <TableRow
-            key={row.id}
-            tabIndex={0}
-            role="link"
-            onClick={() => actions.onOpen(row)}
-            onKeyDown={(event) => event.key === 'Enter' && actions.onOpen(row)}
-            className="cursor-pointer hover:bg-secondary-50"
-          >
+          <TableRow key={row.id} className="hover:bg-secondary-50">
             <TableCell className={cn(CELL, 'whitespace-nowrap font-semibold text-text-primary')}>
               {row.poNo}
               {row.rejectionReason && <span className="mt-0.5 block text-xs font-normal text-danger-600">Rejected</span>}

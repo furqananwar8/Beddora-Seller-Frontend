@@ -4,7 +4,7 @@ import React, { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ConfirmDialog } from '@/components/confirm-dialog/ConfirmDialog'
-import { FilterBar } from '@/components/filter-bar/FilterBar'
+import { FILL_TOGGLE, FilterBar, FilterItem } from '@/components/filter-bar/FilterBar'
 import { useStagedFilters } from '@/components/filter-bar/useStagedFilters'
 import { FormField } from '@/components/form-field/FormField'
 import { Container } from '@/components/layout'
@@ -24,7 +24,6 @@ import {
 import { cn } from '@/utils/cn'
 import { useDebounce } from '@/utils/debounce'
 import { CategorySelect } from '../shared/CategorySelect'
-import { ProcurementTabs } from '../shared/ProcurementTabs'
 import { ProductsTable } from './ProductsTable'
 
 const BASE = '/dashboard/procurement/products'
@@ -89,8 +88,6 @@ export const ProductsScreen: React.FC = () => {
 
   return (
     <Container size="full" className="py-4 sm:py-8">
-      <ProcurementTabs />
-
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold text-text-primary sm:text-2xl">Products</h1>
@@ -109,49 +106,57 @@ export const ProductsScreen: React.FC = () => {
 
       <div className="mb-4 rounded-lg border border-border bg-surface p-3 shadow-sm sm:p-4">
         <FilterBar pendingCount={filters.changed.size} activeCount={filters.activeCount} onApply={filters.apply} onReset={filters.reset}>
-          <FormField label="Search" htmlFor="products-search" className="sm:col-span-2 lg:w-72">
-            <input
-              id="products-search"
-              type="search"
-              value={search}
-              onChange={(event) => {
-                setSearch(event.target.value)
-                setPage(1)
-              }}
-              placeholder="Name, variant name or SKU"
-              className="ds-input ds-input-default rounded-lg"
-            />
-          </FormField>
-          <FormField label="Category" htmlFor="products-category" className="lg:w-52">
-            <CategorySelect
-              id="products-category"
-              allowAll
-              value={filters.draft.category}
-              onChange={(category) => filters.setDraft('category', category)}
-              highlighted={filters.changed.has('category')}
-            />
-          </FormField>
-          <FormField label="Color" htmlFor="products-color" className="lg:w-52">
-            <SearchableSelect<string>
-              id="products-color"
-              value={filters.draft.color ?? ALL_COLORS}
-              onChange={(color) => filters.setDraft('color', color === ALL_COLORS ? null : color)}
-              options={colors}
-              getKey={(color) => color}
-              getLabel={(color) => color}
-              searchPlaceholder="Search colors..."
-              highlighted={filters.changed.has('color')}
-            />
-          </FormField>
-          <FormField label="Tag">
-            <SegmentedToggle<TagFilter>
-              ariaLabel="Tag"
-              value={filters.draft.tag}
-              onChange={(tag) => filters.setDraft('tag', tag)}
-              options={TAG_OPTIONS}
-              className={cn(filters.changed.has('tag') && 'ring-1 ring-primary-500')}
-            />
-          </FormField>
+          <FilterItem wide>
+            <FormField label="Search" htmlFor="products-search">
+              <input
+                id="products-search"
+                type="search"
+                value={search}
+                onChange={(event) => {
+                  setSearch(event.target.value)
+                  setPage(1)
+                }}
+                placeholder="Name, variant name or SKU"
+                className="ds-input ds-input-default rounded-lg"
+              />
+            </FormField>
+          </FilterItem>
+          <FilterItem>
+            <FormField label="Category" htmlFor="products-category">
+              <CategorySelect
+                id="products-category"
+                allowAll
+                value={filters.draft.category}
+                onChange={(category) => filters.setDraft('category', category)}
+                highlighted={filters.changed.has('category')}
+              />
+            </FormField>
+          </FilterItem>
+          <FilterItem>
+            <FormField label="Color" htmlFor="products-color">
+              <SearchableSelect<string>
+                id="products-color"
+                value={filters.draft.color ?? ALL_COLORS}
+                onChange={(color) => filters.setDraft('color', color === ALL_COLORS ? null : color)}
+                options={colors}
+                getKey={(color) => color}
+                getLabel={(color) => color}
+                searchPlaceholder="Search colors..."
+                highlighted={filters.changed.has('color')}
+              />
+            </FormField>
+          </FilterItem>
+          <FilterItem>
+            <FormField label="Tag">
+              <SegmentedToggle<TagFilter>
+                ariaLabel="Tag"
+                value={filters.draft.tag}
+                onChange={(tag) => filters.setDraft('tag', tag)}
+                options={TAG_OPTIONS}
+                className={cn(FILL_TOGGLE, filters.changed.has('tag') && 'ring-1 ring-primary-500')}
+              />
+            </FormField>
+          </FilterItem>
         </FilterBar>
       </div>
 

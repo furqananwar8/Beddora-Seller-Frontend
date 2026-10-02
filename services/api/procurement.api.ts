@@ -146,14 +146,12 @@ export interface PurchaseOrderListItem {
 }
 
 export interface PurchaseOrderListParams extends PageParams {
-  supplierIds?: number[]
   destinations?: PoDestination[]
   statuses?: PoStatus[]
   paymentStatuses?: PaymentState[]
   etdAlerts?: Array<Exclude<EtdAlertLevel, 'NONE'>>
   productNames?: string[]
   colors?: string[]
-  skus?: string[]
   etdFrom?: string
   etdTo?: string
   open?: 'ALL' | 'OPEN' | 'CLOSED'
@@ -242,11 +240,10 @@ export interface RemainingDraft {
   lines: Array<{ product: PoProduct; unitsOrdered: number }>
 }
 
+/** Supplier and SKU have no box of their own: the search covers them. */
 export interface PoFilterOptions {
-  suppliers: Array<{ id: number; name: string }>
   productNames: string[]
   colors: string[]
-  skus: string[]
 }
 
 export interface SupplierOption extends SupplierRef {
@@ -310,19 +307,17 @@ export const procurementApi = baseApi.injectEndpoints({
 
     /* purchase orders */
     getPurchaseOrders: b.query<Page<PurchaseOrderListItem>, PurchaseOrderListParams>({
-      query: ({ search, supplierIds, destinations, statuses, paymentStatuses, etdAlerts, productNames, colors, skus, ...params }) => ({
+      query: ({ search, destinations, statuses, paymentStatuses, etdAlerts, productNames, colors, ...params }) => ({
         url: '/procurement/purchase-orders',
         params: {
           ...params,
           search: search || undefined,
-          supplierIds: csv(supplierIds),
           destinations: csv(destinations),
           statuses: csv(statuses),
           paymentStatuses: csv(paymentStatuses),
           etdAlerts: csv(etdAlerts),
           productNames: csv(productNames),
           colors: csv(colors),
-          skus: csv(skus),
         },
       }),
       providesTags: ['ProcurementPurchaseOrders'],

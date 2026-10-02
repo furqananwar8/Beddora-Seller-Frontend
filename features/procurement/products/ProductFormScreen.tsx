@@ -19,7 +19,6 @@ import {
   type PoProductFamily,
 } from '@/services/api/procurement.api'
 import { applyServerIssues } from '@/utils/apiErrors'
-import { ProcurementTabs } from '../shared/ProcurementTabs'
 import { ProductBasicsSection } from './ProductBasicsSection'
 import { ProductShippingSection } from './ProductShippingSection'
 import { emptyProductValues, fromFamily, newVariation, productFormSchema, toProductBody, type ProductFormValues } from './productForm'
@@ -147,8 +146,6 @@ export const ProductFormScreen: React.FC<ProductFormScreenProps> = ({ productId 
 
   return (
     <Container size="full" className="py-4 sm:py-8">
-      <ProcurementTabs />
-
       <form onSubmit={submit} noValidate className="mx-auto flex w-full max-w-6xl flex-col gap-4">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div className="min-w-0">

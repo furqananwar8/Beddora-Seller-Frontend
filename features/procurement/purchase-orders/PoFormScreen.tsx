@@ -14,23 +14,21 @@ import { Spinner } from '@/design-system/loaders'
 import { useApiFeedback } from '@/hooks/useApiFeedback'
 import { useAppAbility } from '@/hooks/useAppAbility'
 import {
-  useApprovePurchaseOrderMutation,
   useCreatePurchaseOrderMutation,
   useGetPurchaseOrderQuery,
   useGetPurchaseOrderRemainingQuery,
-  useRejectPurchaseOrderMutation,
   useSetPurchaseOrderOpenMutation,
   useUpdatePurchaseOrderMutation,
 } from '@/services/api/procurement.api'
 import { useAppSelector } from '@/store/hooks'
 import { applyServerIssues } from '@/utils/apiErrors'
 import { PaymentBadge, PoStatusBadge } from '../shared/poMeta'
-import { ProcurementTabs } from '../shared/ProcurementTabs'
 import { ApprovalPanel } from './ApprovalPanel'
 import { emptyPoValues, fromDetail, fromRemaining, poFormSchema, toPoBody, type PoFormValues } from './poForm'
 import { PoOrderDetailsSection, PoSupplierSection } from './PoDetailsSections'
 import { PoProductsSection } from './PoProductsSection'
 import { PoTimeline } from './PoTimeline'
+import { usePoDecisions } from './usePoDecisions'
 
 const LIST = '/dashboard/procurement/purchase-orders'
 
@@ -78,11 +76,9 @@ export const PoFormScreen: React.FC<PoFormScreenProps> = ({ purchaseOrderId }) =
 
   const [createPo] = useCreatePurchaseOrderMutation()
   const [updatePo] = useUpdatePurchaseOrderMutation()
-  const [approve] = useApprovePurchaseOrderMutation()
-  const [reject] = useRejectPurchaseOrderMutation()
+  const decisions = usePoDecisions()
   const [setOpen, { isLoading: toggling }] = useSetPurchaseOrderOpenMutation()
   const [saving, setSaving] = useState(false)
-  const [deciding, setDeciding] = useState<'approve' | 'reject' | null>(null)
   const [confirmClose, setConfirmClose] = useState(false)
 
   const isNew = purchaseOrderId === undefined
@@ -107,20 +103,6 @@ export const PoFormScreen: React.FC<PoFormScreenProps> = ({ purchaseOrderId }) =
       setSaving(false)
     }
   })
-
-  const decide = async (decision: 'approve' | 'reject', reason?: string) => {
-    if (!po) return
-    setDeciding(decision)
-    try {
-      if (decision === 'approve') await approve(po.id).unwrap()
-      else await reject({ id: po.id, reason: reason! }).unwrap()
-      success(decision === 'approve' ? `${po.poNo} approved and locked` : `${po.poNo} rejected`)
-    } catch (error) {
-      failure(error, `Could not ${decision} ${po.poNo}`)
-    } finally {
-      setDeciding(null)
-    }
-  }
 
   const changeOpen = async (isOpen: boolean) => {
     if (!po) return
@@ -157,8 +139,6 @@ export const PoFormScreen: React.FC<PoFormScreenProps> = ({ purchaseOrderId }) =
 
   return (
     <Container size="full" className="py-4 sm:py-8">
-      <ProcurementTabs />
-
       <form onSubmit={submit} noValidate className="mx-auto flex w-full max-w-5xl flex-col gap-4">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div className="min-w-0">
@@ -205,9 +185,9 @@ export const PoFormScreen: React.FC<PoFormScreenProps> = ({ purchaseOrderId }) =
           </div>
         </div>
 
-        {po && po.status === 'PENDING_APPROVAL' && <ApprovalPanel po={po} busy={deciding} onApprove={() => void decide('approve')} onReject={(reason) => void decide('reject', reason)} />}
+        {po && po.status === 'PENDING_APPROVAL' && <ApprovalPanel po={po} busy={decisions.busy?.decision ?? null} onApprove={() => void decisions.approve(po)} onReject={(reason) => void decisions.reject(po, reason)} />}
 
-        <PoSupplierSection form={form} readOnly={readOnly || Boolean(fromSource)} />
+        <PoSupplierSection form={form} readOnly={readOnly} supplierLocked={Boolean(fromSource)} />
         <PoOrderDetailsSection form={form} readOnly={readOnly} />
         <PoProductsSection form={form} readOnly={readOnly} fixedProducts={Boolean(fromSource)} />
 

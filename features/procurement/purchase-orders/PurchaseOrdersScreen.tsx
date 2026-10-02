@@ -5,7 +5,8 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import DateRangePicker, { type DateRangeValue } from '@/components/date-range-picker/DateRangePicker'
 import { ConfirmDialog } from '@/components/confirm-dialog/ConfirmDialog'
-import { FilterBar } from '@/components/filter-bar/FilterBar'
+import { ReasonDialog } from '@/components/reason-dialog/ReasonDialog'
+import { FILL_TOGGLE, FilterBar, FilterItem } from '@/components/filter-bar/FilterBar'
 import { FilterMultiSelect, type FilterOption } from '@/components/filter-bar/FilterMultiSelect'
 import { useStagedFilters } from '@/components/filter-bar/useStagedFilters'
 import { FormField } from '@/components/form-field/FormField'
@@ -28,9 +29,9 @@ import {
 import { cn } from '@/utils/cn'
 import { useDebounce } from '@/utils/debounce'
 import { DESTINATION_LABEL, PAYMENT_META, PO_STATUS_META } from '../shared/poMeta'
-import { ProcurementTabs } from '../shared/ProcurementTabs'
 import { PoLegend } from './PoLegend'
 import { PurchaseOrdersTable } from './PurchaseOrdersTable'
+import { usePoDecisions } from './usePoDecisions'
 
 const BASE = '/dashboard/procurement/purchase-orders'
 const PAGE_SIZE = 20
@@ -41,9 +42,7 @@ type OpenFilter = 'ALL' | 'OPEN' | 'CLOSED'
 interface Filters extends Record<string, unknown> {
   productNames: string[]
   colors: string[]
-  skus: string[]
   destinations: PoDestination[]
-  supplierIds: number[]
   statuses: PoStatus[]
   paymentStatuses: PaymentState[]
   etd: DateRangeValue
@@ -54,9 +53,7 @@ interface Filters extends Record<string, unknown> {
 const DEFAULT_FILTERS: Filters = {
   productNames: [],
   colors: [],
-  skus: [],
   destinations: [],
-  supplierIds: [],
   statuses: [],
   paymentStatuses: [],
   etd: { startDate: null, endDate: null },
@@ -85,6 +82,10 @@ export const PurchaseOrdersScreen: React.FC = () => {
   const router = useRouter()
   const ability = useAppAbility()
   const canWrite = ability.can('write', 'procurement:purchase-orders')
+  const canDecide = ability.can('write', 'procurement:po-approval')
+  const decisions = usePoDecisions()
+  const [approving, setApproving] = useState<PurchaseOrderListItem | null>(null)
+  const [rejecting, setRejecting] = useState<PurchaseOrderListItem | null>(null)
   const { success, failure } = useApiFeedback()
 
   const [search, setSearch] = useState('')
@@ -99,9 +100,7 @@ export const PurchaseOrdersScreen: React.FC = () => {
     search: debouncedSearch,
     productNames: applied.productNames,
     colors: applied.colors,
-    skus: applied.skus,
     destinations: applied.destinations,
-    supplierIds: applied.supplierIds,
     statuses: applied.statuses,
     paymentStatuses: applied.paymentStatuses,
     etdFrom: day(applied.etd.startDate),
@@ -130,8 +129,6 @@ export const PurchaseOrdersScreen: React.FC = () => {
 
   return (
     <Container size="full" className="py-4 sm:py-8">
-      <ProcurementTabs />
-
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold text-text-primary sm:text-2xl">Purchase orders</h1>
@@ -154,64 +151,68 @@ export const PurchaseOrdersScreen: React.FC = () => {
           <p className="text-xs text-text-muted">Pick any combination, then apply</p>
         </div>
         <FilterBar pendingCount={changed.size} activeCount={filters.activeCount} onApply={filters.apply} onReset={filters.reset}>
-          <FormField label="Search" htmlFor="po-search" className="sm:col-span-2 lg:w-64">
-            <input
-              id="po-search"
-              type="search"
-              value={search}
-              onChange={(event) => {
-                setSearch(event.target.value)
-                setPage(1)
-              }}
-              placeholder="PO #, supplier, contact or SKU"
-              className="ds-input ds-input-default rounded-lg"
-            />
-          </FormField>
-          <FormField label="Product name" htmlFor="po-product" className="lg:w-52">
-            <FilterMultiSelect id="po-product" options={strings(options?.productNames)} value={draft.productNames} onChange={(v) => setDraft('productNames', v)} anyLabel="Any product" highlighted={box('productNames')} loading={loadingOptions} />
-          </FormField>
-          <FormField label="Color" htmlFor="po-color" className="lg:w-44">
-            <FilterMultiSelect id="po-color" options={strings(options?.colors)} value={draft.colors} onChange={(v) => setDraft('colors', v)} anyLabel="Any color" highlighted={box('colors')} loading={loadingOptions} />
-          </FormField>
-          <FormField label="SKU" htmlFor="po-sku" className="lg:w-44">
-            <FilterMultiSelect id="po-sku" options={strings(options?.skus)} value={draft.skus} onChange={(v) => setDraft('skus', v)} anyLabel="Any SKU" highlighted={box('skus')} loading={loadingOptions} />
-          </FormField>
-          <FormField label="Destination" htmlFor="po-destination" className="lg:w-40">
-            <FilterMultiSelect id="po-destination" options={DESTINATIONS} value={draft.destinations} onChange={(v) => setDraft('destinations', v)} anyLabel="Any destination" highlighted={box('destinations')} />
-          </FormField>
-          <FormField label="Supplier" htmlFor="po-supplier" className="lg:w-52">
-            <FilterMultiSelect
-              id="po-supplier"
-              options={(options?.suppliers ?? []).map((supplier) => ({ value: supplier.id, label: supplier.name }))}
-              value={draft.supplierIds}
-              onChange={(v) => setDraft('supplierIds', v)}
-              anyLabel="Any supplier"
-              highlighted={box('supplierIds')}
-              loading={loadingOptions}
-            />
-          </FormField>
-          <FormField label="Status" htmlFor="po-status" className="lg:w-48">
-            <FilterMultiSelect id="po-status" options={STATUSES} value={draft.statuses} onChange={(v) => setDraft('statuses', v)} anyLabel="Any status" highlighted={box('statuses')} />
-          </FormField>
-          <FormField label="Payment status" htmlFor="po-payment" className="lg:w-44">
-            <FilterMultiSelect id="po-payment" options={PAYMENTS} value={draft.paymentStatuses} onChange={(v) => setDraft('paymentStatuses', v)} anyLabel="Any" highlighted={box('paymentStatuses')} />
-          </FormField>
-          <FormField label="ETD" className="lg:w-56">
-            <div
-              className={cn(
-                'rounded-lg [&>div]:block [&>div]:w-full [&>div>button]:h-10 [&>div>button]:w-full [&>div>button]:py-0 [&>div>button>span]:flex-1 [&>div>button>span]:text-left',
-                box('etd') && 'ring-1 ring-primary-500'
-              )}
-            >
-              <DateRangePicker value={draft.etd} onChange={(range) => setDraft('etd', range)} showPresets={false} placeholder="Any date range" />
-            </div>
-          </FormField>
-          <FormField label="ETD alert" htmlFor="po-alert" className="lg:w-48">
-            <FilterMultiSelect id="po-alert" options={ALERTS} value={draft.etdAlerts} onChange={(v) => setDraft('etdAlerts', v)} anyLabel="Overdue · ≤ 10 · > 10 days" highlighted={box('etdAlerts')} />
-          </FormField>
-          <FormField label="Open / Closed">
-            <SegmentedToggle<OpenFilter> ariaLabel="Open or closed" value={draft.open} onChange={(v) => setDraft('open', v)} options={OPEN_OPTIONS} className={cn(box('open') && 'ring-1 ring-primary-500')} />
-          </FormField>
+          <FilterItem wide>
+            <FormField label="Search" htmlFor="po-search">
+              <input
+                id="po-search"
+                type="search"
+                value={search}
+                onChange={(event) => {
+                  setSearch(event.target.value)
+                  setPage(1)
+                }}
+                placeholder="PO #, supplier, contact or SKU"
+                className="ds-input ds-input-default rounded-lg"
+              />
+            </FormField>
+          </FilterItem>
+          <FilterItem>
+            <FormField label="Product name" htmlFor="po-product">
+              <FilterMultiSelect id="po-product" options={strings(options?.productNames)} value={draft.productNames} onChange={(v) => setDraft('productNames', v)} anyLabel="Any product" highlighted={box('productNames')} loading={loadingOptions} />
+            </FormField>
+          </FilterItem>
+          <FilterItem>
+            <FormField label="Color" htmlFor="po-color">
+              <FilterMultiSelect id="po-color" options={strings(options?.colors)} value={draft.colors} onChange={(v) => setDraft('colors', v)} anyLabel="Any color" highlighted={box('colors')} loading={loadingOptions} />
+            </FormField>
+          </FilterItem>
+          <FilterItem>
+            <FormField label="Destination" htmlFor="po-destination">
+              <FilterMultiSelect id="po-destination" options={DESTINATIONS} value={draft.destinations} onChange={(v) => setDraft('destinations', v)} anyLabel="Any destination" highlighted={box('destinations')} />
+            </FormField>
+          </FilterItem>
+          <FilterItem>
+            <FormField label="Status" htmlFor="po-status">
+              <FilterMultiSelect id="po-status" options={STATUSES} value={draft.statuses} onChange={(v) => setDraft('statuses', v)} anyLabel="Any status" highlighted={box('statuses')} />
+            </FormField>
+          </FilterItem>
+          <FilterItem>
+            <FormField label="Payment status" htmlFor="po-payment">
+              <FilterMultiSelect id="po-payment" options={PAYMENTS} value={draft.paymentStatuses} onChange={(v) => setDraft('paymentStatuses', v)} anyLabel="Any" highlighted={box('paymentStatuses')} />
+            </FormField>
+          </FilterItem>
+          <FilterItem>
+            <FormField label="ETD">
+              <div
+                className={cn(
+                  'rounded-lg [&>div]:block [&>div]:w-full [&>div>button]:h-10 [&>div>button]:w-full [&>div>button]:py-0 [&>div>button>span]:flex-1 [&>div>button>span]:text-left',
+                  box('etd') && 'ring-1 ring-primary-500'
+                )}
+              >
+                <DateRangePicker value={draft.etd} onChange={(range) => setDraft('etd', range)} showPresets={false} placeholder="Any date range" />
+              </div>
+            </FormField>
+          </FilterItem>
+          <FilterItem>
+            <FormField label="ETD alert" htmlFor="po-alert">
+              <FilterMultiSelect id="po-alert" options={ALERTS} value={draft.etdAlerts} onChange={(v) => setDraft('etdAlerts', v)} anyLabel="Overdue · ≤ 10 · > 10 days" highlighted={box('etdAlerts')} />
+            </FormField>
+          </FilterItem>
+          <FilterItem>
+            <FormField label="Open / Closed">
+              <SegmentedToggle<OpenFilter> ariaLabel="Open or closed" value={draft.open} onChange={(v) => setDraft('open', v)} options={OPEN_OPTIONS} className={cn(FILL_TOGGLE, box('open') && 'ring-1 ring-primary-500')} />
+            </FormField>
+          </FilterItem>
         </FilterBar>
       </div>
 
@@ -223,7 +224,10 @@ export const PurchaseOrdersScreen: React.FC = () => {
             isError={isError}
             filtered={filtered}
             canWrite={canWrite}
+            canDecide={canDecide}
             onOpen={(row) => router.push(`${BASE}/${row.id}`)}
+            onApprove={setApproving}
+            onReject={setRejecting}
             onClose={setClosing}
             onReopen={(row) => void changeOpen(row, true)}
             onFromRemaining={(row) => router.push(`${BASE}/new?fromRemaining=${row.id}`)}
@@ -233,6 +237,31 @@ export const PurchaseOrdersScreen: React.FC = () => {
       </div>
 
       <PoLegend />
+
+      <ConfirmDialog
+        isOpen={approving !== null}
+        title={`Approve ${approving?.poNo ?? 'PO'}`}
+        confirmLabel="Approve & lock"
+        busy={decisions.busy?.decision === 'approve'}
+        onConfirm={async () => approving && (await decisions.approve(approving)) && setApproving(null)}
+        onClose={() => setApproving(null)}
+      >
+        <p>
+          Approving moves <strong>{approving?.poNo}</strong> ({approving?.supplier.name}) to In progress and locks every field permanently. Only the open / closed toggle stays available.
+        </p>
+      </ConfirmDialog>
+
+      <ReasonDialog
+        isOpen={rejecting !== null}
+        title={`Reject ${rejecting?.poNo ?? 'PO'}?`}
+        description="It stays pending approval. The person who raised it is notified with your reason and can update it."
+        confirmLabel="Reject PO"
+        placeholder="e.g. Production date conflicts with Q4 schedule"
+        minLength={3}
+        submitting={decisions.busy?.decision === 'reject'}
+        onConfirm={(reason) => (rejecting ? decisions.reject(rejecting, reason) : Promise.resolve(false))}
+        onClose={() => setRejecting(null)}
+      />
 
       <ConfirmDialog
         isOpen={closing !== null}

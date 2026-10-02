@@ -1,6 +1,6 @@
 'use client'
 
-import React from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { Controller, UseFormReturn, useWatch } from 'react-hook-form'
 import { FormField, fieldClass } from '@/components/form-field/FormField'
 import { SegmentedToggle } from '@/components/segmented-toggle/SegmentedToggle'
@@ -27,7 +27,12 @@ interface SectionProps {
   readOnly: boolean
 }
 
-export const PoSupplierSection: React.FC<SectionProps> = ({ form, readOnly }) => {
+interface SupplierSectionProps extends SectionProps {
+  /** A PO raised from another's leftovers keeps that supplier; its contact stays editable. */
+  supplierLocked?: boolean
+}
+
+export const PoSupplierSection: React.FC<SupplierSectionProps> = ({ form, readOnly, supplierLocked = false }) => {
   const {
     control,
     register,
@@ -36,6 +41,29 @@ export const PoSupplierSection: React.FC<SectionProps> = ({ form, readOnly }) =>
   } = form
   const [supplier, contactName] = useWatch({ control, name: ['supplier', 'contactName'] })
   const supplierDefault = supplier?.contactName ?? ''
+  const contactInput = useRef<HTMLInputElement | null>(null)
+  const { ref: registerContactRef, ...contactField } = register('contactName')
+
+  // The supplier's default contact is shown locked; "Edit" unlocks it for this PO, "Reset" locks it back.
+  // A saved PO whose contact differs from the default opens unlocked. No default = nothing to lock.
+  const [unlocked, setUnlocked] = useState(false)
+  const overridden = contactName.trim() !== '' && contactName !== supplierDefault
+  const editingContact = !supplierDefault || unlocked || overridden
+
+  // While locked the field always carries the current supplier's default (also for older POs saved without one)
+  useEffect(() => {
+    if (!editingContact && supplier && contactName !== supplierDefault) setValue('contactName', supplierDefault)
+  }, [editingContact, supplier, contactName, supplierDefault, setValue])
+
+  const unlock = () => {
+    setUnlocked(true)
+    requestAnimationFrame(() => contactInput.current?.focus())
+  }
+
+  const resetContact = () => {
+    setUnlocked(false)
+    setValue('contactName', supplierDefault, { shouldDirty: true })
+  }
 
   return (
     <Card>
@@ -52,11 +80,13 @@ export const PoSupplierSection: React.FC<SectionProps> = ({ form, readOnly }) =>
                 id="po-supplier"
                 value={field.value}
                 error={errors.supplier?.message as string | undefined}
-                disabled={readOnly}
+                disabled={readOnly || supplierLocked}
                 onChange={(next) => {
+                  if (next.id === supplier?.id) return
                   field.onChange(next)
-                  // Picking a supplier fills its default contact; a contact typed for this PO is kept only if it was not the old default
-                  if (!contactName.trim() || contactName === (supplier?.contactName ?? '')) setValue('contactName', next.contactName ?? '', { shouldDirty: true })
+                  // A different supplier brings its own default contact, locked again
+                  setUnlocked(false)
+                  setValue('contactName', next.contactName ?? '', { shouldDirty: true })
                 }}
               />
             )}
@@ -67,22 +97,47 @@ export const PoSupplierSection: React.FC<SectionProps> = ({ form, readOnly }) =>
           htmlFor="po-contact"
           error={errors.contactName?.message}
           hint={
-            supplier ? (
-              <span>
-                Kept on this PO only · supplier default: {supplierDefault || '—'}
-                {!readOnly && supplierDefault && contactName !== supplierDefault && (
-                  <>
-                    {' · '}
-                    <button type="button" className="font-medium text-primary-600 hover:underline" onClick={() => setValue('contactName', supplierDefault, { shouldDirty: true })}>
-                      Reset
-                    </button>
-                  </>
-                )}
-              </span>
-            ) : undefined
+            !supplier
+              ? undefined
+              : !supplierDefault
+                ? 'This supplier has no default contact · kept on this PO only'
+                : editingContact
+                  ? (
+                      <span>
+                        Kept on this PO only · supplier default: {supplierDefault}
+                        {!readOnly && (
+                          <>
+                            {' · '}
+                            <button type="button" className="font-medium text-primary-600 hover:underline" onClick={resetContact}>
+                              Reset
+                            </button>
+                          </>
+                        )}
+                      </span>
+                    )
+                  : 'Supplier default'
           }
         >
-          <input id="po-contact" autoComplete="off" className={fieldClass(errors.contactName?.message)} disabled={readOnly} {...register('contactName')} />
+          <div className="flex items-center gap-2">
+            <input
+              id="po-contact"
+              autoComplete="off"
+              className={cn(fieldClass(errors.contactName?.message), (readOnly || !editingContact) && 'cursor-default bg-secondary-50 text-text-muted')}
+              // readOnly, not disabled: react-hook-form drops disabled values on submit, and a locked default must still save
+              readOnly={readOnly || !editingContact}
+              aria-readonly={readOnly || !editingContact}
+              ref={(element) => {
+                registerContactRef(element)
+                contactInput.current = element
+              }}
+              {...contactField}
+            />
+            {!readOnly && supplier && !editingContact && (
+              <button type="button" onClick={unlock} className="ds-button ds-button-outline ds-button-sm h-10 shrink-0">
+                Edit
+              </button>
+            )}
+          </div>
         </FormField>
       </CardContent>
     </Card>

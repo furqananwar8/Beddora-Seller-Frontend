@@ -22,6 +22,11 @@ interface BaseProps<T> {
   /** Controlled search for server-side lookup. Debounce in the caller. */
   search?: string
   onSearchChange?: (search: string) => void
+  /**
+   * Show the search box. Defaults to "only when it helps": always for server-side search,
+   * otherwise once there are more than {@link SEARCH_THRESHOLD} options. A short list is just checkboxes.
+   */
+  searchable?: boolean
   loading?: boolean
   placeholder?: string
   searchPlaceholder?: string
@@ -56,6 +61,9 @@ interface MultiProps<T> extends BaseProps<T> {
 
 export type SearchableSelectProps<T> = SingleProps<T> | MultiProps<T>
 
+/** Lists this short are scanned faster than searched. */
+export const SEARCH_THRESHOLD = 10
+
 /**
  * One searchable dropdown for the whole app: a button that opens a search box and a listbox.
  * Single or multi select, client- or server-side search, disabled options with a reason,
@@ -71,6 +79,7 @@ export function SearchableSelect<T>(props: SearchableSelectProps<T>) {
     disabledReason,
     search: controlledSearch,
     onSearchChange,
+    searchable,
     loading,
     placeholder = 'Select...',
     searchPlaceholder = 'Search...',
@@ -89,7 +98,14 @@ export function SearchableSelect<T>(props: SearchableSelectProps<T>) {
   const [localSearch, setLocalSearch] = useState('')
   const [active, setActive] = useState(0)
   const wrapper = useRef<HTMLDivElement>(null)
+  const list = useRef<HTMLUListElement>(null)
   const listId = useId()
+  const showSearch = searchable ?? (Boolean(onSearchChange) || options.length > SEARCH_THRESHOLD)
+
+  // Without a search box, focus moves into the list so the arrow keys and Enter still work
+  useEffect(() => {
+    if (open && !showSearch) list.current?.focus()
+  }, [open, showSearch])
 
   const search = onSearchChange ? (controlledSearch ?? '') : localSearch
   const setSearch = (value: string) => (onSearchChange ? onSearchChange(value) : setLocalSearch(value))
@@ -183,19 +199,28 @@ export function SearchableSelect<T>(props: SearchableSelectProps<T>) {
 
       {open && (
         <div className="absolute z-30 mt-1 w-full min-w-[16rem] rounded-lg border border-border bg-surface p-2 shadow-lg">
-          <input
-            autoFocus
-            type="search"
-            aria-label={searchPlaceholder}
-            placeholder={searchPlaceholder}
-            value={search}
-            onChange={(event) => {
-              setSearch(event.target.value)
-              setActive(0)
-            }}
-            className="ds-input ds-input-default mb-2 w-full rounded-lg"
-          />
-          <ul id={listId} role="listbox" aria-multiselectable={props.multiple || undefined} className="max-h-60 overflow-auto">
+          {showSearch && (
+            <input
+              autoFocus
+              type="search"
+              aria-label={searchPlaceholder}
+              placeholder={searchPlaceholder}
+              value={search}
+              onChange={(event) => {
+                setSearch(event.target.value)
+                setActive(0)
+              }}
+              className="ds-input ds-input-default mb-2 w-full rounded-lg"
+            />
+          )}
+          <ul
+            ref={list}
+            id={listId}
+            role="listbox"
+            tabIndex={showSearch ? undefined : -1}
+            aria-multiselectable={props.multiple || undefined}
+            className="max-h-60 overflow-auto outline-none"
+          >
             {visible.map((option, index) => {
               const key = getKey(option)
               const selected = selectedKeys.has(key)
