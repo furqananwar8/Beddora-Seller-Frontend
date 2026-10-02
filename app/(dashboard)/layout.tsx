@@ -150,6 +150,16 @@ export default function DashboardLayout({
             ],
           },
           {
+            label: 'Procurement',
+            subject: 'procurement',
+            action: 'read',
+            href: '/dashboard/procurement/products',
+            icon: NavIcons.procurement,
+            children: [
+              { label: 'Products', subject: 'procurement:products', action: 'read', href: '/dashboard/procurement/products' },
+            ],
+          },
+          {
             label: 'Breakeven Analysis',
             subject: 'breakeven-analysis',
             action: 'read',

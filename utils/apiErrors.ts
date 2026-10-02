@@ -15,10 +15,16 @@ export function serverIssues(error: unknown): ServerIssue[] {
  * Puts each server issue on the matching form field. Returns true when at least one landed,
  * so the caller can skip the generic toast and let the inline messages speak.
  */
-export function applyServerIssues<T extends FieldValues>(error: unknown, setError: UseFormSetError<T>, fields: readonly Path<T>[]): boolean {
+export function applyServerIssues<T extends FieldValues>(
+  error: unknown,
+  setError: UseFormSetError<T>,
+  /** Field names, or a test for dynamic paths such as `variations.3.sku`. */
+  fields: readonly Path<T>[] | ((field: string) => boolean)
+): boolean {
+  const accepts = typeof fields === 'function' ? fields : (field: string) => fields.includes(field as Path<T>)
   let applied = false
   for (const issue of serverIssues(error)) {
-    if (!fields.includes(issue.field as Path<T>)) continue
+    if (!accepts(issue.field)) continue
     setError(issue.field as Path<T>, { type: 'server', message: issue.message }, { shouldFocus: !applied })
     applied = true
   }
