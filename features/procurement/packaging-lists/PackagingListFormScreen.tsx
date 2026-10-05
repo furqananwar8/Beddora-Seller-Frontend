@@ -17,7 +17,7 @@ import {
   useGetPackablePoLinesQuery,
   useGetPackablePurchaseOrdersQuery,
   useGetPackagingListQuery,
-  useGetPurchaseOrderQuery,
+  useGetProcurementPurchaseOrderQuery,
   useUpdatePackagingListMutation,
   type PackagingListBody,
   type SupplierRef,
@@ -52,7 +52,7 @@ export const PackagingListFormScreen: React.FC<PackagingListFormScreenProps> = (
   const container = existing?.container ?? null
   const editing = !isNew && params.get('edit') === '1' && canWrite && !container
   const readOnly = !isNew && !editing
-  const { data: fromPo } = useGetPurchaseOrderQuery(fromPoId ?? 0, { skip: !fromPoId })
+  const { data: fromPo } = useGetProcurementPurchaseOrderQuery(fromPoId ?? 0, { skip: !fromPoId })
 
   const [supplier, setSupplier] = useState<SupplierRef | null>(null)
   const [poIds, setPoIds] = useState<number[]>([])
