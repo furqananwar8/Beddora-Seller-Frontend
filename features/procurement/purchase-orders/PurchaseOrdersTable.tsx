@@ -16,6 +16,9 @@ export interface PoRowActions {
   canWrite: boolean
   /** Holds the PO approval permission. */
   canDecide: boolean
+  /** May open Finance > Payment Requests. */
+  canViewPayments: boolean
+  onViewPayments: (row: PurchaseOrderListItem) => void
   onOpen: (row: PurchaseOrderListItem) => void
   onApprove: (row: PurchaseOrderListItem) => void
   onReject: (row: PurchaseOrderListItem) => void
@@ -29,6 +32,9 @@ function actionsFor(row: PurchaseOrderListItem, actions: PoRowActions): RowActio
   const items: RowActionItem[] = [
     { key: 'view', label: 'View purchase order', onSelect: () => actions.onOpen(row) },
   ]
+  if (actions.canViewPayments) {
+    items.push({ key: 'payments', label: `View payment requests (${row.payment.requestCount})`, onSelect: () => actions.onViewPayments(row) })
+  }
   if (actions.canDecide && pending) {
     items.push(
       { key: 'approve', label: 'Approve & lock', onSelect: () => actions.onApprove(row) },

@@ -118,9 +118,32 @@ export interface DuplicateInvoice {
   remaining: number
 }
 
+/** What a request pays against. */
+export type ReferenceType = 'INVOICE' | 'PURCHASE_ORDER'
+
+export interface PoRef {
+  id: number
+  poNo: string
+}
+
+/** `Invoice INV-1` or `Purchase order PO-1043`, as the API formats it. */
+export interface PaymentReference {
+  label: 'Invoice' | 'Purchase order'
+  value: string
+}
+
+export interface PayablePurchaseOrder extends PoRef {
+  currency: string
+  destination: 'US' | 'CA'
+  etd: string
+  units: number
+}
+
 export interface PaymentRequestListItem {
   id: number
-  invoiceNo: string
+  referenceType: ReferenceType
+  invoiceNo: string | null
+  purchaseOrder: PoRef | null
   invoiceDate: string
   containerNo: string | null
   currency: string
@@ -141,6 +164,8 @@ export interface PaymentRequestListItem {
 
 export interface PaymentRequestListParams extends PageParams {
   status?: RequestStatus
+  /** Only requests paying this purchase order. */
+  purchaseOrderId?: number
   expenseTypeId?: number
   dateFrom?: string
   dateTo?: string
@@ -164,7 +189,9 @@ export interface TimelineEvent {
 export interface PaymentRequestDetail {
   id: number
   status: RequestStatus
-  invoiceNo: string
+  referenceType: ReferenceType
+  invoiceNo: string | null
+  purchaseOrder: PoRef | null
   invoiceDate: string
   containerNo: string | null
   currency: string
@@ -221,7 +248,8 @@ export interface PaymentDocumentListItem {
   requestId: number
   partner: { id: number; name: string }
   expenseType: string
-  invoiceNo: string
+  invoiceNo: string | null
+  reference: PaymentReference
   containerNo: string | null
   remarks: string | null
   currency: string
@@ -268,7 +296,8 @@ export interface PaymentDocumentDetail {
   paymentMethod: { id: number; type: 'BANK' | 'CARD_LINK'; ibanLast4: string | null; accountNumberLast4: string | null; paymentLink: string | null } | null
   request: {
     id: number
-    invoiceNo: string
+    invoiceNo: string | null
+    reference: PaymentReference
     containerNo: string | null
     remarks: string | null
     partner: { id: number; name: string }
@@ -418,6 +447,12 @@ export const financeApi = baseApi.injectEndpoints({
       transformResponse: unwrap,
       providesTags: ['FinanceRequests'],
     }),
+    /** Approved, open POs of the chosen supplier, for purchase-order requests. */
+    getPayablePurchaseOrders: b.query<PayablePurchaseOrder[], { partnerId: number; search?: string }>({
+      query: ({ partnerId, search }) => ({ url: '/finance/payment-requests/purchase-order-options', params: { partnerId, search: search || undefined } }),
+      transformResponse: unwrap,
+      providesTags: ['ProcurementPurchaseOrders'],
+    }),
     checkDuplicateInvoice: b.query<DuplicateInvoice | null, { partnerId: number; invoiceNo: string; excludeId?: number }>({
       query: (params) => ({ url: '/finance/payment-requests/duplicate-check', params }),
       transformResponse: unwrap,
@@ -521,6 +556,7 @@ export const {
   useGetPaymentRequestSummaryQuery,
   useGetPaymentRequestQuery,
   useLazyCheckDuplicateInvoiceQuery,
+  useGetPayablePurchaseOrdersQuery,
   useCreatePaymentRequestMutation,
   useUpdatePaymentRequestMutation,
   useAddRequestDocumentsMutation,

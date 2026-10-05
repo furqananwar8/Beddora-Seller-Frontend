@@ -47,7 +47,7 @@ export const PaymentDetailModal: React.FC<PaymentDetailModalProps> = ({ docId, o
           <dl className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3">
             <Item label="Partner">{data.request.partner.name}</Item>
             <Item label="Request">
-              {formatRequestNo(data.request.id)} · {data.request.invoiceNo}
+              {formatRequestNo(data.request.id)} · {data.request.reference.value}
             </Item>
             <Item label="Status">{meta && <StatusBadge label={meta.label} tone={meta.tone} />}</Item>
             <Item label="Amount">{formatCurrencyAmount(data.currency, data.amount)}</Item>

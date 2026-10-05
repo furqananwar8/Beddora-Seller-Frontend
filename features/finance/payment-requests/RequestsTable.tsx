@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { StatusBadge } from '@/components/status-badge/StatusBadge'
 import type { PaymentRequestListItem } from '@/services/api/finance.api'
 import { cn } from '@/utils/cn'
-import { formatDay, formatMoney } from '../shared/format'
+import { formatDay, formatMoney, requestReference } from '../shared/format'
 import { PAYMENT_STATE_META, paymentStateOf } from '../shared/paymentState'
 import { REQUEST_STATUS_META } from '../shared/statusMeta'
 import { RequestPreview } from './RequestPreview'
@@ -54,7 +54,7 @@ export const RequestsTable: React.FC<RequestsTableProps> = ({ rows, isLoading, i
           <TableHead className={HEAD}>Amount</TableHead>
           <TableHead className={HEAD}>Remaining</TableHead>
           <TableHead className={HEAD}>Curr.</TableHead>
-          <TableHead className={HEAD}>Invoice</TableHead>
+          <TableHead className={HEAD}>Invoice / PO</TableHead>
           <TableHead className={HEAD}>Container no</TableHead>
           <TableHead className={HEAD}>Date</TableHead>
           <TableHead className={cn(HEAD, 'min-w-[180px]')}>Remarks</TableHead>
@@ -105,7 +105,7 @@ export const RequestsTable: React.FC<RequestsTableProps> = ({ rows, isLoading, i
                   </TableCell>
                   <TableCell className={CELL}>{row.currency}</TableCell>
                   <TableCell className={CELL}>
-                    {row.invoiceNo}
+                    {requestReference(row)}
                     {row.documentCount > 0 && <Paperclip />}
                   </TableCell>
                   <TableCell className={CELL}>{row.containerNo || '-'}</TableCell>

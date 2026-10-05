@@ -7,6 +7,9 @@ import { formatCalendarDay } from '@/utils/format'
 /** Display numbers mirror the backend's: `PO-1042` is row 42. */
 export const formatPoNo = (id: number): string => `PO-${1000 + id}`
 
+/** Payment Requests narrowed to one PO. */
+export const poPaymentRequestsHref = (id: number): string => `/dashboard/finance/payment-request?purchaseOrderId=${id}`
+
 export const DESTINATION_LABEL: Record<PoDestination, string> = { US: 'USA', CA: 'CANADA' }
 
 export const PO_STATUS_META: Record<PoStatus, { label: string; tone: StatusTone }> = {
@@ -26,7 +29,9 @@ export const PoStatusBadge: React.FC<{ status: PoStatus }> = ({ status }) => <St
 export const PaymentBadge: React.FC<{ payment: PoPayment; withPercent?: boolean }> = ({ payment, withPercent }) => (
   <span className="inline-flex flex-col items-center gap-0.5">
     <StatusBadge label={PAYMENT_META[payment.status].label} tone={PAYMENT_META[payment.status].tone} />
-    {withPercent && payment.status === 'PARTIALLY_PAID' && <span className="text-xs text-text-muted">{payment.paidPercent}% paid</span>}
+    {withPercent && payment.status === 'PARTIALLY_PAID' && (
+      <span className="text-xs text-text-muted">{payment.paidPercent >= 100 ? 'Paid in full · awaiting confirmation' : `${payment.paidPercent}% paid`}</span>
+    )}
   </span>
 )
 

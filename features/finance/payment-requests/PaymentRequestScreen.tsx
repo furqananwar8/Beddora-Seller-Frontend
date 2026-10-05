@@ -19,6 +19,7 @@ import {
   useGetPaymentRequestSummaryQuery,
 } from '@/services/api/finance.api'
 import { useDebounce } from '@/utils/debounce'
+import { formatPoNo } from '@/features/procurement/shared/poMeta'
 import { cn } from '@/utils/cn'
 import { ScreenSearch } from '../shared/ScreenSearch'
 import { SelectShell } from '../shared/SelectShell'
@@ -67,6 +68,14 @@ export const PaymentRequestScreen: React.FC = () => {
   const searchParams = useSearchParams()
   const openParam = Number(searchParams.get('open'))
   const openId = Number.isInteger(openParam) && openParam > 0 ? openParam : null
+  // "View payment requests" on a purchase order opens this list narrowed to that PO
+  const poParam = Number(searchParams.get('purchaseOrderId'))
+  const purchaseOrderId = Number.isInteger(poParam) && poParam > 0 ? poParam : null
+  const clearPurchaseOrder = () => {
+    const next = new URLSearchParams(searchParams.toString())
+    next.delete('purchaseOrderId')
+    router.replace(next.size ? `${pathname}?${next}` : pathname)
+  }
 
   const { data: approverStatus } = useGetApproverStatusQuery()
   const isApprover = approverStatus?.isApprover ?? false
@@ -89,7 +98,7 @@ export const PaymentRequestScreen: React.FC = () => {
   const [showTypes, setShowTypes] = useState(false)
   const [showApprovers, setShowApprovers] = useState(false)
 
-  const tab: TabId = chosenTab ?? (isApprover ? 'PENDING_APPROVAL' : 'ALL')
+  const tab: TabId = chosenTab ?? (isApprover && !purchaseOrderId ? 'PENDING_APPROVAL' : 'ALL')
   const actions = useRequestActions()
   const { data: expenseTypes } = useGetExpenseTypesQuery()
 
@@ -97,7 +106,8 @@ export const PaymentRequestScreen: React.FC = () => {
   const filters = {
     search: debouncedSearch,
     expenseTypeId: expenseTypeId ? Number(expenseTypeId) : undefined,
-    ...dates,
+    // A PO's payments are shown whenever they were raised, so the date range does not apply
+    ...(purchaseOrderId ? { purchaseOrderId } : dates),
   }
   const listParams: PaymentRequestListParams = {
     ...filters,
@@ -145,7 +155,17 @@ export const PaymentRequestScreen: React.FC = () => {
       />
 
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-bold text-text-primary sm:text-2xl">Payment Requests</h1>
+        <div className="flex flex-wrap items-center gap-2">
+          <h1 className="text-xl font-bold text-text-primary sm:text-2xl">Payment Requests</h1>
+          {purchaseOrderId && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-secondary-100 py-0.5 pl-3 pr-1 text-sm text-secondary-700">
+              Purchase order <strong className="font-semibold">{formatPoNo(purchaseOrderId)}</strong>
+              <button type="button" onClick={clearPurchaseOrder} aria-label="Show all payment requests" className="rounded-full px-1.5 text-text-muted hover:bg-secondary-200 hover:text-text-primary">
+                ×
+              </button>
+            </span>
+          )}
+        </div>
         <div className="flex flex-wrap items-center gap-2">
           {canManageExpenseTypes && (
             <Button variant="secondary" size="sm" onClick={() => setShowTypes(true)}>

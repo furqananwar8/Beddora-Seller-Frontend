@@ -8,8 +8,8 @@ import type { TagType } from '@/services/api/baseApi'
 export const REALTIME_TOPICS: Record<string, TagType[]> = {
   notification: ['Notifications'],
   'finance.partner': ['FinancePartners'],
-  'finance.payment-request': ['FinanceRequests'],
-  'finance.payment-process': ['FinanceProcess', 'FinanceRequests'],
+  'finance.payment-request': ['FinanceRequests', 'ProcurementPurchaseOrders'],
+  'finance.payment-process': ['FinanceProcess', 'FinanceRequests', 'ProcurementPurchaseOrders'],
   'procurement.product': ['ProcurementProducts'],
   'procurement.purchase-order': ['ProcurementPurchaseOrders'],
 }

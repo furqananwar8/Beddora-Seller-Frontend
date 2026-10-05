@@ -38,7 +38,7 @@ export const PaymentTable: React.FC<PaymentTableProps> = ({ page, isLoading, isF
             <TableRow>
               <TableHead className={HEAD}>Doc #</TableHead>
               <TableHead className={HEAD}>Request</TableHead>
-              <TableHead className={cn(HEAD, 'min-w-[130px]')}>Invoice</TableHead>
+              <TableHead className={cn(HEAD, 'min-w-[130px]')}>Invoice / PO</TableHead>
               <TableHead className={cn(HEAD, 'min-w-[160px]')}>Partner</TableHead>
               <TableHead className={HEAD}>Amount</TableHead>
               <TableHead className={HEAD}>Paid</TableHead>
@@ -86,7 +86,7 @@ export const PaymentTable: React.FC<PaymentTableProps> = ({ page, isLoading, isF
                       </Link>
                     </TableCell>
                     <TableCell className={CELL}>
-                      <div className="break-words text-text-primary">{row.invoiceNo || '—'}</div>
+                      <div className="break-words text-text-primary">{row.reference.value || '—'}</div>
                       {row.containerNo && <div className="break-words text-xs text-text-muted">{row.containerNo}</div>}
                     </TableCell>
                     <TableCell className={CELL}>{row.partner.name}</TableCell>

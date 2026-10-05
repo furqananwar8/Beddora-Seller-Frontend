@@ -21,3 +21,7 @@ export function formatBytes(bytes: number): string {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`
 }
+
+/** What a request pays against: its invoice number, or the PO number for purchase-order requests. */
+export const requestReference = (request: { referenceType?: string; invoiceNo: string | null; purchaseOrder?: { poNo: string } | null }): string =>
+  request.referenceType === 'PURCHASE_ORDER' && request.purchaseOrder ? request.purchaseOrder.poNo : (request.invoiceNo ?? '')

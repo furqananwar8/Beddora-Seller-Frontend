@@ -9,6 +9,7 @@ import { Container } from '@/components/layout'
 import { FileDropzone } from '@/components/file-dropzone/FileDropzone'
 import { SingleDatePicker } from '@/components/single-date-picker/SingleDatePicker'
 import { StatusBadge } from '@/components/status-badge/StatusBadge'
+import { SegmentedToggle } from '@/components/segmented-toggle/SegmentedToggle'
 import { Button } from '@/design-system/buttons'
 import { Card } from '@/design-system/cards'
 import { Input, Select, Textarea } from '@/design-system/inputs'
@@ -26,6 +27,7 @@ import {
   useGetPaymentRequestQuery,
   useLazyCheckDuplicateInvoiceQuery,
   type DuplicateInvoice,
+  type ReferenceType,
   useRemoveRequestDocumentMutation,
   useSubmitPaymentRequestMutation,
   useUpdatePaymentRequestMutation,
@@ -36,10 +38,12 @@ import { REQUEST_STATUS_META } from '../shared/statusMeta'
 import { useFinanceFeedback } from '../shared/useFinanceFeedback'
 import { DocumentChips } from '../shared/DocumentChips'
 import { PartnerChips, PartnerSelect, toPartnerOption } from './PartnerSelect'
+import { PayablePoSelect } from './PayablePoSelect'
 import { clearRequestDraft, peekRequestDraft, saveRequestDraft, withQueryParam } from './requestDraftStore'
 import {
   CURRENCIES,
   PaymentRequestFormValues,
+  REFERENCE_OPTIONS,
   emptyFormValues,
   filesFormData,
   parseAmount,
@@ -63,7 +67,9 @@ const Section: React.FC<{ title: string; note?: string; children: React.ReactNod
 
 const toFormValues = (detail: PaymentRequestDetail): PaymentRequestFormValues => ({
   partnerId: String(detail.partner.id),
-  invoiceNo: detail.invoiceNo,
+  referenceType: detail.referenceType,
+  invoiceNo: detail.invoiceNo ?? '',
+  purchaseOrder: detail.purchaseOrder,
   invoiceDate: toDateInputValue(detail.invoiceDate),
   containerNo: detail.containerNo ?? '',
   marketplaceId: detail.marketplaceId ? String(detail.marketplaceId) : '',
@@ -157,11 +163,15 @@ export const PaymentRequestFormScreen: React.FC = () => {
   const stashDraft = () => saveRequestDraft({ values: getValues(), files, partner })
 
   const currency = watch('currency')
+  const referenceType = watch('referenceType')
+  const purchaseOrder = watch('purchaseOrder')
+  const byPurchaseOrder = referenceType === 'PURCHASE_ORDER'
   const currencyOptions = [...new Set([...CURRENCIES, ...(currency ? [currency] : [])])].map((code) => ({ value: code, label: code }))
   const existingDocuments: FinanceDocument[] = detail?.documents ?? []
 
   const runDuplicateCheck = async (partnerId: string, invoiceNo: string) => {
-    if (!partnerId || !invoiceNo.trim()) {
+    // Only invoices can be raised twice; a PO request has no invoice number
+    if (!partnerId || !invoiceNo.trim() || getValues('referenceType') !== 'INVOICE') {
       setDuplicate(null)
       return
     }
@@ -174,10 +184,26 @@ export const PaymentRequestFormScreen: React.FC = () => {
   }
 
   const pickPartner = (option: PartnerOption) => {
+    // A PO belongs to one supplier, so a different partner clears it
+    if (option.id !== partner?.id) setValue('purchaseOrder', null)
     setPartner(option)
     setValue('partnerId', String(option.id), { shouldValidate: true })
     setValue('currency', option.currency, { shouldValidate: true })
     void runDuplicateCheck(String(option.id), getValues('invoiceNo'))
+  }
+
+  const switchReference = (next: ReferenceType) => {
+    setValue('referenceType', next, { shouldDirty: true })
+    if (next === 'PURCHASE_ORDER') setDuplicate(null)
+    else void runDuplicateCheck(getValues('partnerId'), getValues('invoiceNo'))
+  }
+
+  /** A picked PO brings its currency and destination; both stay editable. */
+  const pickPurchaseOrder = (po: { id: number; poNo: string; currency: string; destination: 'US' | 'CA' }) => {
+    setValue('purchaseOrder', { id: po.id, poNo: po.poNo }, { shouldValidate: true, shouldDirty: true })
+    setValue('currency', po.currency, { shouldValidate: true })
+    const destination = marketplaces?.find((m) => m.code === po.destination)
+    if (destination) setValue('marketplaceId', String(destination.id))
   }
 
   const removeExisting = async (doc: FinanceDocument) => {
@@ -273,17 +299,32 @@ export const PaymentRequestFormScreen: React.FC = () => {
           {shownPartner && <PartnerChips partner={shownPartner} />}
         </Section>
 
-        <Section title="Invoice & shipment">
+        <Section title={byPurchaseOrder ? 'Purchase order & shipment' : 'Invoice & shipment'}>
+          <FormField label="Paying against" className="mb-4" hint={byPurchaseOrder ? 'Only approved, open purchase orders of this supplier can be paid' : undefined}>
+            <SegmentedToggle<ReferenceType> ariaLabel="Paying against" value={referenceType} onChange={switchReference} options={REFERENCE_OPTIONS} />
+          </FormField>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <FormField label="Invoice No" htmlFor="invoiceNo" required error={errors.invoiceNo?.message}>
-              <Input
-                id="invoiceNo"
-                className="rounded-lg"
-                placeholder="INV-10442"
-                {...register('invoiceNo', { onBlur: (e) => runDuplicateCheck(getValues('partnerId'), e.target.value) })}
-              />
-            </FormField>
-            <FormField label="Invoice Date" htmlFor="invoiceDate" required error={errors.invoiceDate?.message}>
+            {byPurchaseOrder ? (
+              <FormField label="Purchase order" htmlFor="purchaseOrder" required error={errors.purchaseOrder?.message as string | undefined} className="lg:col-span-2">
+                <PayablePoSelect
+                  id="purchaseOrder"
+                  partnerId={partner?.id ?? null}
+                  value={purchaseOrder}
+                  onChange={pickPurchaseOrder}
+                  error={errors.purchaseOrder?.message as string | undefined}
+                />
+              </FormField>
+            ) : (
+              <FormField label="Invoice No" htmlFor="invoiceNo" required error={errors.invoiceNo?.message}>
+                <Input
+                  id="invoiceNo"
+                  className="rounded-lg"
+                  placeholder="INV-10442"
+                  {...register('invoiceNo', { onBlur: (e) => runDuplicateCheck(getValues('partnerId'), e.target.value) })}
+                />
+              </FormField>
+            )}
+            <FormField label={byPurchaseOrder ? 'Date' : 'Invoice Date'} htmlFor="invoiceDate" required error={errors.invoiceDate?.message}>
               <Controller
                 control={control}
                 name="invoiceDate"
@@ -292,9 +333,11 @@ export const PaymentRequestFormScreen: React.FC = () => {
                 )}
               />
             </FormField>
-            <FormField label="Container #" htmlFor="containerNo" error={errors.containerNo?.message}>
-              <Input id="containerNo" className="rounded-lg" placeholder="MSKU 482193-0" {...register('containerNo')} />
-            </FormField>
+            {!byPurchaseOrder && (
+              <FormField label="Container #" htmlFor="containerNo" error={errors.containerNo?.message}>
+                <Input id="containerNo" className="rounded-lg" placeholder="MSKU 482193-0" {...register('containerNo')} />
+              </FormField>
+            )}
             <FormField label="Destination (Marketplace)" htmlFor="marketplaceId">
               <SelectShell>
               <Select
@@ -306,7 +349,7 @@ export const PaymentRequestFormScreen: React.FC = () => {
               </SelectShell>
             </FormField>
           </div>
-          {duplicate && (
+          {duplicate && !byPurchaseOrder && (
             <p role="alert" className="mt-3 rounded-lg border border-warning-300 bg-warning-50 px-3 py-2 text-sm text-warning-700">
               Invoice {duplicate.invoiceNo} already has request {formatRequestNo(duplicate.id)} for this partner.
               {duplicate.paidAmount > 0 && (

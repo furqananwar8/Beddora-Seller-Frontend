@@ -28,7 +28,7 @@ import {
 } from '@/services/api/procurement.api'
 import { cn } from '@/utils/cn'
 import { useDebounce } from '@/utils/debounce'
-import { DESTINATION_LABEL, PAYMENT_META, PO_STATUS_META } from '../shared/poMeta'
+import { DESTINATION_LABEL, PAYMENT_META, PO_STATUS_META, poPaymentRequestsHref } from '../shared/poMeta'
 import { PoLegend } from './PoLegend'
 import { PurchaseOrdersTable } from './PurchaseOrdersTable'
 import { usePoDecisions } from './usePoDecisions'
@@ -81,6 +81,7 @@ export const PurchaseOrdersScreen: React.FC = () => {
   const ability = useAppAbility()
   const canWrite = ability.can('write', 'procurement:purchase-orders')
   const canDecide = ability.can('write', 'procurement:po-approval')
+  const canViewPayments = ability.can('read', 'finance:payment-request')
   const decisions = usePoDecisions()
   const [approving, setApproving] = useState<PurchaseOrderListItem | null>(null)
   const [rejecting, setRejecting] = useState<PurchaseOrderListItem | null>(null)
@@ -217,6 +218,8 @@ export const PurchaseOrdersScreen: React.FC = () => {
             filtered={filtered}
             canWrite={canWrite}
             canDecide={canDecide}
+            canViewPayments={canViewPayments}
+            onViewPayments={(row) => router.push(poPaymentRequestsHref(row.id))}
             onOpen={(row) => router.push(`${BASE}/${row.id}`)}
             onApprove={setApproving}
             onReject={setRejecting}
