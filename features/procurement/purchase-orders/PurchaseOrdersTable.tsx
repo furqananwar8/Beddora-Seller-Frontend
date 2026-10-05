@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import type { PurchaseOrderListItem } from '@/services/api/procurement.api'
 import { cn } from '@/utils/cn'
 import { formatCalendarDay } from '@/utils/format'
-import { DESTINATION_LABEL, EtdBadge, OpenBadge, PaymentBadge, PoStatusBadge } from '../shared/poMeta'
+import { DESTINATION_LABEL, EtdBadge, OpenBadge, PaymentBadge, PoStatusBadge, isPackable } from '../shared/poMeta'
 
 const CELL = 'text-center align-middle'
 const COLUMNS = 12
@@ -18,6 +18,10 @@ export interface PoRowActions {
   canDecide: boolean
   /** May open Finance > Payment Requests. */
   canViewPayments: boolean
+  /** May create packaging lists. */
+  canPack: boolean
+  onCreatePackagingList: (row: PurchaseOrderListItem) => void
+  onViewPackagingLists: (row: PurchaseOrderListItem) => void
   onViewPayments: (row: PurchaseOrderListItem) => void
   onOpen: (row: PurchaseOrderListItem) => void
   onApprove: (row: PurchaseOrderListItem) => void
@@ -32,6 +36,8 @@ function actionsFor(row: PurchaseOrderListItem, actions: PoRowActions): RowActio
   const items: RowActionItem[] = [
     { key: 'view', label: 'View purchase order', onSelect: () => actions.onOpen(row) },
   ]
+  if (actions.canPack && isPackable(row)) items.push({ key: 'pack', label: 'Create packaging list', onSelect: () => actions.onCreatePackagingList(row) })
+  if (!pending) items.push({ key: 'lists', label: 'View packaging lists', onSelect: () => actions.onViewPackagingLists(row) })
   if (actions.canViewPayments) {
     items.push({ key: 'payments', label: `View payment requests (${row.payment.requestCount})`, onSelect: () => actions.onViewPayments(row) })
   }

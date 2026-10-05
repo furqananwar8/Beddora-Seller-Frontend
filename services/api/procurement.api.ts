@@ -248,6 +248,82 @@ export interface SupplierOption extends SupplierRef {
   type: 'SUPPLIER' | 'VENDOR'
 }
 
+/* ─────────────── Packaging lists ─────────────── */
+
+export interface PackagingListItem {
+  id: number
+  plNo: string
+  supplier: { id: number; name: string }
+  destination: PoDestination
+  purchaseOrders: Array<{ id: number; poNo: string }>
+  skuCount: number
+  units: number
+  cartons: number
+  cbm: number
+  netWeightKg: number
+  grossWeightKg: number
+  createdAt: string
+}
+
+export interface PackagingListParams extends PageParams {
+  purchaseOrderId?: number
+}
+
+export interface PackagingLineDetail {
+  id: number
+  purchaseOrderId: number
+  poNo: string
+  product: PoProduct
+  poQty: number
+  /** Units of this PO line on other lists. */
+  allocatedElsewhere: number
+  available: number
+  units: number
+  cartons: number
+  cbm: number
+  netWeightKg: number
+  grossWeightKg: number
+}
+
+export interface PackagingListDetail {
+  id: number
+  plNo: string
+  supplier: { id: number; name: string; contactName: string | null }
+  destination: PoDestination
+  createdBy: { id: number; name: string | null }
+  createdAt: string
+  updatedAt: string
+  purchaseOrders: Array<{ id: number; poNo: string }>
+  lines: PackagingLineDetail[]
+  totals: { skuCount: number; units: number; cartons: number; cbm: number; netWeightKg: number; grossWeightKg: number }
+}
+
+/** A supplier's PO for the list form, with what decides whether it can be picked. */
+export interface PackablePurchaseOrder {
+  id: number
+  poNo: string
+  destination: PoDestination
+  currency: PoCurrency
+  status: PoStatus
+  isOpen: boolean
+  units: number
+  /** Other packaging lists this PO is already on. */
+  listCount: number
+}
+
+export interface PackablePoLines {
+  purchaseOrder: { id: number; poNo: string; currency: PoCurrency; destination: PoDestination; supplier: { id: number; name: string } }
+  lines: Array<{ product: PoProduct; poQty: number; allocated: number; available: number }>
+}
+
+export interface PackagingListBody {
+  supplierId: number
+  purchaseOrderIds: number[]
+  lines: Array<{ purchaseOrderId: number; productId: number; units: number; cartons: number; grossWeightKg: number }>
+  closePurchaseOrderIds: number[]
+  expectedUpdatedAt?: string
+}
+
 /** Arrays go to the API as comma-separated values; empty ones are left out. */
 const csv = (values?: Array<string | number>) => (values && values.length ? values.join(',') : undefined)
 
@@ -370,6 +446,46 @@ export const procurementApi = baseApi.injectEndpoints({
       providesTags: ['FinancePartners'],
     }),
 
+    /* packaging lists */
+    getPackagingLists: b.query<Page<PackagingListItem>, PackagingListParams>({
+      query: ({ search, ...params }) => ({ url: '/procurement/packaging-lists', params: { ...params, search: search || undefined } }),
+      providesTags: ['ProcurementPackagingLists'],
+    }),
+    getPackagingListSummary: b.query<{ all: number }, void>({
+      query: () => '/procurement/packaging-lists/summary',
+      transformResponse: unwrap,
+      providesTags: ['ProcurementPackagingLists'],
+    }),
+    getPackagingList: b.query<PackagingListDetail, number>({
+      query: (id) => `/procurement/packaging-lists/${id}`,
+      transformResponse: unwrap,
+      providesTags: ['ProcurementPackagingLists'],
+    }),
+    getPackablePurchaseOrders: b.query<PackablePurchaseOrder[], { supplierId: number; excludeListId?: number }>({
+      query: (params) => ({ url: '/procurement/packaging-lists/po-options', params }),
+      transformResponse: unwrap,
+      providesTags: ['ProcurementPackagingLists', 'ProcurementPurchaseOrders'],
+    }),
+    getPackablePoLines: b.query<PackablePoLines[], { purchaseOrderIds: number[]; excludeListId?: number }>({
+      query: ({ purchaseOrderIds, excludeListId }) => ({ url: '/procurement/packaging-lists/po-lines', params: { purchaseOrderIds: csv(purchaseOrderIds), excludeListId } }),
+      transformResponse: unwrap,
+      providesTags: ['ProcurementPackagingLists', 'ProcurementPurchaseOrders'],
+    }),
+    createPackagingList: b.mutation<PackagingListDetail, PackagingListBody>({
+      query: (body) => ({ url: '/procurement/packaging-lists', method: 'POST', body }),
+      transformResponse: unwrap,
+      invalidatesTags: ['ProcurementPackagingLists', 'ProcurementPurchaseOrders'],
+    }),
+    updatePackagingList: b.mutation<PackagingListDetail, { id: number; body: PackagingListBody }>({
+      query: ({ id, body }) => ({ url: `/procurement/packaging-lists/${id}`, method: 'PUT', body }),
+      transformResponse: unwrap,
+      invalidatesTags: ['ProcurementPackagingLists', 'ProcurementPurchaseOrders'],
+    }),
+    deletePackagingList: b.mutation<void, number>({
+      query: (id) => ({ url: `/procurement/packaging-lists/${id}`, method: 'DELETE' }),
+      invalidatesTags: ['ProcurementPackagingLists', 'ProcurementPurchaseOrders'],
+    }),
+
     /* categories */
     getPoCategories: b.query<CategoryRef[], void>({
       query: () => '/procurement/categories',
@@ -408,4 +524,12 @@ export const {
   useApprovePurchaseOrderMutation,
   useRejectPurchaseOrderMutation,
   useGetSupplierOptionsQuery,
+  useGetPackagingListsQuery,
+  useGetPackagingListSummaryQuery,
+  useGetPackagingListQuery,
+  useGetPackablePurchaseOrdersQuery,
+  useGetPackablePoLinesQuery,
+  useCreatePackagingListMutation,
+  useUpdatePackagingListMutation,
+  useDeletePackagingListMutation,
 } = procurementApi

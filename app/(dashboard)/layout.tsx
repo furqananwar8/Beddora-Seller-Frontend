@@ -158,6 +158,7 @@ export default function DashboardLayout({
             children: [
               { label: 'Products', subject: 'procurement:products', action: 'read', href: '/dashboard/procurement/products' },
               { label: 'Purchase Orders', subject: 'procurement:purchase-orders', action: 'read', href: '/dashboard/procurement/purchase-orders' },
+              { label: 'Packaging Lists', subject: 'procurement:packaging-lists', action: 'read', href: '/dashboard/procurement/packaging-lists' },
             ],
           },
           {

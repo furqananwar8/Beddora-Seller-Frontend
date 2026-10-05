@@ -23,7 +23,7 @@ import {
 } from '@/services/api/procurement.api'
 import { useAppSelector } from '@/store/hooks'
 import { applyServerIssues } from '@/utils/apiErrors'
-import { PaymentBadge, PoStatusBadge, poPaymentRequestsHref } from '../shared/poMeta'
+import { isPackable, newPackagingListHref, PaymentBadge, PoStatusBadge, poPackagingListsHref, poPaymentRequestsHref } from '../shared/poMeta'
 import { ApprovalPanel } from './ApprovalPanel'
 import { emptyPoValues, fromDetail, fromRemaining, poFormSchema, toPoBody, type PoFormValues } from './poForm'
 import { PoOrderDetailsSection, PoSupplierSection } from './PoDetailsSections'
@@ -147,6 +147,16 @@ export const PoFormScreen: React.FC<PoFormScreenProps> = ({ purchaseOrderId }) =
               <h1 className="text-xl font-bold text-text-primary sm:text-2xl">{title}</h1>
               {po && <PoStatusBadge status={po.status} />}
               {po && <PaymentBadge payment={po.payment} withPercent />}
+              {po && po.status !== 'PENDING_APPROVAL' && (
+                <Link href={poPackagingListsHref(po.id)} className="text-sm font-medium text-primary-600 underline-offset-2 hover:underline">
+                  View packaging lists
+                </Link>
+              )}
+              {po && isPackable(po) && ability.can('write', 'procurement:packaging-lists') && (
+                <Link href={newPackagingListHref(po.id)} className="text-sm font-medium text-primary-600 underline-offset-2 hover:underline">
+                  + Create packaging list
+                </Link>
+              )}
               {po && ability.can('read', 'finance:payment-request') && (
                 <Link href={poPaymentRequestsHref(po.id)} className="text-sm font-medium text-primary-600 underline-offset-2 hover:underline">
                   View payment requests ({po.payment.requestCount})

@@ -61,3 +61,15 @@ export const EtdBadge: React.FC<{ etd: string; alert: EtdAlert; withCaption?: bo
     {withCaption && <span className={cn('whitespace-nowrap text-xs', alert.level === 'OVERDUE' ? 'font-medium text-danger-600' : 'text-text-muted')}>{etdCaption(alert)}</span>}
   </span>
 )
+
+export const formatPlNo = (id: number): string => `PL#${5000 + id}`
+
+/** Packaging lists narrowed to one PO. */
+export const poPackagingListsHref = (id: number): string => `/dashboard/procurement/packaging-lists?purchaseOrderId=${id}`
+
+/** New packaging list starting from one PO (its supplier and the PO preselected). */
+export const newPackagingListHref = (purchaseOrderId?: number): string =>
+  `/dashboard/procurement/packaging-lists/new${purchaseOrderId ? `?purchaseOrderId=${purchaseOrderId}` : ''}`
+
+/** A PO can be packed once approved and while open. */
+export const isPackable = (po: { status: PoStatus; isOpen: boolean }): boolean => po.status !== 'PENDING_APPROVAL' && po.isOpen
