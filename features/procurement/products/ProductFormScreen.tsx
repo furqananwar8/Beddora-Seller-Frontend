@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Container } from '@/components/layout'
+import { FormActions } from '@/components/form-actions/FormActions'
 import { Button } from '@/design-system/buttons'
 import { Spinner } from '@/design-system/loaders'
 import { useApiFeedback } from '@/hooks/useApiFeedback'
@@ -149,23 +150,7 @@ export const ProductFormScreen: React.FC<ProductFormScreenProps> = ({ productId 
       <form onSubmit={submit} noValidate className="mx-auto flex w-full max-w-6xl flex-col gap-4">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div className="min-w-0">
-            <nav aria-label="Breadcrumb" className="text-sm text-text-muted">
-              <Link href={LIST} className="text-primary-600 hover:underline">
-                Products
-              </Link>
-              <span> / {editing?.name ?? (copyFrom ? `Copy of ${family?.name}` : 'New product')}</span>
-            </nav>
             <h1 className="truncate text-xl font-bold text-text-primary sm:text-2xl">{title}</h1>
-          </div>
-          <div className="flex w-full gap-2 sm:w-auto">
-            <Button type="button" variant="outline" className="flex-1 sm:flex-none" onClick={() => router.push(LIST)} disabled={saving}>
-              {readOnly ? 'Back' : 'Cancel'}
-            </Button>
-            {!readOnly && (
-              <Button type="submit" className="flex-1 sm:flex-none" isLoading={saving}>
-                Save product
-              </Button>
-            )}
           </div>
         </div>
 
@@ -185,6 +170,17 @@ export const ProductFormScreen: React.FC<ProductFormScreenProps> = ({ productId 
           onPhotoChange={setVariationPhoto}
           readOnly={readOnly}
         />
+
+        <FormActions>
+          <Button type="button" variant="outline" onClick={() => router.push(LIST)} disabled={saving}>
+            {readOnly ? 'Back' : 'Cancel'}
+          </Button>
+          {!readOnly && (
+            <Button type="submit" isLoading={saving}>
+              Save product
+            </Button>
+          )}
+        </FormActions>
       </form>
     </Container>
   )

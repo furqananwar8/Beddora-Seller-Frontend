@@ -7,6 +7,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { ConfirmDialog } from '@/components/confirm-dialog/ConfirmDialog'
 import { Container } from '@/components/layout'
+import { FormActions } from '@/components/form-actions/FormActions'
 import { useRealtime } from '@/components/realtime/RealtimeProvider'
 import { Switch } from '@/components/switch/Switch'
 import { Button } from '@/design-system/buttons'
@@ -142,12 +143,6 @@ export const PoFormScreen: React.FC<PoFormScreenProps> = ({ purchaseOrderId }) =
       <form onSubmit={submit} noValidate className="mx-auto flex w-full max-w-5xl flex-col gap-4">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div className="min-w-0">
-            <nav aria-label="Breadcrumb" className="text-sm text-text-muted">
-              <Link href={LIST} className="text-primary-600 hover:underline">
-                Purchase orders
-              </Link>
-              <span> / {po?.poNo ?? 'New'}</span>
-            </nav>
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-xl font-bold text-text-primary sm:text-2xl">{title}</h1>
               {po && <PoStatusBadge status={po.status} />}
@@ -167,8 +162,8 @@ export const PoFormScreen: React.FC<PoFormScreenProps> = ({ purchaseOrderId }) =
               </p>
             )}
           </div>
-          <div className="flex w-full flex-wrap items-center gap-3 sm:w-auto">
-            {po && (
+          {po && (
+            <div className="flex items-center">
               <label className="flex items-center gap-2 text-sm font-medium text-text-primary">
                 <Switch
                   checked={po.isOpen}
@@ -178,16 +173,8 @@ export const PoFormScreen: React.FC<PoFormScreenProps> = ({ purchaseOrderId }) =
                 />
                 PO open
               </label>
-            )}
-            <Button type="button" variant="outline" className="flex-1 sm:flex-none" onClick={() => router.push(LIST)} disabled={saving}>
-              {readOnly ? 'Back' : 'Cancel'}
-            </Button>
-            {editable && (
-              <Button type="submit" className="flex-1 sm:flex-none" isLoading={saving} disabled={!formState.isDirty && Boolean(po) && !po?.rejectionReason}>
-                {isNew ? 'Create PO' : 'Save'}
-              </Button>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
         {po && po.status === 'PENDING_APPROVAL' && <ApprovalPanel po={po} busy={decisions.busy?.decision ?? null} onApprove={() => void decisions.approve(po)} onReject={(reason) => void decisions.reject(po, reason)} />}
@@ -219,6 +206,17 @@ export const PoFormScreen: React.FC<PoFormScreenProps> = ({ purchaseOrderId }) =
         )}
 
         {po && <PoTimeline events={po.events} />}
+
+        <FormActions>
+          <Button type="button" variant="outline" onClick={() => router.push(LIST)} disabled={saving}>
+            {readOnly ? 'Back' : 'Cancel'}
+          </Button>
+          {editable && (
+            <Button type="submit" isLoading={saving} disabled={!formState.isDirty && Boolean(po) && !po?.rejectionReason}>
+              {isNew ? 'Create PO' : 'Save'}
+            </Button>
+          )}
+        </FormActions>
       </form>
 
       <ConfirmDialog isOpen={confirmClose} title={`Close ${po?.poNo ?? 'PO'}`} confirmLabel="Close PO" tone="danger" busy={toggling} onConfirm={() => void changeOpen(false)} onClose={() => setConfirmClose(false)}>
