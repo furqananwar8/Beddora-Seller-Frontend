@@ -17,8 +17,8 @@ import { useApiFeedback } from '@/hooks/useApiFeedback'
 import { useAppAbility } from '@/hooks/useAppAbility'
 import {
   useGetPurchaseOrderFilterOptionsQuery,
-  useGetPurchaseOrdersQuery,
-  useGetPurchaseOrderSummaryQuery,
+  useGetProcurementPurchaseOrdersQuery,
+  useGetProcurementPurchaseOrderSummaryQuery,
   useSetPurchaseOrderOpenMutation,
   type EtdAlertLevel,
   type PaymentState,
@@ -94,7 +94,7 @@ export const PurchaseOrdersScreen: React.FC = () => {
   const filters = useStagedFilters(DEFAULT_FILTERS, () => setPage(1))
   const { applied, draft, setDraft, changed } = filters
 
-  const { data, isLoading, isFetching, isError } = useGetPurchaseOrdersQuery({
+  const { data, isLoading, isFetching, isError } = useGetProcurementPurchaseOrdersQuery({
     page,
     limit: PAGE_SIZE,
     search: debouncedSearch,
@@ -107,7 +107,7 @@ export const PurchaseOrdersScreen: React.FC = () => {
     etdAlerts: applied.etdAlerts,
     open: applied.open,
   })
-  const { data: summary } = useGetPurchaseOrderSummaryQuery()
+  const { data: summary } = useGetProcurementPurchaseOrderSummaryQuery()
   const { data: options, isLoading: loadingOptions } = useGetPurchaseOrderFilterOptionsQuery()
 
   const [closing, setClosing] = useState<PurchaseOrderListItem | null>(null)

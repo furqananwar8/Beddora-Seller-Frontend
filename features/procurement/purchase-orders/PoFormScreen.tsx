@@ -15,11 +15,11 @@ import { Spinner } from '@/design-system/loaders'
 import { useApiFeedback } from '@/hooks/useApiFeedback'
 import { useAppAbility } from '@/hooks/useAppAbility'
 import {
-  useCreatePurchaseOrderMutation,
-  useGetPurchaseOrderQuery,
+  useCreateProcurementPurchaseOrderMutation,
+  useGetProcurementPurchaseOrderQuery,
   useGetPurchaseOrderRemainingQuery,
   useSetPurchaseOrderOpenMutation,
-  useUpdatePurchaseOrderMutation,
+  useUpdateProcurementPurchaseOrderMutation,
 } from '@/services/api/procurement.api'
 import { useAppSelector } from '@/store/hooks'
 import { applyServerIssues } from '@/utils/apiErrors'
@@ -52,7 +52,7 @@ export const PoFormScreen: React.FC<PoFormScreenProps> = ({ purchaseOrderId }) =
   const me = Number(useAppSelector((state) => state.auth.user?.id))
   const { success, failure, info } = useApiFeedback()
 
-  const { data: po, isLoading, isError } = useGetPurchaseOrderQuery(purchaseOrderId ?? 0, { skip: purchaseOrderId === undefined })
+  const { data: po, isLoading, isError } = useGetProcurementPurchaseOrderQuery(purchaseOrderId ?? 0, { skip: purchaseOrderId === undefined })
   const { data: remaining, isLoading: loadingRemaining, error: remainingError } = useGetPurchaseOrderRemainingQuery(remainingOf ?? 0, { skip: remainingOf === undefined || purchaseOrderId !== undefined })
 
   const form = useForm<PoFormValues>({ resolver: zodResolver(poFormSchema), defaultValues: emptyPoValues, mode: 'onTouched' })
@@ -75,8 +75,8 @@ export const PoFormScreen: React.FC<PoFormScreenProps> = ({ purchaseOrderId }) =
     if (message.type === 'updated') hydrated.current = null
   })
 
-  const [createPo] = useCreatePurchaseOrderMutation()
-  const [updatePo] = useUpdatePurchaseOrderMutation()
+  const [createPo] = useCreateProcurementPurchaseOrderMutation()
+  const [updatePo] = useUpdateProcurementPurchaseOrderMutation()
   const decisions = usePoDecisions()
   const [setOpen, { isLoading: toggling }] = useSetPurchaseOrderOpenMutation()
   const [saving, setSaving] = useState(false)

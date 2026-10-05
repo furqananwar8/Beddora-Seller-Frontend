@@ -523,7 +523,7 @@ export const procurementApi = baseApi.injectEndpoints({
     }),
 
     /* purchase orders */
-    getPurchaseOrders: b.query<Page<PurchaseOrderListItem>, PurchaseOrderListParams>({
+    getProcurementPurchaseOrders: b.query<Page<PurchaseOrderListItem>, PurchaseOrderListParams>({
       query: ({ search, destinations, statuses, paymentStatuses, etdAlerts, colors, ...params }) => ({
         url: '/procurement/purchase-orders',
         params: {
@@ -538,7 +538,7 @@ export const procurementApi = baseApi.injectEndpoints({
       }),
       providesTags: ['ProcurementPurchaseOrders'],
     }),
-    getPurchaseOrderSummary: b.query<{ all: number; open: number; overdue: number }, void>({
+    getProcurementPurchaseOrderSummary: b.query<{ all: number; open: number; overdue: number }, void>({
       query: () => '/procurement/purchase-orders/summary',
       transformResponse: unwrap,
       providesTags: ['ProcurementPurchaseOrders'],
@@ -548,7 +548,7 @@ export const procurementApi = baseApi.injectEndpoints({
       transformResponse: unwrap,
       providesTags: ['ProcurementPurchaseOrders'],
     }),
-    getPurchaseOrder: b.query<PurchaseOrderDetail, number>({
+    getProcurementPurchaseOrder: b.query<PurchaseOrderDetail, number>({
       query: (id) => `/procurement/purchase-orders/${id}`,
       transformResponse: unwrap,
       providesTags: ['ProcurementPurchaseOrders'],
@@ -557,12 +557,12 @@ export const procurementApi = baseApi.injectEndpoints({
       query: (id) => `/procurement/purchase-orders/${id}/remaining`,
       transformResponse: unwrap,
     }),
-    createPurchaseOrder: b.mutation<PurchaseOrderDetail, PurchaseOrderBody>({
+    createProcurementPurchaseOrder: b.mutation<PurchaseOrderDetail, PurchaseOrderBody>({
       query: (body) => ({ url: '/procurement/purchase-orders', method: 'POST', body }),
       transformResponse: unwrap,
       invalidatesTags: ['ProcurementPurchaseOrders'],
     }),
-    updatePurchaseOrder: b.mutation<PurchaseOrderDetail, { id: number; body: PurchaseOrderBody }>({
+    updateProcurementPurchaseOrder: b.mutation<PurchaseOrderDetail, { id: number; body: PurchaseOrderBody }>({
       query: ({ id, body }) => ({ url: `/procurement/purchase-orders/${id}`, method: 'PUT', body }),
       transformResponse: unwrap,
       invalidatesTags: ['ProcurementPurchaseOrders'],
@@ -713,13 +713,13 @@ export const {
   useRemovePoProductPhotoMutation,
   useGetPoCategoriesQuery,
   useCreatePoCategoryMutation,
-  useGetPurchaseOrdersQuery,
-  useGetPurchaseOrderSummaryQuery,
+  useGetProcurementPurchaseOrdersQuery,
+  useGetProcurementPurchaseOrderSummaryQuery,
   useGetPurchaseOrderFilterOptionsQuery,
-  useGetPurchaseOrderQuery,
+  useGetProcurementPurchaseOrderQuery,
   useGetPurchaseOrderRemainingQuery,
-  useCreatePurchaseOrderMutation,
-  useUpdatePurchaseOrderMutation,
+  useCreateProcurementPurchaseOrderMutation,
+  useUpdateProcurementPurchaseOrderMutation,
   useSetPurchaseOrderOpenMutation,
   useApprovePurchaseOrderMutation,
   useRejectPurchaseOrderMutation,
