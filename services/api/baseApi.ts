@@ -80,6 +80,7 @@ export const tagTypes = [
   'ProcurementCategories',
   'ProcurementPurchaseOrders',
   'ProcurementPackagingLists',
+  'ProcurementContainers',
   'Notifications'
 ] as const
 

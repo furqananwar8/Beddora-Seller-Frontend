@@ -118,6 +118,8 @@ export type PaymentState = 'UNPAID' | 'PARTIALLY_PAID' | 'PAID'
 export interface EtdAlert {
   level: EtdAlertLevel
   daysLeft: number
+  /** Every unit is in a container: no colour, no reminders. */
+  shipped?: boolean
 }
 
 export interface PoPayment {
@@ -262,11 +264,17 @@ export interface PackagingListItem {
   cbm: number
   netWeightKg: number
   grossWeightKg: number
+  /** The container carrying this list, if any. */
+  container: ContainerRef | null
   createdAt: string
 }
 
+export type ContainerFilter = 'ALL' | 'ASSIGNED' | 'NONE'
+
 export interface PackagingListParams extends PageParams {
   purchaseOrderId?: number
+  container?: ContainerFilter
+  destination?: PoDestination
 }
 
 export interface PackagingLineDetail {
@@ -294,6 +302,7 @@ export interface PackagingListDetail {
   createdAt: string
   updatedAt: string
   purchaseOrders: Array<{ id: number; poNo: string }>
+  container: ContainerRef | null
   lines: PackagingLineDetail[]
   totals: { skuCount: number; units: number; cartons: number; cbm: number; netWeightKg: number; grossWeightKg: number }
 }
@@ -322,6 +331,82 @@ export interface PackagingListBody {
   lines: Array<{ purchaseOrderId: number; productId: number; units: number; cartons: number; grossWeightKg: number }>
   closePurchaseOrderIds: number[]
   expectedUpdatedAt?: string
+}
+
+/* ─────────────── Containers ─────────────── */
+
+export type ContainerStatus = 'SHIPPED' | 'DELIVERED_AT_WAREHOUSE'
+
+export interface ContainerRef {
+  id: number
+  containerNo: string
+  status: ContainerStatus
+}
+
+export interface ContainerLine {
+  purchaseOrderId: number
+  poNo: string
+  sku: string
+  name: string
+  /** Ordered on the PO, for "ordered vs. in this container". */
+  ordered: number
+  units: number
+  cartons: number
+  cbm: number
+  netWeightKg: number
+  grossWeightKg: number
+}
+
+export interface ContainerItem {
+  id: number
+  containerNo: string
+  billOfLading: string | null
+  masterBillOfLading: string | null
+  status: ContainerStatus
+  etd: string | null
+  eta: string | null
+  destination: PoDestination
+  destinationCity: string | null
+  destinationProvince: string | null
+  portOfArrival: string | null
+  totalCost: number | null
+  currency: PoCurrency
+  deliveredAt: string | null
+  updatedAt: string
+  packagingList: { id: number; plNo: string; supplier: { id: number; name: string }; purchaseOrders: Array<{ id: number; poNo: string }> } | null
+  totals: { units: number; cartons: number; cbm: number; netWeightKg: number; grossWeightKg: number }
+  lines: ContainerLine[]
+}
+
+export interface ContainerParams extends PageParams {
+  status?: ContainerStatus
+  destination?: PoDestination
+}
+
+export interface ContainerBody {
+  billOfLading: string | null
+  masterBillOfLading: string | null
+  status: ContainerStatus
+  etd: string | null
+  eta: string | null
+  destination: PoDestination
+  destinationCity: string | null
+  destinationProvince: string | null
+  portOfArrival: string | null
+  totalCost: number | null
+  currency: PoCurrency
+  packagingListId: number | null
+  expectedUpdatedAt?: string
+}
+
+/** An empty container a list can go into. */
+export interface AssignableContainer {
+  id: number
+  containerNo: string
+  destination: PoDestination
+  etd: string | null
+  billOfLading: string | null
+  status: ContainerStatus
 }
 
 /** Arrays go to the API as comma-separated values; empty ones are left out. */
@@ -449,9 +534,9 @@ export const procurementApi = baseApi.injectEndpoints({
     /* packaging lists */
     getPackagingLists: b.query<Page<PackagingListItem>, PackagingListParams>({
       query: ({ search, ...params }) => ({ url: '/procurement/packaging-lists', params: { ...params, search: search || undefined } }),
-      providesTags: ['ProcurementPackagingLists'],
+      providesTags: ['ProcurementPackagingLists', 'ProcurementContainers'],
     }),
-    getPackagingListSummary: b.query<{ all: number }, void>({
+    getPackagingListSummary: b.query<{ all: number; withoutContainer: number }, void>({
       query: () => '/procurement/packaging-lists/summary',
       transformResponse: unwrap,
       providesTags: ['ProcurementPackagingLists'],
@@ -484,6 +569,51 @@ export const procurementApi = baseApi.injectEndpoints({
     deletePackagingList: b.mutation<void, number>({
       query: (id) => ({ url: `/procurement/packaging-lists/${id}`, method: 'DELETE' }),
       invalidatesTags: ['ProcurementPackagingLists', 'ProcurementPurchaseOrders'],
+    }),
+
+    /* containers */
+    getContainers: b.query<Page<ContainerItem>, ContainerParams>({
+      query: ({ search, ...params }) => ({ url: '/procurement/containers', params: { ...params, search: search || undefined } }),
+      providesTags: ['ProcurementContainers'],
+    }),
+    getContainerSummary: b.query<{ all: number; empty: number }, void>({
+      query: () => '/procurement/containers/summary',
+      transformResponse: unwrap,
+      providesTags: ['ProcurementContainers'],
+    }),
+    getContainer: b.query<ContainerItem, number>({
+      query: (id) => `/procurement/containers/${id}`,
+      transformResponse: unwrap,
+      providesTags: ['ProcurementContainers'],
+    }),
+    getContainerPorts: b.query<string[], PoDestination>({
+      query: (destination) => ({ url: '/procurement/containers/ports', params: { destination } }),
+      transformResponse: unwrap,
+    }),
+    getAssignableContainers: b.query<AssignableContainer[], { destination: PoDestination; includeId?: number }>({
+      query: (params) => ({ url: '/procurement/containers/assignable', params }),
+      transformResponse: unwrap,
+      providesTags: ['ProcurementContainers'],
+    }),
+    createContainer: b.mutation<ContainerItem, ContainerBody>({
+      query: (body) => ({ url: '/procurement/containers', method: 'POST', body }),
+      transformResponse: unwrap,
+      invalidatesTags: ['ProcurementContainers', 'ProcurementPackagingLists', 'ProcurementPurchaseOrders'],
+    }),
+    updateContainer: b.mutation<ContainerItem, { id: number; body: ContainerBody }>({
+      query: ({ id, body }) => ({ url: `/procurement/containers/${id}`, method: 'PUT', body }),
+      transformResponse: unwrap,
+      invalidatesTags: ['ProcurementContainers', 'ProcurementPackagingLists', 'ProcurementPurchaseOrders'],
+    }),
+    setContainerPackagingList: b.mutation<ContainerItem, { id: number; packagingListId: number | null }>({
+      query: ({ id, packagingListId }) => ({ url: `/procurement/containers/${id}/packaging-list`, method: 'PUT', body: { packagingListId } }),
+      transformResponse: unwrap,
+      invalidatesTags: ['ProcurementContainers', 'ProcurementPackagingLists', 'ProcurementPurchaseOrders'],
+    }),
+    markContainerDelivered: b.mutation<ContainerItem, number>({
+      query: (id) => ({ url: `/procurement/containers/${id}/delivered`, method: 'POST' }),
+      transformResponse: unwrap,
+      invalidatesTags: ['ProcurementContainers'],
     }),
 
     /* categories */
@@ -532,4 +662,13 @@ export const {
   useCreatePackagingListMutation,
   useUpdatePackagingListMutation,
   useDeletePackagingListMutation,
+  useGetContainersQuery,
+  useGetContainerSummaryQuery,
+  useGetContainerQuery,
+  useGetContainerPortsQuery,
+  useGetAssignableContainersQuery,
+  useCreateContainerMutation,
+  useUpdateContainerMutation,
+  useSetContainerPackagingListMutation,
+  useMarkContainerDeliveredMutation,
 } = procurementApi

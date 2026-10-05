@@ -4,24 +4,41 @@ import React, { useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { ConfirmDialog } from '@/components/confirm-dialog/ConfirmDialog'
+import { FILL_TOGGLE, FilterBar, FilterItem } from '@/components/filter-bar/FilterBar'
+import { useStagedFilters } from '@/components/filter-bar/useStagedFilters'
 import { FormField } from '@/components/form-field/FormField'
 import { Container } from '@/components/layout'
 import { PaginationFooter } from '@/components/pagination-footer/PaginationFooter'
 import { RowActionsMenu, type RowActionItem } from '@/components/row-actions-menu/RowActionsMenu'
+import { SegmentedToggle } from '@/components/segmented-toggle/SegmentedToggle'
+import { Button } from '@/design-system/buttons'
 import { Spinner } from '@/design-system/loaders'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/design-system/tables'
 import { useApiFeedback } from '@/hooks/useApiFeedback'
 import { useAppAbility } from '@/hooks/useAppAbility'
-import { useDeletePackagingListMutation, useGetPackagingListsQuery, useGetPackagingListSummaryQuery, type PackagingListItem } from '@/services/api/procurement.api'
+import { useDeletePackagingListMutation, useGetPackagingListsQuery, useGetPackagingListSummaryQuery, type ContainerFilter, type PackagingListItem } from '@/services/api/procurement.api'
 import { cn } from '@/utils/cn'
 import { useDebounce } from '@/utils/debounce'
 import { downloadApiFile } from '@/utils/downloadFile'
-import { formatPoNo, newPackagingListHref } from '../shared/poMeta'
+import { AssignContainerModal } from '../containers'
+import { ContainerStatusBadge, formatPoNo, newPackagingListHref } from '../shared/poMeta'
 
 const BASE = '/dashboard/procurement/packaging-lists'
 const PAGE_SIZE = 20
 const CELL = 'text-center align-middle'
-const COLUMNS = 9
+const COLUMNS = 10
+
+interface Filters extends Record<string, unknown> {
+  container: ContainerFilter
+}
+
+const DEFAULT_FILTERS: Filters = { container: 'ALL' }
+
+const CONTAINER_OPTIONS: Array<{ value: ContainerFilter; label: string }> = [
+  { value: 'ALL', label: 'All' },
+  { value: 'ASSIGNED', label: 'Assigned' },
+  { value: 'NONE', label: 'No container' },
+]
 
 const qty = (value: number) => value.toLocaleString('en-CA')
 const kg = (value: number) => `${value.toLocaleString('en-CA', { maximumFractionDigits: 1 })} kg`
@@ -32,6 +49,7 @@ export const PackagingListsScreen: React.FC = () => {
   const params = useSearchParams()
   const ability = useAppAbility()
   const canWrite = ability.can('write', 'procurement:packaging-lists')
+  const canAssign = canWrite || ability.can('write', 'procurement:containers')
   const { success, failure } = useApiFeedback()
 
   // "View packaging lists" on a purchase order narrows this list to that PO
@@ -41,9 +59,12 @@ export const PackagingListsScreen: React.FC = () => {
   const [search, setSearch] = useState('')
   const debouncedSearch = useDebounce(search.trim(), 300)
   const [page, setPage] = useState(1)
-  const { data, isLoading, isFetching, isError } = useGetPackagingListsQuery({ page, limit: PAGE_SIZE, search: debouncedSearch, purchaseOrderId })
+  const filters = useStagedFilters(DEFAULT_FILTERS, () => setPage(1))
+  const { applied, draft, setDraft, changed } = filters
+  const { data, isLoading, isFetching, isError } = useGetPackagingListsQuery({ page, limit: PAGE_SIZE, search: debouncedSearch, purchaseOrderId, container: applied.container })
   const { data: summary } = useGetPackagingListSummaryQuery()
 
+  const [assigning, setAssigning] = useState<PackagingListItem | null>(null)
   const [deleting, setDeleting] = useState<PackagingListItem | null>(null)
   const [deleteList, { isLoading: deletingBusy }] = useDeletePackagingListMutation()
 
@@ -66,12 +87,17 @@ export const PackagingListsScreen: React.FC = () => {
     }
   }
 
-  const actionsFor = (row: PackagingListItem): RowActionItem[] => [
-    { key: 'view', label: 'View packaging list', onSelect: () => router.push(`${BASE}/${row.id}`) },
-    ...(canWrite ? [{ key: 'edit', label: 'Edit quantities', onSelect: () => router.push(`${BASE}/${row.id}?edit=1`) }] : []),
-    { key: 'pdf', label: 'Download PDF', onSelect: () => void download(row) },
-    ...(canWrite ? [{ key: 'delete', label: 'Delete list', tone: 'danger' as const, onSelect: () => setDeleting(row) }] : []),
-  ]
+  const actionsFor = (row: PackagingListItem): RowActionItem[] => {
+    // A list in a container has shipped: its lines stay as they are until it is taken out
+    const shipped = row.container ? `In ${row.container.containerNo}; take it out of the container first` : undefined
+    return [
+      { key: 'view', label: 'View packaging list', onSelect: () => router.push(`${BASE}/${row.id}`) },
+      ...(canWrite ? [{ key: 'edit', label: 'Edit quantities', onSelect: () => router.push(`${BASE}/${row.id}?edit=1`), disabled: Boolean(shipped), disabledReason: shipped }] : []),
+      ...(canAssign ? [{ key: 'assign', label: row.container ? 'Change container' : 'Assign container', onSelect: () => setAssigning(row) }] : []),
+      { key: 'pdf', label: 'Download PDF', onSelect: () => void download(row) },
+      ...(canWrite ? [{ key: 'delete', label: 'Delete list', tone: 'danger' as const, onSelect: () => setDeleting(row), disabled: Boolean(shipped), disabledReason: shipped }] : []),
+    ]
+  }
 
   const clearPurchaseOrder = () => router.replace(pathname)
   const rows = data?.data ?? []
@@ -93,7 +119,7 @@ export const PackagingListsScreen: React.FC = () => {
           </div>
           {summary && (
             <p className="text-sm text-text-muted">
-              {summary.all} packaging {summary.all === 1 ? 'list' : 'lists'}
+              {summary.all} packaging {summary.all === 1 ? 'list' : 'lists'} · {summary.withoutContainer} without a container
             </p>
           )}
         </div>
@@ -105,19 +131,34 @@ export const PackagingListsScreen: React.FC = () => {
       </div>
 
       <div className="mb-4 rounded-lg border border-border bg-surface p-3 shadow-sm sm:p-4">
-        <FormField label="Search" htmlFor="pl-search" className="max-w-xl">
-          <input
-            id="pl-search"
-            type="search"
-            value={search}
-            onChange={(event) => {
-              setSearch(event.target.value)
-              setPage(1)
-            }}
-            placeholder="PL #, supplier, PO # or SKU"
-            className="ds-input ds-input-default rounded-lg"
-          />
-        </FormField>
+        <FilterBar pendingCount={changed.size} activeCount={filters.activeCount} onApply={filters.apply} onReset={filters.reset}>
+          <FilterItem wide>
+            <FormField label="Search" htmlFor="pl-search">
+              <input
+                id="pl-search"
+                type="search"
+                value={search}
+                onChange={(event) => {
+                  setSearch(event.target.value)
+                  setPage(1)
+                }}
+                placeholder="PL #, supplier, PO # or SKU"
+                className="ds-input ds-input-default rounded-lg"
+              />
+            </FormField>
+          </FilterItem>
+          <FilterItem wide>
+            <FormField label="Container">
+              <SegmentedToggle<ContainerFilter>
+                ariaLabel="Container"
+                value={draft.container}
+                onChange={(v) => setDraft('container', v)}
+                options={CONTAINER_OPTIONS}
+                className={cn(FILL_TOGGLE, changed.has('container') && 'ring-1 ring-primary-500')}
+              />
+            </FormField>
+          </FilterItem>
+        </FilterBar>
       </div>
 
       <div className={cn('overflow-hidden rounded-lg border border-border bg-surface shadow-sm', isFetching && 'opacity-70 transition-opacity')}>
@@ -133,6 +174,7 @@ export const PackagingListsScreen: React.FC = () => {
                 <TableHead className={CELL}>Cartons</TableHead>
                 <TableHead className={CELL}>CBM</TableHead>
                 <TableHead className={CELL}>Gross wt</TableHead>
+                <TableHead className={cn(CELL, 'min-w-[160px]')}>Container</TableHead>
                 <TableHead className={CELL}>Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -149,7 +191,7 @@ export const PackagingListsScreen: React.FC = () => {
                 <TableRow>
                   <TableCell colSpan={COLUMNS}>
                     <div className={isError ? 'py-12 text-center font-medium text-danger-600' : 'py-12 text-center text-text-muted'}>
-                      {isError ? 'Could not load packaging lists.' : debouncedSearch || purchaseOrderId ? 'No packaging list matches.' : 'No packaging lists yet.'}
+                      {isError ? 'Could not load packaging lists.' : debouncedSearch || purchaseOrderId || filters.appliedCount > 0 ? 'No packaging list matches.' : 'No packaging lists yet.'}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -165,6 +207,22 @@ export const PackagingListsScreen: React.FC = () => {
                     <TableCell className={cn(CELL, 'font-mono text-xs')}>{row.cbm.toFixed(2)}</TableCell>
                     <TableCell className={cn(CELL, 'whitespace-nowrap tabular-nums')}>{kg(row.grossWeightKg)}</TableCell>
                     <TableCell className={CELL}>
+                      {row.container ? (
+                        <div className="flex flex-col items-center gap-0.5">
+                          <Link href="/dashboard/procurement/containers" className="font-mono text-sm font-semibold text-primary-600 underline-offset-2 hover:underline">
+                            {row.container.containerNo}
+                          </Link>
+                          <ContainerStatusBadge status={row.container.status} />
+                        </div>
+                      ) : canAssign ? (
+                        <Button type="button" variant="outline" size="sm" className="whitespace-nowrap border-dashed" onClick={() => setAssigning(row)}>
+                          + Assign container
+                        </Button>
+                      ) : (
+                        <span className="text-text-muted">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell className={CELL}>
                       <RowActionsMenu label={row.plNo} items={actionsFor(row)} />
                     </TableCell>
                   </TableRow>
@@ -175,6 +233,8 @@ export const PackagingListsScreen: React.FC = () => {
         </div>
         {data && <PaginationFooter page={data.page} pageSize={data.limit} totalItems={data.totalRecords} totalPages={data.totalPages} onPageChange={setPage} itemLabel="packaging lists" />}
       </div>
+
+      <AssignContainerModal list={assigning} onClose={() => setAssigning(null)} />
 
       <ConfirmDialog isOpen={deleting !== null} title={`Delete ${deleting?.plNo ?? 'list'}`} confirmLabel="Delete list" tone="danger" busy={deletingBusy} onConfirm={confirmDelete} onClose={() => setDeleting(null)}>
         <p>

@@ -159,6 +159,7 @@ export default function DashboardLayout({
               { label: 'Products', subject: 'procurement:products', action: 'read', href: '/dashboard/procurement/products' },
               { label: 'Purchase Orders', subject: 'procurement:purchase-orders', action: 'read', href: '/dashboard/procurement/purchase-orders' },
               { label: 'Packaging Lists', subject: 'procurement:packaging-lists', action: 'read', href: '/dashboard/procurement/packaging-lists' },
+              { label: 'Containers', subject: 'procurement:containers', action: 'read', href: '/dashboard/procurement/containers' },
             ],
           },
           {

@@ -1,6 +1,6 @@
 import React from 'react'
 import { StatusBadge, type StatusTone } from '@/components/status-badge/StatusBadge'
-import type { EtdAlert, PaymentState, PoDestination, PoPayment, PoStatus } from '@/services/api/procurement.api'
+import type { ContainerStatus, EtdAlert, PaymentState, PoDestination, PoPayment, PoStatus } from '@/services/api/procurement.api'
 import { cn } from '@/utils/cn'
 import { formatCalendarDay } from '@/utils/format'
 
@@ -40,7 +40,8 @@ export const OpenBadge: React.FC<{ isOpen: boolean }> = ({ isOpen }) => <StatusB
 const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? '' : 's'}`
 
 /** "5 days left · daily email", "Overdue 4 days · emailed daily", or "No alerts" once closed or shipped. */
-export function etdCaption({ level, daysLeft }: EtdAlert): string {
+export function etdCaption({ level, daysLeft, shipped }: EtdAlert): string {
+  if (shipped) return 'Shipped · no alerts'
   if (level === 'NONE') return 'No alerts'
   if (level === 'OVERDUE') return `Overdue ${plural(Math.abs(daysLeft), 'day')} · daily email`
   if (level === 'SOON') return daysLeft === 0 ? 'Due today · daily email' : `${plural(daysLeft, 'day')} left · daily email`
@@ -73,3 +74,10 @@ export const newPackagingListHref = (purchaseOrderId?: number): string =>
 
 /** A PO can be packed once approved and while open. */
 export const isPackable = (po: { status: PoStatus; isOpen: boolean }): boolean => po.status !== 'PENDING_APPROVAL' && po.isOpen
+
+export const CONTAINER_STATUS_META: Record<ContainerStatus, { label: string; tone: StatusTone }> = {
+  SHIPPED: { label: 'Shipped', tone: 'info' },
+  DELIVERED_AT_WAREHOUSE: { label: 'Delivered at warehouse', tone: 'success' },
+}
+
+export const ContainerStatusBadge: React.FC<{ status: ContainerStatus }> = ({ status }) => <StatusBadge label={CONTAINER_STATUS_META[status].label} tone={CONTAINER_STATUS_META[status].tone} />

@@ -44,12 +44,14 @@ export const PackagingListFormScreen: React.FC<PackagingListFormScreenProps> = (
   const { success, failure } = useApiFeedback()
 
   const isNew = packagingListId === undefined
-  const editing = !isNew && params.get('edit') === '1' && canWrite
-  const readOnly = !isNew && !editing
   const fromPoParam = Number(params.get('purchaseOrderId'))
   const fromPoId = isNew && Number.isInteger(fromPoParam) && fromPoParam > 0 ? fromPoParam : undefined
 
   const { data: existing, isLoading: loadingExisting, isError: existingError } = useGetPackagingListQuery(packagingListId ?? 0, { skip: isNew })
+  // A list in a container has shipped: it stays read-only until it is taken out
+  const container = existing?.container ?? null
+  const editing = !isNew && params.get('edit') === '1' && canWrite && !container
+  const readOnly = !isNew && !editing
   const { data: fromPo } = useGetPurchaseOrderQuery(fromPoId ?? 0, { skip: !fromPoId })
 
   const [supplier, setSupplier] = useState<SupplierRef | null>(null)
@@ -211,7 +213,13 @@ export const PackagingListFormScreen: React.FC<PackagingListFormScreenProps> = (
           {isNew && <StatusBadge label="Draft" tone="neutral" />}
           {editing && <StatusBadge label="Editing quantities" tone="info" />}
           {destination && <StatusBadge label={DESTINATION_LABEL[destination]} tone="neutral" />}
+          {container && <StatusBadge label={`In ${container.containerNo}`} tone="info" />}
         </div>
+        {container && (
+          <p className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-800">
+            This list is in {container.containerNo}, so its quantities are locked. Take it out of the container (Packaging lists → Change container) to edit them.
+          </p>
+        )}
 
         <Card>
           <CardHeader>
@@ -307,7 +315,7 @@ export const PackagingListFormScreen: React.FC<PackagingListFormScreenProps> = (
               Download PDF
             </Button>
           )}
-          {readOnly && canWrite && existing && (
+          {readOnly && canWrite && existing && !container && (
             <Button type="button" onClick={() => router.push(`${LIST}/${existing.id}?edit=1`)}>
               Edit quantities
             </Button>
