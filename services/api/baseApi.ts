@@ -76,6 +76,12 @@ export const tagTypes = [
   'FinanceProcess',
   'FinanceApprovers',
   'FinanceExpenseTypes',
+  'ProcurementProducts',
+  'ProcurementCategories',
+  'ProcurementPurchaseOrders',
+  'ProcurementPackagingLists',
+  'ProcurementContainers',
+  'ProcurementPriceAnalysis',
   'Notifications'
 ] as const
 

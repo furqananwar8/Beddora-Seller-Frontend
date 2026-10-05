@@ -1,3 +1,5 @@
+import { format as dateFnsFormat } from 'date-fns'
+
 /**
  * Format utility functions
  * 
@@ -43,3 +45,12 @@ export const formatPercentage = (value: number, decimals: number = 2): string =>
   return `${formatNumber(value, decimals)}%`
 }
 
+
+/**
+ * A calendar day (invoice date, ETD) as `dd MMM yyyy`. Such dates arrive as midnight UTC, so they are
+ * read in UTC; local-time formatting would show the previous day west of Greenwich.
+ */
+export function formatCalendarDay(value: string | Date, pattern = 'dd MMM yyyy'): string {
+  const date = typeof value === 'string' ? new Date(value) : value
+  return dateFnsFormat(new Date(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()), pattern)
+}

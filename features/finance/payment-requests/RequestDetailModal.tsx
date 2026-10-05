@@ -10,7 +10,7 @@ import { Spinner } from '@/design-system/loaders'
 import { StatusBadge } from '@/components/status-badge/StatusBadge'
 import { PaymentRequestDetail, useGetPaymentRequestQuery } from '@/services/api/finance.api'
 import { financeErrorMessage } from '../shared/useFinanceFeedback'
-import { formatCurrencyAmount, formatDay, formatRequestNo } from '../shared/format'
+import { formatCurrencyAmount, formatDay, formatRequestNo, requestReference } from '../shared/format'
 import { REQUEST_STATUS_META } from '../shared/statusMeta'
 import { ApprovalTimeline } from './ApprovalTimeline'
 import { DocumentChips } from '../shared/DocumentChips'
@@ -36,10 +36,10 @@ const Summary: React.FC<{ detail: PaymentRequestDetail }> = ({ detail }) => (
     <Row label="Partner">
       {detail.partner.name} <span className="font-normal text-text-muted">({detail.partner.type === 'VENDOR' ? 'Vendor' : 'Supplier'})</span>
     </Row>
-    <Row label="Invoice">
-      {detail.invoiceNo} · {formatDay(detail.invoiceDate)}
+    <Row label={detail.referenceType === 'PURCHASE_ORDER' ? 'Purchase order' : 'Invoice'}>
+      {requestReference(detail)} · {formatDay(detail.invoiceDate)}
     </Row>
-    <Row label="Container #">{detail.containerNo || '-'}</Row>
+    {detail.referenceType !== 'PURCHASE_ORDER' && <Row label="Container #">{detail.containerNo || '-'}</Row>}
     <Row label="Destination">{detail.marketplace ? countryLabel(detail.marketplace.code) || detail.marketplace.name : '-'}</Row>
     <Row label="Expense type">{detail.expenseType.name}</Row>
     <Row label="Amount">

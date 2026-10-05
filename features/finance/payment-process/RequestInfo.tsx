@@ -18,7 +18,7 @@ export const RequestInfo: React.FC<{ request: PaymentDocumentDetail['request'] }
     <dl className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3">
       <Item label="Partner">{request.partner.name}</Item>
       <Item label="Request">
-        {formatRequestNo(request.id)} · {request.invoiceNo}
+        {formatRequestNo(request.id)} · {request.reference.value}
       </Item>
       <Item label="Expense type">{request.expenseType.name}</Item>
       <Item label="Container #">{request.containerNo || '-'}</Item>

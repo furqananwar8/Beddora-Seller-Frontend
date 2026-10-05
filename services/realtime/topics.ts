@@ -7,9 +7,16 @@ import type { TagType } from '@/services/api/baseApi'
  */
 export const REALTIME_TOPICS: Record<string, TagType[]> = {
   notification: ['Notifications'],
-  'finance.partner': ['FinancePartners'],
-  'finance.payment-request': ['FinanceRequests'],
-  'finance.payment-process': ['FinanceProcess', 'FinanceRequests'],
+  /** Inventory sync toasts; SyncEventListener refetches by event kind. */
+  'inventory.sync': [],
+  'finance.partner': ['FinancePartners', 'ProcurementPriceAnalysis'],
+  'finance.payment-request': ['FinanceRequests', 'ProcurementPurchaseOrders'],
+  'finance.payment-process': ['FinanceProcess', 'FinanceRequests', 'ProcurementPurchaseOrders'],
+  'procurement.product': ['ProcurementProducts', 'ProcurementPriceAnalysis'],
+  'procurement.purchase-order': ['ProcurementPurchaseOrders'],
+  'procurement.packaging-list': ['ProcurementPackagingLists', 'ProcurementPurchaseOrders', 'ProcurementContainers'],
+  'procurement.container': ['ProcurementContainers', 'ProcurementPackagingLists', 'ProcurementPurchaseOrders'],
+  'procurement.price-analysis': ['ProcurementPriceAnalysis'],
 }
 
 export interface RealtimeMessage<T = Record<string, unknown>> {

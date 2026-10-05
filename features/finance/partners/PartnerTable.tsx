@@ -14,8 +14,12 @@ import { partnerTypeLabel } from './partnerSchema'
 
 const HEAD = 'text-center align-middle'
 const CELL = 'text-center align-middle'
-const COLUMNS = 8
+const COLUMNS = 9
 const BASE = '/dashboard/finance/partner-profile'
+
+/** `Toronto, ON · Canada`, or whichever parts are known. */
+const partnerLocation = ({ city, province, country }: Pick<PartnerListItem, 'city' | 'province' | 'country'>) =>
+  [[city, province].filter(Boolean).join(', '), countryName(country)].filter(Boolean).join(' · ')
 
 interface PartnerTableProps {
   rows: PartnerListItem[]
@@ -36,7 +40,8 @@ export const PartnerTable: React.FC<PartnerTableProps> = ({ rows, isLoading, isF
           <TableHead className={HEAD}>ID</TableHead>
           <TableHead className={cn(HEAD, 'min-w-[200px]')}>Name</TableHead>
           <TableHead className={HEAD}>Type</TableHead>
-          <TableHead className={HEAD}>Country</TableHead>
+          <TableHead className={cn(HEAD, 'min-w-[140px]')}>Contact</TableHead>
+          <TableHead className={cn(HEAD, 'min-w-[160px]')}>Location</TableHead>
           <TableHead className={HEAD}>Currency</TableHead>
           <TableHead className={cn(HEAD, 'min-w-[140px]')}>Payment method</TableHead>
           <TableHead className={HEAD}>Last paid</TableHead>
@@ -73,7 +78,8 @@ export const PartnerTable: React.FC<PartnerTableProps> = ({ rows, isLoading, isF
               <TableCell className={cn(CELL, 'font-mono text-text-muted')}>{formatPartnerNo(row.id)}</TableCell>
               <TableCell className={cn(CELL, 'font-medium text-text-primary')}>{row.name}</TableCell>
               <TableCell className={CELL}>{partnerTypeLabel(row.type)}</TableCell>
-              <TableCell className={CELL}>{countryName(row.country) || '—'}</TableCell>
+              <TableCell className={CELL}>{row.contactName || '—'}</TableCell>
+              <TableCell className={CELL}>{partnerLocation(row) || '—'}</TableCell>
               <TableCell className={CELL}>{row.currency}</TableCell>
               <TableCell className={CELL}>{row.paymentMethod ?? '—'}</TableCell>
               <TableCell className={CELL}>{row.lastPaidAt ? formatDay(row.lastPaidAt) : '—'}</TableCell>

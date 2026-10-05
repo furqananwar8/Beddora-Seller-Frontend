@@ -23,8 +23,10 @@ import { BasicDetailsSection } from './BasicDetailsSection'
 import { PaymentDetailsSection } from './PaymentDetailsSection'
 import { PaymentMethodDialog } from './PaymentMethodDialog'
 import { buildPartnerFormData, buildPartnerPatch, buildPaymentMethodFormData } from './partnerPayload'
+import { applyServerIssues } from '@/utils/apiErrors'
 import {
   emptyPartnerValues,
+  PARTNER_FIELDS,
   partnerSchema,
   type PartnerFormValues,
   type PaymentMethodFormValues,
@@ -40,7 +42,10 @@ interface PartnerFormProps {
 
 export const PartnerForm: React.FC<PartnerFormProps> = ({ partner }) => {
   const router = useRouter()
-  const returnTo = safeFinanceReturnTo(useSearchParams().get('returnTo'))
+  const searchParams = useSearchParams()
+  const returnTo = safeFinanceReturnTo(searchParams.get('returnTo'))
+  /** `?type=SUPPLIER` preselects the type, e.g. from a procurement "+ New supplier" link. */
+  const presetType = searchParams.get('type') === 'SUPPLIER' ? 'SUPPLIER' : undefined
   const { success, failure } = useFinanceFeedback()
   const editing = Boolean(partner)
 
@@ -62,6 +67,7 @@ export const PartnerForm: React.FC<PartnerFormProps> = ({ partner }) => {
     control,
     handleSubmit,
     watch,
+    setError,
     formState: { errors },
   } = useForm<PartnerFormValues>({
     resolver: zodResolver(partnerSchema),
@@ -69,12 +75,16 @@ export const PartnerForm: React.FC<PartnerFormProps> = ({ partner }) => {
       ? {
           name: partner.name,
           type: partner.type,
+          contactName: partner.contactName ?? '',
           country: partner.country ?? '',
+          province: partner.province ?? '',
+          city: partner.city ?? '',
+          postalCode: partner.postalCode ?? '',
           email: partner.email ?? '',
           address: partner.address ?? '',
           currency: partner.currency,
         }
-      : emptyPartnerValues,
+      : { ...emptyPartnerValues, ...(presetType && { type: presetType }) },
   })
 
   const name = watch('name')
@@ -146,7 +156,8 @@ export const PartnerForm: React.FC<PartnerFormProps> = ({ partner }) => {
       success('Partner created')
       router.push(returnTo ? withQueryParam(returnTo, 'partnerId', String(created.id)) : LIST)
     } catch (error) {
-      failure(error, 'Could not save the partner')
+      // Field-level problems (e.g. a city outside the chosen province) show under their inputs
+      if (!applyServerIssues(error, setError, PARTNER_FIELDS)) failure(error, 'Could not save the partner')
     } finally {
       setSaving(false)
     }

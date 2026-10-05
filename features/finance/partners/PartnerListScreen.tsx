@@ -35,7 +35,7 @@ export const PartnerListScreen: React.FC = () => {
   return (
     <Container size="full" className="py-4 sm:py-8">
       <ScreenSearch
-        placeholder="Search partners..."
+        placeholder="Search name, contact, email or city..."
         value={search}
         onChange={(value) => {
           setSearch(value)
