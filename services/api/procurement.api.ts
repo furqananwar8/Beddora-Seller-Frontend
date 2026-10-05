@@ -409,6 +409,64 @@ export interface AssignableContainer {
   status: ContainerStatus
 }
 
+/* ─────────────── Price analysis ─────────────── */
+
+/** The analysed product's own details (read-only on the price analysis screen). */
+export type PriceAnalysisProduct = Pick<
+  PoProduct,
+  | 'id'
+  | 'pid'
+  | 'sku'
+  | 'name'
+  | 'variantName'
+  | 'color'
+  | 'material'
+  | 'packaging'
+  | 'sizeName'
+  | 'sizeValue'
+  | 'sizeUnit'
+  | 'weightKg'
+  | 'weightUnit'
+  | 'lengthCm'
+  | 'widthCm'
+  | 'heightCm'
+  | 'dimensionUnit'
+  | 'cbm'
+  | 'hasPhoto'
+  | 'updatedAt'
+>
+
+export interface PriceQuote {
+  supplier: { id: number; name: string; contactName: string | null; isActive: boolean }
+  contactName: string | null
+  unitPrice: number
+  /** 1 = cheapest; equal prices keep row order. */
+  rank: number
+  vsLowestPercent: number
+}
+
+export interface PriceAnalysis {
+  id: number
+  material: string | null
+  currency: PoCurrency
+  updatedAt: string
+  updatedBy: { id: number; name: string | null }
+  quotes: PriceQuote[]
+}
+
+export interface PriceAnalysisView {
+  product: PriceAnalysisProduct
+  analysis: PriceAnalysis | null
+}
+
+export interface PriceAnalysisBody {
+  material: string | null
+  currency: PoCurrency
+  quotes: Array<{ supplierId: number; contactName: string | null; unitPrice: number }>
+  /** When the analysis was loaded; `null` = there was none yet. */
+  expectedUpdatedAt: string | null
+}
+
 /** Arrays go to the API as comma-separated values; empty ones are left out. */
 const csv = (values?: Array<string | number>) => (values && values.length ? values.join(',') : undefined)
 
@@ -616,6 +674,18 @@ export const procurementApi = baseApi.injectEndpoints({
       invalidatesTags: ['ProcurementContainers'],
     }),
 
+    /* price analysis */
+    getPriceAnalysis: b.query<PriceAnalysisView, number>({
+      query: (productId) => `/procurement/price-analysis/${productId}`,
+      transformResponse: unwrap,
+      providesTags: ['ProcurementPriceAnalysis'],
+    }),
+    savePriceAnalysis: b.mutation<PriceAnalysisView, { productId: number; body: PriceAnalysisBody }>({
+      query: ({ productId, body }) => ({ url: `/procurement/price-analysis/${productId}`, method: 'PUT', body }),
+      transformResponse: unwrap,
+      invalidatesTags: ['ProcurementPriceAnalysis'],
+    }),
+
     /* categories */
     getPoCategories: b.query<CategoryRef[], void>({
       query: () => '/procurement/categories',
@@ -671,4 +741,6 @@ export const {
   useUpdateContainerMutation,
   useSetContainerPackagingListMutation,
   useMarkContainerDeliveredMutation,
+  useGetPriceAnalysisQuery,
+  useSavePriceAnalysisMutation,
 } = procurementApi

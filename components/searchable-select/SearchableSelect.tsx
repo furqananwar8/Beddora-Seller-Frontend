@@ -198,7 +198,7 @@ export function SearchableSelect<T>(props: SearchableSelectProps<T>) {
       </button>
 
       {open && (
-        <div className="absolute z-30 mt-1 w-full min-w-[16rem] rounded-lg border border-border bg-surface p-2 shadow-lg">
+        <div className="absolute z-50 mt-1 w-full min-w-[16rem] rounded-lg border border-border bg-surface p-2 shadow-lg">
           {showSearch && (
             <input
               autoFocus
