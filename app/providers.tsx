@@ -18,10 +18,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
         <AuthInitializer>
           <AbilityProvider>
             <RouteGuard>
-              {/* Headless SSE Sync Event Listener */}
-              <SyncEventListener />
-
+              {/* One SSE connection per tab; the inventory sync listener rides it too */}
               <RealtimeProvider>
+                <SyncEventListener />
                 {children}
               </RealtimeProvider>
               <ToastContainer />

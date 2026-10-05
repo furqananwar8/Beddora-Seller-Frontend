@@ -57,7 +57,7 @@ export const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         } catch {
           return
         }
-        dispatch(baseApi.util.invalidateTags(tags))
+        if (tags.length) dispatch(baseApi.util.invalidateTags(tags))
         handlers.current.get(topic)?.forEach((handler) => handler(message))
       }
       source.addEventListener(topic, listener)

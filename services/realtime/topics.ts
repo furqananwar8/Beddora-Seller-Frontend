@@ -7,6 +7,8 @@ import type { TagType } from '@/services/api/baseApi'
  */
 export const REALTIME_TOPICS: Record<string, TagType[]> = {
   notification: ['Notifications'],
+  /** Inventory sync toasts; SyncEventListener refetches by event kind. */
+  'inventory.sync': [],
   'finance.partner': ['FinancePartners', 'ProcurementPriceAnalysis'],
   'finance.payment-request': ['FinanceRequests', 'ProcurementPurchaseOrders'],
   'finance.payment-process': ['FinanceProcess', 'FinanceRequests', 'ProcurementPurchaseOrders'],
