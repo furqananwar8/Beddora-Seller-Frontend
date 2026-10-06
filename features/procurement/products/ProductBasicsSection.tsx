@@ -65,7 +65,7 @@ export const ProductBasicsSection: React.FC<ProductBasicsSectionProps> = ({ form
           <input id="product-packaging" autoComplete="off" className={fieldClass(errors.packaging?.message)} disabled={readOnly} {...register('packaging')} />
         </FormField>
 
-        <FormField label="Size" htmlFor="product-size-name" error={errors.sizeName?.message} hint="Free text, e.g. Medium or 750 ml">
+        <FormField label="Size" htmlFor="product-size-name" error={errors.sizeName?.message}>
           <input id="product-size-name" autoComplete="off" className={fieldClass(errors.sizeName?.message)} disabled={readOnly} {...register('sizeName')} />
         </FormField>
 
