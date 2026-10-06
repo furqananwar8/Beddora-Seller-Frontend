@@ -24,7 +24,7 @@ export const productLabel = (product: Pick<PoProduct, 'name' | 'variantName'>): 
 /** SKU, name and tag: one product option in every procurement product dropdown. */
 const ProductOption: React.FC<{ product: PoProduct; note?: React.ReactNode }> = ({ product, note }) => (
   <span className="flex items-center gap-3">
-    <span className="w-28 shrink-0 truncate font-mono text-xs">{product.sku}</span>
+    <span className="w-28 shrink-0 truncate font-mono text-xs">{product.ref}</span>
     <span className="min-w-0 flex-1 truncate">{productLabel(product)}</span>
     <ProductTagBadge tag={product.tag} />
     {note && <span className="w-12 shrink-0 text-right text-xs text-text-muted">{note}</span>}
@@ -42,7 +42,7 @@ function useProductOptions() {
 
 interface ProductSelectProps {
   id?: string
-  value: Pick<PoProduct, 'id' | 'sku' | 'name' | 'variantName'> | null
+  value: Pick<PoProduct, 'id' | 'ref' | 'name' | 'variantName'> | null
   onChange: (product: PoProduct) => void
   disabled?: boolean
   error?: string
@@ -59,7 +59,7 @@ export const ProductSelect: React.FC<ProductSelectProps> = ({ id, value, onChang
       onChange={onChange}
       options={lookup.options}
       getKey={(product) => product.id}
-      getLabel={(product) => `${product.sku} · ${productLabel(product)}`}
+      getLabel={(product) => `${product.ref} · ${productLabel(product)}`}
       renderOption={(product) => <ProductOption product={product} />}
       search={lookup.search}
       onSearchChange={lookup.setSearch}
@@ -92,7 +92,7 @@ export const ProductPicker: React.FC<ProductPickerProps> = ({ id, selected, onCh
         onChange={onChange}
         options={lookup.options}
         getKey={(product) => product.id}
-        getLabel={(product) => `${product.sku} ${productLabel(product)}`}
+        getLabel={(product) => `${product.ref} ${productLabel(product)}`}
         renderValue={() => placeholder}
         renderOption={(product) => <ProductOption product={product} note={picked.has(product.id) ? 'Added' : undefined} />}
         search={lookup.search}

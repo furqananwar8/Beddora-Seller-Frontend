@@ -11,6 +11,7 @@ import { Container } from '@/components/layout'
 import { PaginationFooter } from '@/components/pagination-footer/PaginationFooter'
 import { SearchableSelect } from '@/components/searchable-select/SearchableSelect'
 import { SegmentedToggle } from '@/components/segmented-toggle/SegmentedToggle'
+import { Button } from '@/design-system/buttons'
 import { useApiFeedback } from '@/hooks/useApiFeedback'
 import { useAppAbility } from '@/hooks/useAppAbility'
 import {
@@ -24,6 +25,7 @@ import {
 import { cn } from '@/utils/cn'
 import { useDebounce } from '@/utils/debounce'
 import { CategorySelect } from '../shared/CategorySelect'
+import { CategoriesModal } from './CategoriesModal'
 import { ProductsTable } from './ProductsTable'
 
 const BASE = '/dashboard/procurement/products'
@@ -69,6 +71,7 @@ export const ProductsScreen: React.FC = () => {
   })
   const { data: summary } = useGetPoProductSummaryQuery()
 
+  const [managingCategories, setManagingCategories] = useState(false)
   const [archiving, setArchiving] = useState<PoProduct | null>(null)
   const [archive, { isLoading: archivingBusy }] = useArchivePoProductMutation()
 
@@ -76,7 +79,7 @@ export const ProductsScreen: React.FC = () => {
     if (!archiving) return
     try {
       await archive(archiving.id).unwrap()
-      success(`${archiving.sku} archived`)
+      success(`${archiving.ref} archived`)
       setArchiving(null)
     } catch (error) {
       failure(error, 'Could not archive the product')
@@ -98,9 +101,14 @@ export const ProductsScreen: React.FC = () => {
           )}
         </div>
         {canWrite && (
-          <Link href={`${BASE}/new`} className="ds-button ds-button-primary ds-button-sm">
-            + New product
-          </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="secondary" size="sm" onClick={() => setManagingCategories(true)}>
+              Categories
+            </Button>
+            <Link href={`${BASE}/new`} className="ds-button ds-button-primary ds-button-sm">
+              + New product
+            </Link>
+          </div>
         )}
       </div>
 
@@ -179,6 +187,8 @@ export const ProductsScreen: React.FC = () => {
         )}
       </div>
 
+      {canWrite && <CategoriesModal isOpen={managingCategories} onClose={() => setManagingCategories(false)} />}
+
       <ConfirmDialog
         isOpen={archiving !== null}
         title={archiving?.tag === 'VARIATION' ? 'Archive variation' : 'Archive product'}
@@ -190,7 +200,7 @@ export const ProductsScreen: React.FC = () => {
       >
         {archiving?.tag === 'VARIATION' ? (
           <p>
-            <strong>{archiving.variantName ?? archiving.sku}</strong> will leave the product list and every product picker. Its SKU stays reserved.
+            <strong>{archiving.variantName ?? archiving.ref}</strong> will leave the product list and every product picker. Its SKU stays reserved.
           </p>
         ) : (
           <p>

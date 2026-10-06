@@ -29,7 +29,7 @@ const CURRENCIES: Array<{ value: PoCurrency; label: string }> = [
 
 const EMPTY: PriceAnalysisForm = { material: '', currency: 'USD', rows: [] }
 
-type ProductRef = Pick<PoProduct, 'id' | 'sku' | 'name' | 'variantName'>
+type ProductRef = Pick<PoProduct, 'id' | 'ref' | 'name' | 'variantName'>
 
 export const PriceAnalysisScreen: React.FC = () => {
   const router = useRouter()
@@ -184,7 +184,7 @@ export const PriceAnalysisScreen: React.FC = () => {
             <Card>
               <CardHeader>
                 <CardTitle>
-                  Product details <span className="ml-1 font-mono text-sm font-normal text-text-muted">{product.sku} · {productLabel(product)}</span>
+                  Product details <span className="ml-1 font-mono text-sm font-normal text-text-muted">{product.ref} · {productLabel(product)}</span>
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -269,7 +269,7 @@ export const PriceAnalysisScreen: React.FC = () => {
         onClose={() => setSwitchingTo(null)}
       >
         <p>
-          The changes to this analysis are not saved. Switch to {switchingTo ? `${switchingTo.sku} · ${productLabel(switchingTo)}` : 'the other product'} anyway?
+          The changes to this analysis are not saved. Switch to {switchingTo ? `${switchingTo.ref} · ${productLabel(switchingTo)}` : 'the other product'} anyway?
         </p>
       </ConfirmDialog>
     </Container>

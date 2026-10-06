@@ -121,7 +121,7 @@ export const PackagingListFormScreen: React.FC<PackagingListFormScreenProps> = (
     .map((group) => ({
       po: group.purchaseOrder,
       open: poOptions.find((option) => option.id === group.purchaseOrder.id)?.isOpen ?? true,
-      left: figures.filter((row) => row.group.purchaseOrder.id === group.purchaseOrder.id && row.remaining > 0).map((row) => ({ sku: row.line.product.sku, units: row.remaining })),
+      left: figures.filter((row) => row.group.purchaseOrder.id === group.purchaseOrder.id && row.remaining > 0).map((row) => ({ sku: row.line.product.ref, units: row.remaining })),
     }))
     .filter((item) => item.open && item.left.length > 0)
 
@@ -257,7 +257,7 @@ export const PackagingListFormScreen: React.FC<PackagingListFormScreenProps> = (
             {overAllocated.length > 0 && (
               <p role="alert" className="rounded-lg border border-danger-200 bg-danger-50 px-3 py-2 text-sm text-danger-700">
                 <strong>Over-allocation is blocked:</strong>{' '}
-                {overAllocated.map((row) => `${row.line.product.sku} has only ${row.line.available.toLocaleString('en-CA')} available`).join('; ')}.
+                {overAllocated.map((row) => `${row.line.product.ref} has only ${row.line.available.toLocaleString('en-CA')} available`).join('; ')}.
               </p>
             )}
           </CardContent>

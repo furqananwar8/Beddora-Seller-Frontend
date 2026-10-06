@@ -119,7 +119,7 @@ export const PackingLinesTable: React.FC<PackingLinesTableProps> = ({ groups, va
                 return (
                   <tr key={key} className={cn('border-t border-border', (unitsError || figures.errors.cartons || figures.errors.gross) && 'bg-danger-50/40')}>
                     <td className={cn(CELL, 'text-left')}>
-                      <p className="font-mono text-xs font-semibold text-text-primary">{line.product.sku}</p>
+                      <p className="font-mono text-xs font-semibold text-text-primary">{line.product.ref}</p>
                       <p className="text-xs text-text-secondary">{productLabel(line.product)}</p>
                     </td>
                     <td className={CELL}>{qty(line.poQty)}</td>
@@ -127,7 +127,7 @@ export const PackingLinesTable: React.FC<PackingLinesTableProps> = ({ groups, va
                     <td className={CELL}>{qty(line.available)}</td>
                     <td className={CELL}>
                       <NumberCell
-                        label={`Units of ${line.product.sku} on this list`}
+                        label={`Units of ${line.product.ref} on this list`}
                         value={value.units}
                         onChange={(next) => onChange(key, 'units', next)}
                         error={unitsError}
@@ -137,13 +137,13 @@ export const PackingLinesTable: React.FC<PackingLinesTableProps> = ({ groups, va
                     </td>
                     <td className={cn(CELL, 'font-medium', figures.remaining < 0 ? 'text-danger-600' : figures.remaining > 0 ? 'text-warning-700' : 'text-success-700')}>{qty(figures.remaining)}</td>
                     <td className={CELL}>
-                      <NumberCell label={`Cartons of ${line.product.sku}`} value={value.cartons} onChange={(next) => onChange(key, 'cartons', next)} error={figures.errors.cartons} readOnly={readOnly} />
+                      <NumberCell label={`Cartons of ${line.product.ref}`} value={value.cartons} onChange={(next) => onChange(key, 'cartons', next)} error={figures.errors.cartons} readOnly={readOnly} />
                     </td>
                     <td className={cn(CELL, 'font-mono text-xs')}>{figures.cbm.toFixed(2)}</td>
                     <td className={cn(CELL, 'whitespace-nowrap')}>{kg(figures.net)}</td>
                     <td className={CELL}>
                       <NumberCell
-                        label={`Gross weight of ${line.product.sku} in kg`}
+                        label={`Gross weight of ${line.product.ref} in kg`}
                         value={value.gross}
                         onChange={(next) => onChange(key, 'gross', next)}
                         error={figures.errors.gross}

@@ -3,15 +3,14 @@
 import React, { useState } from 'react'
 import { Controller, UseFormReturn, useFieldArray, useWatch } from 'react-hook-form'
 import { fieldClass } from '@/components/form-field/FormField'
-import { SegmentedToggle } from '@/components/segmented-toggle/SegmentedToggle'
 import { Button } from '@/design-system/buttons'
 import { Card, CardContent, CardHeader, CardTitle } from '@/design-system/cards/Card'
 import type { LengthUnit } from '@/services/api/procurement.api'
 import { cn } from '@/utils/cn'
-import { CategorySelect } from '../shared/CategorySelect'
-import { CbmField, LENGTH_UNITS } from '../shared/MeasurementFields'
+import { ColorSelect } from '../shared/ColorSelect'
+import { CbmField } from '../shared/MeasurementFields'
 import { PhotoField } from './PhotoField'
-import { derivedCbm, newVariation, variantNameOf, type ProductFormValues } from './productForm'
+import { derivedCbm, newVariation, shownVariantName, type ProductFormValues } from './productForm'
 import { SkuInput } from './SkuInput'
 
 import { NumericInput } from '@/components/form-field/NumericInput'
@@ -96,10 +95,9 @@ export const VariationsSection: React.FC<VariationsSectionProps> = ({ form, prod
                 <tr>
                   <th className="w-8" aria-label="Expand" />
                   <th className={cn(HEAD, 'min-w-[12rem]')}>Variant name</th>
-                  <th className={HEAD}>SKU *</th>
+                  <th className={HEAD}>SKU</th>
                   <th className={HEAD}>Color *</th>
                   <th className={HEAD}>Material</th>
-                  <th className={HEAD}>Size name</th>
                   <th className={HEAD}>Size</th>
                   <th className={HEAD}>Packaging</th>
                   <th className={HEAD} title="Category, weight, dimensions and CBM follow the master">Master dims</th>
@@ -130,7 +128,17 @@ export const VariationsSection: React.FC<VariationsSectionProps> = ({ form, prod
                           </button>
                         </td>
                         <td className={CELL}>
-                          <input readOnly tabIndex={-1} value={variantNameOf(masterName, row.color, row.sizeName) || '—'} className={cn(input(), 'min-w-[15rem] bg-secondary-50 text-text-muted')} aria-label="Variant name" />
+                          <input
+                            aria-label="Variant name"
+                            autoComplete="off"
+                            placeholder="Name-Color-Size"
+                            className={cn(input(err?.variantName?.message), 'min-w-[15rem]')}
+                            disabled={readOnly}
+                            // Shows the auto-built name until one is typed; clearing it goes back to following name, color and size
+                            value={shownVariantName(row, masterName)}
+                            onChange={(event) => setValue(`variations.${index}.variantName`, event.target.value, { shouldDirty: true })}
+                          />
+                          {err?.variantName?.message && <p className="mt-1 text-left text-xs text-danger-600">{err.variantName.message}</p>}
                         </td>
                         <td className={CELL}>
                           <SkuInput
@@ -146,27 +154,21 @@ export const VariationsSection: React.FC<VariationsSectionProps> = ({ form, prod
                           {err?.sku?.message && <p className="mt-1 max-w-[12rem] text-left text-xs text-danger-600">{err.sku.message}</p>}
                         </td>
                         <td className={CELL}>
-                          <input aria-label="Color" className={input(err?.color?.message)} disabled={readOnly} {...register(`variations.${index}.color`)} />
+                          <ColorSelect
+                            aria-label="Color"
+                            className="h-9 min-w-[9rem] py-1 text-sm"
+                            error={err?.color?.message}
+                            disabled={readOnly}
+                            value={row.color}
+                            onChange={(color) => setValue(`variations.${index}.color`, color, { shouldDirty: true, shouldValidate: true })}
+                          />
                           {err?.color?.message && <p className="mt-1 text-left text-xs text-danger-600">{err.color.message}</p>}
                         </td>
                         <td className={CELL}>
                           <input aria-label="Material" className={input(err?.material?.message)} disabled={readOnly} {...register(`variations.${index}.material`)} />
                         </td>
                         <td className={CELL}>
-                          <input aria-label="Size name" placeholder="e.g. Large" className={input(err?.sizeName?.message)} disabled={readOnly} {...register(`variations.${index}.sizeName`)} />
-                        </td>
-                        <td className={CELL}>
-                          <div className="flex items-center gap-1.5">
-                            <NumericInput decimal aria-label="Size" className={cn(input(err?.sizeValue?.message), 'min-w-[4.5rem] text-right')} disabled={readOnly} {...register(`variations.${index}.sizeValue`)} />
-                            <SegmentedToggle<LengthUnit>
-                              ariaLabel="Size unit"
-                              value={row.sizeUnit === 'CM' ? 'CM' : 'IN'}
-                              options={[...LENGTH_UNITS].reverse()}
-                              disabled={readOnly}
-                              className="shrink-0"
-                              onChange={(unit) => setValue(`variations.${index}.sizeUnit`, unit, { shouldDirty: true })}
-                            />
-                          </div>
+                          <input aria-label="Size" placeholder="e.g. Large" className={input(err?.sizeName?.message)} disabled={readOnly} {...register(`variations.${index}.sizeName`)} />
                         </td>
                         <td className={CELL}>
                           <input aria-label="Packaging" className={input(err?.packaging?.message)} disabled={readOnly} {...register(`variations.${index}.packaging`)} />
@@ -204,7 +206,7 @@ export const VariationsSection: React.FC<VariationsSectionProps> = ({ form, prod
                       {expanded && (
                         <tr className="bg-secondary-50/60">
                           <td />
-                          <td colSpan={9} className="px-2 pb-4 pt-2">
+                          <td colSpan={8} className="px-2 pb-4 pt-2">
                             <VariationDetails
                               form={form}
                               index={index}
@@ -238,7 +240,7 @@ export const VariationsSection: React.FC<VariationsSectionProps> = ({ form, prod
           </div>
         )}
         <p className="border-t border-border px-4 py-3 text-xs text-text-muted">
-          Fields marked * are mandatory. Each variation is saved as its own product with its own ID and SKU, linked to this master.
+          Fields marked * are mandatory. The category always comes from the master. Each variation is saved as its own product with its own ID and SKU, linked to this master.
         </p>
       </CardContent>
     </Card>
@@ -273,23 +275,15 @@ const VariationDetails: React.FC<VariationDetailsProps> = ({ form, index, readOn
 
   return (
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[repeat(4,minmax(0,1fr))_minmax(0,2fr)_auto]">
+      <Readout label="Category" value={`${master.category} · master`} />
       {inherits ? (
         <>
-          <Readout label="Category" value={`${master.category} · master`} />
           <Readout label="Weight" value={`${master.weight} · master`} />
           <Readout label="L × W × H" value={`${master.dims} · master`} />
           <Readout label="CBM" value={master.cbm} />
         </>
       ) : (
         <>
-          <div className="min-w-0">
-            <p className="ds-input-label">Category</p>
-            <Controller
-              control={control}
-              name={`variations.${index}.category`}
-              render={({ field }) => <CategorySelect value={field.value} onChange={field.onChange} disabled={readOnly} canAdd={!readOnly} />}
-            />
-          </div>
           <div className="min-w-0">
             <p className="ds-input-label">Weight ({weightUnit.toLowerCase()})</p>
             <NumericInput decimal aria-label="Weight" className={cn(fieldClass(err?.weight?.message), 'text-right')} disabled={readOnly} {...register(`variations.${index}.weight`)} />

@@ -11,12 +11,12 @@ const optionalNumber = (label: string) =>
 
 export const nameField = z.string().trim().min(1, 'Name is required').max(150, 'Name is too long')
 
+/** SKU is optional; when given it must be well formed (the server checks it is unique). */
 export const skuField = z
   .string()
   .trim()
-  .min(1, 'SKU is required')
   .max(64, 'SKU is too long')
-  .refine((value) => SKU.test(value.toUpperCase()), 'Use letters, digits and . _ - / only')
+  .refine((value) => value === '' || SKU.test(value.toUpperCase()), 'Use letters, digits and . _ - / only')
 
 /** Shipping fields as typed. `cbmTouched` = the user overrode the derived CBM. */
 const shippingShape = {
@@ -46,16 +46,15 @@ export const variationSchema = z.object({
   clientKey: z.string(),
   /** Saved variation id; absent for a new row. */
   id: z.number().optional(),
+  /** Typed by the user; blank means "build it from name, color and size". */
+  variantName: z.string().trim().max(200, 'Too long'),
   sku: skuField,
   color: z.string().trim().min(1, 'Color is required').max(60, 'Color is too long'),
   material: z.string().trim().max(120, 'Too long'),
   packaging: z.string().trim().max(120, 'Too long'),
   sizeName: z.string().trim().max(60, 'Too long'),
-  sizeValue: optionalNumber('Size'),
-  sizeUnit: z.enum(['IN', 'CM']),
   description: z.string().trim().max(2000, 'Description is too long'),
   inheritsMaster: z.boolean(),
-  category: z.custom<CategoryRef | null>(),
   ...shippingShape,
   hasPhoto: z.boolean(),
   removePhoto: z.boolean(),
@@ -69,8 +68,6 @@ export const productFormSchema = z
     material: z.string().trim().max(120, 'Too long'),
     packaging: z.string().trim().max(120, 'Too long'),
     sizeName: z.string().trim().max(60, 'Too long'),
-    sizeValue: optionalNumber('Size'),
-    sizeUnit: z.enum(['IN', 'CM']),
     description: z.string().trim().max(2000, 'Description is too long'),
     weightUnit: z.enum(['KG', 'LB']),
     dimensionUnit: z.enum(['CM', 'IN']),
@@ -108,8 +105,6 @@ export const emptyProductValues: ProductFormValues = {
   material: '',
   packaging: '',
   sizeName: '',
-  sizeValue: '',
-  sizeUnit: 'IN',
   description: '',
   weightUnit: 'KG',
   dimensionUnit: 'CM',
@@ -120,19 +115,17 @@ export const emptyProductValues: ProductFormValues = {
 }
 
 /** A new variation row, prefilled from the master's defaults ("Same dims as master" on). */
-export function newVariation(master: Pick<ProductFormValues, 'material' | 'packaging' | 'sizeUnit'>): VariationFormValues {
+export function newVariation(master: Pick<ProductFormValues, 'material' | 'packaging'>): VariationFormValues {
   return {
     clientKey: crypto.randomUUID(),
+    variantName: '',
     sku: '',
     color: '',
     material: master.material,
     packaging: master.packaging,
     sizeName: '',
-    sizeValue: '',
-    sizeUnit: master.sizeUnit,
     description: '',
     inheritsMaster: true,
-    category: null,
     ...blankShipping,
     hasPhoto: false,
     removePhoto: false,
@@ -144,6 +137,16 @@ export function newVariation(master: Pick<ProductFormValues, 'material' | 'packa
 /** `Folding Side Table-Black-Medium`, built the same way the server builds it. */
 export const variantNameOf = (name: string, color: string, sizeName: string): string =>
   [name, color, sizeName].map((part) => part.trim()).filter(Boolean).join('-')
+
+/** What the variant name box shows: the typed name, else the auto-built one. */
+export const shownVariantName = (variation: Pick<VariationFormValues, 'variantName' | 'color' | 'sizeName'>, masterName: string): string =>
+  variation.variantName.trim() || variantNameOf(masterName, variation.color, variation.sizeName)
+
+/** The variant name to send: only a name that differs from the auto-built one counts as typed. */
+const customVariantName = (variation: Pick<VariationFormValues, 'variantName' | 'color' | 'sizeName'>, masterName: string): string | null => {
+  const typed = variation.variantName.trim()
+  return typed && typed !== variantNameOf(masterName, variation.color, variation.sizeName) ? typed : null
+}
 
 /** The CBM to show: the user's override, else L×W×H in the current unit, else blank. */
 export function derivedCbm(values: Dimensions & { cbm: string; cbmTouched: boolean }, unit: LengthUnit): string {
@@ -168,30 +171,27 @@ export function toProductBody(values: ProductFormValues, expectedUpdatedAt?: str
   const { weightUnit, dimensionUnit } = values
   const variations: VariationBody[] = values.variations.map((variation) => ({
     ...(variation.id !== undefined && { id: variation.id }),
-    sku: variation.sku.trim().toUpperCase(),
+    // Left as the auto-built name, it is not stored as custom, so it keeps following the master's name
+    variantName: customVariantName(variation, values.name),
+    sku: text(variation.sku)?.toUpperCase() ?? null,
     color: variation.color.trim(),
     material: text(variation.material),
     packaging: text(variation.packaging),
     sizeName: text(variation.sizeName),
-    sizeValue: num(variation.sizeValue),
-    sizeUnit: variation.sizeValue.trim() ? variation.sizeUnit : null,
     description: text(variation.description),
     inheritsMaster: variation.inheritsMaster,
-    categoryId: variation.inheritsMaster ? null : (variation.category?.id ?? null),
     ...(variation.inheritsMaster
       ? { weight: null, weightUnit, length: null, width: null, height: null, dimensionUnit, cbm: null }
       : shippingBody(variation, weightUnit, dimensionUnit)),
   }))
   return {
     name: values.name.trim(),
-    sku: values.sku.trim().toUpperCase(),
+    sku: text(values.sku)?.toUpperCase() ?? null,
     categoryId: values.category?.id ?? null,
     color: null,
     material: text(values.material),
     packaging: text(values.packaging),
     sizeName: text(values.sizeName),
-    sizeValue: num(values.sizeValue),
-    sizeUnit: values.sizeValue.trim() ? values.sizeUnit : null,
     description: text(values.description),
     ...shippingBody(values, weightUnit, dimensionUnit),
     variations,
@@ -216,18 +216,16 @@ function shippingValues(row: PoProduct, weightUnit: WeightUnit, dimensionUnit: L
   }
 }
 
-/** Form values for an existing family. `asCopy` blanks ids and SKUs (Duplicate). */
+/** Form values for an existing family. `asCopy` blanks ids and SKUs (Duplicate); the name stays, and the server asks for a new one on save. */
 export function fromFamily(family: PoProductFamily, asCopy = false): ProductFormValues {
   const { weightUnit, dimensionUnit } = family
   return {
     name: family.name,
-    sku: asCopy ? '' : family.sku,
+    sku: asCopy ? '' : (family.sku ?? ''),
     category: family.category,
     material: family.material ?? '',
     packaging: family.packaging ?? '',
     sizeName: family.sizeName ?? '',
-    sizeValue: shown(family.sizeValue),
-    sizeUnit: family.sizeUnit ?? 'IN',
     description: family.description ?? '',
     weightUnit,
     dimensionUnit,
@@ -237,16 +235,15 @@ export function fromFamily(family: PoProductFamily, asCopy = false): ProductForm
     variations: family.variations.map((variation) => ({
       clientKey: crypto.randomUUID(),
       ...(asCopy ? {} : { id: variation.id }),
-      sku: asCopy ? '' : variation.sku,
+      // A saved name that is just the auto-built one is not a typed name
+      variantName: variation.variantName && variation.variantName !== variantNameOf(family.name, variation.color ?? '', variation.sizeName ?? '') ? variation.variantName : '',
+      sku: asCopy ? '' : (variation.sku ?? ''),
       color: variation.color ?? '',
       material: variation.material ?? '',
       packaging: variation.packaging ?? '',
       sizeName: variation.sizeName ?? '',
-      sizeValue: shown(variation.sizeValue),
-      sizeUnit: variation.sizeUnit ?? 'IN',
       description: variation.description ?? '',
       inheritsMaster: variation.inheritsMaster,
-      category: variation.inheritsMaster ? null : variation.category,
       ...(variation.inheritsMaster ? blankShipping : shippingValues(variation, weightUnit, dimensionUnit)),
       hasPhoto: !asCopy && variation.hasPhoto,
       removePhoto: false,

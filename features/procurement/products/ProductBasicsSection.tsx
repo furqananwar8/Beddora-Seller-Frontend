@@ -3,16 +3,12 @@
 import React from 'react'
 import { Controller, UseFormReturn } from 'react-hook-form'
 import { FormField, fieldClass } from '@/components/form-field/FormField'
-import { SegmentedToggle } from '@/components/segmented-toggle/SegmentedToggle'
 import { Card, CardContent, CardHeader, CardTitle } from '@/design-system/cards/Card'
-import type { LengthUnit } from '@/services/api/procurement.api'
 import { CategorySelect } from '../shared/CategorySelect'
-import { LENGTH_UNITS } from '../shared/MeasurementFields'
 import { PhotoField } from './PhotoField'
 import type { ProductFormValues } from './productForm'
 import { SkuInput } from './SkuInput'
 
-import { NumericInput } from '@/components/form-field/NumericInput'
 interface ProductBasicsSectionProps {
   form: UseFormReturn<ProductFormValues>
   /** Saved master, for the SKU check and its photo; absent while creating. */
@@ -42,7 +38,7 @@ export const ProductBasicsSection: React.FC<ProductBasicsSectionProps> = ({ form
           <input id="product-name" autoComplete="off" className={fieldClass(errors.name?.message)} disabled={readOnly} {...register('name')} />
         </FormField>
 
-        <FormField label="SKU" htmlFor="product-sku" required error={errors.sku?.message} hint="Unique across all masters and variations">
+        <FormField label="SKU (optional)" htmlFor="product-sku" error={errors.sku?.message} hint="Unique across all masters and variations when given">
           <SkuInput
             id="product-sku"
             productId={product?.id}
@@ -53,7 +49,7 @@ export const ProductBasicsSection: React.FC<ProductBasicsSectionProps> = ({ form
           />
         </FormField>
 
-        <FormField label="Category" htmlFor="product-category" error={errors.category?.message as string | undefined} hint="Variations inherit it unless they set their own">
+        <FormField label="Category" htmlFor="product-category" error={errors.category?.message as string | undefined} hint="Every variation takes this category">
           <Controller
             control={control}
             name="category"
@@ -69,22 +65,8 @@ export const ProductBasicsSection: React.FC<ProductBasicsSectionProps> = ({ form
           <input id="product-packaging" autoComplete="off" className={fieldClass(errors.packaging?.message)} disabled={readOnly} {...register('packaging')} />
         </FormField>
 
-        <FormField label="Size name" htmlFor="product-size-name" error={errors.sizeName?.message} hint="e.g. Medium or 750 ml">
+        <FormField label="Size" htmlFor="product-size-name" error={errors.sizeName?.message} hint="Free text, e.g. Medium or 750 ml">
           <input id="product-size-name" autoComplete="off" className={fieldClass(errors.sizeName?.message)} disabled={readOnly} {...register('sizeName')} />
-        </FormField>
-
-        <FormField label="Size" htmlFor="product-size" error={errors.sizeValue?.message}>
-          <div className="flex items-center gap-2">
-            <NumericInput decimal id="product-size" className={`${fieldClass(errors.sizeValue?.message)} text-right`} disabled={readOnly} {...register('sizeValue')} />
-            <SegmentedToggle<LengthUnit>
-              ariaLabel="Size unit"
-              value={watch('sizeUnit') === 'CM' ? 'CM' : 'IN'}
-              options={[...LENGTH_UNITS].reverse()}
-              disabled={readOnly}
-              className="shrink-0"
-              onChange={(unit) => setValue('sizeUnit', unit, { shouldDirty: true })}
-            />
-          </div>
         </FormField>
 
         <FormField label="Photo (optional)" className="sm:col-span-2">

@@ -81,14 +81,14 @@ export const PoProductsSection: React.FC<PoProductsSectionProps> = ({ form, read
                   const remaining = (Number(line.unitsOrdered) || 0) - line.allocated
                   return (
                     <tr key={field.fieldId} className="border-t border-border">
-                      <td className={cn(CELL, 'whitespace-nowrap font-mono text-xs')}>{line.product.sku}</td>
+                      <td className={cn(CELL, 'whitespace-nowrap font-mono text-xs')}>{line.product.ref}</td>
                       <td className={CELL}>{productLabel(line.product)}</td>
                       <td className={CELL}>
                         <ProductTagBadge tag={line.product.tag} />
                       </td>
                       <td className={CELL}>
                         <NumericInput
-                          aria-label={`Units ordered for ${line.product.sku}`}
+                          aria-label={`Units ordered for ${line.product.ref}`}
 
                           className={cn(fieldClass(error), 'mx-auto h-9 w-28 py-1 text-right tabular-nums')}
                           disabled={readOnly}
@@ -103,7 +103,7 @@ export const PoProductsSection: React.FC<PoProductsSectionProps> = ({ form, read
                         <td className={CELL}>
                           <button
                             type="button"
-                            aria-label={`Remove ${line.product.sku}`}
+                            aria-label={`Remove ${line.product.ref}`}
                             onClick={() => remove(index)}
                             className="rounded p-1.5 text-text-muted hover:bg-danger-50 hover:text-danger-600"
                           >

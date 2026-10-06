@@ -19,6 +19,12 @@ export interface CategoryRef {
   name: string
 }
 
+/** A category as the manage screen lists it, with how many products use it. */
+export interface PoCategory extends CategoryRef {
+  isActive: boolean
+  productCount: number
+}
+
 /** One product row, master or variation. Measurements are canonical: kg, cm, m³; the unit fields say how they were entered. */
 export interface PoProduct {
   id: number
@@ -27,13 +33,15 @@ export interface PoProduct {
   tag: ProductTag
   name: string
   variantName: string | null
-  sku: string
+  /** Optional; null when the product has none. */
+  sku: string | null
+  /** What to show wherever a product is listed: its SKU, else its product ID. */
+  ref: string
   color: string | null
   material: string | null
   packaging: string | null
+  /** Free text such as "Medium" or "750 ml". */
   sizeName: string | null
-  sizeValue: number | null
-  sizeUnit: LengthUnit | null
   description: string | null
   category: CategoryRef | null
   weightKg: number | null
@@ -85,22 +93,21 @@ interface VariantInput {
   material: string | null
   packaging: string | null
   sizeName: string | null
-  sizeValue: number | null
-  sizeUnit: LengthUnit | null
   description: string | null
 }
 
 export interface VariationBody extends VariantInput, ShippingInput {
   id?: number
-  sku: string
+  /** Blank falls back to `Name-Color-Size`. */
+  variantName: string | null
+  sku: string | null
   color: string
   inheritsMaster: boolean
-  categoryId: number | null
 }
 
 export interface ProductBody extends VariantInput, ShippingInput {
   name: string
-  sku: string
+  sku: string | null
   categoryId: number | null
   color: string | null
   variations: VariationBody[]
@@ -417,14 +424,13 @@ export type PriceAnalysisProduct = Pick<
   | 'id'
   | 'pid'
   | 'sku'
+  | 'ref'
   | 'name'
   | 'variantName'
   | 'color'
   | 'material'
   | 'packaging'
   | 'sizeName'
-  | 'sizeValue'
-  | 'sizeUnit'
   | 'weightKg'
   | 'weightUnit'
   | 'lengthCm'
@@ -687,13 +693,23 @@ export const procurementApi = baseApi.injectEndpoints({
     }),
 
     /* categories */
-    getPoCategories: b.query<CategoryRef[], void>({
-      query: () => '/procurement/categories',
+    getPoCategories: b.query<PoCategory[], { includeInactive?: boolean } | void>({
+      query: (params) => ({ url: '/procurement/categories', params: params?.includeInactive ? { includeInactive: 'true' } : undefined }),
       transformResponse: unwrap,
       providesTags: ['ProcurementCategories'],
     }),
     createPoCategory: b.mutation<CategoryRef, string>({
       query: (name) => ({ url: '/procurement/categories', method: 'POST', body: { name } }),
+      transformResponse: unwrap,
+      invalidatesTags: ['ProcurementCategories'],
+    }),
+    updatePoCategory: b.mutation<CategoryRef, { id: number; patch: Partial<Pick<PoCategory, 'name' | 'isActive'>> }>({
+      query: ({ id, patch }) => ({ url: `/procurement/categories/${id}`, method: 'PATCH', body: patch }),
+      transformResponse: unwrap,
+      invalidatesTags: ['ProcurementCategories', 'ProcurementProducts'],
+    }),
+    deletePoCategory: b.mutation<{ id: number }, number>({
+      query: (id) => ({ url: `/procurement/categories/${id}`, method: 'DELETE' }),
       transformResponse: unwrap,
       invalidatesTags: ['ProcurementCategories'],
     }),
@@ -713,6 +729,8 @@ export const {
   useRemovePoProductPhotoMutation,
   useGetPoCategoriesQuery,
   useCreatePoCategoryMutation,
+  useUpdatePoCategoryMutation,
+  useDeletePoCategoryMutation,
   useGetProcurementPurchaseOrdersQuery,
   useGetProcurementPurchaseOrderSummaryQuery,
   useGetPurchaseOrderFilterOptionsQuery,

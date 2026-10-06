@@ -40,7 +40,7 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, materia
         disabled={readOnly}
       />
     </FormField>
-    <ReadOnly label="Size">{joined(product.sizeName, formatSize(product.sizeValue, product.sizeUnit))}</ReadOnly>
+    <ReadOnly label="Size">{product.sizeName ?? '—'}</ReadOnly>
     <ReadOnly label="Packaging">{product.packaging ?? '—'}</ReadOnly>
     <ReadOnly label="Dimensions">
       {joined(
