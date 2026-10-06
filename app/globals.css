@@ -264,6 +264,29 @@
     @apply mt-1 text-sm text-danger-600;
   }
 
+  /* Horizontal scrollbar for wide tables. The global reset hides every scrollbar, so tables opt back in;
+     vertical scrolling stays on the mouse wheel. */
+  .ds-scroll-x {
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: #94a3b8 transparent;
+  }
+
+  .ds-scroll-x::-webkit-scrollbar {
+    display: block;
+    height: 10px;
+  }
+
+  .ds-scroll-x::-webkit-scrollbar-thumb {
+    background: #94a3b8;
+    border-radius: 9999px !important;
+  }
+
+  .ds-scroll-x::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
   /* Tables */
   .ds-table-wrap {
     @apply overflow-x-auto;

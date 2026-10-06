@@ -276,7 +276,7 @@ export default function ScheduledCampaignsPage() {
 
       {/* Table with horizontal scroll */}
       <div
-        className={`rounded-lg border border-zinc-200 bg-white shadow-sm overflow-x-auto transition-opacity ${
+        className={`rounded-lg border border-zinc-200 bg-white shadow-sm ds-scroll-x transition-opacity ${
           isRefetching ? "opacity-60" : "opacity-100"
         }`}
       >

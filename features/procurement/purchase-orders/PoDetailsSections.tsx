@@ -13,6 +13,7 @@ import { DimensionsField } from '../shared/MeasurementFields'
 import { SupplierSelect } from '../shared/SupplierSelect'
 import type { PoFormValues } from './poForm'
 
+import { NumericInput } from '@/components/form-field/NumericInput'
 const DESTINATIONS: Array<{ value: PoDestination; label: string }> = [
   { value: 'US', label: 'USA' },
   { value: 'CA', label: 'CANADA' },
@@ -250,7 +251,7 @@ export const PoOrderDetailsSection: React.FC<SectionProps> = ({ form, readOnly }
           />
         </FormField>
         <FormField label="No. of master cartons" htmlFor="po-cartons" error={errors.masterCartons?.message}>
-          <input id="po-cartons" inputMode="numeric" className={cn(fieldClass(errors.masterCartons?.message), 'text-right')} disabled={readOnly} {...register('masterCartons')} />
+          <NumericInput id="po-cartons" className={cn(fieldClass(errors.masterCartons?.message), 'text-right')} disabled={readOnly} {...register('masterCartons')} />
         </FormField>
       </CardContent>
     </Card>

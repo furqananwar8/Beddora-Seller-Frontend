@@ -10,6 +10,7 @@ import { ProductPicker, productLabel } from '../shared/ProductPicker'
 import { ProductTagBadge } from '../shared/ProductTagBadge'
 import type { PoFormValues } from './poForm'
 
+import { NumericInput } from '@/components/form-field/NumericInput'
 interface PoProductsSectionProps {
   form: UseFormReturn<PoFormValues>
   readOnly: boolean
@@ -60,7 +61,7 @@ export const PoProductsSection: React.FC<PoProductsSectionProps> = ({ form, read
         {linesError && <p className="text-sm text-danger-600">{linesError}</p>}
 
         {fields.length > 0 && (
-          <div className="-mx-4 overflow-x-auto sm:mx-0 sm:rounded-lg sm:border sm:border-border">
+          <div className="-mx-4 ds-scroll-x sm:mx-0 sm:rounded-lg sm:border sm:border-border">
             <table className="min-w-full text-sm">
               <thead className="bg-secondary-50">
                 <tr>
@@ -86,9 +87,9 @@ export const PoProductsSection: React.FC<PoProductsSectionProps> = ({ form, read
                         <ProductTagBadge tag={line.product.tag} />
                       </td>
                       <td className={CELL}>
-                        <input
+                        <NumericInput
                           aria-label={`Units ordered for ${line.product.sku}`}
-                          inputMode="numeric"
+
                           className={cn(fieldClass(error), 'mx-auto h-9 w-28 py-1 text-right tabular-nums')}
                           disabled={readOnly}
                           {...register(`lines.${index}.unitsOrdered`)}

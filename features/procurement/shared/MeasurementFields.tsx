@@ -7,6 +7,7 @@ import type { LengthUnit, WeightUnit } from '@/services/api/procurement.api'
 import { cn } from '@/utils/cn'
 import { convertLength, convertWeight } from './units'
 
+import { NumericInput } from '@/components/form-field/NumericInput'
 const WEIGHT_UNITS: Array<{ value: WeightUnit; label: string }> = [
   { value: 'KG', label: 'KG' },
   { value: 'LB', label: 'LB' },
@@ -38,7 +39,7 @@ interface WeightFieldProps {
 
 export const WeightField: React.FC<WeightFieldProps> = ({ id, value, unit, onChange, onUnitChange, error, disabled }) => (
   <div className="flex items-center gap-2">
-    <input id={id} inputMode="decimal" value={value} onChange={(event) => onChange(event.target.value)} className={numberInput(error)} disabled={disabled} />
+    <NumericInput decimal id={id} value={value} onChange={(event) => onChange(event.target.value)} className={numberInput(error)} disabled={disabled} />
     <SegmentedToggle<WeightUnit>
       ariaLabel="Weight unit"
       value={unit}
@@ -75,10 +76,10 @@ export const DimensionsField: React.FC<DimensionsFieldProps> = ({ idPrefix, valu
         {parts.map((part, index) => (
           <React.Fragment key={part}>
             {index > 0 && <span className="text-text-muted" aria-hidden>×</span>}
-            <input
+            <NumericInput decimal
               id={`${idPrefix}-${part}`}
               aria-label={part[0].toUpperCase() + part.slice(1)}
-              inputMode="decimal"
+
               value={value[part]}
               onChange={(event) => onChange({ ...value, [part]: event.target.value })}
               className={numberInput(errors[part])}
@@ -120,9 +121,9 @@ interface CbmFieldProps {
 export const CbmField: React.FC<CbmFieldProps> = ({ id, value, overridden, onOverride, onUseCalculated, error, disabled }) => (
   <div>
     <div className="relative">
-      <input
+      <NumericInput decimal
         id={id}
-        inputMode="decimal"
+
         value={value}
         onChange={(event) => onOverride(event.target.value)}
         className={cn(numberInput(error), 'pr-10', !overridden && 'bg-secondary-50')}

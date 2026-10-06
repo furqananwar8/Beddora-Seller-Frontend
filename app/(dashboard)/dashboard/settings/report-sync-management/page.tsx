@@ -111,6 +111,7 @@ export default function ReportSyncManagementPage() {
           </div>
         )}
 
+        <div className="ds-scroll-x">
         <table className="w-full text-left border-collapse overflow-visible">
           <thead>
             <tr className="bg-gray-50 border-b text-xs font-semibold text-gray-600 uppercase tracking-wider relative z-0">
@@ -220,6 +221,7 @@ export default function ReportSyncManagementPage() {
             })}
           </tbody>
         </table>
+        </div>
       </div>
 
       {/* Footer Action */}

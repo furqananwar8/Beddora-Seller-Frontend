@@ -12,6 +12,7 @@ import { PhotoField } from './PhotoField'
 import type { ProductFormValues } from './productForm'
 import { SkuInput } from './SkuInput'
 
+import { NumericInput } from '@/components/form-field/NumericInput'
 interface ProductBasicsSectionProps {
   form: UseFormReturn<ProductFormValues>
   /** Saved master, for the SKU check and its photo; absent while creating. */
@@ -74,7 +75,7 @@ export const ProductBasicsSection: React.FC<ProductBasicsSectionProps> = ({ form
 
         <FormField label="Size" htmlFor="product-size" error={errors.sizeValue?.message}>
           <div className="flex items-center gap-2">
-            <input id="product-size" inputMode="decimal" className={`${fieldClass(errors.sizeValue?.message)} text-right`} disabled={readOnly} {...register('sizeValue')} />
+            <NumericInput decimal id="product-size" className={`${fieldClass(errors.sizeValue?.message)} text-right`} disabled={readOnly} {...register('sizeValue')} />
             <SegmentedToggle<LengthUnit>
               ariaLabel="Size unit"
               value={watch('sizeUnit') === 'CM' ? 'CM' : 'IN'}

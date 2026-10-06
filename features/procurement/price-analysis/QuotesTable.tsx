@@ -7,6 +7,7 @@ import { cn } from '@/utils/cn'
 import { formatVsLowest, TOP_RANKS, type QuoteRow, type RankedRow, type RowErrors } from './priceAnalysisForm'
 import { RANK_TONE } from './TopSupplierCards'
 
+import { NumericInput } from '@/components/form-field/NumericInput'
 const CELL = 'text-center align-middle'
 
 interface QuotesTableProps {
@@ -66,9 +67,9 @@ export const QuotesTable: React.FC<QuotesTableProps> = ({ rows, errors, showErro
                   {rowErrors.contactName && <p className="mt-1 text-xs text-danger-600">{rowErrors.contactName}</p>}
                 </TableCell>
                 <TableCell className={CELL}>
-                  <input
+                  <NumericInput decimal
                     aria-label={`Unit price from ${row.supplier.name}`}
-                    inputMode="decimal"
+
                     autoComplete="off"
                     value={row.unitPrice}
                     placeholder="0.00"

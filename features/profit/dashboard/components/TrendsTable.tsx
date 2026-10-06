@@ -385,7 +385,7 @@ export const TrendsTable: React.FC<TrendsTableProps> = ({
   if (isLoading || isFetching) {
     return (
       <div className="min-h-[520px]">
-        <div className="overflow-x-auto">
+        <div className="ds-scroll-x">
           <table className="w-full">
             <thead>
               <tr className="border-b border-border">
@@ -496,7 +496,7 @@ export const TrendsTable: React.FC<TrendsTableProps> = ({
 
   return (
     <div className="relative min-h-[520px]">
-      <div className="overflow-x-auto">
+      <div className="ds-scroll-x">
         <table className="w-full">
           <thead>
             <tr className="border-b border-border">

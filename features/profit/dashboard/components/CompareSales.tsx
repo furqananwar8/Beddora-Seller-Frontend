@@ -559,7 +559,7 @@ export default function CompareSales() {
 
     return (
       <div className="px-5 pb-5">
-        <div className="overflow-x-auto border border-[#d1d9dd]">
+        <div className="ds-scroll-x border border-[#d1d9dd]">
           <table className="w-full min-w-[1050px] border-collapse text-[14px]">
             <thead>
               <tr className="bg-white">

@@ -14,6 +14,7 @@ import { PhotoField } from './PhotoField'
 import { derivedCbm, newVariation, variantNameOf, type ProductFormValues } from './productForm'
 import { SkuInput } from './SkuInput'
 
+import { NumericInput } from '@/components/form-field/NumericInput'
 interface VariationsSectionProps {
   form: UseFormReturn<ProductFormValues>
   /** Saved master id (for SKU checks and photos). */
@@ -89,7 +90,7 @@ export const VariationsSection: React.FC<VariationsSectionProps> = ({ form, prod
         {fields.length === 0 ? (
           <p className="px-4 py-8 text-center text-sm text-text-muted">No variations. This product is ordered on its own SKU.</p>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="ds-scroll-x">
             <table className="min-w-full border-separate border-spacing-0 text-sm">
               <thead className="bg-secondary-50">
                 <tr>
@@ -156,7 +157,7 @@ export const VariationsSection: React.FC<VariationsSectionProps> = ({ form, prod
                         </td>
                         <td className={CELL}>
                           <div className="flex items-center gap-1.5">
-                            <input aria-label="Size" inputMode="decimal" className={cn(input(err?.sizeValue?.message), 'min-w-[4.5rem] text-right')} disabled={readOnly} {...register(`variations.${index}.sizeValue`)} />
+                            <NumericInput decimal aria-label="Size" className={cn(input(err?.sizeValue?.message), 'min-w-[4.5rem] text-right')} disabled={readOnly} {...register(`variations.${index}.sizeValue`)} />
                             <SegmentedToggle<LengthUnit>
                               ariaLabel="Size unit"
                               value={row.sizeUnit === 'CM' ? 'CM' : 'IN'}
@@ -291,7 +292,7 @@ const VariationDetails: React.FC<VariationDetailsProps> = ({ form, index, readOn
           </div>
           <div className="min-w-0">
             <p className="ds-input-label">Weight ({weightUnit.toLowerCase()})</p>
-            <input aria-label="Weight" inputMode="decimal" className={cn(fieldClass(err?.weight?.message), 'text-right')} disabled={readOnly} {...register(`variations.${index}.weight`)} />
+            <NumericInput decimal aria-label="Weight" className={cn(fieldClass(err?.weight?.message), 'text-right')} disabled={readOnly} {...register(`variations.${index}.weight`)} />
             {err?.weight?.message && <p className="mt-1 text-xs text-danger-600">{err.weight.message}</p>}
           </div>
           <div className="min-w-0">
@@ -300,7 +301,7 @@ const VariationDetails: React.FC<VariationDetailsProps> = ({ form, index, readOn
               {(['length', 'width', 'height'] as const).map((part, partIndex) => (
                 <React.Fragment key={part}>
                   {partIndex > 0 && <span className="text-text-muted" aria-hidden>×</span>}
-                  <input aria-label={part} inputMode="decimal" className={cn(fieldClass(err?.[part]?.message), 'min-w-0 px-2 text-right')} disabled={readOnly} {...register(`variations.${index}.${part}`)} />
+                  <NumericInput decimal aria-label={part} className={cn(fieldClass(err?.[part]?.message), 'min-w-0 px-2 text-right')} disabled={readOnly} {...register(`variations.${index}.${part}`)} />
                 </React.Fragment>
               ))}
             </div>

@@ -28,6 +28,7 @@ import { applyServerIssues } from '@/utils/apiErrors'
 import { useDebounce } from '@/utils/debounce'
 import { CONTAINER_STATUS_META, DESTINATION_LABEL } from '../shared/poMeta'
 
+import { NumericInput } from '@/components/form-field/NumericInput'
 /** A packaging list as the pickers show it. */
 export interface ListChoice {
   id: number
@@ -280,7 +281,7 @@ export const ContainerFormModal: React.FC<ContainerFormModalProps> = ({ isOpen, 
 
           <FormField label="Total cost" htmlFor="ct-cost" error={errors.totalCost?.message}>
             <div className="flex gap-2">
-              <input id="ct-cost" inputMode="decimal" autoComplete="off" placeholder="0.00" className={fieldClass(errors.totalCost?.message)} {...register('totalCost')} />
+              <NumericInput decimal id="ct-cost" autoComplete="off" placeholder="0.00" className={fieldClass(errors.totalCost?.message)} {...register('totalCost')} />
               <Controller control={control} name="currency" render={({ field }) => <SegmentedToggle<PoCurrency> ariaLabel="Currency" value={field.value} onChange={field.onChange} options={CURRENCIES} />} />
             </div>
           </FormField>

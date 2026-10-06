@@ -276,7 +276,7 @@ export default function SyncDashboardPage() {
                   No active sync jobs found.
                 </div>
               ) : (
-                <div className="overflow-x-auto">
+                <div className="ds-scroll-x">
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
@@ -375,7 +375,7 @@ export default function SyncDashboardPage() {
               ) : !syncLogs || syncLogs.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">No sync logs found.</div>
               ) : (
-                <div className="overflow-x-auto">
+                <div className="ds-scroll-x">
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
@@ -545,7 +545,7 @@ export default function SyncDashboardPage() {
                     No retryable failed jobs found.
                   </div>
                 ) : (
-                  <div className="overflow-x-auto">
+                  <div className="ds-scroll-x">
                     <table className="min-w-full divide-y divide-gray-200">
                       <thead className="bg-gray-50">
                         <tr>

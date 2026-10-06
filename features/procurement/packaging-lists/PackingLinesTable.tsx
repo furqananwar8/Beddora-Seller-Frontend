@@ -6,6 +6,7 @@ import type { PackablePoLines } from '@/services/api/procurement.api'
 import { cn } from '@/utils/cn'
 import { productLabel } from '../shared/ProductPicker'
 
+import { NumericInput } from '@/components/form-field/NumericInput'
 /** What the user typed for one SKU of one PO. */
 export interface LineValue {
   units: string
@@ -67,9 +68,9 @@ const NumberCell: React.FC<{ label: string; value: string; onChange: (value: str
   hint,
 }) => (
   <>
-    <input
+    <NumericInput
       aria-label={label}
-      inputMode="numeric"
+
       value={value}
       placeholder={placeholder}
       onChange={(event) => onChange(event.target.value)}
@@ -86,7 +87,7 @@ export const PackingLinesTable: React.FC<PackingLinesTableProps> = ({ groups, va
   const total = (pick: (row: (typeof all)[number]) => number) => all.reduce((sum, row) => sum + pick(row), 0)
 
   return (
-    <div className="-mx-4 overflow-x-auto sm:mx-0 sm:rounded-lg sm:border sm:border-border">
+    <div className="-mx-4 ds-scroll-x sm:mx-0 sm:rounded-lg sm:border sm:border-border">
       <table className="min-w-full text-sm">
         <thead className="bg-secondary-50">
           <tr>
