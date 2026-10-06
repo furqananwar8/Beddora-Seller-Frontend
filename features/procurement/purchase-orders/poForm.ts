@@ -8,11 +8,19 @@ const wholeUnits = z
   .refine((value) => /^\d+$/.test(value) && Number(value) >= 1, 'Enter at least 1 unit')
   .refine((value) => Number(value) <= 10_000_000, 'Too many units')
 
+const unitRate = z
+  .string()
+  .trim()
+  .refine((value) => value !== '', 'Enter a unit rate')
+  .refine((value) => value === '' || (Number.isFinite(Number(value)) && Number(value) >= 0), 'Rate must be a number')
+
 const optionalPositive = (label: string) => z.string().trim().refine((value) => value === '' || (Number.isFinite(Number(value)) && Number(value) > 0), `${label} must be above 0`)
 
 export const poLineSchema = z.object({
   product: z.custom<PoProduct>(),
   unitsOrdered: wholeUnits,
+  /** Rate per unit as typed; the amount is units x rate. */
+  unitPrice: unitRate,
   /** Units already in packaging lists (read-only here). */
   allocated: z.number(),
   /** From-remaining POs cannot take more than the source PO has left. */
@@ -51,6 +59,13 @@ export const poFormSchema = z
 export type PoFormValues = z.infer<typeof poFormSchema>
 export type PoLineValues = z.infer<typeof poLineSchema>
 
+/** Units x rate for a line as typed; 0 until both are usable numbers. */
+export const lineAmount = (line: Pick<PoLineValues, 'unitsOrdered' | 'unitPrice'>): number => {
+  const units = Number(line.unitsOrdered)
+  const rate = Number(line.unitPrice)
+  return Number.isFinite(units) && Number.isFinite(rate) ? Math.round(units * rate * 100) / 100 : 0
+}
+
 export const emptyPoValues: PoFormValues = {
   supplier: null,
   contactName: '',
@@ -83,7 +98,7 @@ export function toPoBody(values: PoFormValues, extras: { sourcePurchaseOrderId?:
     cartonHeight: num(values.cartonHeight),
     cartonUnit: values.cartonUnit,
     masterCartons: num(values.masterCartons),
-    lines: values.lines.map((line) => ({ productId: line.product.id, unitsOrdered: Number(line.unitsOrdered) })),
+    lines: values.lines.map((line) => ({ productId: line.product.id, unitsOrdered: Number(line.unitsOrdered), unitPrice: Number(line.unitPrice) })),
     ...(extras.sourcePurchaseOrderId && { sourcePurchaseOrderId: extras.sourcePurchaseOrderId }),
     ...(extras.expectedUpdatedAt && { expectedUpdatedAt: extras.expectedUpdatedAt }),
   }
@@ -103,7 +118,7 @@ export function fromDetail(po: PurchaseOrderDetail): PoFormValues {
     cartonHeight: shown(po.carton.heightCm, unit),
     cartonUnit: unit,
     masterCartons: po.masterCartons === null ? '' : String(po.masterCartons),
-    lines: po.lines.map((line) => ({ product: line.product, unitsOrdered: String(line.unitsOrdered), allocated: line.allocated })),
+    lines: po.lines.map((line) => ({ product: line.product, unitsOrdered: String(line.unitsOrdered), unitPrice: line.unitPrice === null ? '' : String(line.unitPrice), allocated: line.allocated })),
   }
 }
 
@@ -115,6 +130,6 @@ export function fromRemaining(draft: RemainingDraft): PoFormValues {
     contactName: draft.contactName ?? '',
     destination: draft.destination,
     currency: draft.currency,
-    lines: draft.lines.map((line) => ({ product: line.product, unitsOrdered: String(line.unitsOrdered), allocated: 0, maxUnits: line.unitsOrdered })),
+    lines: draft.lines.map((line) => ({ product: line.product, unitsOrdered: String(line.unitsOrdered), unitPrice: line.unitPrice === null ? '' : String(line.unitPrice), allocated: 0, maxUnits: line.unitsOrdered })),
   }
 }

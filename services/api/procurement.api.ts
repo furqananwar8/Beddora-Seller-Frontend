@@ -146,6 +146,8 @@ export interface PurchaseOrderListItem {
   etdAlert: EtdAlert
   skuCount: number
   units: number
+  /** Sum of units x rate over the lines. */
+  totalAmount: number
   packed: number
   status: PoStatus
   payment: PoPayment
@@ -169,6 +171,10 @@ export interface PoLine {
   id: number
   product: PoProduct
   unitsOrdered: number
+  /** Rate per unit in the PO's currency; null on lines saved before rates were captured. */
+  unitPrice: number | null
+  /** Units x rate. */
+  amount: number
   allocated: number
   remaining: number
 }
@@ -215,7 +221,7 @@ export interface PurchaseOrderDetail {
   source: { id: number; poNo: string } | null
   derived: Array<{ id: number; poNo: string }>
   lines: PoLine[]
-  totals: { units: number; allocated: number }
+  totals: { units: number; allocated: number; amount: number }
   remainingForNewPo: number
   events: PoEvent[]
   can: { edit: boolean; decide: boolean; toggleOpen: boolean; createFromRemaining: boolean }
@@ -233,7 +239,7 @@ export interface PurchaseOrderBody {
   cartonHeight: number | null
   cartonUnit: LengthUnit
   masterCartons: number | null
-  lines: Array<{ productId: number; unitsOrdered: number }>
+  lines: Array<{ productId: number; unitsOrdered: number; unitPrice: number }>
   sourcePurchaseOrderId?: number
   expectedUpdatedAt?: string
 }
@@ -245,7 +251,7 @@ export interface RemainingDraft {
   contactName: string | null
   destination: PoDestination
   currency: PoCurrency
-  lines: Array<{ product: PoProduct; unitsOrdered: number }>
+  lines: Array<{ product: PoProduct; unitsOrdered: number; unitPrice: number | null }>
 }
 
 /** Supplier, product and SKU have no box of their own: the search covers them. */
