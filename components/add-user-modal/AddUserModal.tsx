@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useEffect, useMemo, useState } from 'react'
+import { buildPermissionTree } from '../permission-tree/buildPermissionTree'
 import { PermissionTree, PermissionNode } from '../permission-tree/PermissionTree'
 import {
   useGetPermissionsQuery,
@@ -60,61 +61,7 @@ export const AddUserModal: React.FC<Props> = ({
     }
   }, [open, initialValues])
 
-  const tree: PermissionNode[] = useMemo(() => {
-    const byPage = new Map<
-      string,
-      {
-        parent: (typeof permissions)[0] | null
-        subs: Map<
-          string,
-          { read: (typeof permissions)[0]; write?: (typeof permissions)[0] }
-        >
-      }
-    >()
-
-    permissions.forEach((p) => {
-      if (!byPage.has(p.page)) {
-        byPage.set(p.page, { parent: null, subs: new Map() })
-      }
-      const entry = byPage.get(p.page)!
-
-      if (p.subpage === null) {
-        entry.parent = p
-      } else {
-        const existing = entry.subs.get(p.subpage) ?? {
-          read: p,
-          write: undefined,
-        }
-        if (p.action === 'read') existing.read = p
-        if (p.action === 'write') existing.write = p
-        entry.subs.set(p.subpage, existing)
-      }
-    })
-
-    return Array.from(byPage.entries()).map(([page, m]) => {
-      const children: PermissionNode[] = Array.from(m.subs.entries()).map(
-        ([subpage, s]) => ({
-          id: s.read.id,
-          name: s.read.name,
-          page,
-          subpage,
-          allIds: [s.read.id, s.write?.id].filter(Boolean) as number[],
-        })
-      )
-
-      return {
-        id: m.parent?.id ?? children[0]?.id ?? 0,
-        name: m.parent?.name ?? page,
-        page,
-        subpage: null,
-        allIds: [
-          ...(m.parent ? [m.parent.id] : []),
-          ...children.flatMap((c) => c.allIds),
-        ],
-        children,
-      }
-    })
-  }, [permissions])
+  const tree: PermissionNode[] = useMemo(() => buildPermissionTree(permissions), [permissions])
 
   const featureLabel = useMemo(() => {
     if (featureIds.length === 0) return 'No access'
