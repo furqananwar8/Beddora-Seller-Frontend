@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useApiFeedback } from '@/hooks/useApiFeedback'
 import {
   useApprovePurchaseOrderMutation,
-  useDeletePurchaseOrderMutation,
+  useDeleteProcurementPurchaseOrderMutation,
   useRejectPurchaseOrderMutation,
   useSetPurchaseOrderLockedMutation,
   useSubmitPurchaseOrderMutation,
@@ -32,7 +32,7 @@ export function usePoActions() {
   const [approveMutation] = useApprovePurchaseOrderMutation()
   const [rejectMutation] = useRejectPurchaseOrderMutation()
   const [submitMutation] = useSubmitPurchaseOrderMutation()
-  const [deleteMutation] = useDeletePurchaseOrderMutation()
+  const [deleteMutation] = useDeleteProcurementPurchaseOrderMutation()
   const [lockMutation] = useSetPurchaseOrderLockedMutation()
   const { success, failure } = useApiFeedback()
   const [busy, setBusy] = useState<{ id: number; action: PoAction } | null>(null)

@@ -736,7 +736,7 @@ export const procurementApi = baseApi.injectEndpoints({
       transformResponse: unwrap,
       invalidatesTags: ['ProcurementPurchaseOrders'],
     }),
-    deletePurchaseOrder: b.mutation<void, number>({
+    deleteProcurementPurchaseOrder: b.mutation<void, number>({
       query: (id) => ({ url: `/procurement/purchase-orders/${id}`, method: 'DELETE' }),
       invalidatesTags: ['ProcurementPurchaseOrders'],
     }),
@@ -932,7 +932,7 @@ export const {
   useApprovePurchaseOrderMutation,
   useRejectPurchaseOrderMutation,
   useSubmitPurchaseOrderMutation,
-  useDeletePurchaseOrderMutation,
+  useDeleteProcurementPurchaseOrderMutation,
   useSetPurchaseOrderLockedMutation,
   useGetSupplierOptionsQuery,
   useGetPackagingListsQuery,
