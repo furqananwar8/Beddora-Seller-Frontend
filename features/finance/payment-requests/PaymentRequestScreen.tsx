@@ -83,7 +83,8 @@ export const PaymentRequestScreen: React.FC = () => {
   const canManageApprovers = approverStatus?.canManageApprovers ?? false
   const canCreateRequests = approverStatus?.canCreateRequests ?? false
 
-  const [search, setSearch] = useState('')
+  // A link can start the list filtered, e.g. a container's page opens its container number here
+  const [search, setSearch] = useState(() => searchParams.get('search') ?? '')
   const debouncedSearch = useDebounce(search, 300)
   const [page, setPage] = useState(1)
   const [chosenTab, setChosenTab] = useState<TabId | null>(null)
