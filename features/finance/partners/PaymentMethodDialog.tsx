@@ -3,35 +3,41 @@
 import React, { useEffect, useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 import { Button } from '@/design-system/buttons'
 import { Modal } from '@/design-system/modals/Modal'
 import { FileDropzone } from '@/components/file-dropzone/FileDropzone'
 import { SegmentedToggle } from '@/components/segmented-toggle/SegmentedToggle'
 import { FormField, fieldClass } from '../shared/FormField'
-import { formatPartnerNo } from '../shared/format'
 import {
+  bankProfileSchema,
   emptyPaymentMethodValues,
   paymentMethodSchema,
-  type PaymentMethodFormValues,
+  type BankProfileFormValues,
 } from './partnerSchema'
 
 interface PaymentMethodDialogProps {
   isOpen: boolean
-  partnerName: string
-  /** Undefined while the partner has not been created yet. */
-  partnerId?: number
+  title?: string
+  /** Who the details belong to, shown under the title. */
+  subtitle: string
+  /** Ask for a name too (bank profiles); a partner's method is named after the partner. */
+  named?: boolean
   onClose: () => void
-  /** The parent decides whether to stage the method locally or save it through the API. */
-  onSubmit: (values: PaymentMethodFormValues, files: File[]) => Promise<void> | void
+  /** The parent decides whether to stage the details locally or save them through the API. `name` is '' unless `named`. */
+  onSubmit: (values: BankProfileFormValues, files: File[]) => Promise<void> | void
 }
 
+/** Bank or card-link details: used for a partner's payment methods and for bank profiles. */
 export const PaymentMethodDialog: React.FC<PaymentMethodDialogProps> = (props) => (
-  <Modal isOpen={props.isOpen} onClose={props.onClose} title="Add bank details" size="md">
+  <Modal isOpen={props.isOpen} onClose={props.onClose} title={props.title ?? 'Add bank details'} size="md">
     {props.isOpen && <DialogForm {...props} />}
   </Modal>
 )
 
-const DialogForm: React.FC<PaymentMethodDialogProps> = ({ partnerName, partnerId, onClose, onSubmit }) => {
+const unnamedSchema = paymentMethodSchema.and(z.object({ name: z.string() }))
+
+const DialogForm: React.FC<PaymentMethodDialogProps> = ({ subtitle, named, onClose, onSubmit }) => {
   const [files, setFiles] = useState<File[]>([])
   const {
     register,
@@ -41,7 +47,7 @@ const DialogForm: React.FC<PaymentMethodDialogProps> = ({ partnerName, partnerId
     setValue,
     clearErrors,
     formState: { errors, isSubmitting },
-  } = useForm<PaymentMethodFormValues>({ resolver: zodResolver(paymentMethodSchema), defaultValues: emptyPaymentMethodValues })
+  } = useForm<BankProfileFormValues>({ resolver: zodResolver(named ? bankProfileSchema : unnamedSchema), defaultValues: { ...emptyPaymentMethodValues, name: '' } })
 
   const type = watch('type')
   useEffect(() => clearErrors(), [type, clearErrors])
@@ -52,9 +58,13 @@ const DialogForm: React.FC<PaymentMethodDialogProps> = ({ partnerName, partnerId
 
   return (
     <form onSubmit={submit} noValidate className="flex flex-col gap-4">
-      <p className="-mt-1 text-sm text-text-muted">
-        {partnerName || 'New partner'} · {partnerId ? formatPartnerNo(partnerId) : 'New'}
-      </p>
+      <p className="-mt-1 text-sm text-text-muted">{subtitle}</p>
+
+      {named && (
+        <FormField label="Name" htmlFor="pm-name" required error={errors.name?.message}>
+          <input id="pm-name" autoComplete="off" placeholder="e.g. RBC operating account" className={fieldClass(errors.name?.message)} {...register('name')} />
+        </FormField>
+      )}
 
       <Controller
         control={control}

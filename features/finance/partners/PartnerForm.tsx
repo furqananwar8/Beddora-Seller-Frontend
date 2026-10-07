@@ -212,8 +212,7 @@ export const PartnerForm: React.FC<PartnerFormProps> = ({ partner }) => {
 
       <PaymentMethodDialog
         isOpen={dialogOpen}
-        partnerName={partner?.name ?? (name.trim() || '')}
-        partnerId={partner?.id}
+        subtitle={`${partner?.name ?? (name.trim() || 'New partner')} · ${partner ? formatPartnerNo(partner.id) : 'New'}`}
         onClose={() => setDialogOpen(false)}
         onSubmit={addPaymentMethod}
       />

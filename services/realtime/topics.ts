@@ -10,6 +10,7 @@ export const REALTIME_TOPICS: Record<string, TagType[]> = {
   /** Inventory sync toasts; SyncEventListener refetches by event kind. */
   'inventory.sync': [],
   'finance.partner': ['FinancePartners', 'ProcurementPriceAnalysis'],
+  'finance.bank-profile': ['FinanceBankProfiles'],
   'finance.payment-request': ['FinanceRequests', 'ProcurementPurchaseOrders'],
   'finance.payment-process': ['FinanceProcess', 'FinanceRequests', 'ProcurementPurchaseOrders'],
   'procurement.product': ['ProcurementProducts', 'ProcurementPriceAnalysis'],

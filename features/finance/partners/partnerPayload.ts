@@ -1,4 +1,4 @@
-import { normalizeBankId, type PartnerFormValues, type PaymentMethodFormValues } from './partnerSchema'
+import { normalizeBankId, type BankProfileFormValues, type PartnerFormValues, type PaymentMethodFormValues } from './partnerSchema'
 
 const appendIf = (body: FormData, key: string, value: string) => {
   if (value.trim() !== '') body.append(key, value.trim())
@@ -51,5 +51,12 @@ export function buildPaymentMethodFormData(values: PaymentMethodFormValues, file
     body.append('paymentLink', values.paymentLink.trim())
   }
   files.forEach((file) => body.append('documents', file))
+  return body
+}
+
+/** Multipart body for POST /finance/bank-profiles: a name plus the payment-method fields. */
+export function buildBankProfileFormData(values: BankProfileFormValues, files: File[]): FormData {
+  const body = buildPaymentMethodFormData(values, files)
+  body.append('name', values.name.trim())
   return body
 }

@@ -136,6 +136,12 @@ export default function DashboardLayout({
                 href: '/dashboard/finance/partner-profile',
               },
               {
+                label: 'Bank Profile',
+                subject: 'finance:bank-profile',
+                action: 'read',
+                href: '/dashboard/finance/bank-profile',
+              },
+              {
                 label: 'Payment Request',
                 subject: 'finance:payment-request',
                 action: 'read',
