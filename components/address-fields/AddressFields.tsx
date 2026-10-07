@@ -35,7 +35,7 @@ export function useCitySearch(country: string, province?: string) {
 }
 
 /**
- * Country → province → city → postal code. Each level only offers values that exist inside
+ * Country → province → city, plus a free-text postal code. Each level only offers values that exist inside
  * the level above it, and changing a level clears the levels below it. The server checks
  * the same chain, so this is guidance, not the guard.
  */
@@ -60,7 +60,7 @@ export const AddressFields: React.FC<AddressFieldsProps> = ({ idPrefix, value, o
         <SearchableSelect<GeoCountry>
           id={`${idPrefix}-country`}
           value={country ?? (value.country ? { code: value.country, name: value.country, currency: null } : null)}
-          onChange={(next) => next.code !== value.country && set({ country: next.code, province: '', city: '', postalCode: '' })}
+          onChange={(next) => next.code !== value.country && set({ country: next.code, province: '', city: '' })}
           options={countries}
           getKey={(item) => item.code}
           getLabel={(item) => item.name}
@@ -124,20 +124,15 @@ export const AddressFields: React.FC<AddressFieldsProps> = ({ idPrefix, value, o
         )}
       </FormField>
 
-      <FormField
-        label="Postal code"
-        htmlFor={`${idPrefix}-postal`}
-        error={errors.postalCode}
-        hint={provinceList?.postalCodeExample ? `e.g. ${provinceList.postalCodeExample}` : undefined}
-      >
+      {/* Free text: postal formats vary too much to check, and it does not depend on the country */}
+      <FormField label="Postal code" htmlFor={`${idPrefix}-postal`} error={errors.postalCode}>
         <input
           id={`${idPrefix}-postal`}
           autoComplete="off"
           value={value.postalCode}
           onChange={(event) => set({ postalCode: event.target.value.toUpperCase() })}
-          placeholder={provinceList?.postalCodeExample}
           className={fieldClass(errors.postalCode)}
-          disabled={disabled || !value.country}
+          disabled={disabled}
         />
       </FormField>
     </>
