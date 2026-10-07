@@ -78,10 +78,14 @@ export interface ProductSummary {
   colors: string[]
 }
 
-/** Shipping fields as typed, in the units of their toggles. */
-export interface ShippingInput {
+/** Weight as typed, in the unit of its toggle. */
+export interface WeightInput {
   weight: number | null
   weightUnit: WeightUnit
+}
+
+/** L×W×H and CBM as typed, in the unit of its toggle (variations only). */
+export interface DimensionInput {
   length: number | null
   width: number | null
   height: number | null
@@ -96,16 +100,18 @@ interface VariantInput {
   description: string | null
 }
 
-export interface VariationBody extends VariantInput, ShippingInput {
+export interface VariationBody extends VariantInput, WeightInput, DimensionInput {
   id?: number
   /** Blank falls back to `Name-Color-Size`. */
   variantName: string | null
   sku: string | null
   color: string
+  /** "Same weight as master". */
   inheritsMaster: boolean
 }
 
-export interface ProductBody extends VariantInput, ShippingInput {
+/** A master has a weight but no dimensions; `dimensionUnit` is the unit its variations' dimensions are typed in. */
+export interface ProductBody extends VariantInput, WeightInput, Pick<DimensionInput, 'dimensionUnit'> {
   name: string
   sku: string | null
   categoryId: number | null
@@ -133,6 +139,9 @@ export interface PoPayment {
   status: PaymentState
   paidPercent: number
   requestCount: number
+  /** Sum of the counted requests, and what has been paid on them. */
+  requestedAmount: number
+  paidAmount: number
 }
 
 export interface PurchaseOrderListItem {
@@ -205,8 +214,6 @@ export interface PurchaseOrderDetail {
   productionDate: string | null
   etd: string
   etdAlert: EtdAlert
-  carton: { lengthCm: number | null; widthCm: number | null; heightCm: number | null; unit: LengthUnit }
-  masterCartons: number | null
   status: PoStatus
   isOpen: boolean
   closedAt: string | null
@@ -234,11 +241,6 @@ export interface PurchaseOrderBody {
   currency: PoCurrency
   productionDate: string | null
   etd: string
-  cartonLength: number | null
-  cartonWidth: number | null
-  cartonHeight: number | null
-  cartonUnit: LengthUnit
-  masterCartons: number | null
   lines: Array<{ productId: number; unitsOrdered: number; unitPrice: number }>
   sourcePurchaseOrderId?: number
   expectedUpdatedAt?: string
@@ -268,7 +270,8 @@ export interface SupplierOption extends SupplierRef {
 export interface PackagingListItem {
   id: number
   plNo: string
-  supplier: { id: number; name: string }
+  /** The suppliers of its purchase orders (a list may span several). */
+  suppliers: Array<{ id: number; name: string }>
   destination: PoDestination
   purchaseOrders: Array<{ id: number; poNo: string }>
   skuCount: number
@@ -301,6 +304,8 @@ export interface PackagingLineDetail {
   available: number
   units: number
   cartons: number
+  /** Outer carton size typed on the line, in cm; null on lines saved before cartons were recorded. */
+  carton: { lengthCm: number | null; widthCm: number | null; heightCm: number | null; unit: LengthUnit }
   cbm: number
   netWeightKg: number
   grossWeightKg: number
@@ -309,7 +314,7 @@ export interface PackagingLineDetail {
 export interface PackagingListDetail {
   id: number
   plNo: string
-  supplier: { id: number; name: string; contactName: string | null }
+  suppliers: Array<{ id: number; name: string }>
   destination: PoDestination
   createdBy: { id: number; name: string | null }
   createdAt: string
@@ -320,10 +325,11 @@ export interface PackagingListDetail {
   totals: { skuCount: number; units: number; cartons: number; cbm: number; netWeightKg: number; grossWeightKg: number }
 }
 
-/** A supplier's PO for the list form, with what decides whether it can be picked. */
+/** A PO for the list form (any supplier), with what decides whether it can be picked. */
 export interface PackablePurchaseOrder {
   id: number
   poNo: string
+  supplier: { id: number; name: string }
   destination: PoDestination
   currency: PoCurrency
   status: PoStatus
@@ -334,25 +340,62 @@ export interface PackablePurchaseOrder {
 }
 
 export interface PackablePoLines {
-  purchaseOrder: { id: number; poNo: string; currency: PoCurrency; destination: PoDestination; supplier: { id: number; name: string } }
+  /** `price` is the PO's total (units x rate) in its currency; null when no rate has been entered yet. */
+  purchaseOrder: { id: number; poNo: string; currency: PoCurrency; destination: PoDestination; supplier: { id: number; name: string }; price: number | null }
   lines: Array<{ product: PoProduct; poQty: number; allocated: number; available: number }>
 }
 
+export interface PackagingLineBody {
+  purchaseOrderId: number
+  productId: number
+  units: number
+  cartons: number
+  /** Outer carton L x W x H in `cartonUnit`; CBM is cartons x this volume. */
+  cartonLength: number | null
+  cartonWidth: number | null
+  cartonHeight: number | null
+  cartonUnit: LengthUnit
+  grossWeightKg: number
+}
+
 export interface PackagingListBody {
-  supplierId: number
   purchaseOrderIds: number[]
-  lines: Array<{ purchaseOrderId: number; productId: number; units: number; cartons: number; grossWeightKg: number }>
+  lines: PackagingLineBody[]
   closePurchaseOrderIds: number[]
   expectedUpdatedAt?: string
 }
 
 /* ─────────────── Containers ─────────────── */
 
-export type ContainerStatus = 'SHIPPED' | 'DELIVERED_AT_WAREHOUSE'
+/** BOOKED: fully editable · IN_TRANSIT: only the ETA can change · DELIVERED: nothing can change. */
+export type ContainerStatus = 'BOOKED' | 'IN_TRANSIT' | 'DELIVERED'
+
+/** Container form fields a status may lock. */
+export type ContainerField =
+  | 'containerNumber'
+  | 'billOfLading'
+  | 'masterBillOfLading'
+  | 'etd'
+  | 'eta'
+  | 'destination'
+  | 'destinationCity'
+  | 'destinationProvince'
+  | 'portOfArrival'
+  | 'totalCost'
+  | 'currency'
+
+/** What the container's status allows; the server enforces the same rules. */
+export interface ContainerPermissions {
+  editableFields: ContainerField[]
+  canChangeList: boolean
+  canUpload: boolean
+  canChangeStatus: boolean
+}
 
 export interface ContainerRef {
   id: number
   containerNo: string
+  containerNumber: string | null
   status: ContainerStatus
 }
 
@@ -361,10 +404,14 @@ export interface ContainerLine {
   poNo: string
   sku: string
   name: string
+  color: string | null
+  sizeName: string | null
   /** Ordered on the PO, for "ordered vs. in this container". */
   ordered: number
   units: number
   cartons: number
+  /** Carton size saved on the packaging list, in cm. */
+  carton: { lengthCm: number | null; widthCm: number | null; heightCm: number | null }
   cbm: number
   netWeightKg: number
   grossWeightKg: number
@@ -372,7 +419,10 @@ export interface ContainerLine {
 
 export interface ContainerItem {
   id: number
+  /** Our reference, CID#…. */
   containerNo: string
+  /** The shipping line's container number, e.g. MSKU1234567. */
+  containerNumber: string | null
   billOfLading: string | null
   masterBillOfLading: string | null
   status: ContainerStatus
@@ -386,9 +436,51 @@ export interface ContainerItem {
   currency: PoCurrency
   deliveredAt: string | null
   updatedAt: string
-  packagingList: { id: number; plNo: string; supplier: { id: number; name: string }; purchaseOrders: Array<{ id: number; poNo: string }> } | null
+  permissions: ContainerPermissions
+  packagingList: { id: number; plNo: string; suppliers: Array<{ id: number; name: string }>; purchaseOrders: Array<{ id: number; poNo: string }> } | null
   totals: { units: number; cartons: number; cbm: number; netWeightKg: number; grossWeightKg: number }
   lines: ContainerLine[]
+}
+
+/** A payment request whose "Container No" is this container's number. */
+export interface ContainerPayment {
+  id: number
+  requestNo: string
+  invoiceNo: string | null
+  partner: { id: number; name: string }
+  invoiceDate: string
+  currency: string
+  amount: number
+  paidAmount: number
+  status: 'DRAFT' | 'PENDING_APPROVAL' | 'APPROVED' | 'REJECTED'
+  paymentStatus: 'PAYMENT_PENDING' | 'PARTIALLY_PAID' | 'POP_UPLOADED' | 'PAID' | null
+}
+
+export interface ContainerDocument {
+  id: string
+  originalName: string
+  mimeType: string
+  sizeBytes: number
+  createdAt: string
+  uploadedBy: { id: number; name: string | null }
+}
+
+/** A purchase order shipped in the container: its price and what has been paid on it. */
+export interface ContainerPurchaseOrder {
+  id: number
+  poNo: string
+  supplier: { id: number; name: string } | null
+  /** `amount` is null when the PO has no rates yet. */
+  price: { currency: string; amount: number | null; units: number } | null
+  payment: PoPayment
+  /** Units of this PO in this container. */
+  units: number
+}
+
+export interface ContainerDetail extends ContainerItem {
+  purchaseOrders: ContainerPurchaseOrder[]
+  payments: ContainerPayment[]
+  documents: ContainerDocument[]
 }
 
 export interface ContainerParams extends PageParams {
@@ -397,6 +489,7 @@ export interface ContainerParams extends PageParams {
 }
 
 export interface ContainerBody {
+  containerNumber: string | null
   billOfLading: string | null
   masterBillOfLading: string | null
   status: ContainerStatus
@@ -408,7 +501,6 @@ export interface ContainerBody {
   portOfArrival: string | null
   totalCost: number | null
   currency: PoCurrency
-  packagingListId: number | null
   expectedUpdatedAt?: string
 }
 
@@ -416,6 +508,7 @@ export interface ContainerBody {
 export interface AssignableContainer {
   id: number
   containerNo: string
+  containerNumber: string | null
   destination: PoDestination
   etd: string | null
   billOfLading: string | null
@@ -451,7 +544,12 @@ export type PriceAnalysisProduct = Pick<
 export interface PriceQuote {
   supplier: { id: number; name: string; contactName: string | null; isActive: boolean }
   contactName: string | null
+  remarks: string | null
   unitPrice: number
+  /** This is the one approved quote. */
+  approved: boolean
+  /** Turned down by an approver, with the reason; cleared when the analysis is edited. */
+  rejection: { by: { id: number; name: string | null }; at: string; reason: string | null } | null
   /** 1 = cheapest; equal prices keep row order. */
   rank: number
   vsLowestPercent: number
@@ -464,17 +562,53 @@ export interface PriceAnalysis {
   updatedAt: string
   updatedBy: { id: number; name: string | null }
   quotes: PriceQuote[]
+  /** The approved quote; null until an approver picks one, and again after an edit. */
+  approval: { supplier: { id: number; name: string }; unitPrice: number; remarks: string | null; by: { id: number; name: string | null }; at: string } | null
+}
+
+/** One line of an analysis's approval history: an approval, or an edit that took it back. */
+export interface PriceAnalysisEvent {
+  id: number
+  type: 'APPROVED' | 'REJECTED' | 'APPROVAL_CLEARED'
+  supplierName: string | null
+  unitPrice: number | null
+  currency: string | null
+  remarks: string | null
+  by: { id: number; name: string | null }
+  at: string
 }
 
 export interface PriceAnalysisView {
   product: PriceAnalysisProduct
   analysis: PriceAnalysis | null
+  /** Newest first. */
+  history: PriceAnalysisEvent[]
+  permissions: { canApprove: boolean; canReject: boolean }
+}
+
+/** NONE: no quotes yet · PENDING: quoted, waiting for approval · APPROVED: one quote approved. */
+export type PriceAnalysisStatus = 'NONE' | 'PENDING' | 'APPROVED'
+
+export interface PriceAnalysisListItem {
+  product: PriceAnalysisProduct & { category: CategoryRef | null }
+  status: PriceAnalysisStatus
+  currency: PoCurrency | null
+  supplierCount: number
+  lowest: { supplier: string; unitPrice: number } | null
+  approval: { supplier: { id: number; name: string }; unitPrice: number; by: { id: number; name: string | null }; at: string } | null
+  updatedAt: string | null
+  updatedBy: { id: number; name: string | null } | null
+}
+
+export interface PriceAnalysisListParams extends PageParams {
+  status?: 'ALL' | PriceAnalysisStatus
+  categoryId?: number
 }
 
 export interface PriceAnalysisBody {
   material: string | null
   currency: PoCurrency
-  quotes: Array<{ supplierId: number; contactName: string | null; unitPrice: number }>
+  quotes: Array<{ supplierId: number; contactName: string | null; remarks: string | null; unitPrice: number }>
   /** When the analysis was loaded; `null` = there was none yet. */
   expectedUpdatedAt: string | null
 }
@@ -616,7 +750,7 @@ export const procurementApi = baseApi.injectEndpoints({
       transformResponse: unwrap,
       providesTags: ['ProcurementPackagingLists'],
     }),
-    getPackablePurchaseOrders: b.query<PackablePurchaseOrder[], { supplierId: number; excludeListId?: number }>({
+    getPackablePurchaseOrders: b.query<PackablePurchaseOrder[], { excludeListId?: number }>({
       query: (params) => ({ url: '/procurement/packaging-lists/po-options', params }),
       transformResponse: unwrap,
       providesTags: ['ProcurementPackagingLists', 'ProcurementPurchaseOrders'],
@@ -656,6 +790,20 @@ export const procurementApi = baseApi.injectEndpoints({
       transformResponse: unwrap,
       providesTags: ['ProcurementContainers'],
     }),
+    getContainerDetail: b.query<ContainerDetail, number>({
+      query: (id) => `/procurement/containers/${id}/detail`,
+      transformResponse: unwrap,
+      providesTags: ['ProcurementContainers', 'FinanceRequests'],
+    }),
+    uploadContainerDocuments: b.mutation<ContainerDocument[], { id: number; files: File[] }>({
+      query: ({ id, files }) => {
+        const body = new FormData()
+        for (const file of files) body.append('documents', file)
+        return { url: `/procurement/containers/${id}/documents`, method: 'POST', body }
+      },
+      transformResponse: unwrap,
+      invalidatesTags: ['ProcurementContainers'],
+    }),
     getContainerPorts: b.query<string[], PoDestination>({
       query: (destination) => ({ url: '/procurement/containers/ports', params: { destination } }),
       transformResponse: unwrap,
@@ -687,6 +835,20 @@ export const procurementApi = baseApi.injectEndpoints({
     }),
 
     /* price analysis */
+    getPriceAnalyses: b.query<Page<PriceAnalysisListItem>, PriceAnalysisListParams>({
+      query: ({ search, ...params }) => ({ url: '/procurement/price-analysis', params: { ...params, search: search || undefined } }),
+      providesTags: ['ProcurementPriceAnalysis'],
+    }),
+    approvePriceAnalysis: b.mutation<PriceAnalysisView, { productId: number; supplierId: number; expectedUpdatedAt?: string }>({
+      query: ({ productId, ...body }) => ({ url: `/procurement/price-analysis/${productId}/approve`, method: 'POST', body }),
+      transformResponse: unwrap,
+      invalidatesTags: ['ProcurementPriceAnalysis'],
+    }),
+    rejectPriceAnalysisQuote: b.mutation<PriceAnalysisView, { productId: number; supplierId: number; reason: string; expectedUpdatedAt?: string }>({
+      query: ({ productId, ...body }) => ({ url: `/procurement/price-analysis/${productId}/reject`, method: 'POST', body }),
+      transformResponse: unwrap,
+      invalidatesTags: ['ProcurementPriceAnalysis'],
+    }),
     getPriceAnalysis: b.query<PriceAnalysisView, number>({
       query: (productId) => `/procurement/price-analysis/${productId}`,
       transformResponse: unwrap,
@@ -759,12 +921,17 @@ export const {
   useGetContainersQuery,
   useGetContainerSummaryQuery,
   useGetContainerQuery,
+  useGetContainerDetailQuery,
+  useUploadContainerDocumentsMutation,
   useGetContainerPortsQuery,
   useGetAssignableContainersQuery,
   useCreateContainerMutation,
   useUpdateContainerMutation,
   useSetContainerPackagingListMutation,
   useMarkContainerDeliveredMutation,
+  useGetPriceAnalysesQuery,
+  useApprovePriceAnalysisMutation,
+  useRejectPriceAnalysisQuoteMutation,
   useGetPriceAnalysisQuery,
   useSavePriceAnalysisMutation,
 } = procurementApi

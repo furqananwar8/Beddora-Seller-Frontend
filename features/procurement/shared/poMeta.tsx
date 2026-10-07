@@ -65,6 +65,9 @@ export const EtdBadge: React.FC<{ etd: string; alert: EtdAlert; withCaption?: bo
 
 export const formatPlNo = (id: number): string => `PL#${5000 + id}`
 
+/** A packaging list's suppliers (one per PO, a list may span several), for display. */
+export const supplierNames = (suppliers: ReadonlyArray<{ name: string }>): string => suppliers.map((supplier) => supplier.name).join(', ') || '—'
+
 /** Packaging lists narrowed to one PO. */
 export const poPackagingListsHref = (id: number): string => `/dashboard/procurement/packaging-lists?purchaseOrderId=${id}`
 
@@ -75,9 +78,19 @@ export const newPackagingListHref = (purchaseOrderId?: number): string =>
 /** A PO can be packed once approved and while open. */
 export const isPackable = (po: { status: PoStatus; isOpen: boolean }): boolean => po.status !== 'PENDING_APPROVAL' && po.isOpen
 
+/** In lifecycle order: a container only moves forward through these. */
 export const CONTAINER_STATUS_META: Record<ContainerStatus, { label: string; tone: StatusTone }> = {
-  SHIPPED: { label: 'Shipped', tone: 'info' },
-  DELIVERED_AT_WAREHOUSE: { label: 'Delivered at warehouse', tone: 'success' },
+  BOOKED: { label: 'Booked', tone: 'neutral' },
+  IN_TRANSIT: { label: 'In transit', tone: 'info' },
+  DELIVERED: { label: 'Delivered', tone: 'success' },
 }
+
+export const CONTAINER_STATUSES = Object.keys(CONTAINER_STATUS_META) as ContainerStatus[]
+
+/** The statuses a container can move to from `current` (itself and later ones). */
+export const nextContainerStatuses = (current: ContainerStatus): ContainerStatus[] => CONTAINER_STATUSES.slice(CONTAINER_STATUSES.indexOf(current))
+
+/** How a container is called on screen: its shipping-line number when known, else our CID reference. */
+export const containerLabel = (container: { containerNo: string; containerNumber: string | null }): string => container.containerNumber ?? container.containerNo
 
 export const ContainerStatusBadge: React.FC<{ status: ContainerStatus }> = ({ status }) => <StatusBadge label={CONTAINER_STATUS_META[status].label} tone={CONTAINER_STATUS_META[status].tone} />

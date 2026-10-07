@@ -9,11 +9,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/design-system/cards/
 import type { PoCurrency, PoDestination } from '@/services/api/procurement.api'
 import { cn } from '@/utils/cn'
 import { formatCalendarDay } from '@/utils/format'
-import { DimensionsField } from '../shared/MeasurementFields'
 import { SupplierSelect } from '../shared/SupplierSelect'
 import type { PoFormValues } from './poForm'
 
-import { NumericInput } from '@/components/form-field/NumericInput'
 const DESTINATIONS: Array<{ value: PoDestination; label: string }> = [
   { value: 'US', label: 'USA' },
   { value: 'CA', label: 'CANADA' },
@@ -169,14 +167,9 @@ const EtdCountdown: React.FC<{ etd: string }> = ({ etd }) => {
 export const PoOrderDetailsSection: React.FC<SectionProps> = ({ form, readOnly }) => {
   const {
     control,
-    register,
-    setValue,
     formState: { errors },
   } = form
-  const [etd, productionDate, cartonLength, cartonWidth, cartonHeight, cartonUnit] = useWatch({
-    control,
-    name: ['etd', 'productionDate', 'cartonLength', 'cartonWidth', 'cartonHeight', 'cartonUnit'],
-  })
+  const [etd, productionDate] = useWatch({ control, name: ['etd', 'productionDate'] })
 
   return (
     <Card>
@@ -228,30 +221,6 @@ export const PoOrderDetailsSection: React.FC<SectionProps> = ({ form, readOnly }
               <SingleDatePicker id="po-etd" value={field.value} onChange={field.onChange} min={productionDate || undefined} placeholder="Select date" error={errors.etd?.message} disabled={readOnly} />
             )}
           />
-        </FormField>
-
-        <FormField label="Carton (box) dimensions" htmlFor="po-carton-length" error={errors.cartonLength?.message} className="sm:col-span-2">
-          <DimensionsField
-            idPrefix="po-carton"
-            value={{ length: cartonLength, width: cartonWidth, height: cartonHeight }}
-            unit={cartonUnit}
-            onChange={(next) => {
-              setValue('cartonLength', next.length, { shouldDirty: true })
-              setValue('cartonWidth', next.width, { shouldDirty: true })
-              setValue('cartonHeight', next.height, { shouldDirty: true })
-            }}
-            onUnitChange={(unit, converted) => {
-              setValue('cartonUnit', unit, { shouldDirty: true })
-              setValue('cartonLength', converted.length)
-              setValue('cartonWidth', converted.width)
-              setValue('cartonHeight', converted.height)
-            }}
-            errors={{ length: errors.cartonLength?.message }}
-            disabled={readOnly}
-          />
-        </FormField>
-        <FormField label="No. of master cartons" htmlFor="po-cartons" error={errors.masterCartons?.message}>
-          <NumericInput id="po-cartons" className={cn(fieldClass(errors.masterCartons?.message), 'text-right')} disabled={readOnly} {...register('masterCartons')} />
         </FormField>
       </CardContent>
     </Card>

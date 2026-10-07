@@ -1,6 +1,5 @@
 import { z } from 'zod'
-import type { LengthUnit, PoCurrency, PoDestination, PoProduct, PurchaseOrderBody, PurchaseOrderDetail, RemainingDraft, SupplierRef } from '@/services/api/procurement.api'
-import { cmTo } from '../shared/units'
+import type { PoCurrency, PoDestination, PoProduct, PurchaseOrderBody, PurchaseOrderDetail, RemainingDraft, SupplierRef } from '@/services/api/procurement.api'
 
 const wholeUnits = z
   .string()
@@ -13,8 +12,6 @@ const unitRate = z
   .trim()
   .refine((value) => value !== '', 'Enter a unit rate')
   .refine((value) => value === '' || (Number.isFinite(Number(value)) && Number(value) >= 0), 'Rate must be a number')
-
-const optionalPositive = (label: string) => z.string().trim().refine((value) => value === '' || (Number.isFinite(Number(value)) && Number(value) > 0), `${label} must be above 0`)
 
 export const poLineSchema = z.object({
   product: z.custom<PoProduct>(),
@@ -35,11 +32,6 @@ export const poFormSchema = z
     currency: z.enum(['USD', 'CAD']),
     productionDate: z.string(),
     etd: z.string().min(1, 'ETD is required'),
-    cartonLength: optionalPositive('Length'),
-    cartonWidth: optionalPositive('Width'),
-    cartonHeight: optionalPositive('Height'),
-    cartonUnit: z.enum(['CM', 'IN']),
-    masterCartons: z.string().trim().refine((value) => value === '' || (/^\d+$/.test(value) && Number(value) >= 1), 'Enter a whole number of cartons'),
     lines: z.array(poLineSchema).min(1, 'Add at least one product'),
   })
   .superRefine((values, ctx) => {
@@ -47,8 +39,6 @@ export const poFormSchema = z
     if (values.productionDate && values.etd && values.etd < values.productionDate) {
       ctx.addIssue({ code: 'custom', path: ['etd'], message: 'ETD must be on or after the production date' })
     }
-    const carton = [values.cartonLength, values.cartonWidth, values.cartonHeight].filter((part) => part.trim() !== '').length
-    if (carton !== 0 && carton !== 3) ctx.addIssue({ code: 'custom', path: ['cartonLength'], message: 'Enter carton L, W and H together' })
     values.lines.forEach((line, index) => {
       if (line.maxUnits !== undefined && Number(line.unitsOrdered) > line.maxUnits) {
         ctx.addIssue({ code: 'custom', path: ['lines', index, 'unitsOrdered'], message: `Only ${line.maxUnits} left` })
@@ -73,17 +63,10 @@ export const emptyPoValues: PoFormValues = {
   currency: 'USD',
   productionDate: '',
   etd: '',
-  cartonLength: '',
-  cartonWidth: '',
-  cartonHeight: '',
-  cartonUnit: 'CM',
-  masterCartons: '',
   lines: [],
 }
 
-const num = (value: string): number | null => (value.trim() === '' ? null : Number(value))
 const day = (value: string | null): string => (value ? value.slice(0, 10) : '')
-const shown = (value: number | null, unit: LengthUnit) => (value === null ? '' : String(cmTo(value, unit)))
 
 export function toPoBody(values: PoFormValues, extras: { sourcePurchaseOrderId?: number; expectedUpdatedAt?: string } = {}): PurchaseOrderBody {
   return {
@@ -93,11 +76,6 @@ export function toPoBody(values: PoFormValues, extras: { sourcePurchaseOrderId?:
     currency: values.currency as PoCurrency,
     productionDate: values.productionDate || null,
     etd: values.etd,
-    cartonLength: num(values.cartonLength),
-    cartonWidth: num(values.cartonWidth),
-    cartonHeight: num(values.cartonHeight),
-    cartonUnit: values.cartonUnit,
-    masterCartons: num(values.masterCartons),
     lines: values.lines.map((line) => ({ productId: line.product.id, unitsOrdered: Number(line.unitsOrdered), unitPrice: Number(line.unitPrice) })),
     ...(extras.sourcePurchaseOrderId && { sourcePurchaseOrderId: extras.sourcePurchaseOrderId }),
     ...(extras.expectedUpdatedAt && { expectedUpdatedAt: extras.expectedUpdatedAt }),
@@ -105,7 +83,6 @@ export function toPoBody(values: PoFormValues, extras: { sourcePurchaseOrderId?:
 }
 
 export function fromDetail(po: PurchaseOrderDetail): PoFormValues {
-  const unit = po.carton.unit
   return {
     supplier: po.supplier,
     contactName: po.contactName ?? '',
@@ -113,11 +90,6 @@ export function fromDetail(po: PurchaseOrderDetail): PoFormValues {
     currency: po.currency,
     productionDate: day(po.productionDate),
     etd: day(po.etd),
-    cartonLength: shown(po.carton.lengthCm, unit),
-    cartonWidth: shown(po.carton.widthCm, unit),
-    cartonHeight: shown(po.carton.heightCm, unit),
-    cartonUnit: unit,
-    masterCartons: po.masterCartons === null ? '' : String(po.masterCartons),
     lines: po.lines.map((line) => ({ product: line.product, unitsOrdered: String(line.unitsOrdered), unitPrice: line.unitPrice === null ? '' : String(line.unitPrice), allocated: line.allocated })),
   }
 }
