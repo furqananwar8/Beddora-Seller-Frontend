@@ -31,7 +31,7 @@ import { useDebounce } from '@/utils/debounce'
 import { DESTINATION_LABEL, PAYMENT_META, PO_STATUS_META, newPackagingListHref, poPackagingListsHref, poPaymentRequestsHref } from '../shared/poMeta'
 import { PoLegend } from './PoLegend'
 import { PurchaseOrdersTable } from './PurchaseOrdersTable'
-import { usePoDecisions } from './usePoDecisions'
+import { usePoActions } from './usePoActions'
 
 const BASE = '/dashboard/procurement/purchase-orders'
 const PAGE_SIZE = 20
@@ -83,9 +83,10 @@ export const PurchaseOrdersScreen: React.FC = () => {
   const canDecide = ability.can('write', 'procurement:po-approval')
   const canViewPayments = ability.can('read', 'finance:payment-request')
   const canPack = ability.can('write', 'procurement:packaging-lists')
-  const decisions = usePoDecisions()
+  const decisions = usePoActions()
   const [approving, setApproving] = useState<PurchaseOrderListItem | null>(null)
   const [rejecting, setRejecting] = useState<PurchaseOrderListItem | null>(null)
+  const [deleting, setDeleting] = useState<PurchaseOrderListItem | null>(null)
   const { success, failure } = useApiFeedback()
 
   const [search, setSearch] = useState('')
@@ -227,6 +228,10 @@ export const PurchaseOrdersScreen: React.FC = () => {
             onOpen={(row) => router.push(`${BASE}/${row.id}`)}
             onApprove={setApproving}
             onReject={setRejecting}
+            onSubmit={(row) => void decisions.submit(row)}
+            onDelete={setDeleting}
+            onUnlock={(row) => void decisions.unlock(row)}
+            onLock={(row) => void decisions.lock(row)}
             onClose={setClosing}
             onReopen={(row) => void changeOpen(row, true)}
             onFromRemaining={(row) => router.push(`${BASE}/new?fromRemaining=${row.id}`)}
@@ -241,26 +246,40 @@ export const PurchaseOrdersScreen: React.FC = () => {
         isOpen={approving !== null}
         title={`Approve ${approving?.poNo ?? 'PO'}`}
         confirmLabel="Approve & lock"
-        busy={decisions.busy?.decision === 'approve'}
+        busy={decisions.busy?.action === 'approve'}
         onConfirm={async () => approving && (await decisions.approve(approving)) && setApproving(null)}
         onClose={() => setApproving(null)}
       >
         <p>
-          Approving moves <strong>{approving?.poNo}</strong> ({approving?.supplier.name}) to In progress and locks every field permanently. Only the open / closed toggle stays available.
+          Approving moves <strong>{approving?.poNo}</strong> ({approving?.supplier.name}) to In progress and locks every field. An approver can unlock it later for edits.
         </p>
       </ConfirmDialog>
 
       <ReasonDialog
         isOpen={rejecting !== null}
         title={`Reject ${rejecting?.poNo ?? 'PO'}?`}
-        description="It stays pending approval. The person who raised it is notified with your reason and can update it."
+        description="It goes back to draft. The person who raised it is notified with your reason, and it can only be approved after they submit it again."
         confirmLabel="Reject PO"
         placeholder="e.g. Production date conflicts with Q4 schedule"
         minLength={3}
-        submitting={decisions.busy?.decision === 'reject'}
+        submitting={decisions.busy?.action === 'reject'}
         onConfirm={(reason) => (rejecting ? decisions.reject(rejecting, reason) : Promise.resolve(false))}
         onClose={() => setRejecting(null)}
       />
+
+      <ConfirmDialog
+        isOpen={deleting !== null}
+        title={`Delete ${deleting?.poNo ?? 'draft'}`}
+        confirmLabel="Delete draft"
+        tone="danger"
+        busy={decisions.busy?.action === 'delete'}
+        onConfirm={async () => deleting && (await decisions.remove(deleting)) && setDeleting(null)}
+        onClose={() => setDeleting(null)}
+      >
+        <p>
+          <strong>{deleting?.poNo}</strong> ({deleting?.supplier.name}) is a draft and is deleted for good, with its lines and timeline.
+        </p>
+      </ConfirmDialog>
 
       <ConfirmDialog
         isOpen={closing !== null}

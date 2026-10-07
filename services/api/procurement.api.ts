@@ -124,7 +124,8 @@ export interface ProductBody extends VariantInput, WeightInput, Pick<DimensionIn
 
 export type PoDestination = 'US' | 'CA'
 export type PoCurrency = 'USD' | 'CAD'
-export type PoStatus = 'PENDING_APPROVAL' | 'IN_PROGRESS' | 'READY_TO_SHIP'
+/** DRAFT (new, or sent back by a rejection) → PENDING_APPROVAL (submitted) → IN_PROGRESS (approved) → READY_TO_SHIP. */
+export type PoStatus = 'DRAFT' | 'PENDING_APPROVAL' | 'IN_PROGRESS' | 'READY_TO_SHIP'
 export type EtdAlertLevel = 'OVERDUE' | 'SOON' | 'OK' | 'NONE'
 export type PaymentState = 'UNPAID' | 'PARTIALLY_PAID' | 'PAID'
 
@@ -162,6 +163,8 @@ export interface PurchaseOrderListItem {
   payment: PoPayment
   isOpen: boolean
   rejectionReason: string | null
+  /** An approver unlocked this approved PO for editing. */
+  unlocked: boolean
   createdAt: string
 }
 
@@ -231,10 +234,15 @@ export interface PurchaseOrderDetail {
   totals: { units: number; allocated: number; amount: number }
   remainingForNewPo: number
   events: PoEvent[]
-  can: { edit: boolean; decide: boolean; toggleOpen: boolean; createFromRemaining: boolean }
+  /** Set while an approver has unlocked this approved PO for editing; the next save locks it again. */
+  unlockedAt: string | null
+  unlockedBy: { id: number; name: string | null } | null
+  can: { edit: boolean; submit: boolean; delete: boolean; decide: boolean; unlock: boolean; lock: boolean; toggleOpen: boolean; createFromRemaining: boolean }
 }
 
 export interface PurchaseOrderBody {
+  /** Send for approval with this save (drafts only). */
+  submit?: boolean
   supplierId: number
   contactName: string | null
   destination: PoDestination
@@ -723,6 +731,20 @@ export const procurementApi = baseApi.injectEndpoints({
       transformResponse: unwrap,
       invalidatesTags: ['ProcurementPurchaseOrders'],
     }),
+    submitPurchaseOrder: b.mutation<PurchaseOrderDetail, number>({
+      query: (id) => ({ url: `/procurement/purchase-orders/${id}/submit`, method: 'POST' }),
+      transformResponse: unwrap,
+      invalidatesTags: ['ProcurementPurchaseOrders'],
+    }),
+    deletePurchaseOrder: b.mutation<void, number>({
+      query: (id) => ({ url: `/procurement/purchase-orders/${id}`, method: 'DELETE' }),
+      invalidatesTags: ['ProcurementPurchaseOrders'],
+    }),
+    setPurchaseOrderLocked: b.mutation<PurchaseOrderDetail, { id: number; locked: boolean }>({
+      query: ({ id, locked }) => ({ url: `/procurement/purchase-orders/${id}/${locked ? 'lock' : 'unlock'}`, method: 'POST' }),
+      transformResponse: unwrap,
+      invalidatesTags: ['ProcurementPurchaseOrders'],
+    }),
     rejectPurchaseOrder: b.mutation<PurchaseOrderDetail, { id: number; reason: string }>({
       query: ({ id, reason }) => ({ url: `/procurement/purchase-orders/${id}/reject`, method: 'POST', body: { reason } }),
       transformResponse: unwrap,
@@ -909,6 +931,9 @@ export const {
   useSetPurchaseOrderOpenMutation,
   useApprovePurchaseOrderMutation,
   useRejectPurchaseOrderMutation,
+  useSubmitPurchaseOrderMutation,
+  useDeletePurchaseOrderMutation,
+  useSetPurchaseOrderLockedMutation,
   useGetSupplierOptionsQuery,
   useGetPackagingListsQuery,
   useGetPackagingListSummaryQuery,

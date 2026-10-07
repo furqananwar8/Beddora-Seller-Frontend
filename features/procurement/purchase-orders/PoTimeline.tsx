@@ -4,10 +4,14 @@ import type { PoEvent } from '@/services/api/procurement.api'
 import { formatDateTime } from '@/utils/format'
 
 const LABEL: Record<string, string> = {
-  CREATED: 'Created and sent for approval',
+  CREATED: 'Created',
+  SUBMITTED: 'Sent for approval',
   UPDATED: 'Edited',
-  RESUBMITTED: 'Edited after rejection, sent for approval again',
+  RESUBMITTED: 'Sent for approval again after rejection',
   APPROVED: 'Approved and locked',
+  UNLOCKED: 'Unlocked for editing',
+  EDITED_AFTER_UNLOCK: 'Edited while unlocked, locked again',
+  LOCKED: 'Locked without changes',
   REJECTED: 'Rejected',
   CLOSED: 'Closed',
   REOPENED: 'Reopened',
