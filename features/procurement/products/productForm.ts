@@ -58,6 +58,8 @@ export const variationSchema = z.object({
   /** "Same weight as master"; dimensions are always the variation's own. */
   inheritsMaster: z.boolean(),
   ...weightShape,
+  /** The unit the variation's own weight is typed in (its own toggle, independent of the master's). */
+  weightUnit: z.enum(['KG', 'LB']),
   ...dimensionShape,
   hasPhoto: z.boolean(),
   removePhoto: z.boolean(),
@@ -116,7 +118,7 @@ export const emptyProductValues: ProductFormValues = {
 }
 
 /** A new variation row, prefilled from the master's defaults ("Same weight as master" on). */
-export function newVariation(master: Pick<ProductFormValues, 'material' | 'packaging'>): VariationFormValues {
+export function newVariation(master: Pick<ProductFormValues, 'material' | 'packaging' | 'weightUnit'>): VariationFormValues {
   return {
     clientKey: crypto.randomUUID(),
     variantName: '',
@@ -128,6 +130,7 @@ export function newVariation(master: Pick<ProductFormValues, 'material' | 'packa
     description: '',
     inheritsMaster: true,
     weight: '',
+    weightUnit: master.weightUnit,
     ...blankDimensions,
     hasPhoto: false,
     removePhoto: false,
@@ -177,8 +180,9 @@ export function toProductBody(values: ProductFormValues, expectedUpdatedAt?: str
     sizeName: text(variation.sizeName),
     description: text(variation.description),
     inheritsMaster: variation.inheritsMaster,
+    // Inheriting: the master's weight and unit are copied on save
     weight: variation.inheritsMaster ? null : num(variation.weight),
-    weightUnit,
+    weightUnit: variation.inheritsMaster ? weightUnit : variation.weightUnit,
     ...dimensionsBody(variation, dimensionUnit),
   }))
   return {
@@ -243,7 +247,8 @@ export function fromFamily(family: PoProductFamily, asCopy = false): ProductForm
       sizeName: variation.sizeName ?? '',
       description: variation.description ?? '',
       inheritsMaster: variation.inheritsMaster,
-      weight: variation.inheritsMaster ? '' : weightValue(variation, weightUnit),
+      weight: variation.inheritsMaster ? '' : weightValue(variation, variation.weightUnit),
+      weightUnit: variation.inheritsMaster ? weightUnit : variation.weightUnit,
       ...dimensionValues(variation, dimensionUnit),
       hasPhoto: !asCopy && variation.hasPhoto,
       removePhoto: false,

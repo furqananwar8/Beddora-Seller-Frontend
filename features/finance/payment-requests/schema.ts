@@ -13,11 +13,12 @@ export const REFERENCE_OPTIONS: Array<{ value: ReferenceType; label: string }> =
 
 export const paymentRequestSchema = z.object({
   partnerId: z.string().min(1, 'Choose a partner'),
-  /** Paying a supplier invoice, or one of our purchase orders (then there is no invoice no. or container). */
+  /** Paying a supplier invoice, or one of our purchase orders (then there is no invoice no.). */
   referenceType: z.enum(['INVOICE', 'PURCHASE_ORDER']),
   invoiceNo: z.string().trim().max(80, 'Keep it under 80 characters'),
   purchaseOrder: z.custom<PoRef | null>(),
   invoiceDate: z.string().min(1, 'Invoice date is required'),
+  /** Picked from the container listing; it then sets the destination. */
   containerNo: z.string().trim().max(60, 'Keep it under 60 characters'),
   marketplaceId: z.string(),
   currency: z.string().min(1, 'Choose a currency'),
@@ -59,7 +60,7 @@ export function toUpdateBody(values: PaymentRequestFormValues) {
     invoiceNo: isPo(values) ? null : values.invoiceNo.trim(),
     purchaseOrderId: isPo(values) ? (values.purchaseOrder?.id ?? null) : null,
     invoiceDate: values.invoiceDate,
-    containerNo: isPo(values) ? null : values.containerNo.trim() || null,
+    containerNo: values.containerNo.trim() || null,
     marketplaceId: values.marketplaceId ? Number(values.marketplaceId) : null,
     expenseTypeId: Number(values.expenseTypeId),
     currency: values.currency,
@@ -76,8 +77,8 @@ export function toCreateFormData(values: PaymentRequestFormValues, files: File[]
     if (values.purchaseOrder) body.append('purchaseOrderId', String(values.purchaseOrder.id))
   } else {
     body.append('invoiceNo', values.invoiceNo.trim())
-    if (values.containerNo.trim()) body.append('containerNo', values.containerNo.trim())
   }
+  if (values.containerNo.trim()) body.append('containerNo', values.containerNo.trim())
   body.append('invoiceDate', values.invoiceDate)
   if (values.marketplaceId) body.append('marketplaceId', values.marketplaceId)
   body.append('expenseTypeId', values.expenseTypeId)

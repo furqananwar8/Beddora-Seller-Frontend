@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import type { PurchaseOrderListItem } from '@/services/api/procurement.api'
 import { cn } from '@/utils/cn'
 import { formatCalendarDay, formatCurrency } from '@/utils/format'
-import { DESTINATION_LABEL, EtdBadge, OpenBadge, PaymentBadge, PoStatusBadge, isPackable } from '../shared/poMeta'
+import { DESTINATION_LABEL, EtdBadge, OpenBadge, PaymentBadge, PoStatusBadge, isApprovedPo, isPackable } from '../shared/poMeta'
 
 const CELL = 'text-center align-middle'
 const COLUMNS = 13
@@ -26,6 +26,10 @@ export interface PoRowActions {
   onOpen: (row: PurchaseOrderListItem) => void
   onApprove: (row: PurchaseOrderListItem) => void
   onReject: (row: PurchaseOrderListItem) => void
+  onSubmit: (row: PurchaseOrderListItem) => void
+  onDelete: (row: PurchaseOrderListItem) => void
+  onUnlock: (row: PurchaseOrderListItem) => void
+  onLock: (row: PurchaseOrderListItem) => void
   onClose: (row: PurchaseOrderListItem) => void
   onReopen: (row: PurchaseOrderListItem) => void
   onFromRemaining: (row: PurchaseOrderListItem) => void
@@ -33,11 +37,14 @@ export interface PoRowActions {
 
 function actionsFor(row: PurchaseOrderListItem, actions: PoRowActions): RowActionItem[] {
   const pending = row.status === 'PENDING_APPROVAL'
+  const draft = row.status === 'DRAFT'
+  const approved = isApprovedPo(row)
+  const editable = !approved || row.unlocked
   const items: RowActionItem[] = [
     { key: 'view', label: 'View purchase order', onSelect: () => actions.onOpen(row) },
   ]
   if (actions.canPack && isPackable(row)) items.push({ key: 'pack', label: 'Create packaging list', onSelect: () => actions.onCreatePackagingList(row) })
-  if (!pending) items.push({ key: 'lists', label: 'View packaging lists', onSelect: () => actions.onViewPackagingLists(row) })
+  if (approved) items.push({ key: 'lists', label: 'View packaging lists', onSelect: () => actions.onViewPackagingLists(row) })
   if (actions.canViewPayments) {
     items.push({ key: 'payments', label: `View payment requests (${row.payment.requestCount})`, onSelect: () => actions.onViewPayments(row) })
   }
@@ -47,18 +54,27 @@ function actionsFor(row: PurchaseOrderListItem, actions: PoRowActions): RowActio
       { key: 'reject', label: 'Reject with reason…', tone: 'danger', onSelect: () => actions.onReject(row) }
     )
   }
+  if (actions.canDecide && approved) {
+    items.push(row.unlocked ? { key: 'lock', label: 'Lock PO', onSelect: () => actions.onLock(row) } : { key: 'unlock', label: 'Unlock for editing', onSelect: () => actions.onUnlock(row) })
+  }
   if (!actions.canWrite) return items
   items.push({
     key: 'edit',
-    label: pending ? 'Edit PO' : 'Edit PO · locked (approved)',
-    disabled: !pending,
-    disabledReason: pending ? undefined : 'Approved POs never change. Close it and raise a new PO.',
+    label: editable ? 'Edit PO' : 'Edit PO · locked (approved)',
+    disabled: !editable,
+    disabledReason: editable ? undefined : 'Approved POs are locked. An approver can unlock it for editing.',
     onSelect: () => actions.onOpen(row),
   })
+  if (draft) {
+    items.push(
+      { key: 'submit', label: row.rejectionReason ? 'Resubmit for approval' : 'Submit for approval', onSelect: () => actions.onSubmit(row) },
+      { key: 'delete', label: 'Delete draft', tone: 'danger', onSelect: () => actions.onDelete(row) }
+    )
+  }
   if (row.isOpen) items.push({ key: 'close', label: 'Close PO', tone: 'danger', onSelect: () => actions.onClose(row) })
   else {
     items.push({ key: 'reopen', label: 'Reopen PO', onSelect: () => actions.onReopen(row) })
-    if (!pending) items.push({ key: 'remaining', label: 'Create PO from remaining', onSelect: () => actions.onFromRemaining(row) })
+    if (approved) items.push({ key: 'remaining', label: 'Create PO from remaining', onSelect: () => actions.onFromRemaining(row) })
   }
   return items
 }

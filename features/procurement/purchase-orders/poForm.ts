@@ -68,7 +68,7 @@ export const emptyPoValues: PoFormValues = {
 
 const day = (value: string | null): string => (value ? value.slice(0, 10) : '')
 
-export function toPoBody(values: PoFormValues, extras: { sourcePurchaseOrderId?: number; expectedUpdatedAt?: string } = {}): PurchaseOrderBody {
+export function toPoBody(values: PoFormValues, extras: { sourcePurchaseOrderId?: number; expectedUpdatedAt?: string; submit?: boolean } = {}): PurchaseOrderBody {
   return {
     supplierId: values.supplier!.id,
     contactName: values.contactName.trim() || null,
@@ -79,6 +79,7 @@ export function toPoBody(values: PoFormValues, extras: { sourcePurchaseOrderId?:
     lines: values.lines.map((line) => ({ productId: line.product.id, unitsOrdered: Number(line.unitsOrdered), unitPrice: Number(line.unitPrice) })),
     ...(extras.sourcePurchaseOrderId && { sourcePurchaseOrderId: extras.sourcePurchaseOrderId }),
     ...(extras.expectedUpdatedAt && { expectedUpdatedAt: extras.expectedUpdatedAt }),
+    submit: Boolean(extras.submit),
   }
 }
 

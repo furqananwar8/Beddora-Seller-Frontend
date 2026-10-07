@@ -72,6 +72,7 @@ export const tagTypes = [
   'EbayProducts',
   'ReportSyncManagement',
   'FinancePartners',
+  'FinanceBankProfiles',
   'FinanceRequests',
   'FinanceProcess',
   'FinanceApprovers',

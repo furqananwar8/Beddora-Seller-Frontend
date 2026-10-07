@@ -6,7 +6,7 @@ import { FormField } from '@/components/form-field/FormField'
 import { Card, CardContent, CardHeader, CardTitle } from '@/design-system/cards/Card'
 import type { LengthUnit, WeightUnit } from '@/services/api/procurement.api'
 import { WeightField } from '../shared/MeasurementFields'
-import { convertLength, convertWeight } from '../shared/units'
+import { convertLength } from '../shared/units'
 import type { ProductFormValues } from './productForm'
 
 const convertText = (value: string, convert: (n: number) => number) =>
@@ -14,18 +14,14 @@ const convertText = (value: string, convert: (n: number) => number) =>
 
 /**
  * Flipping a unit re-expresses every typed value in the form that uses it, so a value never silently changes meaning:
- * weight on the master and on variations with their own weight; dimensions on every variation (the master has none).
+ * the master's weight (a variation's own weight has its own unit toggle); dimensions on every variation (the master has none).
  */
 export function useUnitSwitch(form: UseFormReturn<ProductFormValues>) {
   const { getValues, setValue } = form
 
   const switchWeight = (unit: WeightUnit, convertedMaster: string) => {
-    const from = getValues('weightUnit')
     setValue('weightUnit', unit, { shouldDirty: true })
     setValue('weight', convertedMaster, { shouldDirty: true })
-    getValues('variations').forEach((variation, index) => {
-      if (!variation.inheritsMaster) setValue(`variations.${index}.weight`, convertText(variation.weight, (n) => convertWeight(n, from, unit)))
-    })
   }
 
   const switchLength = (unit: LengthUnit) => {

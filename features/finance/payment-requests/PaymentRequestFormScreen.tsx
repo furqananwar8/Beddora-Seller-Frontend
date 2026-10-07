@@ -39,6 +39,8 @@ import { useFinanceFeedback } from '../shared/useFinanceFeedback'
 import { DocumentChips } from '../shared/DocumentChips'
 import { PartnerChips, PartnerSelect, toPartnerOption } from './PartnerSelect'
 import { PayablePoSelect } from './PayablePoSelect'
+import { ContainerSelect, containerRefOf } from './ContainerSelect'
+import type { ContainerItem } from '@/services/api/procurement.api'
 import { clearRequestDraft, peekRequestDraft, saveRequestDraft, withQueryParam } from './requestDraftStore'
 import {
   CURRENCIES,
@@ -165,6 +167,7 @@ export const PaymentRequestFormScreen: React.FC = () => {
   const currency = watch('currency')
   const referenceType = watch('referenceType')
   const purchaseOrder = watch('purchaseOrder')
+  const containerNo = watch('containerNo')
   const byPurchaseOrder = referenceType === 'PURCHASE_ORDER'
   const currencyOptions = [...new Set([...CURRENCIES, ...(currency ? [currency] : [])])].map((code) => ({ value: code, label: code }))
   const existingDocuments: FinanceDocument[] = detail?.documents ?? []
@@ -198,12 +201,22 @@ export const PaymentRequestFormScreen: React.FC = () => {
     else void runDuplicateCheck(getValues('partnerId'), getValues('invoiceNo'))
   }
 
-  /** A picked PO brings its currency and destination; both stay editable. */
+  const applyDestination = (code: 'US' | 'CA') => {
+    const destination = marketplaces?.find((m) => m.code === code)
+    if (destination) setValue('marketplaceId', String(destination.id), { shouldDirty: true })
+  }
+
+  /** A picked PO brings its currency and destination; a picked container's destination wins over it. */
   const pickPurchaseOrder = (po: { id: number; poNo: string; currency: string; destination: 'US' | 'CA' }) => {
     setValue('purchaseOrder', { id: po.id, poNo: po.poNo }, { shouldValidate: true, shouldDirty: true })
     setValue('currency', po.currency, { shouldValidate: true })
-    const destination = marketplaces?.find((m) => m.code === po.destination)
-    if (destination) setValue('marketplaceId', String(destination.id))
+    if (!getValues('containerNo')) applyDestination(po.destination)
+  }
+
+  /** The destination follows the container; without one it is picked by hand. */
+  const pickContainer = (container: ContainerItem | null) => {
+    setValue('containerNo', container ? containerRefOf(container) : '', { shouldValidate: true, shouldDirty: true })
+    if (container) applyDestination(container.destination)
   }
 
   const removeExisting = async (doc: FinanceDocument) => {
@@ -333,16 +346,15 @@ export const PaymentRequestFormScreen: React.FC = () => {
                 )}
               />
             </FormField>
-            {!byPurchaseOrder && (
-              <FormField label="Container #" htmlFor="containerNo" error={errors.containerNo?.message}>
-                <Input id="containerNo" className="rounded-lg" placeholder="MSKU 482193-0" {...register('containerNo')} />
-              </FormField>
-            )}
-            <FormField label="Destination (Marketplace)" htmlFor="marketplaceId">
+            <FormField label="Container #" htmlFor="containerNo" error={errors.containerNo?.message}>
+              <ContainerSelect id="containerNo" value={containerNo} onChange={pickContainer} error={errors.containerNo?.message} />
+            </FormField>
+            <FormField label="Destination (Marketplace)" htmlFor="marketplaceId" hint={containerNo ? 'Set by the container' : undefined}>
               <SelectShell>
               <Select
                 id="marketplaceId"
                 className="appearance-none rounded-lg pr-9"
+                disabled={Boolean(containerNo)}
                 options={[{ value: '', label: 'Select destination' }, ...(marketplaces ?? []).map((m) => ({ value: String(m.id), label: m.name }))]}
                 {...register('marketplaceId')}
               />

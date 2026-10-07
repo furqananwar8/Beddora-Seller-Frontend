@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/design-system/cards/
 import type { LengthUnit } from '@/services/api/procurement.api'
 import { cn } from '@/utils/cn'
 import { ColorSelect } from '../shared/ColorSelect'
-import { CbmField, LENGTH_UNITS } from '../shared/MeasurementFields'
+import { CbmField, LENGTH_UNITS, WeightField } from '../shared/MeasurementFields'
 import { PhotoField } from './PhotoField'
 import { derivedCbm, newVariation, type ProductFormValues } from './productForm'
 import { useUnitSwitch } from './ProductShippingSection'
@@ -237,7 +237,6 @@ export const VariationsSection: React.FC<VariationsSectionProps> = ({ form, prod
                               readOnly={readOnly}
                               inherits={row.inheritsMaster}
                               master={{ category: masterCategory?.name ?? '—', weight: masterWeight ? `${masterWeight} ${weightUnit.toLowerCase()}` : '—' }}
-                              weightUnit={weightUnit}
                               dimensionUnit={dimensionUnit}
                               photo={
                                 <PhotoField
@@ -277,13 +276,12 @@ interface VariationDetailsProps {
   readOnly: boolean
   inherits: boolean
   master: { category: string; weight: string }
-  weightUnit: string
   dimensionUnit: LengthUnit
   photo: React.ReactNode
 }
 
 /** The expanded row: category from the master, the master's or the variation's own weight, the CBM override, description and photo. */
-const VariationDetails: React.FC<VariationDetailsProps> = ({ form, index, readOnly, inherits, master, weightUnit, dimensionUnit, photo }) => {
+const VariationDetails: React.FC<VariationDetailsProps> = ({ form, index, readOnly, inherits, master, dimensionUnit, photo }) => {
   const {
     control,
     register,
@@ -291,9 +289,17 @@ const VariationDetails: React.FC<VariationDetailsProps> = ({ form, index, readOn
     formState: { errors },
   } = form
   const err = errors.variations?.[index]
-  const [length, width, height, cbm, cbmTouched] = useWatch({
+  const [length, width, height, cbm, cbmTouched, ownWeight, ownWeightUnit] = useWatch({
     control,
-    name: [`variations.${index}.length`, `variations.${index}.width`, `variations.${index}.height`, `variations.${index}.cbm`, `variations.${index}.cbmTouched`],
+    name: [
+      `variations.${index}.length`,
+      `variations.${index}.width`,
+      `variations.${index}.height`,
+      `variations.${index}.cbm`,
+      `variations.${index}.cbmTouched`,
+      `variations.${index}.weight`,
+      `variations.${index}.weightUnit`,
+    ],
   })
   const shownCbm = derivedCbm({ length, width, height, cbm, cbmTouched }, dimensionUnit)
 
@@ -304,8 +310,20 @@ const VariationDetails: React.FC<VariationDetailsProps> = ({ form, index, readOn
         <Readout label="Weight" value={`${master.weight} · master`} />
       ) : (
         <div className="min-w-0">
-          <p className="ds-input-label">Weight ({weightUnit.toLowerCase()})</p>
-          <NumericInput decimal aria-label="Weight" className={cn(fieldClass(err?.weight?.message), 'text-right')} disabled={readOnly} {...register(`variations.${index}.weight`)} />
+          <p className="ds-input-label">Weight</p>
+          {/* Its own KG / LB toggle; flipping it converts the typed weight */}
+          <WeightField
+            id={`variation-${index}-weight`}
+            value={ownWeight}
+            unit={ownWeightUnit}
+            onChange={(value) => setValue(`variations.${index}.weight`, value, { shouldDirty: true, shouldValidate: Boolean(err?.weight) })}
+            onUnitChange={(unit, converted) => {
+              setValue(`variations.${index}.weightUnit`, unit, { shouldDirty: true })
+              setValue(`variations.${index}.weight`, converted, { shouldDirty: true })
+            }}
+            error={err?.weight?.message}
+            disabled={readOnly}
+          />
           {err?.weight?.message && <p className="mt-1 text-xs text-danger-600">{err.weight.message}</p>}
         </div>
       )}

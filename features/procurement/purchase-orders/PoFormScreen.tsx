@@ -23,13 +23,14 @@ import {
 } from '@/services/api/procurement.api'
 import { useAppSelector } from '@/store/hooks'
 import { applyServerIssues } from '@/utils/apiErrors'
-import { isPackable, newPackagingListHref, PaymentBadge, PoStatusBadge, poPackagingListsHref, poPaymentRequestsHref } from '../shared/poMeta'
+import { formatCalendarDay } from '@/utils/format'
+import { isApprovedPo, isPackable, newPackagingListHref, PaymentBadge, PoStatusBadge, poPackagingListsHref, poPaymentRequestsHref } from '../shared/poMeta'
 import { ApprovalPanel } from './ApprovalPanel'
 import { emptyPoValues, fromDetail, fromRemaining, poFormSchema, toPoBody, type PoFormValues } from './poForm'
 import { PoOrderDetailsSection, PoSupplierSection } from './PoDetailsSections'
 import { PoProductsSection } from './PoProductsSection'
 import { PoTimeline } from './PoTimeline'
-import { usePoDecisions } from './usePoDecisions'
+import { usePoActions } from './usePoActions'
 
 const LIST = '/dashboard/procurement/purchase-orders'
 
@@ -37,7 +38,16 @@ const FORM_FIELDS = new Set(['supplierId', 'contactName', 'destination', 'curren
 /** Server field names onto form paths (`supplierId` is the `supplier` picker, line products are their rows). */
 const toFormField = (field: string) => (field === 'supplierId' ? 'supplier' : field.replace(/^lines\.(\d+)\.productId$/, 'lines.$1.unitsOrdered'))
 
-const REALTIME_VERB: Record<string, string> = { approved: 'approved', rejected: 'rejected', updated: 'updated', closed: 'closed', reopened: 'reopened' }
+const REALTIME_VERB: Record<string, string> = {
+  approved: 'approved',
+  rejected: 'rejected',
+  updated: 'updated',
+  submitted: 'submitted',
+  unlocked: 'unlocked',
+  locked: 'locked',
+  closed: 'closed',
+  reopened: 'reopened',
+}
 
 interface PoFormScreenProps {
   purchaseOrderId?: number
@@ -77,33 +87,45 @@ export const PoFormScreen: React.FC<PoFormScreenProps> = ({ purchaseOrderId }) =
 
   const [createPo] = useCreateProcurementPurchaseOrderMutation()
   const [updatePo] = useUpdateProcurementPurchaseOrderMutation()
-  const decisions = usePoDecisions()
+  const decisions = usePoActions()
   const [setOpen, { isLoading: toggling }] = useSetPurchaseOrderOpenMutation()
-  const [saving, setSaving] = useState(false)
+  const [saving, setSaving] = useState<'save' | 'submit' | null>(null)
   const [confirmClose, setConfirmClose] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
 
   const isNew = purchaseOrderId === undefined
   const editable = isNew ? canWrite : Boolean(po?.can.edit)
   const readOnly = !editable
 
-  const submit = handleSubmit(async (values) => {
-    setSaving(true)
-    try {
-      const body = toPoBody(values, { sourcePurchaseOrderId: po?.source?.id ?? remaining?.sourcePurchaseOrderId, expectedUpdatedAt: po?.updatedAt })
-      const saved = po ? await updatePo({ id: po.id, body }).unwrap() : await createPo(body).unwrap()
-      success(po ? `${saved.poNo} saved${po.rejectionReason ? ' and sent for approval again' : ''}` : `${saved.poNo} created and sent for approval`)
-      if (po) {
-        hydrated.current = null
-      } else {
-        router.replace(`${LIST}/${saved.id}`)
+  /** Saves the form; `submit` also sends a draft for approval. A saved draft without changes is just submitted. */
+  const save = (submitForApproval: boolean) =>
+    handleSubmit(async (values) => {
+      if (po && submitForApproval && !formState.isDirty) {
+        await decisions.submit(po)
+        return
       }
-    } catch (error) {
-      const placed = applyServerIssues(error, (field, issue, options) => setError(toFormField(field) as never, issue, options), (field) => FORM_FIELDS.has(field.split('.')[0]))
-      if (!placed) failure(error, 'Could not save the purchase order')
-    } finally {
-      setSaving(false)
-    }
-  })
+      setSaving(submitForApproval ? 'submit' : 'save')
+      try {
+        const body = toPoBody(values, { sourcePurchaseOrderId: po?.source?.id ?? remaining?.sourcePurchaseOrderId, expectedUpdatedAt: po?.updatedAt, submit: submitForApproval })
+        const saved = po ? await updatePo({ id: po.id, body }).unwrap() : await createPo(body).unwrap()
+        const what = submitForApproval ? 'sent for approval' : po?.unlockedAt ? 'saved and locked again' : po ? 'saved' : 'saved as a draft'
+        success(`${saved.poNo} ${what}`)
+        if (po) {
+          hydrated.current = null
+        } else {
+          router.replace(`${LIST}/${saved.id}`)
+        }
+      } catch (error) {
+        const placed = applyServerIssues(error, (field, issue, options) => setError(toFormField(field) as never, issue, options), (field) => FORM_FIELDS.has(field.split('.')[0]))
+        if (!placed) failure(error, 'Could not save the purchase order')
+      } finally {
+        setSaving(null)
+      }
+    })()
+
+  const deleteDraft = async () => {
+    if (po && (await decisions.remove(po))) router.push(LIST)
+  }
 
   const changeOpen = async (isOpen: boolean) => {
     if (!po) return
@@ -140,14 +162,14 @@ export const PoFormScreen: React.FC<PoFormScreenProps> = ({ purchaseOrderId }) =
 
   return (
     <Container size="full" className="py-4 sm:py-8">
-      <form onSubmit={submit} noValidate className="mx-auto flex w-full max-w-5xl flex-col gap-4">
+      <form onSubmit={(event) => (event.preventDefault(), void save(false))} noValidate className="mx-auto flex w-full max-w-5xl flex-col gap-4">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-xl font-bold text-text-primary sm:text-2xl">{title}</h1>
               {po && <PoStatusBadge status={po.status} />}
               {po && <PaymentBadge payment={po.payment} withPercent />}
-              {po && po.status !== 'PENDING_APPROVAL' && (
+              {po && isApprovedPo(po) && (
                 <Link href={poPackagingListsHref(po.id)} className="text-sm font-medium text-primary-600 underline-offset-2 hover:underline">
                   View packaging lists
                 </Link>
@@ -187,13 +209,38 @@ export const PoFormScreen: React.FC<PoFormScreenProps> = ({ purchaseOrderId }) =
           )}
         </div>
 
-        {po && po.status === 'PENDING_APPROVAL' && <ApprovalPanel po={po} busy={decisions.busy?.decision ?? null} onApprove={() => void decisions.approve(po)} onReject={(reason) => void decisions.reject(po, reason)} />}
+        {po && po.status === 'PENDING_APPROVAL' && (
+          <ApprovalPanel
+            po={po}
+            busy={decisions.busy?.action === 'approve' || decisions.busy?.action === 'reject' ? decisions.busy.action : null}
+            onApprove={() => void decisions.approve(po)}
+            onReject={(reason) => void decisions.reject(po, reason)}
+          />
+        )}
+        {po && po.status === 'DRAFT' && po.rejectionReason && (
+          <p role="status" className="rounded-lg border border-danger-200 bg-danger-50 px-4 py-3 text-sm text-danger-700">
+            <strong>Rejected by {po.decidedBy?.name ?? 'an approver'}:</strong> “{po.rejectionReason}”. It is back in draft: update it and submit it for approval again.
+          </p>
+        )}
 
         <PoSupplierSection form={form} readOnly={readOnly} supplierLocked={Boolean(fromSource)} />
         <PoOrderDetailsSection form={form} readOnly={readOnly} />
         <PoProductsSection form={form} readOnly={readOnly} fixedProducts={Boolean(fromSource)} />
 
-        {po && po.status !== 'PENDING_APPROVAL' && (
+        {po && isApprovedPo(po) && po.unlockedAt && (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-warning-500 bg-warning-50 px-4 py-3 text-sm text-warning-700">
+            <p>
+              <strong>Unlocked for editing</strong> by {po.unlockedBy?.name ?? 'an approver'} on {formatCalendarDay(po.unlockedAt)}. Saving your changes locks it again; it stays approved.
+            </p>
+            {po.can.lock && (
+              <Button type="button" size="sm" variant="outline" isLoading={decisions.busy?.action === 'lock'} onClick={() => void decisions.lock(po)}>
+                Lock without changes
+              </Button>
+            )}
+          </div>
+        )}
+
+        {po && isApprovedPo(po) && !po.unlockedAt && (
           <div className="flex items-start gap-3 rounded-lg border border-border bg-secondary-50 px-4 py-3 text-sm">
             <svg className="mt-0.5 h-4 w-4 shrink-0 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
@@ -201,7 +248,7 @@ export const PoFormScreen: React.FC<PoFormScreenProps> = ({ purchaseOrderId }) =
             <div>
               <p className="font-semibold text-text-primary">Locked once approved</p>
               <p className="text-text-muted">
-                Every field is read-only for good. For a quantity change, close this PO and use “Create PO from remaining”, or raise a new PO.
+                Every field is read-only until an approver unlocks it. For leftover units, close this PO and use “Create PO from remaining”.
                 {po.can.createFromRemaining && (
                   <>
                     {' '}
@@ -212,22 +259,54 @@ export const PoFormScreen: React.FC<PoFormScreenProps> = ({ purchaseOrderId }) =
                 )}
               </p>
             </div>
+            {po.can.unlock && (
+              <Button type="button" size="sm" variant="outline" className="ml-auto shrink-0" isLoading={decisions.busy?.action === 'unlock'} onClick={() => void decisions.unlock(po)}>
+                Unlock for editing
+              </Button>
+            )}
           </div>
         )}
 
         {po && <PoTimeline events={po.events} />}
 
         <FormActions>
-          <Button type="button" variant="outline" onClick={() => router.push(LIST)} disabled={saving}>
+          {po?.can.delete && (
+            <Button type="button" variant="danger" className="sm:mr-auto" onClick={() => setConfirmDelete(true)} disabled={Boolean(saving)}>
+              Delete draft
+            </Button>
+          )}
+          <Button type="button" variant="outline" onClick={() => router.push(LIST)} disabled={Boolean(saving)}>
             {readOnly ? 'Back' : 'Cancel'}
           </Button>
-          {editable && (
-            <Button type="submit" isLoading={saving} disabled={!formState.isDirty && Boolean(po) && !po?.rejectionReason}>
-              {isNew ? 'Create PO' : 'Save'}
+          {editable && (isNew || po?.status === 'DRAFT') && (
+            <>
+              <Button type="button" variant="outline" isLoading={saving === 'save'} disabled={Boolean(saving) || (!isNew && !formState.isDirty)} onClick={() => void save(false)}>
+                Save draft
+              </Button>
+              <Button type="button" isLoading={saving === 'submit' || decisions.busy?.action === 'submit'} disabled={Boolean(saving)} onClick={() => void save(true)}>
+                {po?.rejectionReason ? 'Resubmit for approval' : 'Submit for approval'}
+              </Button>
+            </>
+          )}
+          {editable && !isNew && po?.status !== 'DRAFT' && (
+            <Button type="submit" isLoading={saving === 'save'} disabled={Boolean(saving) || !formState.isDirty}>
+              {po?.unlockedAt ? 'Save & lock' : 'Save'}
             </Button>
           )}
         </FormActions>
       </form>
+
+      <ConfirmDialog
+        isOpen={confirmDelete}
+        title={`Delete ${po?.poNo ?? 'draft'}`}
+        confirmLabel="Delete draft"
+        tone="danger"
+        busy={decisions.busy?.action === 'delete'}
+        onConfirm={() => void deleteDraft()}
+        onClose={() => setConfirmDelete(false)}
+      >
+        <p>This draft is deleted for good, with its lines and timeline.</p>
+      </ConfirmDialog>
 
       <ConfirmDialog isOpen={confirmClose} title={`Close ${po?.poNo ?? 'PO'}`} confirmLabel="Close PO" tone="danger" busy={toggling} onConfirm={() => void changeOpen(false)} onClose={() => setConfirmClose(false)}>
         <p>A closed PO takes no new packaging lists or payments and stops ETD reminders. Units not packed yet can move to a new PO with “Create PO from remaining”.</p>

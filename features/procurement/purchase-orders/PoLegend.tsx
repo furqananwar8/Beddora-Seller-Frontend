@@ -9,13 +9,18 @@ export const PoLegend: React.FC = () => (
     <section>
       <h2 className="mb-2 text-sm font-semibold text-text-primary">PO lifecycle</h2>
       <div className="flex flex-wrap items-center gap-2">
+        <PoStatusBadge status="DRAFT" />
+        <Arrow label="submit" />
         <PoStatusBadge status="PENDING_APPROVAL" />
         <Arrow label="approve · locked" />
         <PoStatusBadge status="IN_PROGRESS" />
         <Arrow label="all units packed" />
         <PoStatusBadge status="READY_TO_SHIP" />
       </div>
-      <p className="mt-2 text-xs text-text-muted">Editable only while pending approval. A rejected PO stays pending with the approver’s reason.</p>
+      <p className="mt-2 text-xs text-text-muted">
+        Editable as a draft or while pending. A rejected PO goes back to draft with the approver’s reason and must be submitted again. Approved POs are locked until an
+        approver unlocks them; saving locks them again. Only drafts can be deleted.
+      </p>
     </section>
     <section>
       <h2 className="mb-2 text-sm font-semibold text-text-primary">ETD email reminders</h2>

@@ -13,6 +13,7 @@ export const poPaymentRequestsHref = (id: number): string => `/dashboard/finance
 export const DESTINATION_LABEL: Record<PoDestination, string> = { US: 'USA', CA: 'CANADA' }
 
 export const PO_STATUS_META: Record<PoStatus, { label: string; tone: StatusTone }> = {
+  DRAFT: { label: 'Draft', tone: 'neutral' },
   PENDING_APPROVAL: { label: 'Pending approval', tone: 'warning' },
   IN_PROGRESS: { label: 'In progress', tone: 'info' },
   READY_TO_SHIP: { label: 'Ready to ship', tone: 'success' },
@@ -76,7 +77,10 @@ export const newPackagingListHref = (purchaseOrderId?: number): string =>
   `/dashboard/procurement/packaging-lists/new${purchaseOrderId ? `?purchaseOrderId=${purchaseOrderId}` : ''}`
 
 /** A PO can be packed once approved and while open. */
-export const isPackable = (po: { status: PoStatus; isOpen: boolean }): boolean => po.status !== 'PENDING_APPROVAL' && po.isOpen
+/** Approved POs: they can be packed, paid and shipped. Mirrors the server's rule. */
+export const isApprovedPo = (po: { status: PoStatus }): boolean => po.status === 'IN_PROGRESS' || po.status === 'READY_TO_SHIP'
+
+export const isPackable = (po: { status: PoStatus; isOpen: boolean }): boolean => isApprovedPo(po) && po.isOpen
 
 /** In lifecycle order: a container only moves forward through these. */
 export const CONTAINER_STATUS_META: Record<ContainerStatus, { label: string; tone: StatusTone }> = {

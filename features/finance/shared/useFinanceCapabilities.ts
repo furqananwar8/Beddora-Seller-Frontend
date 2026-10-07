@@ -11,6 +11,7 @@ export function useFinanceCapabilities() {
     canManageExpenseTypes: data?.canManageExpenseTypes ?? false,
     canManageApprovers: data?.canManageApprovers ?? false,
     canWritePartners: data?.canWritePartners ?? false,
+    canWriteBankProfiles: data?.canWriteBankProfiles ?? false,
     canCreateRequests: data?.canCreateRequests ?? false,
     canProcessPayments: data?.canProcessPayments ?? false,
   }

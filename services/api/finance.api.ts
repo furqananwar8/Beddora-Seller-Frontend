@@ -84,6 +84,18 @@ export interface PaymentMethod {
   documents: FinanceDocument[]
 }
 
+export interface BankProfile extends PaymentMethod {
+  name: string
+  createdBy: { id: number; name: string | null }
+}
+
+export interface BankProfileListParams {
+  page: number
+  limit: number
+  search?: string
+  type?: PaymentMethod['type']
+}
+
 export interface PartnerDetail {
   id: number
   name: string
@@ -374,6 +386,21 @@ export const financeApi = baseApi.injectEndpoints({
       invalidatesTags: ['FinancePartners'],
     }),
 
+    /* bank profiles */
+    getBankProfiles: b.query<Page<BankProfile>, BankProfileListParams>({
+      query: ({ search, ...params }) => ({ url: '/finance/bank-profiles', params: { ...params, search: search || undefined } }),
+      providesTags: ['FinanceBankProfiles'],
+    }),
+    createBankProfile: b.mutation<BankProfile, FormData>({
+      query: (body) => ({ url: '/finance/bank-profiles', method: 'POST', body }),
+      transformResponse: unwrap,
+      invalidatesTags: ['FinanceBankProfiles'],
+    }),
+    deleteBankProfile: b.mutation<void, number>({
+      query: (id) => ({ url: `/finance/bank-profiles/${id}`, method: 'DELETE' }),
+      invalidatesTags: ['FinanceBankProfiles'],
+    }),
+
     /* expense types, lookups */
     getExpenseTypes: b.query<ExpenseType[], { includeInactive?: boolean } | void>({
       query: (params) => ({ url: '/finance/expense-types', params: params?.includeInactive ? { includeInactive: 'true' } : undefined }),
@@ -406,6 +433,7 @@ export const financeApi = baseApi.injectEndpoints({
       canManageExpenseTypes: boolean
       canManageApprovers: boolean
       canWritePartners: boolean
+      canWriteBankProfiles: boolean
       canCreateRequests: boolean
       canProcessPayments: boolean
     }, void>({
@@ -542,6 +570,9 @@ export const {
   useUpdatePartnerMutation,
   useAddPaymentMethodMutation,
   useRemovePaymentMethodMutation,
+  useGetBankProfilesQuery,
+  useCreateBankProfileMutation,
+  useDeleteBankProfileMutation,
   useGetExpenseTypesQuery,
   useCreateExpenseTypeMutation,
   useUpdateExpenseTypeMutation,

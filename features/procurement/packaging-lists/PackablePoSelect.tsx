@@ -22,6 +22,7 @@ const plural = (count: number, word: string) => `${count} ${word}${count === 1 ?
  * one destination per list, and several POs only while none of them has a packaging list yet.
  */
 export function unpackableReason(po: PackablePurchaseOrder, selected: PackablePurchaseOrder[]): string | null {
+  if (po.status === 'DRAFT') return 'Draft'
   if (po.status === 'PENDING_APPROVAL') return 'Pending approval'
   if (!isPackable(po)) return 'Closed'
   if (selected.some((item) => item.id === po.id) || selected.length === 0) return null

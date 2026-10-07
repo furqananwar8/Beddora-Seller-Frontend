@@ -95,6 +95,13 @@ export const paymentMethodSchema = z
 
 export type PaymentMethodFormValues = z.infer<typeof paymentMethodSchema>
 
+/** A bank profile: the same payment-method fields plus a name to tell profiles apart. */
+export const bankProfileSchema = paymentMethodSchema.and(
+  z.object({ name: z.string().trim().min(1, 'Name is required').max(120, 'Keep it under 120 characters') })
+)
+
+export type BankProfileFormValues = z.infer<typeof bankProfileSchema>
+
 export const emptyPaymentMethodValues: PaymentMethodFormValues = {
   type: 'BANK',
   iban: '',
