@@ -1,6 +1,7 @@
 'use client'
 
-import React, { useEffect, useId, useMemo, useRef, useState } from 'react'
+import React, { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { cn } from '@/utils/cn'
 
 const Chevron: React.FC<{ className?: string }> = ({ className }) => (
@@ -64,6 +65,39 @@ export type SearchableSelectProps<T> = SingleProps<T> | MultiProps<T>
 /** Lists this short are scanned faster than searched. */
 export const SEARCH_THRESHOLD = 10
 
+/** Room the menu wants below the trigger before it opens upwards instead. */
+const MENU_ROOM = 320
+const GAP = 4
+
+type MenuPosition = { left: number; width: number } & ({ top: number } | { bottom: number })
+
+/**
+ * Where the menu goes: under the trigger, or above it when there is no room below. The menu is portalled
+ * to <body> with fixed positioning, so a scrolling table or card never clips it; it follows the trigger
+ * while anything scrolls or the window resizes.
+ */
+function useMenuPosition(anchor: React.RefObject<HTMLElement>, open: boolean): MenuPosition | null {
+  const [position, setPosition] = useState<MenuPosition | null>(null)
+  useLayoutEffect(() => {
+    if (!open) return setPosition(null)
+    const place = () => {
+      const rect = anchor.current?.getBoundingClientRect()
+      if (!rect) return
+      const below = window.innerHeight - rect.bottom
+      const upwards = below < MENU_ROOM && rect.top > below
+      setPosition(upwards ? { left: rect.left, width: rect.width, bottom: window.innerHeight - rect.top + GAP } : { left: rect.left, width: rect.width, top: rect.bottom + GAP })
+    }
+    place()
+    window.addEventListener('scroll', place, true)
+    window.addEventListener('resize', place)
+    return () => {
+      window.removeEventListener('scroll', place, true)
+      window.removeEventListener('resize', place)
+    }
+  }, [anchor, open])
+  return position
+}
+
 /**
  * One searchable dropdown for the whole app: a button that opens a search box and a listbox.
  * Single or multi select, client- or server-side search, disabled options with a reason,
@@ -98,7 +132,9 @@ export function SearchableSelect<T>(props: SearchableSelectProps<T>) {
   const [localSearch, setLocalSearch] = useState('')
   const [active, setActive] = useState(0)
   const wrapper = useRef<HTMLDivElement>(null)
+  const menu = useRef<HTMLDivElement>(null)
   const list = useRef<HTMLUListElement>(null)
+  const position = useMenuPosition(wrapper, open)
   const listId = useId()
   const showSearch = searchable ?? (Boolean(onSearchChange) || options.length > SEARCH_THRESHOLD)
 
@@ -131,7 +167,8 @@ export function SearchableSelect<T>(props: SearchableSelectProps<T>) {
   useEffect(() => {
     if (!open) return
     const close = (event: MouseEvent) => {
-      if (!wrapper.current?.contains(event.target as Node)) changeOpen(false)
+      const target = event.target as Node
+      if (!wrapper.current?.contains(target) && !menu.current?.contains(target)) changeOpen(false)
     }
     document.addEventListener('mousedown', close)
     return () => document.removeEventListener('mousedown', close)
@@ -197,8 +234,11 @@ export function SearchableSelect<T>(props: SearchableSelectProps<T>) {
         <Chevron className="ml-2" />
       </button>
 
-      {open && (
-        <div className="absolute z-50 mt-1 w-full min-w-[16rem] rounded-lg border border-border bg-surface p-2 shadow-lg">
+      {open &&
+        position &&
+        createPortal(
+        // Above modals (z 9999); React events still bubble to the wrapper, so the keyboard handler keeps working
+        <div ref={menu} style={{ ...position, zIndex: 10000 }} className="fixed min-w-[16rem] rounded-lg border border-border bg-surface p-2 shadow-lg">
           {showSearch && (
             <input
               autoFocus
@@ -250,7 +290,8 @@ export function SearchableSelect<T>(props: SearchableSelectProps<T>) {
             {loading && <li className="px-2 py-3 text-center text-sm text-text-muted">Searching...</li>}
           </ul>
           {footer && <div className="mt-1 border-t border-border pt-1">{typeof footer === 'function' ? footer(() => changeOpen(false)) : footer}</div>}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   )

@@ -40,11 +40,13 @@ export const SingleDatePicker: React.FC<SingleDatePickerProps> = ({
 }) => {
   const ref = useRef<HTMLDivElement>(null)
 
-  // Lets a <label htmlFor> focus the trigger button.
+  // Lets a <label htmlFor> focus the trigger button, and keeps a disabled picker out of reach of the keyboard too.
   useEffect(() => {
     const button = ref.current?.querySelector('button')
-    if (button && id) button.id = id
-  }, [id])
+    if (!button) return
+    if (id) button.id = id
+    button.disabled = Boolean(disabled)
+  }, [id, disabled])
 
   return (
     <div

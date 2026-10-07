@@ -11,8 +11,8 @@ interface FilterItemProps {
   className?: string
 }
 
-/** For a SegmentedToggle inside a filter cell: fills the cell, its options share the width. */
-export const FILL_TOGGLE = 'flex w-full [&>button]:flex-1 [&>button]:px-2'
+/** A toggle filling its filter box: options share the width by label length, so a long label stays on one line. */
+export const FILL_TOGGLE = 'flex w-full [&>button]:flex-auto [&>button]:px-2'
 
 /** One filter box: one column of the filter grid, or two when `wide`. */
 export const FilterItem: React.FC<FilterItemProps> = ({ children, wide, className }) => (
