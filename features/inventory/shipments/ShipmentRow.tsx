@@ -501,6 +501,7 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({
                   )}
                 </div>
 
+                <div className="ds-scroll-x">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-border text-left text-xs font-semibold uppercase tracking-wider text-text-muted">
@@ -642,6 +643,7 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({
                     </tr>
                   </tfoot>
                 </table>
+                </div>
               </div>
 
               {/* Action bar */}

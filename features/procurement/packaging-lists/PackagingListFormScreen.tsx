@@ -20,14 +20,13 @@ import {
   useGetProcurementPurchaseOrderQuery,
   useUpdatePackagingListMutation,
   type PackagingListBody,
-  type SupplierRef,
 } from '@/services/api/procurement.api'
 import { serverIssues } from '@/utils/apiErrors'
 import { downloadApiFile } from '@/utils/downloadFile'
-import { DESTINATION_LABEL } from '../shared/poMeta'
-import { SupplierSelect } from '../shared/SupplierSelect'
+import { DESTINATION_LABEL, containerLabel, supplierNames } from '../shared/poMeta'
 import { PackablePoSelect } from './PackablePoSelect'
-import { computeLine, lineKey, PackingLinesTable, type LineValue } from './PackingLinesTable'
+import { computeLine, EMPTY_LINE, lineKey, newLine, savedLine, toLineBody, type LineValue } from './packingLine'
+import { PackingLinesTable } from './PackingLinesTable'
 
 const LIST = '/dashboard/procurement/packaging-lists'
 
@@ -54,7 +53,6 @@ export const PackagingListFormScreen: React.FC<PackagingListFormScreenProps> = (
   const readOnly = !isNew && !editing
   const { data: fromPo } = useGetProcurementPurchaseOrderQuery(fromPoId ?? 0, { skip: !fromPoId })
 
-  const [supplier, setSupplier] = useState<SupplierRef | null>(null)
   const [poIds, setPoIds] = useState<number[]>([])
   const [values, setValues] = useState<Map<string, LineValue>>(new Map())
   const [closePoIds, setClosePoIds] = useState<Set<number>>(new Set())
@@ -67,29 +65,20 @@ export const PackagingListFormScreen: React.FC<PackagingListFormScreenProps> = (
   useEffect(() => {
     if (existing && hydrated.current !== `pl:${existing.id}`) {
       hydrated.current = `pl:${existing.id}`
-      setSupplier({ id: existing.supplier.id, name: existing.supplier.name, contactName: existing.supplier.contactName, country: null, currency: '' })
       setPoIds(existing.purchaseOrders.map((po) => po.id))
-      // A gross weight equal to the net was never typed (empty saves as net): leave it empty so it keeps following the net
-      setValues(
-        new Map(
-          existing.lines.map((line) => [
-            lineKey(line.purchaseOrderId, line.product.id),
-            { units: String(line.units), cartons: String(line.cartons), gross: line.grossWeightKg === line.netWeightKg ? '' : String(line.grossWeightKg) },
-          ])
-        )
-      )
+      setValues(new Map(existing.lines.map((line) => [lineKey(line.purchaseOrderId, line.product.id), savedLine(line)])))
     } else if (fromPo && hydrated.current !== `po:${fromPo.id}`) {
       hydrated.current = `po:${fromPo.id}`
-      setSupplier(fromPo.supplier)
       setPoIds([fromPo.id])
     }
   }, [existing, fromPo])
 
   const excludeListId = packagingListId
-  const { data: poOptions = [], isFetching: loadingOptions } = useGetPackablePurchaseOrdersQuery({ supplierId: supplier?.id ?? 0, excludeListId }, { skip: !supplier })
+  // Any supplier's POs: one list may carry several suppliers' goods
+  const { data: poOptions = [], isFetching: loadingOptions } = useGetPackablePurchaseOrdersQuery({ excludeListId }, { skip: readOnly })
   const { data: groups = [], isFetching: loadingLines } = useGetPackablePoLinesQuery({ purchaseOrderIds: poIds, excludeListId }, { skip: poIds.length === 0 })
 
-  // New lines start with everything still available; typed values are kept when POs are added or removed
+  // New lines start with everything still available, in cartons the size of the product; typed values are kept when POs are added or removed
   useEffect(() => {
     if (readOnly || groups.length === 0) return
     setValues((current) => {
@@ -99,7 +88,7 @@ export const PackagingListFormScreen: React.FC<PackagingListFormScreenProps> = (
         for (const line of group.lines) {
           const key = lineKey(group.purchaseOrder.id, line.product.id)
           if (!next.has(key)) {
-            next.set(key, { units: String(line.available), cartons: '', gross: '' })
+            next.set(key, newLine(line))
             changed = true
           }
         }
@@ -121,12 +110,12 @@ export const PackagingListFormScreen: React.FC<PackagingListFormScreenProps> = (
     .map((group) => ({
       po: group.purchaseOrder,
       open: poOptions.find((option) => option.id === group.purchaseOrder.id)?.isOpen ?? true,
-      left: figures.filter((row) => row.group.purchaseOrder.id === group.purchaseOrder.id && row.remaining > 0).map((row) => ({ sku: row.line.product.sku, units: row.remaining })),
+      left: figures.filter((row) => row.group.purchaseOrder.id === group.purchaseOrder.id && row.remaining > 0).map((row) => ({ sku: row.line.product.ref, units: row.remaining })),
     }))
     .filter((item) => item.open && item.left.length > 0)
 
   const changeLine = (key: string, field: keyof LineValue, value: string) => {
-    setValues((current) => new Map(current).set(key, { ...(current.get(key) ?? { units: '', cartons: '', gross: '' }), [field]: value }))
+    setValues((current) => new Map(current).set(key, { ...(current.get(key) ?? EMPTY_LINE), [field]: value }))
     setServerErrors((current) => {
       if (!current.has(key)) return current
       const next = new Map(current)
@@ -135,31 +124,16 @@ export const PackagingListFormScreen: React.FC<PackagingListFormScreenProps> = (
     })
   }
 
-  const pickSupplier = (next: SupplierRef) => {
-    if (next.id === supplier?.id) return
-    setSupplier(next)
-    setPoIds([])
-    setValues(new Map())
-    setClosePoIds(new Set())
-  }
-
   const [createPl] = useCreatePackagingListMutation()
   const [updatePl] = useUpdatePackagingListMutation()
 
   const save = async () => {
     setFormError(null)
-    if (!supplier || poIds.length === 0) return setFormError('Pick the supplier and at least one purchase order')
+    if (poIds.length === 0) return setFormError('Pick at least one purchase order')
     if (packedUnits === 0) return setFormError('Pack at least one unit')
     if (hasLineErrors) return setFormError('Fix the highlighted lines first')
-    const lines = figures.map((row) => ({
-      purchaseOrderId: row.group.purchaseOrder.id,
-      productId: row.line.product.id,
-      units: row.units,
-      cartons: row.cartons,
-      grossWeightKg: values.get(row.key)?.gross.trim() ? Number(values.get(row.key)!.gross) : 0,
-    }))
+    const lines = figures.map((row) => toLineBody(row.group.purchaseOrder.id, row.line.product.id, row, values.get(row.key)))
     const body: PackagingListBody = {
-      supplierId: supplier.id,
       purchaseOrderIds: poIds,
       lines,
       closePurchaseOrderIds: [...closePoIds].filter((id) => poIds.includes(id)),
@@ -213,29 +187,34 @@ export const PackagingListFormScreen: React.FC<PackagingListFormScreenProps> = (
           {isNew && <StatusBadge label="Draft" tone="neutral" />}
           {editing && <StatusBadge label="Editing quantities" tone="info" />}
           {destination && <StatusBadge label={DESTINATION_LABEL[destination]} tone="neutral" />}
-          {container && <StatusBadge label={`In ${container.containerNo}`} tone="info" />}
+          {container && <StatusBadge label={`In ${containerLabel(container)}`} tone="info" />}
         </div>
         {container && (
           <p className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-800">
-            This list is in {container.containerNo}, so its quantities are locked. Take it out of the container (Packaging lists → Change container) to edit them.
+            This list is in {containerLabel(container)}, so its quantities are locked.
           </p>
         )}
 
         <Card>
           <CardHeader>
-            <CardTitle>Supplier &amp; purchase orders</CardTitle>
+            <CardTitle>Purchase orders</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-4 md:grid-cols-2">
-            <FormField label="Supplier" htmlFor="pl-supplier" required hint={isNew ? 'Shared supplier list; shown as the Supplier column in the listing' : undefined}>
-              <SupplierSelect id="pl-supplier" value={supplier} onChange={pickSupplier} disabled={!isNew} />
-            </FormField>
             <FormField
               label="Purchase order(s)"
               htmlFor="pl-pos"
               required
-              hint={isNew ? 'One PO, or several POs that have no packaging list yet and ship to the same destination. Pending POs cannot be packed.' : 'The POs of a saved list are fixed'}
+              hint={isNew ? 'One PO, or several POs (any suppliers) that have no packaging list yet and ship to the same destination. Pending POs cannot be packed.' : 'The POs of a saved list are fixed'}
             >
-              <PackablePoSelect id="pl-pos" options={poOptions} value={poIds} onChange={setPoIds} loading={loadingOptions} disabled={!isNew || !supplier} />
+              {existing ? (
+                // A saved list's POs are fixed: shown as they are, with their suppliers
+                <p id="pl-pos" className="rounded-lg border border-border bg-secondary-50 px-3 py-2 text-sm text-text-primary">
+                  <span className="font-mono font-semibold">{existing.purchaseOrders.map((po) => po.poNo).join(', ')}</span>
+                  <span className="text-text-muted"> · {supplierNames(existing.suppliers)}</span>
+                </p>
+              ) : (
+                <PackablePoSelect id="pl-pos" options={poOptions} value={poIds} onChange={setPoIds} loading={loadingOptions} />
+              )}
             </FormField>
           </CardContent>
         </Card>
@@ -246,7 +225,7 @@ export const PackagingListFormScreen: React.FC<PackagingListFormScreenProps> = (
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
             {poIds.length === 0 ? (
-              <p className="py-6 text-center text-sm text-text-muted">Pick a supplier and purchase order to load its SKU lines.</p>
+              <p className="py-6 text-center text-sm text-text-muted">Pick a purchase order to load its SKU lines.</p>
             ) : loadingLines && shownGroups.length === 0 ? (
               <div className="flex justify-center py-8">
                 <Spinner />
@@ -257,7 +236,7 @@ export const PackagingListFormScreen: React.FC<PackagingListFormScreenProps> = (
             {overAllocated.length > 0 && (
               <p role="alert" className="rounded-lg border border-danger-200 bg-danger-50 px-3 py-2 text-sm text-danger-700">
                 <strong>Over-allocation is blocked:</strong>{' '}
-                {overAllocated.map((row) => `${row.line.product.sku} has only ${row.line.available.toLocaleString('en-CA')} available`).join('; ')}.
+                {overAllocated.map((row) => `${row.line.product.ref} has only ${row.line.available.toLocaleString('en-CA')} available`).join('; ')}.
               </p>
             )}
           </CardContent>

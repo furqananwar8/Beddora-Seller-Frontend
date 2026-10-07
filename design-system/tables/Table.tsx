@@ -11,7 +11,7 @@ export interface TableProps extends React.HTMLAttributes<HTMLTableElement> {}
 
 export const Table: React.FC<TableProps> = ({ className, ...props }) => {
   return (
-    <div className="ds-table-wrap overflow-visible bg-transparent p-0 m-0 border-none">
+    <div className="ds-table-wrap ds-scroll-x bg-transparent p-0 m-0 border-none">
       <table className={cn('ds-table border-separate border-spacing-0 min-w-full', className)} {...props} />
     </div>
   )

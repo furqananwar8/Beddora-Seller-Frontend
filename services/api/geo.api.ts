@@ -19,8 +19,6 @@ export interface GeoCity {
 
 export interface ProvinceList {
   provinces: GeoProvince[]
-  /** e.g. `A1A 1A1`, for the postal code hint. */
-  postalCodeExample: string
 }
 
 export interface CityList {

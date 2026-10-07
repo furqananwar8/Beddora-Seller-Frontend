@@ -21,7 +21,7 @@ import { cn } from '@/utils/cn'
 import { useDebounce } from '@/utils/debounce'
 import { downloadApiFile } from '@/utils/downloadFile'
 import { AssignContainerModal } from '../containers'
-import { ContainerStatusBadge, formatPoNo, newPackagingListHref } from '../shared/poMeta'
+import { ContainerStatusBadge, containerLabel, formatPoNo, newPackagingListHref, supplierNames } from '../shared/poMeta'
 
 const BASE = '/dashboard/procurement/packaging-lists'
 const PAGE_SIZE = 20
@@ -89,11 +89,12 @@ export const PackagingListsScreen: React.FC = () => {
 
   const actionsFor = (row: PackagingListItem): RowActionItem[] => {
     // A list in a container has shipped: its lines stay as they are until it is taken out
-    const shipped = row.container ? `In ${row.container.containerNo}; take it out of the container first` : undefined
+    const shipped = row.container ? `In ${containerLabel(row.container)}; its quantities are locked` : undefined
     return [
       { key: 'view', label: 'View packaging list', onSelect: () => router.push(`${BASE}/${row.id}`) },
       ...(canWrite ? [{ key: 'edit', label: 'Edit quantities', onSelect: () => router.push(`${BASE}/${row.id}?edit=1`), disabled: Boolean(shipped), disabledReason: shipped }] : []),
-      ...(canAssign ? [{ key: 'assign', label: row.container ? 'Change container' : 'Assign container', onSelect: () => setAssigning(row) }] : []),
+      // Once in a container a list stays there; the container decides what happens next
+      ...(canAssign && !row.container ? [{ key: 'assign', label: 'Assign container', onSelect: () => setAssigning(row) }] : []),
       { key: 'pdf', label: 'Download PDF', onSelect: () => void download(row) },
       ...(canWrite ? [{ key: 'delete', label: 'Delete list', tone: 'danger' as const, onSelect: () => setDeleting(row), disabled: Boolean(shipped), disabledReason: shipped }] : []),
     ]
@@ -167,7 +168,7 @@ export const PackagingListsScreen: React.FC = () => {
             <TableHeader className="sticky top-0 z-10 bg-surface shadow-sm">
               <TableRow>
                 <TableHead className={CELL}>PL #</TableHead>
-                <TableHead className={cn(CELL, 'min-w-[160px]')}>Supplier</TableHead>
+                <TableHead className={cn(CELL, 'min-w-[160px]')}>Supplier(s)</TableHead>
                 <TableHead className={cn(CELL, 'min-w-[120px]')}>PO(s)</TableHead>
                 <TableHead className={CELL}>SKUs</TableHead>
                 <TableHead className={CELL}>Units</TableHead>
@@ -199,7 +200,7 @@ export const PackagingListsScreen: React.FC = () => {
                 rows.map((row) => (
                   <TableRow key={row.id} className="hover:bg-secondary-50">
                     <TableCell className={cn(CELL, 'whitespace-nowrap font-semibold text-text-primary')}>{row.plNo}</TableCell>
-                    <TableCell className={CELL}>{row.supplier.name}</TableCell>
+                    <TableCell className={CELL}>{supplierNames(row.suppliers)}</TableCell>
                     <TableCell className={cn(CELL, 'font-mono text-xs')}>{row.purchaseOrders.map((po) => po.poNo).join(', ')}</TableCell>
                     <TableCell className={cn(CELL, 'tabular-nums')}>{row.skuCount}</TableCell>
                     <TableCell className={cn(CELL, 'tabular-nums')}>{qty(row.units)}</TableCell>
@@ -209,8 +210,8 @@ export const PackagingListsScreen: React.FC = () => {
                     <TableCell className={CELL}>
                       {row.container ? (
                         <div className="flex flex-col items-center gap-0.5">
-                          <Link href="/dashboard/procurement/containers" className="font-mono text-sm font-semibold text-primary-600 underline-offset-2 hover:underline">
-                            {row.container.containerNo}
+                          <Link href={`/dashboard/procurement/containers/${row.container.id}`} className="font-mono text-sm font-semibold text-primary-600 underline-offset-2 hover:underline">
+                            {containerLabel(row.container)}
                           </Link>
                           <ContainerStatusBadge status={row.container.status} />
                         </div>

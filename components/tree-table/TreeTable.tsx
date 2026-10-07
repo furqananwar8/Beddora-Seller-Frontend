@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { Spinner } from '@/design-system/loaders'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/design-system/tables'
 import { cn } from '@/utils/cn'
@@ -22,6 +22,13 @@ interface TreeTableProps<T> {
   autoExpand?: (row: T) => boolean
   /** Child rows can show a summary when a parent has more children than were loaded. */
   renderChildFooter?: (row: T) => React.ReactNode
+  /**
+   * Free-form content under an opened row, across the full width (e.g. a container's panels). Rows with it get the
+   * arrow even without children; it is only rendered while the row is open, so it can load its own data then.
+   */
+  renderDetail?: (row: T) => React.ReactNode
+  /** What the arrow opens, for its label: "Show variations" by default. */
+  expandLabel?: string
   isLoading?: boolean
   isError?: boolean
   emptyText?: string
@@ -30,6 +37,35 @@ interface TreeTableProps<T> {
 }
 
 const CELL = 'text-center align-middle'
+
+/** The nearest ancestor that scrolls sideways (the table's own scroll box). */
+function scrollBoxOf(element: HTMLElement): HTMLElement | null {
+  for (let node = element.parentElement; node; node = node.parentElement) {
+    if (['auto', 'scroll'].includes(getComputedStyle(node).overflowX)) return node
+  }
+  return null
+}
+
+/**
+ * A detail row's content, held to the visible width of a wide, sideways-scrolling table and pinned to its left edge,
+ * so it never runs off the right. Follows the box when the window resizes.
+ */
+const DetailContent: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const ref = useRef<HTMLDivElement>(null)
+  const [width, setWidth] = useState<number | null>(null)
+  useEffect(() => {
+    const box = ref.current && scrollBoxOf(ref.current)
+    if (!box) return
+    const observer = new ResizeObserver(() => setWidth(box.clientWidth))
+    observer.observe(box)
+    return () => observer.disconnect()
+  }, [])
+  return (
+    <div ref={ref} className="sticky left-0 p-4" style={width ? { width } : undefined}>
+      {children}
+    </div>
+  )
+}
 
 /**
  * Parent / child table: a chevron opens a parent's children beneath it, indented and tinted.
@@ -42,6 +78,8 @@ export function TreeTable<T>({
   getChildren,
   autoExpand,
   renderChildFooter,
+  renderDetail,
+  expandLabel = 'variations',
   isLoading,
   isError,
   emptyText = 'Nothing to show.',
@@ -85,16 +123,17 @@ export function TreeTable<T>({
         ) : (
           rows.map((row) => {
             const children = getChildren(row)
-            const open = children.length > 0 && isOpen(row)
+            const expandable = children.length > 0 || Boolean(renderDetail)
+            const open = expandable && isOpen(row)
             return (
               <React.Fragment key={getKey(row)}>
                 <TableRow className="hover:bg-secondary-50">
                   <TableCell className="w-10 align-middle">
-                    {children.length > 0 && (
+                    {expandable && (
                       <button
                         type="button"
                         aria-expanded={open}
-                        aria-label={open ? 'Hide variations' : 'Show variations'}
+                        aria-label={open ? `Hide ${expandLabel}` : `Show ${expandLabel}`}
                         onClick={() => toggle(row)}
                         className="rounded p-1 text-text-muted hover:bg-secondary-100 hover:text-text-primary"
                       >
@@ -121,6 +160,13 @@ export function TreeTable<T>({
                       ))}
                     </TableRow>
                   ))}
+                {open && renderDetail && (
+                  <TableRow className="bg-secondary-50/60 hover:bg-secondary-50/60">
+                    <TableCell colSpan={span} className="p-0 text-left">
+                      <DetailContent>{renderDetail(row)}</DetailContent>
+                    </TableCell>
+                  </TableRow>
+                )}
                 {open && renderChildFooter && (
                   <TableRow className="bg-secondary-50/60">
                     <TableCell colSpan={span} className="py-2 text-center text-xs text-text-muted">

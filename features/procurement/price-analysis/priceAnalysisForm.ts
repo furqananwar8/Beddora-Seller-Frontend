@@ -7,6 +7,7 @@ export interface QuoteRow {
   supplier: Pick<SupplierRef, 'id' | 'name' | 'contactName'>
   /** Point of contact for this quote; starts as the supplier's own contact. */
   contactName: string
+  remarks: string
   /** As typed. */
   unitPrice: string
 }
@@ -17,7 +18,7 @@ export interface PriceAnalysisForm {
   rows: QuoteRow[]
 }
 
-export type RowErrors = Partial<Record<'contactName' | 'unitPrice' | 'supplierId', string>>
+export type RowErrors = Partial<Record<'contactName' | 'remarks' | 'unitPrice' | 'supplierId', string>>
 
 /** The saved analysis as form values; a product without one starts from its own material. */
 export function formFrom(view: PriceAnalysisView): PriceAnalysisForm {
@@ -29,6 +30,7 @@ export function formFrom(view: PriceAnalysisView): PriceAnalysisForm {
     rows: analysis.quotes.map((quote) => ({
       supplier: { id: quote.supplier.id, name: quote.supplier.name, contactName: quote.supplier.contactName },
       contactName: quote.contactName ?? '',
+      remarks: quote.remarks ?? '',
       unitPrice: quote.unitPrice.toFixed(2),
     })),
   }
@@ -49,10 +51,13 @@ export function rowError(row: QuoteRow): RowErrors {
   if (row.unitPrice.trim() === '') errors.unitPrice = 'Enter a price'
   else if (parsePrice(row.unitPrice) === null) errors.unitPrice = 'Enter an amount above 0 with at most 2 decimals'
   if (row.contactName.length > 120) errors.contactName = 'Contact name is too long'
+  if (row.remarks.length > 500) errors.remarks = 'Remarks are too long'
   return errors
 }
 
 export interface RankedRow extends QuoteRow {
+  /** The saved quote's rejection, if an approver turned it down. */
+  rejection?: { by: { id: number; name: string | null }; at: string; reason: string | null } | null
   price: number | null
   /** 1 = cheapest among rows with a price; null while the price is missing. */
   rank: number | null
@@ -80,7 +85,7 @@ export function toBody(form: PriceAnalysisForm, loadedAt: string | null): PriceA
   return {
     material: form.material.trim() || null,
     currency: form.currency,
-    quotes: form.rows.map((row) => ({ supplierId: row.supplier.id, contactName: row.contactName.trim() || null, unitPrice: parsePrice(row.unitPrice) ?? 0 })),
+    quotes: form.rows.map((row) => ({ supplierId: row.supplier.id, contactName: row.contactName.trim() || null, remarks: row.remarks.trim() || null, unitPrice: parsePrice(row.unitPrice) ?? 0 })),
     expectedUpdatedAt: loadedAt,
   }
 }

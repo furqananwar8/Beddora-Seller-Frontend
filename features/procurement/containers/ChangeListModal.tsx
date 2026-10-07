@@ -8,8 +8,16 @@ import { Modal } from '@/design-system/modals'
 import { useApiFeedback } from '@/hooks/useApiFeedback'
 import { useGetPackagingListsQuery, useSetContainerPackagingListMutation, type ContainerItem } from '@/services/api/procurement.api'
 import { useDebounce } from '@/utils/debounce'
-import { DESTINATION_LABEL } from '../shared/poMeta'
-import type { ListChoice } from './ContainerFormModal'
+import { DESTINATION_LABEL, containerLabel, supplierNames } from '../shared/poMeta'
+
+/** A packaging list as the picker shows it. */
+interface ListChoice {
+  id: number
+  plNo: string
+  supplierName: string
+  units: number
+  cbm: number
+}
 
 interface ChangeListModalProps {
   /** The container whose list changes; closed when null. */
@@ -17,7 +25,7 @@ interface ChangeListModalProps {
   onClose: () => void
 }
 
-/** "Assign packaging list" / "Change packaging list" on a container: one list of its country that is in no container, or none. */
+/** "Assign packaging list" / "Change packaging list" on a booked container: one list of its country that is in no container, or none. */
 export const ChangeListModal: React.FC<ChangeListModalProps> = ({ container, onClose }) => {
   const { success, failure } = useApiFeedback()
   const [picked, setPicked] = useState<ListChoice | null>(null)
@@ -31,7 +39,7 @@ export const ChangeListModal: React.FC<ChangeListModalProps> = ({ container, onC
     { page: 1, limit: 50, container: 'NONE', destination: container?.destination, search: debounced },
     { skip: !container || !open }
   )
-  const choices: ListChoice[] = (data?.data ?? []).map((list) => ({ id: list.id, plNo: list.plNo, supplierName: list.supplier.name, units: list.units, cbm: list.cbm }))
+  const choices: ListChoice[] = (data?.data ?? []).map((list) => ({ id: list.id, plNo: list.plNo, supplierName: supplierNames(list.suppliers), units: list.units, cbm: list.cbm }))
 
   useEffect(() => {
     setPicked(null)
@@ -42,7 +50,7 @@ export const ChangeListModal: React.FC<ChangeListModalProps> = ({ container, onC
     if (!container) return
     try {
       await setList({ id: container.id, packagingListId }).unwrap()
-      success(packagingListId ? `${picked?.plNo} is in ${container.containerNo}` : `${container.containerNo} is empty now`)
+      success(packagingListId ? `${picked?.plNo} is in ${containerLabel(container)}` : `${containerLabel(container)} is empty now`)
       onClose()
     } catch (error) {
       failure(error, 'Could not change the packaging list')
@@ -50,12 +58,12 @@ export const ChangeListModal: React.FC<ChangeListModalProps> = ({ container, onC
   }
 
   return (
-    <Modal isOpen={container !== null} onClose={onClose} title={`${current ? 'Change packaging list' : 'Assign packaging list'} · ${container?.containerNo ?? ''}`} size="md" closeOnEscape={!busy} className="sm:overflow-visible">
+    <Modal isOpen={container !== null} onClose={onClose} title={`${current ? 'Change packaging list' : 'Assign packaging list'} · ${container ? containerLabel(container) : ''}`} size="md" closeOnEscape={!busy} className="sm:overflow-visible">
       {container && (
         <div className="flex flex-col gap-4">
           <p className="text-sm text-text-muted">
             {DESTINATION_LABEL[container.destination]}
-            {current ? ` · now carries ${current.plNo} (${current.supplier.name})` : ' · empty'}
+            {current ? ` · now carries ${current.plNo} (${supplierNames(current.suppliers)})` : ' · empty'}
           </p>
           <FormField label="Packaging list" htmlFor="change-list" hint={`Only lists shipping to ${DESTINATION_LABEL[container.destination]} that are not in a container. Totals follow the list.`}>
             <SearchableSelect<ListChoice>

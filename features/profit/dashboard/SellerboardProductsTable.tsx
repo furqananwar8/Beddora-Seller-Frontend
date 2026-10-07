@@ -154,14 +154,22 @@ const COLUMN_TOOLTIPS: Record<
  * Tooltip UI Component
  * ────────────────────────────────────────────────────── */
 
+/** The last columns: their tooltip opens leftwards so it never reaches past the table's right edge. */
+const END_ALIGNED_TOOLTIPS = new Set<SortColumn | 'info'>(['bsr', 'info'])
+
+/**
+ * A column's explanation on header hover. Not rendered (display: none) until then, so a hidden tooltip never widens
+ * the table's scroll area and the table fills exactly the width it has.
+ */
 const HeaderTooltip: React.FC<{ columnKey: SortColumn | 'info' }> = ({
   columnKey,
 }) => {
   const info = COLUMN_TOOLTIPS[columnKey]
   if (!info) return null
+  const atEnd = END_ALIGNED_TOOLTIPS.has(columnKey)
 
   return (
-    <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-64 p-3 bg-gray-900 text-white text-left text-xs rounded-md shadow-xl opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 font-normal normal-case whitespace-normal">
+    <div className={cn('absolute top-full mt-2 hidden w-64 p-3 bg-gray-900 text-white text-left text-xs rounded-md shadow-xl group-hover:block pointer-events-none z-50 font-normal normal-case whitespace-normal', atEnd ? 'right-0' : 'left-1/2 -translate-x-1/2')}>
       <div className="font-semibold text-white mb-1 border-b border-gray-700 pb-1 flex items-center gap-1.5">
         <span>{info.title}</span>
       </div>
@@ -169,7 +177,7 @@ const HeaderTooltip: React.FC<{ columnKey: SortColumn | 'info' }> = ({
         {info.formula}
       </div>
       {info.note && <div className="text-gray-400 text-[10px] leading-tight">{info.note}</div>}
-      <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-gray-900" />
+      <div className={cn('absolute bottom-full border-4 border-transparent border-b-gray-900', atEnd ? 'right-4' : 'left-1/2 -translate-x-1/2')} />
     </div>
   )
 }

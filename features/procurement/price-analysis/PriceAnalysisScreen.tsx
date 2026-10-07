@@ -1,8 +1,9 @@
 'use client'
 
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import Link from 'next/link'
 import { ConfirmDialog } from '@/components/confirm-dialog/ConfirmDialog'
+import { ReasonDialog } from '@/components/reason-dialog/ReasonDialog'
 import { FormActions } from '@/components/form-actions/FormActions'
 import { FormField } from '@/components/form-field/FormField'
 import { Container } from '@/components/layout'
@@ -10,17 +11,28 @@ import { SegmentedToggle } from '@/components/segmented-toggle/SegmentedToggle'
 import { Button } from '@/design-system/buttons'
 import { Card, CardContent, CardHeader, CardTitle } from '@/design-system/cards/Card'
 import { Spinner } from '@/design-system/loaders'
+import { formatCurrencyAmount } from '@/features/finance/shared/format'
 import { useApiFeedback } from '@/hooks/useApiFeedback'
 import { useAppAbility } from '@/hooks/useAppAbility'
-import { useGetPriceAnalysisQuery, useSavePriceAnalysisMutation, type PoCurrency, type PoProduct, type SupplierRef } from '@/services/api/procurement.api'
+import {
+  useApprovePriceAnalysisMutation,
+  useGetPriceAnalysisQuery,
+  useRejectPriceAnalysisQuoteMutation,
+  useSavePriceAnalysisMutation,
+  type PoCurrency,
+  type SupplierRef,
+} from '@/services/api/procurement.api'
 import { serverIssues } from '@/utils/apiErrors'
 import { formatCalendarDay } from '@/utils/format'
-import { productLabel, ProductSelect } from '../shared/ProductPicker'
+import { productLabel } from '../shared/ProductPicker'
 import { SupplierMultiSelect } from '../shared/SupplierSelect'
+import { ApprovalHistory } from './ApprovalHistory'
 import { ProductDetails } from './ProductDetails'
 import { formFrom, rankRows, rowError, sameForm, toBody, type PriceAnalysisForm, type QuoteRow, type RowErrors } from './priceAnalysisForm'
 import { QuotesTable } from './QuotesTable'
 import { TopSupplierCards } from './TopSupplierCards'
+
+export const PRICE_ANALYSIS_LIST = '/dashboard/procurement/price-analysis'
 
 const CURRENCIES: Array<{ value: PoCurrency; label: string }> = [
   { value: 'USD', label: 'USD' },
@@ -29,21 +41,19 @@ const CURRENCIES: Array<{ value: PoCurrency; label: string }> = [
 
 const EMPTY: PriceAnalysisForm = { material: '', currency: 'USD', rows: [] }
 
-type ProductRef = Pick<PoProduct, 'id' | 'sku' | 'name' | 'variantName'>
-
-export const PriceAnalysisScreen: React.FC = () => {
-  const router = useRouter()
-  const pathname = usePathname()
-  const params = useSearchParams()
+/**
+ * One product's price analysis: supplier quotes ranked by price, one of them approved by an approver, and the
+ * approval history. It can always be edited; an edit takes the approval back so it is approved again.
+ */
+export const PriceAnalysisScreen: React.FC<{ productId: number }> = ({ productId }) => {
   const ability = useAppAbility()
   const canWrite = ability.can('write', 'procurement:price-analysis')
   const { success, failure, info } = useApiFeedback()
 
-  // The product lives in the URL, so a link (or a reload) opens the same analysis
-  const productParam = Number(params.get('productId'))
-  const productId = Number.isInteger(productParam) && productParam > 0 ? productParam : null
-  const { data, isFetching, isError, error } = useGetPriceAnalysisQuery(productId ?? 0, { skip: productId === null })
+  const { data, isFetching, isError, error } = useGetPriceAnalysisQuery(productId)
   const [save, { isLoading: saving }] = useSavePriceAnalysisMutation()
+  const [approve, { isLoading: approvingBusy }] = useApprovePriceAnalysisMutation()
+  const [reject, { isLoading: rejectingBusy }] = useRejectPriceAnalysisQuoteMutation()
 
   const loadedFor = useRef<string | null>(null)
   const [form, setForm] = useState<PriceAnalysisForm>(EMPTY)
@@ -51,7 +61,8 @@ export const PriceAnalysisScreen: React.FC = () => {
   const [serverErrors, setServerErrors] = useState<Map<number, RowErrors>>(new Map())
   const [formError, setFormError] = useState<string | null>(null)
   const [triedSave, setTriedSave] = useState(false)
-  const [switchingTo, setSwitchingTo] = useState<ProductRef | null>(null)
+  const [approving, setApproving] = useState<QuoteRow | null>(null)
+  const [rejecting, setRejecting] = useState<QuoteRow | null>(null)
   /** The saved version the edits started from: a save sends it, so a newer save by someone else is refused, not overwritten. */
   const [loadedAt, setLoadedAt] = useState<string | null>(null)
   const dirty = !sameForm(form, baseline)
@@ -83,7 +94,11 @@ export const PriceAnalysisScreen: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, productId])
 
-  const ranked = useMemo(() => rankRows(form.rows), [form.rows])
+  // Rows carry their saved rejection so the table can show it next to the typed values
+  const ranked = useMemo(() => {
+    const rejections = new Map((data?.analysis?.quotes ?? []).map((quote) => [quote.supplier.id, quote.rejection]))
+    return rankRows(form.rows).map((row) => ({ ...row, rejection: rejections.get(row.supplier.id) ?? null }))
+  }, [form.rows, data])
   const errors = useMemo(() => {
     const merged = new Map<number, RowErrors>()
     for (const row of form.rows) {
@@ -93,13 +108,6 @@ export const PriceAnalysisScreen: React.FC = () => {
     }
     return merged
   }, [form.rows, serverErrors])
-
-  const openProduct = (product: ProductRef) => router.replace(`${pathname}?productId=${product.id}`)
-  const pickProduct = (product: ProductRef) => {
-    if (product.id === productId) return
-    if (dirty) setSwitchingTo(product)
-    else openProduct(product)
-  }
 
   const setRows = (rows: QuoteRow[]) => setForm((current) => ({ ...current, rows }))
   const changeRow = (supplierId: number, patch: Partial<QuoteRow>) => {
@@ -116,7 +124,7 @@ export const PriceAnalysisScreen: React.FC = () => {
     const kept = form.rows.filter((row) => suppliers.some((supplier) => supplier.id === row.supplier.id))
     const added = suppliers
       .filter((supplier) => !form.rows.some((row) => row.supplier.id === supplier.id))
-      .map((supplier) => ({ supplier: { id: supplier.id, name: supplier.name, contactName: supplier.contactName }, contactName: supplier.contactName ?? '', unitPrice: '' }))
+      .map((supplier) => ({ supplier: { id: supplier.id, name: supplier.name, contactName: supplier.contactName }, contactName: supplier.contactName ?? '', remarks: '', unitPrice: '' }))
     setRows([...kept, ...added])
   }
 
@@ -125,7 +133,7 @@ export const PriceAnalysisScreen: React.FC = () => {
   }
 
   const submit = async () => {
-    if (!data || productId === null) return
+    if (!data) return
     setTriedSave(true)
     setFormError(null)
     if (form.rows.some((row) => Object.keys(rowError(row)).length > 0)) return
@@ -133,10 +141,12 @@ export const PriceAnalysisScreen: React.FC = () => {
       setFormError('Add at least one supplier and its price.')
       return
     }
+    const hadApproval = Boolean(data.analysis?.approval)
     try {
       const saved = await save({ productId, body: toBody(form, loadedAt) }).unwrap()
       adopt(saved)
-      success(saved.analysis ? `Analysis saved · ${saved.analysis.quotes.length} supplier${saved.analysis.quotes.length === 1 ? '' : 's'}` : 'Analysis removed')
+      if (!saved.analysis) success('Analysis removed')
+      else success(hadApproval && !saved.analysis.approval ? 'Analysis saved · the approval was taken back and needs approving again' : `Analysis saved · ${saved.analysis.quotes.length} supplier${saved.analysis.quotes.length === 1 ? '' : 's'}`)
     } catch (caught) {
       const byRow = new Map<number, RowErrors>()
       for (const issue of serverIssues(caught)) {
@@ -149,29 +159,52 @@ export const PriceAnalysisScreen: React.FC = () => {
     }
   }
 
+  const confirmApprove = async () => {
+    if (!approving) return
+    try {
+      const saved = await approve({ productId, supplierId: approving.supplier.id, ...(loadedAt ? { expectedUpdatedAt: loadedAt } : {}) }).unwrap()
+      adopt(saved)
+      success(`${approving.supplier.name} approved`)
+      setApproving(null)
+    } catch (caught) {
+      failure(caught, 'Could not approve the supplier')
+    }
+  }
+
+  const confirmReject = async (reason: string) => {
+    if (!rejecting) return false
+    try {
+      const saved = await reject({ productId, supplierId: rejecting.supplier.id, reason, ...(loadedAt ? { expectedUpdatedAt: loadedAt } : {}) }).unwrap()
+      adopt(saved)
+      success(`${rejecting.supplier.name} rejected`)
+      setRejecting(null)
+      return true
+    } catch (caught) {
+      failure(caught, 'Could not reject the supplier')
+      return false
+    }
+  }
+
   const product = data?.product.id === productId ? data.product : null
-  const selectedProduct: ProductRef | null = product
   const readOnly = !canWrite
   const loadError = isError ? ((error as { data?: { error?: string } })?.data?.error ?? 'Could not load this product.') : null
+  const approval = data?.analysis?.approval ?? null
+  const label = product ? `${product.ref} · ${productLabel(product)}` : ''
 
   return (
     <Container size="full" className="py-4 sm:py-8">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-4">
-        <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+        <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <h1 className="text-xl font-bold text-text-primary sm:text-2xl">Price analysis</h1>
-            <p className="text-sm text-text-muted">Quotes per product variant, ranked by price</p>
+            <p className="text-sm text-text-muted">{product ? label : 'Quotes per product variant, ranked by price'}</p>
           </div>
-          <FormField label="Product" htmlFor="pa-product" className="w-full md:max-w-md">
-            <ProductSelect id="pa-product" value={selectedProduct} onChange={pickProduct} placeholder="Search SKU or product name" />
-          </FormField>
+          <Link href={PRICE_ANALYSIS_LIST} className="ds-button ds-button-outline ds-button-sm">
+            All price analyses
+          </Link>
         </div>
 
-        {productId === null ? (
-          <Card>
-            <CardContent className="py-12 text-center text-sm text-text-muted">Pick a product to see and compare its supplier quotes.</CardContent>
-          </Card>
-        ) : loadError ? (
+        {loadError ? (
           <Card>
             <CardContent className="py-12 text-center text-sm font-medium text-danger-600">{loadError}</CardContent>
           </Card>
@@ -181,10 +214,21 @@ export const PriceAnalysisScreen: React.FC = () => {
           </div>
         ) : (
           <>
+            {approval ? (
+              <p className="rounded-lg border border-success-500 bg-success-50 px-3 py-2 text-sm text-success-700">
+                <strong>{approval.supplier.name}</strong> approved at {formatCurrencyAmount(data!.analysis!.currency, approval.unitPrice)} by {approval.by.name ?? 'an approver'} on {formatCalendarDay(approval.at)}.
+                {canWrite && ' You can still edit; saving a change takes the approval back so it is approved again.'}
+              </p>
+            ) : data?.analysis ? (
+              <p className="rounded-lg border border-warning-500 bg-warning-50 px-3 py-2 text-sm text-warning-700">
+                Awaiting approval{data.permissions.canApprove ? ': approve one supplier below, or reject the ones that will not do.' : ' by an approver.'}
+              </p>
+            ) : null}
+
             <Card>
               <CardHeader>
                 <CardTitle>
-                  Product details <span className="ml-1 font-mono text-sm font-normal text-text-muted">{product.sku} · {productLabel(product)}</span>
+                  Product details <span className="ml-1 font-mono text-sm font-normal text-text-muted">{label}</span>
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -212,11 +256,7 @@ export const PriceAnalysisScreen: React.FC = () => {
                 {!readOnly && (
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                     <FormField label="Add suppliers" htmlFor="pa-suppliers" className="w-full sm:max-w-md">
-                      <SupplierMultiSelect
-                        id="pa-suppliers"
-                        value={form.rows.map((row) => ({ ...row.supplier, country: null, currency: '' }))}
-                        onChange={pickSuppliers}
-                      />
+                      <SupplierMultiSelect id="pa-suppliers" value={form.rows.map((row) => ({ ...row.supplier, country: null, currency: '' }))} onChange={pickSuppliers} />
                     </FormField>
                     <SegmentedToggle<PoCurrency> ariaLabel="Currency" value={form.currency} onChange={(currency) => setForm((current) => ({ ...current, currency }))} options={CURRENCIES} />
                   </div>
@@ -228,6 +268,16 @@ export const PriceAnalysisScreen: React.FC = () => {
                   onChange={changeRow}
                   onRemove={(supplierId) => setRows(form.rows.filter((row) => row.supplier.id !== supplierId))}
                   readOnly={readOnly}
+                  approval={{
+                    canApprove: data!.permissions.canApprove,
+                    canReject: data!.permissions.canReject,
+                    approved: approval ? { supplierId: approval.supplier.id, by: approval.by.name, at: approval.at } : null,
+                    blockedReason: dirty ? 'Save or discard your changes first' : null,
+                    savedSupplierIds: new Set(data!.analysis?.quotes.map((quote) => quote.supplier.id) ?? []),
+                    busySupplierId: approvingBusy ? (approving?.supplier.id ?? null) : null,
+                    onApprove: (supplierId) => setApproving(form.rows.find((row) => row.supplier.id === supplierId) ?? null),
+                    onReject: (supplierId) => setRejecting(form.rows.find((row) => row.supplier.id === supplierId) ?? null),
+                  }}
                 />
                 {formError && (
                   <p role="alert" className="rounded-lg border border-danger-200 bg-danger-50 px-3 py-2 text-sm text-danger-700">
@@ -253,25 +303,45 @@ export const PriceAnalysisScreen: React.FC = () => {
                 </Button>
               </FormActions>
             )}
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Approval &amp; rejection history</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ApprovalHistory events={data!.history} productLabel={label} />
+              </CardContent>
+            </Card>
           </>
         )}
       </div>
 
       <ConfirmDialog
-        isOpen={switchingTo !== null}
-        title="Discard unsaved prices?"
-        confirmLabel="Discard and switch"
-        tone="danger"
-        onConfirm={() => {
-          if (switchingTo) openProduct(switchingTo)
-          setSwitchingTo(null)
-        }}
-        onClose={() => setSwitchingTo(null)}
+        isOpen={approving !== null}
+        title={`Approve ${approving?.supplier.name ?? 'supplier'}`}
+        confirmLabel="Approve"
+        busy={approvingBusy}
+        onConfirm={confirmApprove}
+        onClose={() => setApproving(null)}
       >
         <p>
-          The changes to this analysis are not saved. Switch to {switchingTo ? `${switchingTo.sku} · ${productLabel(switchingTo)}` : 'the other product'} anyway?
+          Approve {approving?.supplier.name} at {approving ? formatCurrencyAmount(form.currency, Number(approving.unitPrice)) : ''} for {label}? Only one supplier can be approved; the others stay blocked until the
+          analysis is edited.
         </p>
+        {approving?.remarks && <p className="mt-2 text-sm text-text-muted">Remarks: {approving.remarks}</p>}
       </ConfirmDialog>
+
+      <ReasonDialog
+        isOpen={rejecting !== null}
+        title={`Reject ${rejecting?.supplier.name ?? 'supplier'}`}
+        description={rejecting ? `${rejecting.supplier.name}'s quote of ${formatCurrencyAmount(form.currency, Number(rejecting.unitPrice))} for ${label} cannot be approved once rejected.${approval?.supplier.id === rejecting.supplier.id ? ' It is the approved quote, so the approval is taken back.' : ''} Editing the analysis sends it back for review.` : undefined}
+        confirmLabel="Reject"
+        placeholder="Why is this quote rejected?"
+        maxLength={500}
+        submitting={rejectingBusy}
+        onConfirm={confirmReject}
+        onClose={() => setRejecting(null)}
+      />
     </Container>
   )
 }

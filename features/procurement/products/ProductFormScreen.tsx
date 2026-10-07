@@ -88,16 +88,19 @@ export const ProductFormScreen: React.FC<ProductFormScreenProps> = ({ productId 
         failed.push(label)
       }
     }
-    if (photo) await run(saved.sku, () => uploadPhoto({ id: saved.id, file: photo }).unwrap())
-    else if (values.removePhoto) await run(saved.sku, () => removePhoto(saved.id).unwrap())
+    if (photo) await run(saved.ref, () => uploadPhoto({ id: saved.id, file: photo }).unwrap())
+    else if (values.removePhoto) await run(saved.ref, () => removePhoto(saved.id).unwrap())
 
-    const bySku = new Map(saved.variations.map((variation) => [variation.sku, variation.id]))
+    // Saved variations keep their id; new ones come back in the order they were sent, after the known ones
+    const known = new Set(values.variations.flatMap((variation) => (variation.id === undefined ? [] : [variation.id])))
+    const created = saved.variations.filter((variation) => !known.has(variation.id))
+    let nextCreated = 0
     for (const variation of values.variations) {
-      const id = bySku.get(variation.sku.trim().toUpperCase())
+      const id = variation.id ?? created[nextCreated++]?.id
       if (id === undefined) continue
       const file = variationPhotos.get(variation.clientKey)
-      if (file) await run(variation.sku, () => uploadPhoto({ id, file }).unwrap())
-      else if (variation.removePhoto) await run(variation.sku, () => removePhoto(id).unwrap())
+      if (file) await run(variation.sku || variation.color || 'a variation', () => uploadPhoto({ id, file }).unwrap())
+      else if (variation.removePhoto) await run(variation.sku || variation.color || 'a variation', () => removePhoto(id).unwrap())
     }
     return failed
   }
@@ -142,7 +145,7 @@ export const ProductFormScreen: React.FC<ProductFormScreenProps> = ({ productId 
     )
   }
 
-  const title = editing ? `${readOnly ? 'Product' : 'Edit product'} · ${editing.sku}` : copyFrom ? 'Duplicate product' : 'New product'
+  const title = editing ? `${readOnly ? 'Product' : 'Edit product'} · ${editing.ref}` : copyFrom ? 'Duplicate product' : 'New product'
   const variationErrors = Array.isArray(formState.errors.variations) ? formState.errors.variations.filter(Boolean).length : 0
 
   return (

@@ -5,16 +5,16 @@ import { UseFormReturn, useWatch } from 'react-hook-form'
 import { FormField } from '@/components/form-field/FormField'
 import { Card, CardContent, CardHeader, CardTitle } from '@/design-system/cards/Card'
 import type { LengthUnit, WeightUnit } from '@/services/api/procurement.api'
-import { CbmField, DimensionsField, WeightField } from '../shared/MeasurementFields'
+import { WeightField } from '../shared/MeasurementFields'
 import { convertLength, convertWeight } from '../shared/units'
-import { derivedCbm, type ProductFormValues } from './productForm'
+import type { ProductFormValues } from './productForm'
 
 const convertText = (value: string, convert: (n: number) => number) =>
   value.trim() === '' || !Number.isFinite(Number(value)) ? value : String(convert(Number(value)))
 
 /**
- * Flipping a unit re-expresses every typed value in the form that uses it: the master's and those of
- * variations keeping their own dimensions, so a value never silently changes meaning.
+ * Flipping a unit re-expresses every typed value in the form that uses it, so a value never silently changes meaning:
+ * weight on the master and on variations with their own weight; dimensions on every variation (the master has none).
  */
 export function useUnitSwitch(form: UseFormReturn<ProductFormValues>) {
   const { getValues, setValue } = form
@@ -28,12 +28,11 @@ export function useUnitSwitch(form: UseFormReturn<ProductFormValues>) {
     })
   }
 
-  const switchLength = (unit: LengthUnit, convertedMaster: { length: string; width: string; height: string }) => {
+  const switchLength = (unit: LengthUnit) => {
     const from = getValues('dimensionUnit')
+    if (from === unit) return
     setValue('dimensionUnit', unit, { shouldDirty: true })
-    ;(['length', 'width', 'height'] as const).forEach((part) => setValue(part, convertedMaster[part], { shouldDirty: true }))
     getValues('variations').forEach((variation, index) => {
-      if (variation.inheritsMaster) return
       ;(['length', 'width', 'height'] as const).forEach((part) =>
         setValue(`variations.${index}.${part}`, convertText(variation[part], (n) => convertLength(n, from, unit)))
       )
@@ -48,26 +47,23 @@ interface ProductShippingSectionProps {
   readOnly: boolean
 }
 
+/** The master's weight, the default its variations inherit. Dimensions and CBM are set per variation. */
 export const ProductShippingSection: React.FC<ProductShippingSectionProps> = ({ form, readOnly }) => {
   const {
     setValue,
     control,
     formState: { errors },
   } = form
-  const [weight, weightUnit, length, width, height, dimensionUnit, cbm, cbmTouched] = useWatch({
-    control,
-    name: ['weight', 'weightUnit', 'length', 'width', 'height', 'dimensionUnit', 'cbm', 'cbmTouched'],
-  })
-  const { switchWeight, switchLength } = useUnitSwitch(form)
-  const shownCbm = derivedCbm({ length, width, height, cbm, cbmTouched }, dimensionUnit)
+  const [weight, weightUnit] = useWatch({ control, name: ['weight', 'weightUnit'] })
+  const { switchWeight } = useUnitSwitch(form)
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Shipping dimensions</CardTitle>
+        <CardTitle>Shipping weight</CardTitle>
       </CardHeader>
-      <CardContent className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)_minmax(0,1fr)]">
-        <FormField label="Weight" htmlFor="product-weight" error={errors.weight?.message}>
+      <CardContent className="grid gap-4 lg:grid-cols-3">
+        <FormField label="Weight" htmlFor="product-weight" error={errors.weight?.message} hint="Default for variations; dimensions and CBM are set on each variation">
           <WeightField
             id="product-weight"
             value={weight}
@@ -75,36 +71,6 @@ export const ProductShippingSection: React.FC<ProductShippingSectionProps> = ({ 
             onChange={(value) => setValue('weight', value, { shouldDirty: true, shouldValidate: Boolean(errors.weight) })}
             onUnitChange={switchWeight}
             error={errors.weight?.message}
-            disabled={readOnly}
-          />
-        </FormField>
-
-        <FormField label="Dimensions (L × W × H)" htmlFor="product-dims-length" error={errors.length?.message ?? errors.width?.message ?? errors.height?.message}>
-          <DimensionsField
-            idPrefix="product-dims"
-            value={{ length, width, height }}
-            unit={dimensionUnit}
-            onChange={(next) => (['length', 'width', 'height'] as const).forEach((part) => setValue(part, next[part], { shouldDirty: true }))}
-            onUnitChange={switchLength}
-            errors={{ length: errors.length?.message, width: errors.width?.message, height: errors.height?.message }}
-            disabled={readOnly}
-          />
-        </FormField>
-
-        <FormField label="CBM" htmlFor="product-cbm">
-          <CbmField
-            id="product-cbm"
-            value={shownCbm}
-            overridden={cbmTouched}
-            onOverride={(value) => {
-              setValue('cbm', value, { shouldDirty: true })
-              setValue('cbmTouched', true)
-            }}
-            onUseCalculated={() => {
-              setValue('cbmTouched', false, { shouldDirty: true })
-              setValue('cbm', '')
-            }}
-            error={errors.cbm?.message}
             disabled={readOnly}
           />
         </FormField>

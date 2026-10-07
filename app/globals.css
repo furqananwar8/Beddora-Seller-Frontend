@@ -264,6 +264,46 @@
     @apply mt-1 text-sm text-danger-600;
   }
 
+  /* Wrapper for a wide table. It also scrolls vertically when its height is capped (mouse wheel); that bar stays hidden. */
+  .ds-scroll-x {
+    overflow-x: auto;
+  }
+
+  /*
+   * Every table's scroll container shows a horizontal scrollbar and never a vertical one: the global reset hides all
+   * scrollbars, and any scroll container holding a table opts back in here, so new tables get it without a class.
+   * Vertical scrolling (page or container) stays on the mouse wheel. In WebKit `height` sizes the horizontal bar and
+   * `width` the vertical one. Chrome ignores these pseudo-elements once `scrollbar-width`/`scrollbar-color` are set, so
+   * those are given only to browsers without them (Firefox), which cannot split the axes and shows its thin bars.
+   */
+  :is(.ds-scroll-x, .ds-table-wrap, .overflow-x-auto, .overflow-x-scroll, .overflow-auto, .overflow-scroll, .overflow-y-auto):has(table) {
+    /* Undo the reset's `none`, which would also switch the pseudo-elements below off in Chrome */
+    scrollbar-width: auto;
+    scrollbar-color: auto;
+  }
+
+  @supports not selector(::-webkit-scrollbar) {
+    :is(.ds-scroll-x, .ds-table-wrap, .overflow-x-auto, .overflow-x-scroll, .overflow-auto, .overflow-scroll, .overflow-y-auto):has(table) {
+      scrollbar-width: thin;
+      scrollbar-color: theme('colors.primary.500') transparent;
+    }
+  }
+
+  :is(.ds-scroll-x, .ds-table-wrap, .overflow-x-auto, .overflow-x-scroll, .overflow-auto, .overflow-scroll, .overflow-y-auto):has(table)::-webkit-scrollbar {
+    display: block;
+    width: 0;
+    height: 10px;
+  }
+
+  :is(.ds-scroll-x, .ds-table-wrap, .overflow-x-auto, .overflow-x-scroll, .overflow-auto, .overflow-scroll, .overflow-y-auto):has(table)::-webkit-scrollbar-thumb {
+    background: theme('colors.primary.500');
+    border-radius: 9999px !important;
+  }
+
+  :is(.ds-scroll-x, .ds-table-wrap, .overflow-x-auto, .overflow-x-scroll, .overflow-auto, .overflow-scroll, .overflow-y-auto):has(table)::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
   /* Tables */
   .ds-table-wrap {
     @apply overflow-x-auto;

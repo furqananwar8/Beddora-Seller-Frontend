@@ -31,7 +31,7 @@ export function unpackableReason(po: PackablePurchaseOrder, selected: PackablePu
   return null
 }
 
-/** One PO, or several fresh POs of the same supplier and destination. */
+/** One PO, or several fresh POs of the same destination; suppliers may differ. */
 export const PackablePoSelect: React.FC<PackablePoSelectProps> = ({ id, options, value, onChange, loading, disabled, error }) => {
   const selected = options.filter((po) => value.includes(po.id))
   return (
@@ -42,11 +42,13 @@ export const PackablePoSelect: React.FC<PackablePoSelectProps> = ({ id, options,
       onChange={(next) => onChange(next.map((po) => po.id))}
       options={options}
       getKey={(po) => po.id}
-      getLabel={(po) => po.poNo}
+      getLabel={(po) => `${po.poNo} ${po.supplier.name}`}
       renderValue={(picked) => picked.map((po) => po.poNo).join(', ')}
       renderOption={(po) => (
         <span className="flex items-center justify-between gap-3">
-          <span className="font-medium">{po.poNo}</span>
+          <span className="font-medium">
+            {po.poNo} <span className="font-normal text-text-secondary">· {po.supplier.name}</span>
+          </span>
           <span className="truncate text-xs text-text-muted">
             {DESTINATION_LABEL[po.destination]} · {po.units.toLocaleString('en-CA')} units · {po.listCount ? plural(po.listCount, 'packaging list') : 'no packaging lists'}
           </span>
@@ -55,8 +57,8 @@ export const PackablePoSelect: React.FC<PackablePoSelectProps> = ({ id, options,
       disabledReason={(po) => unpackableReason(po, selected)}
       loading={loading}
       placeholder="Pick the purchase order(s)"
-      searchPlaceholder="PO number..."
-      emptyText="This supplier has no purchase orders to pack."
+      searchPlaceholder="PO number or supplier..."
+      emptyText="No purchase orders to pack."
       disabled={disabled}
       error={error}
     />

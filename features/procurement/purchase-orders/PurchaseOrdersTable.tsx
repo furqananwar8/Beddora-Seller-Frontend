@@ -6,11 +6,11 @@ import { Spinner } from '@/design-system/loaders'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/design-system/tables'
 import type { PurchaseOrderListItem } from '@/services/api/procurement.api'
 import { cn } from '@/utils/cn'
-import { formatCalendarDay } from '@/utils/format'
+import { formatCalendarDay, formatCurrency } from '@/utils/format'
 import { DESTINATION_LABEL, EtdBadge, OpenBadge, PaymentBadge, PoStatusBadge, isPackable } from '../shared/poMeta'
 
 const CELL = 'text-center align-middle'
-const COLUMNS = 12
+const COLUMNS = 13
 
 export interface PoRowActions {
   canWrite: boolean
@@ -95,6 +95,7 @@ export const PurchaseOrdersTable: React.FC<PurchaseOrdersTableProps> = ({ rows, 
         <TableHead className={cn(CELL, 'min-w-[150px]')}>ETD</TableHead>
         <TableHead className={CELL}>SKUs</TableHead>
         <TableHead className={CELL}>Units</TableHead>
+        <TableHead className={CELL}>Amount</TableHead>
         <TableHead className={CELL}>Packed</TableHead>
         <TableHead className={CELL}>Status</TableHead>
         <TableHead className={CELL}>Payment</TableHead>
@@ -136,6 +137,7 @@ export const PurchaseOrdersTable: React.FC<PurchaseOrdersTableProps> = ({ rows, 
             </TableCell>
             <TableCell className={cn(CELL, 'tabular-nums')}>{row.skuCount}</TableCell>
             <TableCell className={cn(CELL, 'tabular-nums')}>{row.units.toLocaleString('en-CA')}</TableCell>
+            <TableCell className={cn(CELL, 'whitespace-nowrap tabular-nums')}>{formatCurrency(row.totalAmount, row.currency)}</TableCell>
             <TableCell className={CELL}>
               <PackedBar packed={row.packed} units={row.units} />
             </TableCell>

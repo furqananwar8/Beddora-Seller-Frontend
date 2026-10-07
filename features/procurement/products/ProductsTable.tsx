@@ -63,7 +63,7 @@ function columns(actions: ProductRowActions): TreeColumn<Row>[] {
           '—'
         ),
     },
-    { key: 'sku', header: 'SKU', render: (row) => <span className="whitespace-nowrap font-mono text-xs">{row.sku}</span> },
+    { key: 'sku', header: 'SKU', render: (row) => <span className="whitespace-nowrap font-mono text-xs">{row.sku ?? '—'}</span> },
     { key: 'tag', header: 'Tag', render: (row) => <ProductTagBadge tag={row.tag} /> },
     {
       key: 'color',
@@ -72,8 +72,7 @@ function columns(actions: ProductRowActions): TreeColumn<Row>[] {
         row.color ?? (isListItem(row) && row.colorCount > 0 ? <span className="text-xs text-text-muted">{plural(row.colorCount, 'color')}</span> : '—'),
     },
     { key: 'material', header: 'Material', className: 'min-w-[120px]', render: (row) => row.material ?? '—' },
-    { key: 'sizeName', header: 'Size nm.', render: (row) => row.sizeName ?? '—' },
-    { key: 'size', header: 'Size', render: (row) => <span className="whitespace-nowrap">{formatSize(row.sizeValue, row.sizeUnit)}</span> },
+    { key: 'size', header: 'Size', render: (row) => row.sizeName ?? '—' },
     { key: 'packaging', header: 'Packaging', className: 'min-w-[120px]', render: (row) => row.packaging ?? '—' },
     { key: 'category', header: 'Category', render: (row) => row.category?.name ?? '—' },
     { key: 'weight', header: 'Weight', render: (row) => <span className="whitespace-nowrap">{formatWeight(row.weightKg, row.weightUnit)}</span> },
@@ -83,7 +82,7 @@ function columns(actions: ProductRowActions): TreeColumn<Row>[] {
       render: (row) => <span className="whitespace-nowrap">{formatDimensions(row.lengthCm, row.widthCm, row.heightCm, row.dimensionUnit)}</span>,
     },
     { key: 'cbm', header: 'CBM', render: (row) => <span className="font-mono text-xs">{formatCbm(row.cbm)}</span> },
-    { key: 'actions', header: 'Actions', render: (row) => <RowActionsMenu label={row.sku} items={actionsFor(row, actions)} /> },
+    { key: 'actions', header: 'Actions', render: (row) => <RowActionsMenu label={row.ref} items={actionsFor(row, actions)} /> },
   ]
 }
 
