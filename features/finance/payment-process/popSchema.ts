@@ -1,7 +1,10 @@
 import { z } from 'zod'
+import type { BankProfile } from '@/services/api/finance.api'
 import { parseNumber, withinBalance } from './popMath'
 
 export interface PopFormValues {
+  /** The company account the payment leaves from; its currency is what the amount converts into. */
+  bank: BankProfile | null
   type: 'FULL' | 'SPLIT'
   amount: string
   paymentDate: string
@@ -11,10 +14,11 @@ export interface PopFormValues {
   files: File[]
 }
 
-/** Schema depends on the row: the balance caps the amount and CAD requests need no rate. */
+/** Schema depends on the row: the balance caps the amount, and a payment in the bank's own currency needs no rate. */
 export const makePopSchema = (balance: number, needsFx: boolean) =>
   z
     .object({
+      bank: z.custom<BankProfile | null>().refine((bank) => bank !== null, 'Choose the bank the payment is made from'),
       type: z.enum(['FULL', 'SPLIT']),
       amount: z.string(),
       paymentDate: z.string().min(1, 'Payment date is required'),

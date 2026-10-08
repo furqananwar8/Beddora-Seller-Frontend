@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Button } from '@/design-system/buttons'
@@ -10,7 +10,7 @@ import { Spinner } from '@/design-system/loaders'
 import { SegmentedToggle } from '@/components/segmented-toggle/SegmentedToggle'
 import { FileDropzone } from '@/components/file-dropzone/FileDropzone'
 import { SingleDatePicker } from '@/components/single-date-picker/SingleDatePicker'
-import { PaymentDocumentListItem, useAddPopMutation, useGetFxTodayQuery, useGetPaymentDocumentQuery } from '@/services/api/finance.api'
+import { BankProfile, PaymentDocumentListItem, useAddPopMutation, useGetFxTodayQuery, useGetPaymentDocumentQuery } from '@/services/api/finance.api'
 import { CURRENCIES } from '../payment-requests/schema'
 import { FormField, fieldClass } from '../shared/FormField'
 import { formatCurrencyAmount, formatDay, formatDocNo, formatMoney, todayInputValue } from '../shared/format'
@@ -18,9 +18,8 @@ import { SelectShell } from '../shared/SelectShell'
 import { financeErrorMessage, useFinanceFeedback } from '../shared/useFinanceFeedback'
 import { convertedAmount, parseNumber, remainingAfter, round2, withinBalance } from './popMath'
 import { PopFormValues, makePopSchema } from './popSchema'
+import { BankProfileSelect } from '../bank-profiles/BankProfileSelect'
 import { RequestInfo } from './RequestInfo'
-
-const BASE_CURRENCY = 'CAD'
 
 interface PopUploadDialogProps {
   row: PaymentDocumentListItem | null
@@ -43,8 +42,6 @@ const PopForm: React.FC<{ row: PaymentDocumentListItem; onClose: () => void }> =
   // The currency can be corrected until the first payment is recorded; after that earlier payments depend on it.
   const currencyLocked = row.paidAmount > 0
   const [currency, setCurrency] = useState(row.currency)
-  const needsFx = currency !== BASE_CURRENCY
-  const schema = useMemo(() => makePopSchema(row.balance, needsFx), [row.balance, needsFx])
   const currencyOptions = [...new Set([...CURRENCIES, row.currency])].map((code) => ({ value: code, label: code }))
 
   const {
@@ -52,15 +49,18 @@ const PopForm: React.FC<{ row: PaymentDocumentListItem; onClose: () => void }> =
     control,
     handleSubmit,
     setValue,
+    resetField,
     watch,
     formState: { errors, dirtyFields },
   } = useForm<PopFormValues>({
-    resolver: zodResolver(schema),
+    // Resolved per submit so the rate rule follows the bank and currency picked at that moment
+    resolver: (values, context, options) => zodResolver(makePopSchema(row.balance, values.bank !== null && values.currency !== values.bank.currency))(values, context, options),
     defaultValues: {
+      bank: null,
       type: 'FULL',
       amount: round2(row.balance).toFixed(2),
       paymentDate: todayInputValue(),
-      fxRate: needsFx ? '' : '1',
+      fxRate: '',
       reference: '',
       currency: row.currency,
       files: [],
@@ -68,23 +68,34 @@ const PopForm: React.FC<{ row: PaymentDocumentListItem; onClose: () => void }> =
   })
 
   const type = watch('type')
+  // The payment converts into the currency of the bank it leaves from
+  const bank = watch('bank')
+  const bankCurrency = bank?.currency ?? null
+  const needsFx = bankCurrency !== null && currency !== bankCurrency
   const amountText = watch('amount')
   const rateText = watch('fxRate')
   const amount = parseNumber(amountText)
   const rate = needsFx ? parseNumber(rateText) : 1
 
-  const fx = useGetFxTodayQuery({ from: currency, to: BASE_CURRENCY }, { skip: !needsFx })
+  const fx = useGetFxTodayQuery({ from: currency, to: bankCurrency ?? undefined }, { skip: !needsFx })
 
   // Prefill the rate once the quote arrives, unless the user already typed one.
   useEffect(() => {
     if (fx.data && !dirtyFields.fxRate) setValue('fxRate', String(fx.data.rate))
   }, [fx.data, dirtyFields.fxRate, setValue])
 
+  // A rate belongs to one currency pair; clear it (and its dirty flag) whenever either side changes.
+  const resetRate = () => resetField('fxRate', { defaultValue: '' })
+
   const onCurrencyChange = (next: string) => {
     setCurrency(next)
     setValue('currency', next, { shouldValidate: true })
-    // The old rate belonged to the old currency
-    setValue('fxRate', next === BASE_CURRENCY ? '1' : '')
+    resetRate()
+  }
+
+  const onBankChange = (next: BankProfile) => {
+    setValue('bank', next, { shouldValidate: true })
+    resetRate()
   }
 
   const onTypeChange = (next: 'FULL' | 'SPLIT') => {
@@ -95,6 +106,7 @@ const PopForm: React.FC<{ row: PaymentDocumentListItem; onClose: () => void }> =
   const submit = handleSubmit(async (values) => {
     setServerError(null)
     const body = new FormData()
+    body.append('bankProfileId', String(values.bank!.id))
     body.append('type', values.type)
     body.append('amount', String(parseNumber(values.amount)))
     body.append('paymentDate', values.paymentDate)
@@ -141,6 +153,16 @@ const PopForm: React.FC<{ row: PaymentDocumentListItem; onClose: () => void }> =
             <FileDropzone files={field.value} onChange={field.onChange} title="Upload proof of payment" hint="Optional · bank confirmation / wire receipt · PDF or image" />
           )}
         />
+      </FormField>
+
+      <FormField
+        label="Paid from bank"
+        htmlFor="pop-bank"
+        required
+        error={errors.bank?.message}
+        hint={bank ? (needsFx ? `${bank.currency} account: the ${currency} amount is converted below` : `${bank.currency} account: same currency, no conversion`) : undefined}
+      >
+        <BankProfileSelect id="pop-bank" selected={bank} error={errors.bank?.message} onSelect={onBankChange} />
       </FormField>
 
       <FormField label="Payment type">
@@ -243,22 +265,29 @@ const PopForm: React.FC<{ row: PaymentDocumentListItem; onClose: () => void }> =
                   {...register('fxRate')}
                 />
                 <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-text-muted">
-                  {currency} to {BASE_CURRENCY}
+                  {currency} to {bankCurrency}
                 </span>
               </div>
             </FormField>
 
-            <FormField label="Exchange Rate Amount" htmlFor="pop-converted" hint="= Amount x Rate (read-only)">
+            <FormField label={`Amount in ${bankCurrency}`} htmlFor="pop-converted" hint="= Amount x Rate (read-only)">
               <input
                 id="pop-converted"
                 readOnly
-                value={`${BASE_CURRENCY} ${formatMoney(convertedAmount(amount, rate))}`}
+                value={`${bankCurrency} ${formatMoney(convertedAmount(amount, rate))}`}
                 className={fieldClass()}
               />
             </FormField>
           </>
         )}
       </div>
+
+      {needsFx && Number.isFinite(amount) && rate > 0 && (
+        <p className="rounded-lg bg-secondary-100 px-3 py-2 text-sm text-text-secondary">
+          {bank?.name} pays {formatCurrencyAmount(bankCurrency!, convertedAmount(amount, rate))} at {rate} {currency}→{bankCurrency}, settling{' '}
+          <span className="font-semibold text-text-primary">{formatCurrencyAmount(currency, amount)}</span> on this request.
+        </p>
+      )}
 
       {serverError && (
         <p role="alert" className="rounded-lg border border-danger-200 bg-danger-50 px-3 py-2 text-sm text-danger-700">

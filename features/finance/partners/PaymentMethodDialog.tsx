@@ -1,53 +1,47 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
-import { Controller, useForm } from 'react-hook-form'
+import { Controller, FormProvider, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
 import { Button } from '@/design-system/buttons'
 import { Modal } from '@/design-system/modals/Modal'
 import { FileDropzone } from '@/components/file-dropzone/FileDropzone'
 import { SegmentedToggle } from '@/components/segmented-toggle/SegmentedToggle'
+import { BankAccountFields } from '../shared/BankAccountFields'
 import { FormField, fieldClass } from '../shared/FormField'
-import {
-  bankProfileSchema,
-  emptyPaymentMethodValues,
-  paymentMethodSchema,
-  type BankProfileFormValues,
-} from './partnerSchema'
+import { emptyPaymentMethodValues, paymentMethodSchema, type PaymentMethodFormValues } from './partnerSchema'
 
 interface PaymentMethodDialogProps {
   isOpen: boolean
   title?: string
   /** Who the details belong to, shown under the title. */
   subtitle: string
-  /** Ask for a name too (bank profiles); a partner's method is named after the partner. */
-  named?: boolean
   onClose: () => void
-  /** The parent decides whether to stage the details locally or save them through the API. `name` is '' unless `named`. */
-  onSubmit: (values: BankProfileFormValues, files: File[]) => Promise<void> | void
+  /** The parent decides whether to stage the details locally or save them through the API. */
+  onSubmit: (values: PaymentMethodFormValues, files: File[]) => Promise<void> | void
 }
 
-/** Bank or card-link details: used for a partner's payment methods and for bank profiles. */
+/** A partner's bank or card-link payment details. */
 export const PaymentMethodDialog: React.FC<PaymentMethodDialogProps> = (props) => (
   <Modal isOpen={props.isOpen} onClose={props.onClose} title={props.title ?? 'Add bank details'} size="md">
     {props.isOpen && <DialogForm {...props} />}
   </Modal>
 )
 
-const unnamedSchema = paymentMethodSchema.and(z.object({ name: z.string() }))
-
-const DialogForm: React.FC<PaymentMethodDialogProps> = ({ subtitle, named, onClose, onSubmit }) => {
+const DialogForm: React.FC<PaymentMethodDialogProps> = ({ subtitle, onClose, onSubmit }) => {
   const [files, setFiles] = useState<File[]>([])
+  const form = useForm<PaymentMethodFormValues>({
+    resolver: zodResolver(paymentMethodSchema),
+    defaultValues: emptyPaymentMethodValues,
+  })
   const {
     register,
     control,
     handleSubmit,
     watch,
-    setValue,
     clearErrors,
     formState: { errors, isSubmitting },
-  } = useForm<BankProfileFormValues>({ resolver: zodResolver(named ? bankProfileSchema : unnamedSchema), defaultValues: { ...emptyPaymentMethodValues, name: '' } })
+  } = form
 
   const type = watch('type')
   useEffect(() => clearErrors(), [type, clearErrors])
@@ -57,91 +51,53 @@ const DialogForm: React.FC<PaymentMethodDialogProps> = ({ subtitle, named, onClo
   })
 
   return (
-    <form onSubmit={submit} noValidate className="flex flex-col gap-4">
-      <p className="-mt-1 text-sm text-text-muted">{subtitle}</p>
+    <FormProvider {...form}>
+      <form onSubmit={submit} noValidate className="flex flex-col gap-4">
+        <p className="-mt-1 text-sm text-text-muted">{subtitle}</p>
 
-      {named && (
-        <FormField label="Name" htmlFor="pm-name" required error={errors.name?.message}>
-          <input id="pm-name" autoComplete="off" placeholder="e.g. RBC operating account" className={fieldClass(errors.name?.message)} {...register('name')} />
-        </FormField>
-      )}
+        <Controller
+          control={control}
+          name="type"
+          render={({ field }) => (
+            <SegmentedToggle
+              ariaLabel="Payment method type"
+              value={field.value}
+              onChange={field.onChange}
+              options={[
+                { value: 'BANK', label: 'Bank' },
+                { value: 'CARD_LINK', label: 'Credit card' },
+              ]}
+            />
+          )}
+        />
 
-      <Controller
-        control={control}
-        name="type"
-        render={({ field }) => (
-          <SegmentedToggle
-            ariaLabel="Payment method type"
-            value={field.value}
-            onChange={field.onChange}
-            options={[
-              { value: 'BANK', label: 'Bank' },
-              { value: 'CARD_LINK', label: 'Credit card' },
-            ]}
-          />
+        {type === 'BANK' ? (
+          <>
+            <BankAccountFields idPrefix="pm" swiftRequired holderLabel="Account holder" />
+            <FormField label="Documents">
+              <FileDropzone multiple files={files} onChange={setFiles} title="Upload documents" hint="Void cheque / bank letter" />
+            </FormField>
+          </>
+        ) : (
+          <>
+            <FormField label="Payment link" htmlFor="pm-link" required error={errors.paymentLink?.message}>
+              <input id="pm-link" type="url" autoComplete="off" placeholder="https://" className={fieldClass(errors.paymentLink?.message)} {...register('paymentLink')} />
+            </FormField>
+            <p className="rounded-lg bg-secondary-100 px-3 py-2 text-sm text-text-secondary">
+              Card numbers are never collected or stored. Finance pays through the vendor&apos;s own link.
+            </p>
+          </>
         )}
-      />
 
-      {type === 'BANK' ? (
-        <>
-          <FormField label="IBAN" htmlFor="pm-iban" error={errors.iban?.message ?? undefined}>
-            <input
-              id="pm-iban"
-              autoComplete="off"
-              placeholder="GB29 NWBK 6016 1331 9268 19"
-              className={`${fieldClass(errors.iban?.message ?? errors.accountNumber?.message)} font-mono`}
-              {...register('iban')}
-            />
-          </FormField>
-          <FormField label="Account no" htmlFor="pm-account" error={errors.accountNumber?.message} hint="Enter the IBAN, the account number, or both">
-            <input
-              id="pm-account"
-              autoComplete="off"
-              className={`${fieldClass(errors.accountNumber?.message)} font-mono`}
-              {...register('accountNumber')}
-            />
-          </FormField>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <FormField label="SWIFT code" htmlFor="pm-swift" required error={errors.swiftCode?.message}>
-              <input
-                id="pm-swift"
-                autoComplete="off"
-                placeholder="NWBKGB2L"
-                maxLength={11}
-                className={`${fieldClass(errors.swiftCode?.message)} font-mono`}
-                {...register('swiftCode', { onChange: (event) => setValue('swiftCode', event.target.value.toUpperCase().replace(/\s+/g, '')) })}
-              />
-            </FormField>
-            <FormField label="Routing no" htmlFor="pm-routing" error={errors.routingNo?.message}>
-              <input id="pm-routing" autoComplete="off" inputMode="numeric" className={fieldClass(errors.routingNo?.message)} {...register('routingNo')} />
-            </FormField>
-          </div>
-          <FormField label="Account holder" htmlFor="pm-holder" error={errors.accountHolder?.message}>
-            <input id="pm-holder" autoComplete="off" className={fieldClass(errors.accountHolder?.message)} {...register('accountHolder')} />
-          </FormField>
-          <FormField label="Documents">
-            <FileDropzone multiple files={files} onChange={setFiles} title="Upload documents" hint="Void cheque / bank letter" />
-          </FormField>
-        </>
-      ) : (
-        <>
-          <FormField label="Payment link" htmlFor="pm-link" required error={errors.paymentLink?.message}>
-            <input id="pm-link" type="url" autoComplete="off" placeholder="https://" className={fieldClass(errors.paymentLink?.message)} {...register('paymentLink')} />
-          </FormField>
-          <p className="rounded-lg bg-secondary-100 px-3 py-2 text-sm text-text-secondary">
-            Card numbers are never collected or stored. Finance pays through the vendor&apos;s own link.
-          </p>
-        </>
-      )}
-
-      <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-        <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
-          Cancel
-        </Button>
-        <Button type="submit" isLoading={isSubmitting}>
-          Add
-        </Button>
-      </div>
-    </form>
+        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
+            Cancel
+          </Button>
+          <Button type="submit" isLoading={isSubmitting}>
+            Add
+          </Button>
+        </div>
+      </form>
+    </FormProvider>
   )
 }
