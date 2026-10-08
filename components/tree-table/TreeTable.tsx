@@ -162,7 +162,8 @@ export function TreeTable<T>({
                   ))}
                 {open && renderDetail && (
                   <TableRow className="bg-secondary-50/60 hover:bg-secondary-50/60">
-                    <TableCell colSpan={span} className="p-0 text-left">
+                    {/* `!p-0`: .ds-table-td forces its padding with !important, which would push the full-width detail past the scroll box */}
+                    <TableCell colSpan={span} className="!p-0 text-left">
                       <DetailContent>{renderDetail(row)}</DetailContent>
                     </TableCell>
                   </TableRow>

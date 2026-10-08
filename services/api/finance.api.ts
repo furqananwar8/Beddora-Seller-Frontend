@@ -11,12 +11,12 @@ export interface Page<T> {
   totalPages: number
 }
 
-interface Envelope<T> {
+export interface Envelope<T> {
   success: boolean
   data: T
 }
 
-const unwrap = <T,>(response: Envelope<T>): T => response.data
+export const unwrap = <T,>(response: Envelope<T>): T => response.data
 
 export interface PageParams {
   page: number
@@ -434,6 +434,7 @@ export const financeApi = baseApi.injectEndpoints({
       canManageApprovers: boolean
       canWritePartners: boolean
       canWriteBankProfiles: boolean
+      canWriteCostCenters: boolean
       canCreateRequests: boolean
       canProcessPayments: boolean
     }, void>({
