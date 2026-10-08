@@ -25,6 +25,7 @@ export const PopList: React.FC<{ pops: Pop[] }> = ({ pops }) => {
               <Item label="Date">{formatDay(pop.paymentDate)}</Item>
               <Item label="Type">{pop.type === 'FULL' ? 'Full' : 'Split'}</Item>
               <Item label="Amount">{formatCurrencyAmount(pop.currency, pop.amount)}</Item>
+              <Item label="Paid from">{pop.bankProfile ? `${pop.bankProfile.name} · ${pop.bankProfile.currency}` : '-'}</Item>
               <Item label="FX rate applied">
                 {pop.fxRateApplied}
                 {rateDiffers && <span className="text-text-muted"> (suggested {pop.fxRateSuggested})</span>}

@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import type { PartnerType } from '@/services/api/finance.api'
+import { bankAccountShape, emptyBankAccountValues, normalizeBankId, validateBankAccount } from '../shared/bankAccountSchema'
 
 export const CURRENCIES = ['CAD', 'USD', 'MXN', 'EUR', 'GBP', 'CNY', 'INR', 'AED'] as const
 
@@ -12,8 +13,7 @@ export const partnerTypeLabel = (type: PartnerType): string => (type === 'VENDOR
 
 /* ─────────────── Bank identifiers ─────────────── */
 
-/** IBANs and account numbers are free text: spaces are dropped and letters upper-cased, nothing else is checked. */
-export const normalizeBankId = (value: string): string => value.replace(/\s+/g, '').toUpperCase()
+export { normalizeBankId } from '../shared/bankAccountSchema'
 
 /* ─────────────── Partner profile ─────────────── */
 
@@ -61,54 +61,27 @@ const isUrl = (value: string): boolean => {
   }
 }
 
-const SWIFT =/^[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}([A-Z0-9]{3})?$/
-
 export const paymentMethodSchema = z
   .object({
     type: z.enum(['BANK', 'CARD_LINK']),
-    iban: z.string().max(80, 'IBAN is too long'),
-    accountNumber: z.string().max(80, 'Account number is too long'),
-    swiftCode: z.string(),
-    routingNo: z.string(),
-    accountHolder: z.string().max(150, 'Account holder is too long'),
+    ...bankAccountShape,
     paymentLink: z.string(),
   })
   .superRefine((values, ctx) => {
-    const fail = (path: keyof typeof values, message: string) => ctx.addIssue({ code: z.ZodIssueCode.custom, path: [path], message })
-
     if (values.type === 'BANK') {
-      // An IBAN or an account number is enough; one of them must be given
-      if (!values.iban.trim() && !values.accountNumber.trim()) fail('accountNumber', 'Enter an IBAN or an account number')
-
-      const swift = values.swiftCode.trim().toUpperCase()
-      if (!swift) fail('swiftCode', 'SWIFT code is required')
-      else if (!SWIFT.test(swift)) fail('swiftCode', 'Enter a valid 8 or 11 character SWIFT code')
-
-      const routing = values.routingNo.trim()
-      if (routing && !/^[0-9-]{5,12}$/.test(routing)) fail('routingNo', 'Routing number must be 5 to 12 digits')
-    } else {
-      const link = values.paymentLink.trim()
-      if (!link) fail('paymentLink', 'Payment link is required')
-      else if (!/^https?:\/\/\S+$/i.test(link) || !isUrl(link)) fail('paymentLink', 'Enter a valid http(s) link')
+      validateBankAccount(values, ctx, { swiftRequired: true })
+      return
     }
+    const link = values.paymentLink.trim()
+    if (!link) ctx.addIssue({ code: 'custom', path: ['paymentLink'], message: 'Payment link is required' })
+    else if (!/^https?:\/\/\S+$/i.test(link) || !isUrl(link)) ctx.addIssue({ code: 'custom', path: ['paymentLink'], message: 'Enter a valid http(s) link' })
   })
 
 export type PaymentMethodFormValues = z.infer<typeof paymentMethodSchema>
 
-/** A bank profile: the same payment-method fields plus a name to tell profiles apart. */
-export const bankProfileSchema = paymentMethodSchema.and(
-  z.object({ name: z.string().trim().min(1, 'Name is required').max(120, 'Keep it under 120 characters') })
-)
-
-export type BankProfileFormValues = z.infer<typeof bankProfileSchema>
-
 export const emptyPaymentMethodValues: PaymentMethodFormValues = {
   type: 'BANK',
-  iban: '',
-  accountNumber: '',
-  swiftCode: '',
-  routingNo: '',
-  accountHolder: '',
+  ...emptyBankAccountValues,
   paymentLink: '',
 }
 

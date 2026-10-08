@@ -84,8 +84,11 @@ export interface PaymentMethod {
   documents: FinanceDocument[]
 }
 
+/** A company bank account payments are made from. */
 export interface BankProfile extends PaymentMethod {
   name: string
+  currency: string
+  creditCardName: string | null
   createdBy: { id: number; name: string | null }
 }
 
@@ -93,7 +96,6 @@ export interface BankProfileListParams {
   page: number
   limit: number
   search?: string
-  type?: PaymentMethod['type']
 }
 
 export interface PartnerDetail {
@@ -289,6 +291,8 @@ export interface Pop {
   baseAmount: number
   fxRateApplied: number
   fxRateSuggested: number | null
+  /** The bank the payment left from; `baseCurrency` is its currency. Null on payments recorded before banks were picked. */
+  bankProfile: { id: number; name: string; currency: string } | null
   processedBy: UserRef
   documents: FinanceDocument[]
 }
@@ -393,6 +397,16 @@ export const financeApi = baseApi.injectEndpoints({
     }),
     createBankProfile: b.mutation<BankProfile, FormData>({
       query: (body) => ({ url: '/finance/bank-profiles', method: 'POST', body }),
+      transformResponse: unwrap,
+      invalidatesTags: ['FinanceBankProfiles'],
+    }),
+    updateBankProfile: b.mutation<BankProfile, { id: number; body: Record<string, unknown> }>({
+      query: ({ id, body }) => ({ url: `/finance/bank-profiles/${id}`, method: 'PATCH', body }),
+      transformResponse: unwrap,
+      invalidatesTags: ['FinanceBankProfiles'],
+    }),
+    addBankProfileDocuments: b.mutation<FinanceDocument[], { id: number; body: FormData }>({
+      query: ({ id, body }) => ({ url: `/finance/bank-profiles/${id}/documents`, method: 'POST', body }),
       transformResponse: unwrap,
       invalidatesTags: ['FinanceBankProfiles'],
     }),
@@ -573,6 +587,8 @@ export const {
   useRemovePaymentMethodMutation,
   useGetBankProfilesQuery,
   useCreateBankProfileMutation,
+  useUpdateBankProfileMutation,
+  useAddBankProfileDocumentsMutation,
   useDeleteBankProfileMutation,
   useGetExpenseTypesQuery,
   useCreateExpenseTypeMutation,
