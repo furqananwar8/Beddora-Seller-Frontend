@@ -28,6 +28,7 @@ export const ROUTE_PERMISSIONS: RoutePermission[] = [
   // Finance
   { pattern: '/dashboard/finance/partner-profile', subject: 'finance:partner-profile' },
   { pattern: '/dashboard/finance/bank-profile', subject: 'finance:bank-profile' },
+  { pattern: '/dashboard/finance/cost-center', subject: 'finance:cost-center' },
   { pattern: '/dashboard/finance/payment-request', subject: 'finance:payment-request' },
   { pattern: '/dashboard/finance/payment-process', subject: 'finance:payment-process' },
   { pattern: '/dashboard/finance', subject: 'finance' },

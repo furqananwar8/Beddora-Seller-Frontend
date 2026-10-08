@@ -11,6 +11,7 @@ export const REALTIME_TOPICS: Record<string, TagType[]> = {
   'inventory.sync': [],
   'finance.partner': ['FinancePartners', 'ProcurementPriceAnalysis'],
   'finance.bank-profile': ['FinanceBankProfiles'],
+  'finance.cost-center': ['FinanceCostCenters'],
   'finance.payment-request': ['FinanceRequests', 'ProcurementPurchaseOrders'],
   'finance.payment-process': ['FinanceProcess', 'FinanceRequests', 'ProcurementPurchaseOrders'],
   'procurement.product': ['ProcurementProducts', 'ProcurementPriceAnalysis'],

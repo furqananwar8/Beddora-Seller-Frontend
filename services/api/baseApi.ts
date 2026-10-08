@@ -73,6 +73,7 @@ export const tagTypes = [
   'ReportSyncManagement',
   'FinancePartners',
   'FinanceBankProfiles',
+  'FinanceCostCenters',
   'FinanceRequests',
   'FinanceProcess',
   'FinanceApprovers',

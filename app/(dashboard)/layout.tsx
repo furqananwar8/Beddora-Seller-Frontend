@@ -142,6 +142,12 @@ export default function DashboardLayout({
                 href: '/dashboard/finance/bank-profile',
               },
               {
+                label: 'Cost Center',
+                subject: 'finance:cost-center',
+                action: 'read',
+                href: '/dashboard/finance/cost-center',
+              },
+              {
                 label: 'Payment Request',
                 subject: 'finance:payment-request',
                 action: 'read',
