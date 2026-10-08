@@ -56,23 +56,21 @@ export const CostCenterListScreen: React.FC = () => {
       </div>
 
       <div className={cn('overflow-hidden rounded-lg border border-border shadow-sm', isFetching && 'opacity-70 transition-opacity')}>
-        <div className="overflow-x-auto">
-          <TreeTable
-            columns={columns}
-            rows={data?.data ?? []}
-            getKey={(row) => row.id}
-            getChildren={() => []}
-            // Keyed by search so a new search re-opens what it matched
-            key={debouncedSearch}
-            autoExpand={(row) => row.matchIds.length > 0}
-            renderDetail={(row) => <BranchDetail root={row} />}
-            expandLabel="hierarchy"
-            isLoading={isLoading}
-            isError={isError}
-            emptyText={debouncedSearch ? 'No cost center matches that search.' : 'No cost center yet.'}
-            errorText="Could not load cost centers."
-          />
-        </div>
+        <TreeTable
+          columns={columns}
+          rows={data?.data ?? []}
+          getKey={(row) => row.id}
+          getChildren={() => []}
+          // Keyed by search so a new search re-opens what it matched
+          key={debouncedSearch}
+          autoExpand={(row) => row.matchIds.length > 0}
+          renderDetail={(row) => <BranchDetail root={row} />}
+          expandLabel="hierarchy"
+          isLoading={isLoading}
+          isError={isError}
+          emptyText={debouncedSearch ? 'No cost center matches that search.' : 'No cost center yet.'}
+          errorText="Could not load cost centers."
+        />
         {data && data.totalRecords > 0 && (
           <PaginationFooter
             page={data.page}

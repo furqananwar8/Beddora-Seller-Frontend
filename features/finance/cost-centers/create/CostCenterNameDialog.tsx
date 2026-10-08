@@ -1,57 +1,53 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { FormField } from '@/components/form-field/FormField'
 import { Button } from '@/design-system/buttons'
 import { Input } from '@/design-system/inputs'
 import { Modal } from '@/design-system/modals'
-
-const MAX_NAME = 120
+import { type CostCenterNameValues, makeCostCenterNameSchema, MAX_COST_CENTER_NAME } from './costCenterNameSchema'
 
 interface CostCenterNameDialogProps {
   isOpen: boolean
   title: string
-  /** Where the entry goes, e.g. "Under Expense › Trucking Cost". */
+  /** Where the entry goes, e.g. "L3 under Expense › Trucking Cost". */
   context?: string
   initialName?: string
   submitLabel: string
   /** Names already used by its siblings (lower-cased); a cost center's name is unique among them. */
-  takenNames: Set<string>
+  takenNames: ReadonlySet<string>
   onSubmit: (name: string) => void
   onClose: () => void
 }
 
 /** Name of a new or edited cost center entry. Nothing is saved until the create screen is submitted. */
 export const CostCenterNameDialog: React.FC<CostCenterNameDialogProps> = ({ isOpen, title, context, initialName = '', submitLabel, takenNames, onSubmit, onClose }) => {
-  const [name, setName] = useState(initialName)
-  const [touched, setTouched] = useState(false)
+  const schema = useMemo(() => makeCostCenterNameSchema(takenNames, initialName), [takenNames, initialName])
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<CostCenterNameValues>({ resolver: zodResolver(schema), defaultValues: { name: initialName } })
 
   useEffect(() => {
-    if (!isOpen) return
-    setName(initialName)
-    setTouched(false)
-  }, [isOpen, initialName])
+    if (isOpen) reset({ name: initialName })
+  }, [isOpen, initialName, reset])
 
-  const trimmed = name.trim()
-  const error = !trimmed
-    ? 'Name is required'
-    : trimmed.length > MAX_NAME
-      ? `Keep it under ${MAX_NAME} characters`
-      : trimmed.toLowerCase() !== initialName.trim().toLowerCase() && takenNames.has(trimmed.toLowerCase())
-        ? `"${trimmed}" already exists at this level`
-        : undefined
+  if (!isOpen) return null
 
-  const submit = (event: React.FormEvent) => {
-    event.preventDefault()
-    setTouched(true)
-    if (!error) onSubmit(trimmed)
-  }
+  const submit = handleSubmit(({ name }) => onSubmit(name))
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={title} size="sm" closeOnEscape>
-      <form onSubmit={submit} noValidate>
-        {context && <p className="mb-3 text-sm text-text-muted">{context}</p>}
-        <Input label="Name" autoFocus value={name} maxLength={MAX_NAME + 1} onChange={(event) => setName(event.target.value)} error={touched ? error : undefined} />
-        <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+    <Modal isOpen onClose={onClose} title={title} size="sm" closeOnEscape>
+      <form onSubmit={submit} noValidate className="space-y-4">
+        {context && <p className="text-sm text-text-muted">{context}</p>}
+        <FormField label="Name" htmlFor="cost-center-name" required error={errors.name?.message}>
+          <Input id="cost-center-name" autoFocus maxLength={MAX_COST_CENTER_NAME} {...register('name')} />
+        </FormField>
+        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <Button type="button" variant="outline" onClick={onClose}>
             Cancel
           </Button>
