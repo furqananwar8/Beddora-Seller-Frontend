@@ -312,26 +312,6 @@
     width: 100% !important;
   }
 
-  /*
-   * The first column stays put while the rest scroll sideways behind it. :where() keeps this at zero specificity, so a
-   * cell's own classes (e.g. a different background) still win. A table can pin more leading columns by giving those
-   * cells `sticky` and a `left` offset (see ProductInventoryTable).
-   */
-  :where(.ds-table td:first-child, .ds-table th:first-child) {
-    position: sticky;
-    left: 0;
-  }
-
-  :where(.ds-table td:first-child) {
-    z-index: 10;
-    background-color: theme('colors.surface');
-  }
-
-  /* Above the sticky header row (z-30), so the corner cell isn't covered when both scroll */
-  :where(.ds-table th:first-child) {
-    z-index: 40;
-  }
-
   .ds-table-head {
     @apply bg-secondary-50;
   }
@@ -409,16 +389,13 @@
     overflow-wrap: normal !important;
   }
 
-  /*
-   * Sticky column styles - prevent overlapping when scrolling. The horizontal offset comes from the cell's own `left-*`
-   * class (left-0, left-12, ...): forcing `left: 0` here would stack every header cell (they're `sticky top-0`) and
-   * every pinned column after the first at the left edge.
-   */
+  /* Sticky column styles - prevent overlapping when scrolling */
   .ds-table th.sticky,
   .ds-table td.sticky,
   table th.sticky,
   table td.sticky {
     position: sticky !important;
+    left: 0 !important;
     z-index: 20 !important;
     border-right: 2px solid rgb(229, 231, 235) !important;
     box-shadow: 2px 0 4px rgba(0, 0, 0, 0.05) !important;
@@ -428,14 +405,6 @@
   .ds-table th.sticky,
   table th.sticky {
     z-index: 30 !important;
-  }
-
-  /* A pinned column's header (the first, or any marked ds-pinned-col) stays above the headers scrolling behind it */
-  .ds-table th.sticky:first-child,
-  .ds-table th.sticky.ds-pinned-col,
-  table th.sticky:first-child,
-  table th.sticky.ds-pinned-col {
-    z-index: 40 !important;
   }
 
   /* Sticky column with specific background colors - ensure they don't inherit */
