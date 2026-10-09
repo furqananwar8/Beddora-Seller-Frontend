@@ -244,15 +244,17 @@ export const LabelButton: React.FC<{
   status?: LabelFileStatus
   isDownloading: boolean
   onClick: () => void
-}> = ({ label, status, isDownloading, onClick }) => {
+  /** Lets a layout give every label button the same size. */
+  buttonClassName?: string
+}> = ({ label, status, isDownloading, onClick, buttonClassName }) => {
   const preparing = status?.status === 'pending'
   const failed = status?.status === 'failed'
   const busy = isDownloading || preparing
   const message = `${status?.error ?? 'These labels aren’t available right now.'} Click to try again.`
   return (
     <span className="relative inline-flex">
-      <Button variant="outline" size="sm" onClick={onClick} disabled={busy} aria-busy={busy}>
-        <span className="flex items-center gap-2">
+      <Button variant="outline" size="sm" onClick={onClick} disabled={busy} aria-busy={busy} className={buttonClassName}>
+        <span className="flex items-center justify-center gap-2">
           {busy ? <Spinner size="sm" /> : <span aria-hidden>↓</span>}
           {preparing && !isDownloading ? `Preparing ${label.toLowerCase()}…` : label}
         </span>

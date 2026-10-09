@@ -79,13 +79,16 @@ export const LabelDownloadControl: React.FC<{
   onClick: () => void
   /** Lets a roomy layout give every size picker the same width so the buttons line up. */
   selectClassName?: string
-}> = ({ type, label, status, isDownloading, onClick, selectClassName = 'min-w-[200px]' }) => {
+  /** Same for the download button, so both buttons match in size. */
+  buttonClassName?: string
+}> = ({ type, label, status, isDownloading, onClick, selectClassName = 'min-w-[200px]', buttonClassName }) => {
   const { catalog, selected, select } = useLabelFormats()
   const kind = type === 'box' || type === 'unit' ? type : null
   const options = kind ? catalog?.[kind].options : undefined
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    // items-stretch: the button takes the size picker's height
+    <div className="flex flex-wrap items-stretch gap-2">
       {kind && options && selected[kind] && (
         <MultiSelectInput
           single
@@ -96,7 +99,7 @@ export const LabelDownloadControl: React.FC<{
           onChange={(value) => value[0] && select(kind, value[0])}
         />
       )}
-      <LabelButton label={label} status={status} isDownloading={isDownloading} onClick={onClick} />
+      <LabelButton label={label} status={status} isDownloading={isDownloading} onClick={onClick} buttonClassName={buttonClassName} />
     </div>
   )
 }

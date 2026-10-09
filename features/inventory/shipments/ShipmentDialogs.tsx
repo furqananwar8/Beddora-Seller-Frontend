@@ -261,6 +261,9 @@ export const OptionPickerModal: React.FC<OptionPickerModalProps> = ({
 // MARK AS SHIPPED
 // ============================================
 
+/** Every label download button in the dialog is at least this wide, so they line up whatever their text. */
+const LABEL_BUTTON_SIZE = 'min-w-[11rem] justify-center'
+
 interface MarkShippedModalProps {
   shipment: InboundShipment | null
   /** Last step of the guided flow, so the labels are printable from here. */
@@ -360,6 +363,7 @@ export const MarkShippedModal: React.FC<MarkShippedModalProps> = ({
           type="box"
           label="Box labels"
           selectClassName="w-72"
+          buttonClassName={LABEL_BUTTON_SIZE}
           status={shipment.labels?.box}
           isDownloading={!!downloadingLabels.box}
           onClick={() => onDownloadLabel('box')}
@@ -368,6 +372,7 @@ export const MarkShippedModal: React.FC<MarkShippedModalProps> = ({
           type="unit"
           label="FNSKU unit labels"
           selectClassName="w-72"
+          buttonClassName={LABEL_BUTTON_SIZE}
           status={shipment.labels?.unit}
           isDownloading={!!downloadingLabels.unit}
           onClick={() => onDownloadLabel('unit')}
@@ -375,6 +380,7 @@ export const MarkShippedModal: React.FC<MarkShippedModalProps> = ({
         {shipsAsFreight(shipment) && (
           <LabelButton
             label="Pallet labels"
+            buttonClassName={LABEL_BUTTON_SIZE}
             isDownloading={!!downloadingLabels.pallet}
             onClick={() => onDownloadLabel('pallet')}
           />
