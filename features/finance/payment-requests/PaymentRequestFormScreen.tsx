@@ -11,7 +11,6 @@ import { SingleDatePicker } from '@/components/single-date-picker/SingleDatePick
 import { StatusBadge } from '@/components/status-badge/StatusBadge'
 import { SegmentedToggle } from '@/components/segmented-toggle/SegmentedToggle'
 import { Button } from '@/design-system/buttons'
-import { Card } from '@/design-system/cards'
 import { Input, Select, Textarea } from '@/design-system/inputs'
 import { SelectShell } from '../shared/SelectShell'
 import { Spinner } from '@/design-system/loaders'
@@ -26,6 +25,8 @@ import {
   useGetPartnerQuery,
   useGetPaymentRequestQuery,
   useLazyCheckDuplicateInvoiceQuery,
+  useLazyCheckPurchaseInvoiceQuery,
+  type PurchaseInvoiceForPayment,
   type DuplicateInvoice,
   type ReferenceType,
   useRemoveRequestDocumentMutation,
@@ -33,6 +34,7 @@ import {
   useUpdatePaymentRequestMutation,
 } from '@/services/api/finance.api'
 import { FormField } from '../shared/FormField'
+import { FormSection as Section } from '../shared/FormSection'
 import { formatCurrencyAmount, formatMoney, formatRequestNo, toDateInputValue } from '../shared/format'
 import { REQUEST_STATUS_META } from '../shared/statusMeta'
 import { useFinanceFeedback } from '../shared/useFinanceFeedback'
@@ -56,16 +58,6 @@ import {
 
 const LIST_URL = '/dashboard/finance/payment-request'
 const NEW_URL = `${LIST_URL}/new`
-
-const Section: React.FC<{ title: string; note?: string; children: React.ReactNode }> = ({ title, note, children }) => (
-  <Card className="p-4 sm:p-5">
-    <h2 className="mb-4 flex flex-wrap items-baseline gap-2 text-base font-semibold text-text-primary">
-      {title}
-      {note && <span className="text-xs font-normal text-text-muted">{note}</span>}
-    </h2>
-    {children}
-  </Card>
-)
 
 const toFormValues = (detail: PaymentRequestDetail): PaymentRequestFormValues => ({
   partnerId: String(detail.partner.id),
@@ -101,6 +93,7 @@ export const PaymentRequestFormScreen: React.FC = () => {
   const { data: expenseTypes } = useGetExpenseTypesQuery()
   const { data: marketplaces } = useGetFinanceMarketplacesQuery()
   const [checkDuplicate] = useLazyCheckDuplicateInvoiceQuery()
+  const [checkPurchaseInvoice] = useLazyCheckPurchaseInvoiceQuery()
   const [createRequest] = useCreatePaymentRequestMutation()
   const [updateRequest] = useUpdatePaymentRequestMutation()
   const [addDocuments] = useAddRequestDocumentsMutation()
@@ -122,6 +115,8 @@ export const PaymentRequestFormScreen: React.FC = () => {
   const [files, setFiles] = useState<File[]>([])
   const [fileError, setFileError] = useState<string | undefined>()
   const [duplicate, setDuplicate] = useState<(DuplicateInvoice & { invoiceNo: string }) | null>(null)
+  /** The invoice number is one of our purchase invoices: shown, and blocking when it cannot be paid yet. */
+  const [purchaseInvoice, setPurchaseInvoice] = useState<PurchaseInvoiceForPayment | null>(null)
   const [saving, setSaving] = useState<'draft' | 'submit' | null>(null)
   const [removingId, setRemovingId] = useState<string | null>(null)
   const uploadedCount = useRef(0)
@@ -176,8 +171,12 @@ export const PaymentRequestFormScreen: React.FC = () => {
     // Only invoices can be raised twice; a PO request has no invoice number
     if (!partnerId || !invoiceNo.trim() || getValues('referenceType') !== 'INVOICE') {
       setDuplicate(null)
+      setPurchaseInvoice(null)
       return
     }
+    void checkPurchaseInvoice({ partnerId: Number(partnerId), invoiceNo: invoiceNo.trim() }, false)
+      .unwrap()
+      .then(setPurchaseInvoice, () => setPurchaseInvoice(null))
     try {
       const found = await checkDuplicate({ partnerId: Number(partnerId), invoiceNo: invoiceNo.trim(), excludeId: requestId ?? undefined }, false).unwrap()
       setDuplicate(found ? { invoiceNo: invoiceNo.trim(), ...found } : null)
@@ -197,7 +196,10 @@ export const PaymentRequestFormScreen: React.FC = () => {
 
   const switchReference = (next: ReferenceType) => {
     setValue('referenceType', next, { shouldDirty: true })
-    if (next === 'PURCHASE_ORDER') setDuplicate(null)
+    if (next === 'PURCHASE_ORDER') {
+      setDuplicate(null)
+      setPurchaseInvoice(null)
+    }
     else void runDuplicateCheck(getValues('partnerId'), getValues('invoiceNo'))
   }
 
@@ -266,6 +268,8 @@ export const PaymentRequestFormScreen: React.FC = () => {
 
   const invalidFiles = () => setFileError(undefined)
   const busy = saving !== null
+  /** Paying one of our purchase invoices that is not approved yet, or already fully paid: the server refuses it too. */
+  const invoiceBlocked = referenceType === 'INVOICE' && Boolean(purchaseInvoice?.blockedReason)
   const editBlocked = editId !== null && detail && !detail.can.edit
   const statusMeta = REQUEST_STATUS_META[detail?.status ?? 'DRAFT']
 
@@ -361,6 +365,20 @@ export const PaymentRequestFormScreen: React.FC = () => {
               </SelectShell>
             </FormField>
           </div>
+          {purchaseInvoice && !byPurchaseOrder && (
+            <p
+              role={purchaseInvoice.blockedReason ? 'alert' : undefined}
+              className={
+                purchaseInvoice.blockedReason
+                  ? 'mt-3 rounded-lg border border-danger-200 bg-danger-50 px-3 py-2 text-sm text-danger-700'
+                  : 'mt-3 rounded-lg border border-success-200 bg-success-50 px-3 py-2 text-sm text-success-700'
+              }
+            >
+              {purchaseInvoice.blockedReason
+                ? `${purchaseInvoice.blockedReason}. A payment request cannot be raised for it.`
+                : `Pays purchase invoice ${purchaseInvoice.invoiceRef} (${formatCurrencyAmount(purchaseInvoice.currency, purchaseInvoice.amount)}, approved): ${formatCurrencyAmount(purchaseInvoice.currency, purchaseInvoice.leftToRequest)} left to request. Its status updates as payments are recorded.`}
+            </p>
+          )}
           {duplicate && !byPurchaseOrder && (
             <p role="alert" className="mt-3 rounded-lg border border-warning-300 bg-warning-50 px-3 py-2 text-sm text-warning-700">
               Invoice {duplicate.invoiceNo} already has request {formatRequestNo(duplicate.id)} for this partner.
@@ -444,13 +462,13 @@ export const PaymentRequestFormScreen: React.FC = () => {
           <Button
             type="button"
             variant="outline"
-            disabled={busy}
+            disabled={busy || invoiceBlocked}
             isLoading={saving === 'draft'}
             onClick={handleSubmit((values) => persist(values, false))}
           >
             Save draft
           </Button>
-          <Button type="submit" disabled={busy} isLoading={saving === 'submit'}>
+          <Button type="submit" disabled={busy || invoiceBlocked} isLoading={saving === 'submit'}>
             Process For Approval
           </Button>
         </div>

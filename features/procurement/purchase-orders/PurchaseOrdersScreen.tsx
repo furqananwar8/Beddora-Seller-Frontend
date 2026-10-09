@@ -28,7 +28,7 @@ import {
 } from '@/services/api/procurement.api'
 import { cn } from '@/utils/cn'
 import { useDebounce } from '@/utils/debounce'
-import { DESTINATION_LABEL, PAYMENT_META, PO_STATUS_META, newPackagingListHref, poPackagingListsHref, poPaymentRequestsHref } from '../shared/poMeta'
+import { DESTINATION_LABEL, PAYMENT_META, PO_STATUS_META, newPackagingListHref, newPurchaseInvoiceHref, poPackagingListsHref, poPaymentRequestsHref } from '../shared/poMeta'
 import { PoLegend } from './PoLegend'
 import { PurchaseOrdersTable } from './PurchaseOrdersTable'
 import { usePoActions } from './usePoActions'
@@ -83,6 +83,7 @@ export const PurchaseOrdersScreen: React.FC = () => {
   const canDecide = ability.can('write', 'procurement:po-approval')
   const canViewPayments = ability.can('read', 'finance:payment-request')
   const canPack = ability.can('write', 'procurement:packaging-lists')
+  const canInvoice = ability.can('write', 'procurement:purchase-invoices')
   const decisions = usePoActions()
   const [approving, setApproving] = useState<PurchaseOrderListItem | null>(null)
   const [rejecting, setRejecting] = useState<PurchaseOrderListItem | null>(null)
@@ -222,6 +223,8 @@ export const PurchaseOrdersScreen: React.FC = () => {
             canDecide={canDecide}
             canViewPayments={canViewPayments}
             canPack={canPack}
+            canInvoice={canInvoice}
+            onCreatePurchaseInvoice={(row) => router.push(newPurchaseInvoiceHref(row.id))}
             onCreatePackagingList={(row) => router.push(newPackagingListHref(row.id))}
             onViewPackagingLists={(row) => router.push(poPackagingListsHref(row.id))}
             onViewPayments={(row) => router.push(poPaymentRequestsHref(row.id))}

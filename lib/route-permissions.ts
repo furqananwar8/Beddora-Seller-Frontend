@@ -36,6 +36,7 @@ export const ROUTE_PERMISSIONS: RoutePermission[] = [
   // Procurement
   { pattern: '/dashboard/procurement/products', subject: 'procurement:products' },
   { pattern: '/dashboard/procurement/purchase-orders', subject: 'procurement:purchase-orders' },
+  { pattern: '/dashboard/procurement/purchase-invoices', subject: 'procurement:purchase-invoices' },
   { pattern: '/dashboard/procurement/packaging-lists', subject: 'procurement:packaging-lists' },
   { pattern: '/dashboard/procurement/containers', subject: 'procurement:containers' },
   { pattern: '/dashboard/procurement/price-analysis', subject: 'procurement:price-analysis' },

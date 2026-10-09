@@ -123,6 +123,20 @@ export interface PartnerDetail {
 export type RequestStatus = 'DRAFT' | 'PENDING_APPROVAL' | 'APPROVED' | 'REJECTED'
 
 /** An existing live request for the same partner and invoice, with what has been paid against it. */
+/** The invoice number is one of our purchase invoices: whether it can be paid now (null when it cannot be told apart). */
+export interface PurchaseInvoiceForPayment {
+  id: number
+  invoiceRef: string
+  invoiceNo: string
+  status: string
+  currency: string
+  amount: number
+  /** Not yet asked for by pending or approved requests: the most this request may ask for. */
+  leftToRequest: number
+  /** Why a payment request cannot pay it now; null when it can. */
+  blockedReason: string | null
+}
+
 export interface DuplicateInvoice {
   id: number
   status: RequestStatus
@@ -500,6 +514,11 @@ export const financeApi = baseApi.injectEndpoints({
       query: (params) => ({ url: '/finance/payment-requests/duplicate-check', params }),
       transformResponse: unwrap,
     }),
+    /** Is this invoice number one of our purchase invoices, and is it approved and still owing? */
+    checkPurchaseInvoice: b.query<PurchaseInvoiceForPayment | null, { partnerId: number; invoiceNo: string }>({
+      query: (params) => ({ url: '/finance/payment-requests/invoice-check', params }),
+      transformResponse: unwrap,
+    }),
     createPaymentRequest: b.mutation<PaymentRequestDetail, FormData>({
       query: (body) => ({ url: '/finance/payment-requests', method: 'POST', body }),
       transformResponse: unwrap,
@@ -604,6 +623,7 @@ export const {
   useGetPaymentRequestSummaryQuery,
   useGetPaymentRequestQuery,
   useLazyCheckDuplicateInvoiceQuery,
+  useLazyCheckPurchaseInvoiceQuery,
   useGetPayablePurchaseOrdersQuery,
   useCreatePaymentRequestMutation,
   useUpdatePaymentRequestMutation,

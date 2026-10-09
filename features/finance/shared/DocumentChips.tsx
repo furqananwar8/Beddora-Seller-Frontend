@@ -17,6 +17,8 @@ interface DocumentChipsProps {
   /** Text when nothing is attached; pass null to render nothing. */
   emptyText?: string | null
   className?: string
+  /** Route serving a document; defaults to the finance documents route. */
+  documentPath?: (doc: FinanceDocument) => string
 }
 
 /** Attachment chips: clicking previews the stored file (fetched with the auth token) with Download and Close. */
@@ -27,6 +29,7 @@ export const DocumentChips: React.FC<DocumentChipsProps> = ({
   removingId,
   emptyText = 'No documents attached',
   className,
+  documentPath,
 }) => {
   const [previewing, setPreviewing] = useState<FinanceDocument | null>(null)
 
@@ -70,7 +73,7 @@ export const DocumentChips: React.FC<DocumentChipsProps> = ({
           </li>
         ))}
       </ul>
-      <StoredDocumentPreview doc={previewing} onClose={() => setPreviewing(null)} />
+      <StoredDocumentPreview doc={previewing} onClose={() => setPreviewing(null)} documentPath={documentPath} />
     </>
   )
 }

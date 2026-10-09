@@ -145,14 +145,14 @@ export const QuotesTable: React.FC<QuotesTableProps> = ({ rows, errors, showErro
                   <div className="flex flex-col items-center gap-1">
                     {isApproved ? (
                       <span className="inline-flex flex-col items-center gap-0.5">
-                        <StatusBadge label="Approved" tone="success" />
+                        <StatusBadge label="APPROVED" tone="success" />
                         <span className="whitespace-nowrap text-[11px] text-text-muted">
                           {approval.approved!.by ?? 'An approver'} · {formatCalendarDay(approval.approved!.at)}
                         </span>
                       </span>
                     ) : rejection ? (
                       <span className="inline-flex max-w-[200px] flex-col items-center gap-0.5">
-                        <StatusBadge label="Rejected" tone="danger" />
+                        <StatusBadge label="REJECTED" tone="danger" />
                         <span className="text-[11px] text-text-muted">
                           {rejection.by.name ?? 'An approver'} · {formatCalendarDay(rejection.at)}
                         </span>
