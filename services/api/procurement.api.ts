@@ -311,7 +311,7 @@ export interface PurchaseInvoiceListItem {
 }
 
 export interface PurchaseInvoiceListParams extends PageParams {
-  status?: PurchaseInvoiceStatus
+  statuses?: PurchaseInvoiceStatus[]
   purchaseOrderId?: number
 }
 
@@ -320,7 +320,34 @@ export interface PurchaseInvoiceDocument extends FinanceDocument {
   carried: boolean
 }
 
+/** One PO SKU on the invoice: what the PO ordered (snapshot) next to what the supplier invoiced. */
+export interface PurchaseInvoiceLine {
+  id: number
+  product: { id: number; pid: string; ref: string; label: string; sku: string | null; name: string; variantName: string | null }
+  po: { units: number; unitPrice: number; amount: number }
+  units: number
+  unitPrice: number
+  amount: number
+}
+
+export interface PurchaseInvoiceExpense {
+  id: number
+  name: string
+  remarks: string | null
+  amount: number
+}
+
 export interface PurchaseInvoiceDetail extends Omit<PurchaseInvoiceListItem, 'partner' | 'can'> {
+  lines: PurchaseInvoiceLine[]
+  expenses: PurchaseInvoiceExpense[]
+  /** `amount` = invoice + expenses. */
+  totals: { po: number; invoice: number; expenses: number; amount: number }
+  /** What its payment requests have paid so far. */
+  payment: {
+    paid: number
+    remaining: number
+    requests: Array<{ id: number; requestNo: string; status: 'DRAFT' | 'PENDING_APPROVAL' | 'APPROVED' | 'REJECTED'; amount: number; paidAmount: number; paymentStatus: string | null }>
+  }
   partner: { id: number; name: string; type: PartnerType; country: string | null; currency: string }
   marketplace: { id: number; name: string; code: string } | null
   documents: PurchaseInvoiceDocument[]
@@ -336,8 +363,10 @@ export interface PurchaseInvoiceBody {
   marketplaceId: number | null
   expenseTypeId: number
   currency: string
-  amount: number
   remarks: string | null
+  /** The invoice amount is worked out from these on the server. */
+  lines: Array<{ productId: number; units: number; unitPrice: number }>
+  expenses: Array<{ name: string; remarks: string | null; amount: number }>
   carriedDocumentIds: string[]
 }
 
@@ -833,10 +862,10 @@ export const procurementApi = baseApi.injectEndpoints({
 
     /* purchase invoices */
     getPurchaseInvoices: b.query<Page<PurchaseInvoiceListItem>, PurchaseInvoiceListParams>({
-      query: ({ search, ...params }) => ({ url: '/procurement/purchase-invoices', params: { ...params, search: search || undefined } }),
+      query: ({ search, statuses, ...params }) => ({ url: '/procurement/purchase-invoices', params: { ...params, search: search || undefined, statuses: csv(statuses) } }),
       providesTags: ['ProcurementPurchaseInvoices'],
     }),
-    getPurchaseInvoiceSummary: b.query<{ byStatus: Record<PurchaseInvoiceStatus, number>; all: number }, Omit<PurchaseInvoiceListParams, 'page' | 'limit' | 'status'>>({
+    getPurchaseInvoiceSummary: b.query<{ byStatus: Record<PurchaseInvoiceStatus, number>; all: number }, Omit<PurchaseInvoiceListParams, 'page' | 'limit' | 'statuses'>>({
       query: ({ search, ...params }) => ({ url: '/procurement/purchase-invoices/summary', params: { ...params, search: search || undefined } }),
       transformResponse: unwrap,
       providesTags: ['ProcurementPurchaseInvoices'],
@@ -845,6 +874,12 @@ export const procurementApi = baseApi.injectEndpoints({
       query: (id) => `/procurement/purchase-invoices/${id}`,
       transformResponse: unwrap,
       providesTags: ['ProcurementPurchaseInvoices'],
+    }),
+    /** Destination marketplaces, without needing Finance access. */
+    getPurchaseInvoiceDestinations: b.query<Array<{ id: number; name: string; code: string }>, void>({
+      query: () => '/procurement/purchase-invoices/destinations',
+      transformResponse: unwrap,
+      keepUnusedDataFor: 3600,
     }),
     /** Documents of the PO's payment requests, offered to carry into a new invoice. */
     getPurchaseOrderInvoiceDocuments: b.query<FinanceDocument[], number>({
@@ -862,8 +897,8 @@ export const procurementApi = baseApi.injectEndpoints({
       transformResponse: unwrap,
       invalidatesTags: ['ProcurementPurchaseInvoices'],
     }),
-    purchaseInvoiceAction: b.mutation<PurchaseInvoiceDetail, { id: number; action: 'submit' | 'withdraw' | 'approve' | 'reject' | 'hold'; reason?: string }>({
-      query: ({ id, action, reason }) => ({ url: `/procurement/purchase-invoices/${id}/${action}`, method: 'POST', body: reason ? { reason } : {} }),
+    purchaseInvoiceAction: b.mutation<PurchaseInvoiceDetail, { id: number; action: 'submit' | 'withdraw' | 'approve' | 'reject' | 'hold'; reason?: string; note?: string }>({
+      query: ({ id, action, reason, note }) => ({ url: `/procurement/purchase-invoices/${id}/${action}`, method: 'POST', body: reason ? { reason } : note ? { note } : {} }),
       transformResponse: unwrap,
       invalidatesTags: ['ProcurementPurchaseInvoices'],
     }),
@@ -1059,6 +1094,7 @@ export const {
   useGetPurchaseInvoiceSummaryQuery,
   useGetPurchaseInvoiceQuery,
   useGetPurchaseOrderInvoiceDocumentsQuery,
+  useGetPurchaseInvoiceDestinationsQuery,
   useCreatePurchaseInvoiceMutation,
   useUpdatePurchaseInvoiceMutation,
   usePurchaseInvoiceActionMutation,

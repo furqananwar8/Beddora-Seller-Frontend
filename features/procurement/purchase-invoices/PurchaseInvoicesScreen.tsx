@@ -4,6 +4,7 @@ import React, { useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { FilterBar, FilterItem } from '@/components/filter-bar/FilterBar'
+import { FilterMultiSelect } from '@/components/filter-bar/FilterMultiSelect'
 import { useStagedFilters } from '@/components/filter-bar/useStagedFilters'
 import { FormField } from '@/components/form-field/FormField'
 import { Container } from '@/components/layout'
@@ -11,30 +12,26 @@ import { PaginationFooter } from '@/components/pagination-footer/PaginationFoote
 import { ReasonDialog } from '@/components/reason-dialog/ReasonDialog'
 import { RowActionsMenu, type RowActionItem } from '@/components/row-actions-menu/RowActionsMenu'
 import { StatusBadge } from '@/components/status-badge/StatusBadge'
-import { Select } from '@/design-system/inputs'
 import { Spinner } from '@/design-system/loaders'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/design-system/tables'
-import { SelectShell } from '@/features/finance/shared/SelectShell'
 import { formatCurrencyAmount } from '@/features/finance/shared/format'
-import { useGetFinanceMarketplacesQuery } from '@/services/api/finance.api'
-import { useGetPurchaseInvoicesQuery, useGetPurchaseInvoiceSummaryQuery, type PurchaseInvoiceListItem, type PurchaseInvoiceStatus } from '@/services/api/procurement.api'
+import { useGetPurchaseInvoiceDestinationsQuery, useGetPurchaseInvoicesQuery, useGetPurchaseInvoiceSummaryQuery, type PurchaseInvoiceListItem, type PurchaseInvoiceStatus } from '@/services/api/procurement.api'
 import { cn } from '@/utils/cn'
 import { useDebounce } from '@/utils/debounce'
 import { formatCalendarDay } from '@/utils/format'
 import { PDF_STATUS_META, PURCHASE_INVOICES_URL, PURCHASE_INVOICE_STATUSES, PURCHASE_INVOICE_STATUS_META, PurchaseInvoiceStatusBadge, formatPoNo } from '../shared/poMeta'
+import { PurchaseInvoiceDetailModal } from './PurchaseInvoiceDetailModal'
 import { usePurchaseInvoiceActions } from './usePurchaseInvoiceActions'
 
 const PAGE_SIZE = 20
 const CELL = 'text-center align-middle'
 const COLUMNS = 13
 
-type StatusFilter = 'ALL' | PurchaseInvoiceStatus
-
 interface Filters extends Record<string, unknown> {
-  status: StatusFilter
+  statuses: PurchaseInvoiceStatus[]
 }
 
-const DEFAULT_FILTERS: Filters = { status: 'ALL' }
+const DEFAULT_FILTERS: Filters = { statuses: [] }
 
 const positiveParam = (value: string | null): number | undefined => {
   const parsed = Number(value)
@@ -57,21 +54,24 @@ export const PurchaseInvoicesScreen: React.FC = () => {
   const [page, setPage] = useState(1)
   const filters = useStagedFilters(DEFAULT_FILTERS, () => setPage(1))
   const { applied, draft, setDraft, changed } = filters
-  const status = applied.status === 'ALL' ? undefined : applied.status
-
-  const { data, isLoading, isFetching, isError } = useGetPurchaseInvoicesQuery({ page, limit: PAGE_SIZE, search: debouncedSearch, purchaseOrderId, status })
+  const { data, isLoading, isFetching, isError } = useGetPurchaseInvoicesQuery({ page, limit: PAGE_SIZE, search: debouncedSearch, purchaseOrderId, statuses: applied.statuses })
   const { data: summary } = useGetPurchaseInvoiceSummaryQuery({ search: debouncedSearch, purchaseOrderId })
-  const { data: marketplaces } = useGetFinanceMarketplacesQuery()
+  const { data: marketplaces } = useGetPurchaseInvoiceDestinationsQuery()
   const actions = usePurchaseInvoiceActions()
   const [rejecting, setRejecting] = useState<PurchaseInvoiceListItem | null>(null)
 
-  const statusOptions = [
-    { value: 'ALL', label: `All${summary ? ` (${summary.all})` : ''}` },
-    ...PURCHASE_INVOICE_STATUSES.map((value) => ({ value, label: `${PURCHASE_INVOICE_STATUS_META[value].label}${summary ? ` (${summary.byStatus[value]})` : ''}` })),
-  ]
+  const statusOptions = PURCHASE_INVOICE_STATUSES.map((value) => ({ value, label: `${PURCHASE_INVOICE_STATUS_META[value].label}${summary ? ` (${summary.byStatus[value]})` : ''}` }))
+  /** `?open=` (from notifications and after saving) shows the invoice's details; closing drops it from the URL. */
+  const showDetails = (id: number | null) => {
+    const next = new URLSearchParams(params.toString())
+    if (id) next.set('open', String(id))
+    else next.delete('open')
+    router.replace(next.size ? `${pathname}?${next}` : pathname)
+  }
   const destinationName = (id: number | null) => (id ? (marketplaces?.find((m) => m.id === id)?.name ?? '—') : '—')
 
   const actionsFor = (row: PurchaseInvoiceListItem): RowActionItem[] => [
+    { key: 'view', label: row.can.decide ? 'View & decide' : 'View details', onSelect: () => showDetails(row.id) },
     { key: 'pdf', label: row.pdfStatus === 'READY' ? 'Download PDF' : 'Download PDF · generating…', onSelect: () => void actions.downloadPdf(row) },
     ...(row.can.edit ? [{ key: 'edit', label: 'Edit invoice', onSelect: () => router.push(`${PURCHASE_INVOICES_URL}/new?edit=${row.id}`) }] : []),
     ...(row.can.submit ? [{ key: 'submit', label: row.status === 'REJECTED' ? 'Resubmit for approval' : 'Submit for approval', onSelect: () => void actions.submit(row) }] : []),
@@ -127,15 +127,7 @@ export const PurchaseInvoicesScreen: React.FC = () => {
           </FilterItem>
           <FilterItem>
             <FormField label="Status" htmlFor="pi-status">
-              <SelectShell>
-                <Select
-                  id="pi-status"
-                  className={cn('appearance-none rounded-lg pr-9', changed.has('status') && 'ring-1 ring-primary-500')}
-                  value={draft.status}
-                  onChange={(event) => setDraft('status', event.target.value as StatusFilter)}
-                  options={statusOptions}
-                />
-              </SelectShell>
+              <FilterMultiSelect id="pi-status" options={statusOptions} value={draft.statuses} onChange={(v) => setDraft('statuses', v)} anyLabel="Any status" highlighted={changed.has('statuses')} />
             </FormField>
           </FilterItem>
         </FilterBar>
@@ -181,7 +173,7 @@ export const PurchaseInvoicesScreen: React.FC = () => {
                 </TableRow>
               ) : (
                 rows.map((row) => (
-                  <TableRow key={row.id} className={cn('hover:bg-secondary-50', row.id === openId && 'bg-primary-50')}>
+                  <TableRow key={row.id} className={cn('hover:bg-secondary-50', row.id === openId && 'bg-warning-50 hover:bg-warning-50')}>
                     <TableCell className={cn(CELL, 'whitespace-nowrap font-semibold text-text-primary')}>{row.invoiceRef}</TableCell>
                     <TableCell className={cn(CELL, 'whitespace-nowrap')}>{row.invoiceNo}</TableCell>
                     <TableCell className={cn(CELL, 'whitespace-nowrap')}>
@@ -216,6 +208,8 @@ export const PurchaseInvoicesScreen: React.FC = () => {
         </div>
         {data && <PaginationFooter page={data.page} pageSize={data.limit} totalItems={data.totalRecords} totalPages={data.totalPages} onPageChange={setPage} itemLabel="purchase invoices" />}
       </div>
+
+      <PurchaseInvoiceDetailModal invoiceId={openId ?? null} onClose={() => showDetails(null)} />
 
       <ReasonDialog
         isOpen={rejecting !== null}

@@ -46,7 +46,7 @@ export const PaymentTable: React.FC<PaymentTableProps> = ({ page, isLoading, isF
               <TableHead className={cn(HEAD, 'min-w-[180px]')}>Remarks</TableHead>
               <TableHead className={HEAD}>Status</TableHead>
               <TableHead className={cn(HEAD, 'min-w-[130px]')}>Payment status</TableHead>
-              <TableHead className={cn(HEAD, 'min-w-[260px]')}>Actions</TableHead>
+              <TableHead className={HEAD}>Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>

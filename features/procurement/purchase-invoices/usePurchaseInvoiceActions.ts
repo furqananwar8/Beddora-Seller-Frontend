@@ -27,10 +27,10 @@ export function usePurchaseInvoiceActions() {
   const { success, failure, info } = useApiFeedback()
   const [busy, setBusy] = useState<{ id: number; action: InvoiceAction } | null>(null)
 
-  const run = async (invoice: InvoiceRef, action: InvoiceAction, reason?: string): Promise<boolean> => {
+  const run = async (invoice: InvoiceRef, action: InvoiceAction, extra: { reason?: string; note?: string } = {}): Promise<boolean> => {
     setBusy({ id: invoice.id, action })
     try {
-      await mutate({ id: invoice.id, action, reason }).unwrap()
+      await mutate({ id: invoice.id, action, ...extra }).unwrap()
       success(DONE[action](invoice.invoiceRef))
       return true
     } catch (error) {
@@ -54,8 +54,8 @@ export function usePurchaseInvoiceActions() {
   return {
     submit: (invoice: InvoiceRef) => run(invoice, 'submit'),
     withdraw: (invoice: InvoiceRef) => run(invoice, 'withdraw'),
-    approve: (invoice: InvoiceRef) => run(invoice, 'approve'),
-    reject: (invoice: InvoiceRef, reason: string) => run(invoice, 'reject', reason),
+    approve: (invoice: InvoiceRef, note?: string) => run(invoice, 'approve', { note: note?.trim() || undefined }),
+    reject: (invoice: InvoiceRef, reason: string) => run(invoice, 'reject', { reason }),
     hold: (invoice: InvoiceRef) => run(invoice, 'hold'),
     downloadPdf,
     busy,

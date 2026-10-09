@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Controller, useForm } from 'react-hook-form'
+import { Controller, useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Container } from '@/components/layout'
 import { FileDropzone } from '@/components/file-dropzone/FileDropzone'
@@ -18,9 +18,9 @@ import { FormSection as Section } from '@/features/finance/shared/FormSection'
 import { SelectShell } from '@/features/finance/shared/SelectShell'
 import { formatMoney, toDateInputValue } from '@/features/finance/shared/format'
 import { PartnerChips, PartnerSelect, toPartnerOption } from '@/features/finance/payment-requests/PartnerSelect'
-import { CURRENCIES, filesFormData, parseAmount } from '@/features/finance/payment-requests/schema'
+import { CURRENCIES, filesFormData } from '@/features/finance/payment-requests/schema'
 import { useApiFeedback } from '@/hooks/useApiFeedback'
-import { FinanceDocument, PartnerOption, useGetExpenseTypesQuery, useGetFinanceMarketplacesQuery, useGetPartnerQuery } from '@/services/api/finance.api'
+import { FinanceDocument, PartnerOption, useGetExpenseTypesQuery, useGetPartnerQuery } from '@/services/api/finance.api'
 import {
   PurchaseInvoiceDetail,
   purchaseInvoiceDocumentPath,
@@ -29,13 +29,26 @@ import {
   useGetProcurementPurchaseOrderQuery,
   useGetPurchaseInvoiceQuery,
   useGetPurchaseOrderInvoiceDocumentsQuery,
+  useGetPurchaseInvoiceDestinationsQuery,
   usePurchaseInvoiceActionMutation,
   useRemovePurchaseInvoiceDocumentMutation,
   useUpdatePurchaseInvoiceMutation,
 } from '@/services/api/procurement.api'
 import { financeDocumentPath } from '@/features/finance/shared/downloadDocument'
 import { PURCHASE_INVOICES_URL, PURCHASE_INVOICE_STATUS_META, formatPoNo } from '../shared/poMeta'
-import { PurchaseInvoiceFormValues, emptyFormValues, purchaseInvoiceSchema, toCreateFormData, toUpdateBody } from './schema'
+import { InvoiceExpensesSection } from './InvoiceExpensesSection'
+import { InvoiceItemsSection } from './InvoiceItemsSection'
+import {
+  PurchaseInvoiceFormValues,
+  emptyFormValues,
+  expensesFromInvoice,
+  invoiceTotals,
+  linesFromInvoice,
+  linesFromPurchaseOrder,
+  purchaseInvoiceSchema,
+  toCreateFormData,
+  toUpdateBody,
+} from './schema'
 
 const positiveParam = (value: string | null): number | null => {
   const parsed = Number(value)
@@ -48,7 +61,8 @@ const toFormValues = (detail: PurchaseInvoiceDetail): PurchaseInvoiceFormValues 
   invoiceDate: toDateInputValue(detail.invoiceDate),
   marketplaceId: detail.marketplaceId ? String(detail.marketplaceId) : '',
   currency: detail.currency,
-  amount: formatMoney(detail.amount),
+  lines: linesFromInvoice(detail),
+  expenses: expensesFromInvoice(detail),
   expenseTypeId: String(detail.expenseType.id),
   remarks: detail.remarks ?? '',
 })
@@ -76,7 +90,7 @@ export const PurchaseInvoiceFormScreen: React.FC = () => {
   // Without access to partner profiles the PO's own supplier record still names the partner
   const supplier = supplierProfile ?? (po && supplierError ? { ...po.supplier, type: 'SUPPLIER' as const } : undefined)
   const { data: expenseTypes } = useGetExpenseTypesQuery()
-  const { data: marketplaces } = useGetFinanceMarketplacesQuery()
+  const { data: marketplaces } = useGetPurchaseInvoiceDestinationsQuery()
 
   const [createInvoice] = useCreatePurchaseInvoiceMutation()
   const [updateInvoice] = useUpdatePurchaseInvoiceMutation()
@@ -90,6 +104,7 @@ export const PurchaseInvoiceFormScreen: React.FC = () => {
     handleSubmit,
     reset,
     setValue,
+    getValues,
     watch,
     formState: { errors },
   } = useForm<PurchaseInvoiceFormValues>({ resolver: zodResolver(purchaseInvoiceSchema), defaultValues: emptyFormValues })
@@ -109,20 +124,21 @@ export const PurchaseInvoiceFormScreen: React.FC = () => {
     setPartner(toPartnerOption(detail.partner))
   }, [isNew, detail, reset])
 
-  // New: start from the purchase order once its supplier and the destinations are known.
+  // New: start from the purchase order once its supplier is known
   useEffect(() => {
-    if (!isNew || !po || !supplier || !marketplaces || hydrated.current) return
+    if (!isNew || !po || !supplier || hydrated.current) return
     hydrated.current = true
-    const destination = marketplaces.find((marketplace) => marketplace.code === po.destination)
-    reset({
-      ...emptyFormValues,
-      partnerId: String(supplier.id),
-      marketplaceId: destination ? String(destination.id) : '',
-      currency: po.currency,
-      amount: po.totals.amount > 0 ? formatMoney(po.totals.amount) : '',
-    })
+    reset({ ...emptyFormValues, partnerId: String(supplier.id), currency: po.currency, lines: linesFromPurchaseOrder(po) })
     setPartner(toPartnerOption(supplier))
-  }, [isNew, po, supplier, marketplaces, reset])
+  }, [isNew, po, supplier, reset])
+
+  // New: the PO's destination, as soon as the destination options have loaded (never overrides a choice)
+  useEffect(() => {
+    if (!isNew || !po || !marketplaces || !hydrated.current || getValues('marketplaceId')) return
+    const destination = marketplaces.find((marketplace) => marketplace.code === po.destination)
+    if (destination) setValue('marketplaceId', String(destination.id))
+    // `partner` is set by the hydration above, so this re-runs once the form holds the PO
+  }, [isNew, po, marketplaces, getValues, setValue, partner])
 
   // New: every document of the PO's payment requests is carried over until removed.
   useEffect(() => {
@@ -130,6 +146,9 @@ export const PurchaseInvoiceFormScreen: React.FC = () => {
   }, [isNew, poDocuments, carried])
 
   const currency = watch('currency')
+  const lines = useWatch({ control, name: 'lines' }) ?? []
+  const expenses = useWatch({ control, name: 'expenses' }) ?? []
+  const totals = invoiceTotals({ lines, expenses })
   const currencyOptions = [...new Set([...CURRENCIES, ...(currency ? [currency] : [])])].map((code) => ({ value: code, label: code }))
   const savedDocuments: FinanceDocument[] = detail?.documents ?? []
   const shownDocuments = isNew && !savedId ? (carried ?? []) : savedDocuments
@@ -197,7 +216,7 @@ export const PurchaseInvoiceFormScreen: React.FC = () => {
     )
   }
 
-  if ((!isNew && loadingDetail) || (isNew && !hydrated.current && !(po && supplier && marketplaces))) {
+  if ((!isNew && loadingDetail) || (isNew && !hydrated.current && !(po && supplier))) {
     return (
       <Container size="full" className="py-4 sm:py-8">
         <div className="flex justify-center py-24">
@@ -230,7 +249,7 @@ export const PurchaseInvoiceFormScreen: React.FC = () => {
         <Section title="Invoice & shipment">
           <div className="grid gap-4 sm:grid-cols-3">
             <FormField label="Invoice No" htmlFor="invoiceNo" required error={errors.invoiceNo?.message}>
-              <Input id="invoiceNo" className="rounded-lg" placeholder="INV-10442" {...register('invoiceNo')} />
+              <Input id="invoiceNo" autoComplete="off" className="rounded-lg" placeholder="INV-10442" {...register('invoiceNo')} />
             </FormField>
             <FormField label="Invoice Date" htmlFor="invoiceDate" required error={errors.invoiceDate?.message}>
               <Controller
@@ -252,6 +271,10 @@ export const PurchaseInvoiceFormScreen: React.FC = () => {
           </div>
         </Section>
 
+        <InvoiceItemsSection control={control} register={register} errors={errors} currency={currency} poNo={purchaseOrderId ? formatPoNo(purchaseOrderId) : ''} invoiceNo={watch('invoiceNo')} />
+
+        <InvoiceExpensesSection control={control} register={register} errors={errors} currency={currency} />
+
         <Section title="Amount & category" note="prefilled from the purchase order">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-[1fr_2fr_2fr]">
             <FormField label="Currency" htmlFor="currency" required error={errors.currency?.message}>
@@ -259,27 +282,8 @@ export const PurchaseInvoiceFormScreen: React.FC = () => {
                 <Select id="currency" className="appearance-none rounded-lg pr-9" options={[{ value: '', label: 'Select' }, ...currencyOptions]} {...register('currency')} />
               </SelectShell>
             </FormField>
-            <FormField label="Amount" htmlFor="amount" required error={errors.amount?.message}>
-              <Controller
-                control={control}
-                name="amount"
-                render={({ field }) => (
-                  <Input
-                    id="amount"
-                    inputMode="decimal"
-                    placeholder="0.00"
-                    className="rounded-lg text-right"
-                    value={field.value}
-                    ref={field.ref}
-                    onChange={(e) => field.onChange(e.target.value)}
-                    onBlur={() => {
-                      const parsed = parseAmount(field.value)
-                      if (field.value.trim() && Number.isFinite(parsed)) field.onChange(formatMoney(parsed))
-                      field.onBlur()
-                    }}
-                  />
-                )}
-              />
+            <FormField label="Amount" htmlFor="amount" hint="Invoiced items + additional expenses">
+              <Input id="amount" readOnly tabIndex={-1} className="rounded-lg bg-secondary-50 text-right font-semibold" value={formatMoney(totals.amount)} />
             </FormField>
             <FormField label="Expense Type" htmlFor="expenseTypeId" required error={errors.expenseTypeId?.message}>
               <SelectShell>
