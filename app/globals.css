@@ -34,17 +34,8 @@
     border-radius: 9999px !important;
   }
 
-  /*
-   * A table's scroll container sets --table-head-h (see useTableScrollbarOffset) so its vertical track starts below the
-   * sticky header. Reset on every element so nested scrollers don't inherit it.
-   */
-  * {
-    --table-head-h: 0px;
-  }
-
   *::-webkit-scrollbar-track {
     background: transparent;
-    margin-top: var(--table-head-h);
   }
 
   @supports not selector(::-webkit-scrollbar) {
