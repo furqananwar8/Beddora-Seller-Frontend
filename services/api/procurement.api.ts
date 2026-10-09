@@ -1,5 +1,5 @@
 import { baseApi } from './baseApi'
-import type { FinanceDocument, Page, PageParams, PartnerType, UserRef } from './finance.api'
+import type { CostCenterOption, FinanceDocument, Page, PageParams, PartnerType, UserRef } from './finance.api'
 
 interface Envelope<T> {
   success: boolean
@@ -304,7 +304,9 @@ export interface PurchaseInvoiceListItem {
   decisionNote: string | null
   createdAt: string
   partner: { id: number; name: string }
+  /** Display name of what it is booked to: the L4 cost center's path (or, on older invoices, the expense type). */
   expenseType: { id: number; name: string }
+  costCenter: CostCenterOption | null
   createdBy: UserRef
   decidedBy: UserRef | null
   can: PurchaseInvoiceCan
@@ -361,7 +363,7 @@ export interface PurchaseInvoiceBody {
   invoiceNo: string
   invoiceDate: string
   marketplaceId: number | null
-  expenseTypeId: number
+  costCenterId: number
   currency: string
   remarks: string | null
   /** The invoice amount is worked out from these on the server. */
@@ -875,6 +877,12 @@ export const procurementApi = baseApi.injectEndpoints({
       transformResponse: unwrap,
       providesTags: ['ProcurementPurchaseInvoices'],
     }),
+    /** L4 cost centers to book the invoice to, without needing Finance access. */
+    getPurchaseInvoiceCostCenters: b.query<CostCenterOption[], void>({
+      query: () => '/procurement/purchase-invoices/cost-centers',
+      transformResponse: unwrap,
+      providesTags: ['FinanceCostCenters'],
+    }),
     /** Destination marketplaces, without needing Finance access. */
     getPurchaseInvoiceDestinations: b.query<Array<{ id: number; name: string; code: string }>, void>({
       query: () => '/procurement/purchase-invoices/destinations',
@@ -1095,6 +1103,7 @@ export const {
   useGetPurchaseInvoiceQuery,
   useGetPurchaseOrderInvoiceDocumentsQuery,
   useGetPurchaseInvoiceDestinationsQuery,
+  useGetPurchaseInvoiceCostCentersQuery,
   useCreatePurchaseInvoiceMutation,
   useUpdatePurchaseInvoiceMutation,
   usePurchaseInvoiceActionMutation,

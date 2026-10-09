@@ -43,7 +43,7 @@ const Summary: React.FC<{ detail: PurchaseInvoiceDetail }> = ({ detail }) => {
       <span className="font-normal text-text-muted">· ordered {formatCurrencyAmount(detail.currency, detail.totals.po)}</span>
     </Row>
     <Row label="Destination">{destination}</Row>
-    <Row label="Expense type">{detail.expenseType.name}</Row>
+    <Row label="Expense">{detail.expenseType.name}</Row>
     <Row label="Amount">
       <span className="text-base">{formatCurrencyAmount(detail.currency, detail.amount)}</span>
       <span className="block text-xs font-normal text-text-muted">
