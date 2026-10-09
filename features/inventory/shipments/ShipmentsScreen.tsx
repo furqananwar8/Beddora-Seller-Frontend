@@ -7,7 +7,6 @@ import { addNotification } from '@/store/ui.slice'
 import { Container } from '@/components/layout'
 import { Button } from '@/design-system/buttons'
 import { Card, CardContent } from '@/design-system/cards'
-import { Spinner } from '@/design-system/loaders'
 import {
   Table,
   TableBody,
@@ -36,7 +35,7 @@ import { PackingModal } from './PackingModal'
 import { CarrierModal } from './CarrierModal'
 import { LabelFormatProvider, useLabelFormatState } from './labelFormats'
 import { EditShipFromModal } from './EditShipFromModal'
-import { formatRelative, formatUnits, unitsLabel } from './ShipmentParts'
+import { formatUnits, unitsLabel } from './ShipmentParts'
 
 type StatusFilter = 'all' | ShipmentStatus
 
@@ -82,7 +81,6 @@ export const ShipmentsScreen: React.FC = () => {
     pool,
     mode,
     labelFormats: labelFormatCatalog,
-    lastSyncedAt,
     createShipment,
     saveItems,
     submitPlan,
@@ -98,7 +96,6 @@ export const ShipmentsScreen: React.FC = () => {
     getShipRequirements,
     markShipped,
     cancelShipment,
-    sync,
   } = useShipments()
 
   const labelFormats = useLabelFormatState(labelFormatCatalog)
@@ -131,11 +128,10 @@ export const ShipmentsScreen: React.FC = () => {
   // ---- Dialogs ----
   const [ui, setUi] = useState<{
     dialog: Dialog
-    isSyncing: boolean
     /** Label downloads in progress, keyed "shipmentId:type"; survives closing the dialog. */
     downloading: Record<string, true>
-  }>({ dialog: null, isSyncing: false, downloading: {} })
-  const { dialog, isSyncing, downloading } = ui
+  }>({ dialog: null, downloading: {} })
+  const { dialog, downloading } = ui
   const openDialog = (next: Dialog) => setUi((prev) => ({ ...prev, dialog: next }))
   const closeDialog = useCallback(() => setUi((prev) => ({ ...prev, dialog: null })), [])
   /**
@@ -160,12 +156,6 @@ export const ShipmentsScreen: React.FC = () => {
 
   // ---- Derived ----
   const unassigned = useMemo(() => getUnassignedUnits(pool, shipments), [pool, shipments])
-
-  // Amazon is also polled in the background, so the latest of that and our own sync is what "synced" means
-  const lastSynced = useMemo(
-    () => shipments.reduce((latest, s) => (s.syncedAt && s.syncedAt > latest ? s.syncedAt : latest), lastSyncedAt),
-    [shipments, lastSyncedAt]
-  )
 
   const summary = useMemo(() => {
     const by = (st: ShipmentStatus) => shipments.filter((s) => s.status === st)
@@ -248,10 +238,6 @@ export const ShipmentsScreen: React.FC = () => {
       throw err
     }
   }
-
-  /** Same as run, for fire-and-forget buttons: the toast is the whole error handling. */
-  const attempt = (fn: () => Promise<unknown>, success: string, failure: string) =>
-    run(fn, success, failure).catch(() => undefined)
 
   /**
    * Guided flow: once a step succeeds, open the next one. Labels need no input,
@@ -372,19 +358,14 @@ export const ShipmentsScreen: React.FC = () => {
   const downloadingFor = (id: string): Partial<Record<LabelType, boolean>> =>
     Object.fromEntries((['box', 'unit', 'pallet'] as LabelType[]).map((t) => [t, !!downloading[`${id}:${t}`]]))
 
-  const handleSync = async () => {
-    setUi((prev) => ({ ...prev, isSyncing: true }))
-    await attempt(sync, 'Shipment statuses synced from Amazon', 'Sync failed')
-    setUi((prev) => ({ ...prev, isSyncing: false }))
-  }
-
   const openCreate = () => openDialog({ type: 'create', preselect: [] })
 
   /** Save draft holds the units; Confirm with Amazon also creates the inbound plan. */
   const handleCreate = async (input: CreateShipmentInput, createMode: CreateMode) => {
     let created
     try {
-      created = await createShipment(input)
+      // Confirming goes on to the Amazon plan, so the draft stays hidden until that call returns
+      created = await createShipment(input, { deferListRefresh: createMode === 'confirm' })
     } catch (err) {
       dispatch(addNotification({ message: (err as Error).message || 'Could not create the shipment', type: 'error' }))
       throw err
@@ -421,14 +402,6 @@ export const ShipmentsScreen: React.FC = () => {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-xs text-text-muted">Synced {formatRelative(lastSynced)}</span>
-          <Button variant="outline" onClick={handleSync} disabled={isSyncing}>
-            {isSyncing ? (
-              <span className="flex items-center gap-2"><Spinner size="sm" /> Syncing…</span>
-            ) : (
-              'Sync from Amazon'
-            )}
-          </Button>
           <Button onClick={openCreate} disabled={summary.unassignedUnits === 0}>
             + New shipment
           </Button>
@@ -580,15 +553,17 @@ export const ShipmentsScreen: React.FC = () => {
                       run(
                         () => saveItems(s.id, items),
                         s.stage === 'plan_created'
-                          ? `${s.reference} updated. The Amazon plan was cancelled; send it to Amazon again.`
+                          ? `${s.reference} updated. A new Amazon plan was created.`
                           : `${s.reference} quantities saved`,
                         'Could not save quantities'
                       )
                     }
                     onAction={(action) => handleAction(s.id, action)}
                     onCancel={() => openDialog({ type: 'cancel', id: s.id })}
+                    onGoBack={(to) => handleBack(s.id, to)}
                     onDownloadLabel={(type) => handleDownloadLabel(s.id, type)}
-                    downloadingLabels={downloadingFor(s.id)}
+                    // The open dialog's own buttons show the progress, so the row behind it stays still
+                    downloadingLabels={shippingTarget?.id === s.id ? {} : downloadingFor(s.id)}
                   />
                 ))
               )}
@@ -643,6 +618,7 @@ export const ShipmentsScreen: React.FC = () => {
 
       <MarkShippedModal
         shipment={shippingTarget}
+        pool={pool}
         onDownloadLabel={(type) => shippingTarget && handleDownloadLabel(shippingTarget.id, type)}
         downloadingLabels={shippingTarget ? downloadingFor(shippingTarget.id) : {}}
         onBack={() => shippingTarget && handleBack(shippingTarget.id, 'carrier')}

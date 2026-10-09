@@ -60,11 +60,6 @@ const FBA_OPTIONS = [
   { id: 'fba_and_fbm', name: 'FBA And FBM' },
 ]
 
-const OOS_OPTIONS = [
-  { id: 'show_oos', name: 'Show OOS Items' },
-  { id: 'hide_oos', name: 'Hide OOS Items' },
-]
-
 const MARKETPLACES = [
   { id: 'Amazon.ca', name: 'Canada' },
   { id: 'Amazon.com', name: 'USA' },
@@ -75,13 +70,18 @@ const MARKETPLACES = [
 // SCREEN COMPONENT
 // ============================================
 
-export const InventoryPlannerScreen: React.FC = () => {
+export const InventoryPlannerScreen: React.FC<{ initialSearch?: string }> = ({ initialSearch = '' }) => {
   const dispatch = useAppDispatch()
   const router = useRouter()
 
   // ---- Search ----
-  const [searchTerm, setSearchTerm] = useState<string>('')
+  const [searchTerm, setSearchTerm] = useState<string>(initialSearch)
   const debouncedSearch = useDebounce(searchTerm, 300)
+  /** Empties the box, and drops a ?search= the page was opened with so a refresh doesn't bring it back. */
+  const clearSearch = () => {
+    setSearchTerm('')
+    if (window.location.search.includes('search=')) router.replace(window.location.pathname)
+  }
 
   // ---- Selected products ----
   const [selectedProducts, setSelectedProducts] = useState<string[]>([])
@@ -112,11 +112,9 @@ export const InventoryPlannerScreen: React.FC = () => {
   const [pendingFilters, setPendingFilters] = useState<{
     fba: string[]
     marketplaces: string[]
-    oos: string[]
   }>({
     fba: ['fba'],
     marketplaces: ['Amazon.ca', 'Amazon.com', 'Amazon.mx'],
-    oos: ['show_oos'],
   })
 
   // ---- Applied filters (drive API) ----
@@ -134,7 +132,8 @@ export const InventoryPlannerScreen: React.FC = () => {
     if (appliedFilters.marketplaces.length > 0) {
       result.marketplaces = appliedFilters.marketplaces
     }
-    result.showOos = appliedFilters.oos.includes('show_oos')
+    // Out-of-stock items are always listed
+    result.showOos = true
     return result
   }, [debouncedSearch, appliedFilters])
 
@@ -327,8 +326,20 @@ export const InventoryPlannerScreen: React.FC = () => {
                   placeholder="Search"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 text-sm bg-surface-primary border border-border-primary rounded-md text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary-200 focus:border-primary-600"
+                  className={`w-full pl-10 ${searchTerm ? 'pr-10' : 'pr-4'} py-2.5 text-sm bg-surface-primary border border-border-primary rounded-md text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary-200 focus:border-primary-600`}
                 />
+                {searchTerm && (
+                  <button
+                    type="button"
+                    onClick={clearSearch}
+                    aria-label="Clear search"
+                    className="absolute right-2 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded text-text-muted hover:bg-surface-secondary hover:text-text-primary"
+                  >
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
               </div>
 
               {/* Multi-Select Filters */}
@@ -347,15 +358,6 @@ export const InventoryPlannerScreen: React.FC = () => {
                   value={pendingFilters.marketplaces}
                   onChange={(val: any) => setPendingFilters((prev) => ({ ...prev, marketplaces: val }))}
                   placeholder="All marketplaces"
-                />
-
-                <MultiSelectInput
-                  title="OOS"
-                  options={OOS_OPTIONS}
-                  value={pendingFilters.oos}
-                  onChange={(val: any) => setPendingFilters((prev) => ({ ...prev, oos: val }))}
-                  single
-                  placeholder="Show OOS Items"
                 />
 
                 <Button variant="primary" onClick={handleApplyFilters}>

@@ -51,6 +51,10 @@ export interface CreateShipmentRequest {
   saveShipFromAddress?: boolean
 }
 
+export interface CreateShipmentArg extends CreateShipmentRequest {
+  /** Client only: keep the new draft out of the list until the follow-up call finishes. */
+  deferListRefresh?: boolean
+}
 
 /**
  * FBA inbound shipments. Local actions reserve / release / ship stock; the
@@ -75,9 +79,10 @@ export const inboundShipmentsApi = baseApi.injectEndpoints({
       providesTags: ['InboundShipments', 'Inventory'],
     }),
 
-    createShipment: builder.mutation<InboundShipment, CreateShipmentRequest>({
-      query: (body) => ({ url: '/inventory/shipments', method: 'POST', body }),
-      invalidatesTags: ['InboundShipments', 'Inventory'],
+    createShipment: builder.mutation<InboundShipment, CreateShipmentArg>({
+      query: ({ deferListRefresh: _defer, ...body }) => ({ url: '/inventory/shipments', method: 'POST', body }),
+      // When the caller goes straight on to the Amazon plan, the plan call refreshes the list instead
+      invalidatesTags: (_result, _error, arg) => (arg.deferListRefresh ? ['Inventory'] : ['InboundShipments', 'Inventory']),
     }),
 
     updateShipmentItems: builder.mutation<InboundShipment, { id: string; items: ShipmentLineInput[] }>({

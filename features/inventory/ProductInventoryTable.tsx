@@ -341,7 +341,7 @@ export const ProductInventoryTable = ({
                             onChange={(value) => value[0] && setDraftField(product.id, 'status', value[0])}
                           />
                         ) : (
-                          <Badge variant={STATUS_BADGE[product.status]}>{statusLabel(product.status)}</Badge>
+                          <Badge variant={STATUS_BADGE[product.status]} className="uppercase">{statusLabel(product.status)}</Badge>
                         )}
                       </TableCell>
                       <TableCell className={CELL_CLASS}>

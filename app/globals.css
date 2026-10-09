@@ -17,13 +17,41 @@
   * {
     @apply border-border;
     border-radius: 0 !important;
-    scrollbar-width: none;
-    -ms-overflow-style: none; /* IE and Edge */
-
   }
 
+  /*
+   * Scrollbars are shown on every scroll container, vertical and horizontal, and only appear where content overflows.
+   * In WebKit `width` sizes the vertical bar and `height` the horizontal one. Chrome ignores these pseudo-elements once
+   * `scrollbar-width`/`scrollbar-color` are set, so those are given only to browsers without them (Firefox).
+   */
   *::-webkit-scrollbar {
-    display: none;
+    width: 10px;
+    height: 10px;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background: theme('colors.primary.500');
+    border-radius: 9999px !important;
+  }
+
+  /*
+   * A table's scroll container sets --table-head-h (see useTableScrollbarOffset) so its vertical track starts below the
+   * sticky header. Reset on every element so nested scrollers don't inherit it.
+   */
+  * {
+    --table-head-h: 0px;
+  }
+
+  *::-webkit-scrollbar-track {
+    background: transparent;
+    margin-top: var(--table-head-h);
+  }
+
+  @supports not selector(::-webkit-scrollbar) {
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: theme('colors.primary.500') transparent;
+    }
   }
 
   body {
@@ -264,44 +292,9 @@
     @apply mt-1 text-sm text-danger-600;
   }
 
-  /* Wrapper for a wide table. It also scrolls vertically when its height is capped (mouse wheel); that bar stays hidden. */
+  /* Wrapper for a wide table. It also scrolls vertically when its height is capped. */
   .ds-scroll-x {
     overflow-x: auto;
-  }
-
-  /*
-   * Every table's scroll container shows a horizontal scrollbar and never a vertical one: the global reset hides all
-   * scrollbars, and any scroll container holding a table opts back in here, so new tables get it without a class.
-   * Vertical scrolling (page or container) stays on the mouse wheel. In WebKit `height` sizes the horizontal bar and
-   * `width` the vertical one. Chrome ignores these pseudo-elements once `scrollbar-width`/`scrollbar-color` are set, so
-   * those are given only to browsers without them (Firefox), which cannot split the axes and shows its thin bars.
-   */
-  :is(.ds-scroll-x, .ds-table-wrap, .overflow-x-auto, .overflow-x-scroll, .overflow-auto, .overflow-scroll, .overflow-y-auto):has(table) {
-    /* Undo the reset's `none`, which would also switch the pseudo-elements below off in Chrome */
-    scrollbar-width: auto;
-    scrollbar-color: auto;
-  }
-
-  @supports not selector(::-webkit-scrollbar) {
-    :is(.ds-scroll-x, .ds-table-wrap, .overflow-x-auto, .overflow-x-scroll, .overflow-auto, .overflow-scroll, .overflow-y-auto):has(table) {
-      scrollbar-width: thin;
-      scrollbar-color: theme('colors.primary.500') transparent;
-    }
-  }
-
-  :is(.ds-scroll-x, .ds-table-wrap, .overflow-x-auto, .overflow-x-scroll, .overflow-auto, .overflow-scroll, .overflow-y-auto):has(table)::-webkit-scrollbar {
-    display: block;
-    width: 0;
-    height: 10px;
-  }
-
-  :is(.ds-scroll-x, .ds-table-wrap, .overflow-x-auto, .overflow-x-scroll, .overflow-auto, .overflow-scroll, .overflow-y-auto):has(table)::-webkit-scrollbar-thumb {
-    background: theme('colors.primary.500');
-    border-radius: 9999px !important;
-  }
-
-  :is(.ds-scroll-x, .ds-table-wrap, .overflow-x-auto, .overflow-x-scroll, .overflow-auto, .overflow-scroll, .overflow-y-auto):has(table)::-webkit-scrollbar-track {
-    background: transparent;
   }
 
   /* Tables */

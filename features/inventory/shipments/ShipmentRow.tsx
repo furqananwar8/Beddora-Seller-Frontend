@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import Link from 'next/link'
 import { TableCell, TableRow } from '@/design-system/tables'
 import { Button } from '@/design-system/buttons'
 import { Spinner } from '@/design-system/loaders'
@@ -9,7 +10,7 @@ import { formatCurrency } from '@/utils/format'
 import { formatAddressLine } from './AddressForm'
 import { ShipFromChoice, ShipFromPicker, shipFromRequest } from './ShipFromPicker'
 import { LabelDownloadControl } from './labelFormats'
-import type { ShipFromRequest } from './useShipments'
+import type { RewindTarget, ShipFromRequest } from './useShipments'
 import {
   InboundShipment,
   InboundShipmentItem,
@@ -42,6 +43,9 @@ import {
 
 export const SHIPMENT_TABLE_COLUMNS = 11
 
+/** The planner opens already searched for the product. */
+const plannerSearchHref = (title: string) => `/dashboard/inventory/planner?search=${encodeURIComponent(title)}`
+
 interface ShipmentRowProps {
   shipment: InboundShipment
   isExpanded: boolean
@@ -55,6 +59,8 @@ interface ShipmentRowProps {
   onChangeShipFrom: (choice: ShipFromRequest) => Promise<unknown>
   onAction: (action: NextAction) => Promise<void> | void
   onCancel: () => void
+  /** Redo a completed step from the stepper. */
+  onGoBack: (to: RewindTarget) => void
   onDownloadLabel: (type: LabelType) => void
   /** Label downloads running for this shipment. */
   downloadingLabels: Partial<Record<LabelType, boolean>>
@@ -80,6 +86,7 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({
   onChangeShipFrom,
   onAction,
   onCancel,
+  onGoBack,
   onDownloadLabel,
   downloadingLabels,
 }) => {
@@ -331,7 +338,7 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({
         <TableRow className="hover:bg-transparent">
           <TableCell colSpan={SHIPMENT_TABLE_COLUMNS} className="bg-background p-0">
             <div className="space-y-4 border-l-2 border-secondary-800 px-6 py-5">
-              <WorkflowStepper shipment={shipment} />
+              <WorkflowStepper shipment={shipment} onGoBack={onGoBack} onReopen={onAction} />
 
               {/* Amazon details */}
               <dl className="grid grid-cols-2 gap-x-6 gap-y-3 rounded-lg border border-border bg-surface p-4 text-sm md:grid-cols-3 xl:grid-cols-6">
@@ -454,7 +461,7 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({
                     <p className="text-xs text-text-muted">
                       {editable
                         ? shipment.stage === 'plan_created'
-                          ? 'Saving changes cancels the Amazon plan; send it to Amazon again afterwards.'
+                          ? 'Saving changes recreates the Amazon plan from the updated products.'
                           : 'Quantities come from your FBA reserved pool.'
                         : shipment.status === 'in_progress'
                         ? 'Quantities are locked once box contents are sent. Cancel and re-plan to change them.'
@@ -524,15 +531,19 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({
                       return (
                         <tr key={item.productId} className="border-b border-border/60 last:border-0">
                           <td className="px-4 py-2.5">
-                            <div className="flex items-center gap-3">
+                            <Link
+                              href={plannerSearchHref(item.title)}
+                              title="Find this product in the planner"
+                              className="group flex items-center gap-3"
+                            >
                               <ProductThumb src={item.imageUrl} alt={item.title} size="sm" />
                               <div className="min-w-0">
-                                <div className="max-w-md truncate text-text-primary">{item.title}</div>
+                                <div className="max-w-md truncate text-text-primary group-hover:text-primary-700 group-hover:underline">{item.title}</div>
                                 <div className="text-xs text-text-muted">
                                   <span className="font-mono">{item.sku}</span> · {item.asin}
                                 </div>
                               </div>
-                            </div>
+                            </Link>
                           </td>
                           <td className="px-4 py-2.5 font-mono text-xs text-text-muted">{item.fnsku ?? '—'}</td>
                           {editable && (
@@ -674,7 +685,7 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({
                       </Button>
                       <Button size="sm" onClick={handleSave} disabled={hasErrors || isSaving}>
                         {isSaving ? (
-                          <span className="flex items-center gap-2"><Spinner size="sm" className="text-white" /> Saving…</span>
+                          <span className="flex items-center gap-2"><Spinner size="sm" className="text-white" /> {shipment.stage === 'plan_created' ? 'Recreating Amazon plan…' : 'Saving…'}</span>
                         ) : (
                           'Save quantities'
                         )}
@@ -692,7 +703,7 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({
                           {isActing ? (
                             <span className="flex items-center gap-2"><Spinner size="sm" className="text-white" /> Working…</span>
                           ) : (
-                            `${next.label} →`
+                            next.label
                           )}
                         </Button>
                       )}

@@ -10,6 +10,7 @@ import { NavIcons } from '@/components/navigation/icons'
 import { setAmazonSession } from '@/store/amazon.slice'
 import { useAppAbility } from '@/hooks/useAppAbility'
 import { AiAssistant } from '@/components/ai-assistant'
+import { useTableScrollbarOffset } from '@/hooks/useTableScrollbarOffset'
 
 export interface NavItem {
   label: string
@@ -28,6 +29,7 @@ export default function DashboardLayout({
   children: React.ReactNode
 }) {
   const router = useRouter()
+  useTableScrollbarOffset()
   const dispatch = useAppDispatch()
   const user = useAppSelector((state) => state.auth.user)
   const refreshToken = useAppSelector((state) => state.auth.refreshToken)
