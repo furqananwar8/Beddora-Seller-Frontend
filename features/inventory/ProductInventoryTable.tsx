@@ -69,7 +69,11 @@ const STATUS_BADGE: Record<InventoryItemStatus, 'success' | 'secondary' | 'warni
   DISCONTINUED: 'warning',
 }
 
-const HEAD_CLASS = 'sticky top-0 z-20 bg-surface py-3 px-4 border-b border-border align-middle text-center'
+// The checkbox and Product columns stay put while the rest scroll behind them: a fixed-width checkbox column lets the
+// Product column pin right next to it (left-[3rem] = that width). The first column itself is pinned by the shared table.
+const CHECKBOX_COL_CLASS = 'w-12 min-w-[3rem] max-w-[3rem]'
+const pinnedBg = (editing: boolean) => (editing ? 'bg-surface-secondary' : 'bg-surface')
+const HEAD_CLASS ='sticky top-0 z-20 bg-surface py-3 px-4 border-b border-border align-middle text-center'
 const CELL_CLASS = 'text-center align-middle'
 // Edit fields share one shape so text inputs and the status dropdown line up
 const FIELD_CLASS = 'h-10 py-2.5 rounded-lg text-sm text-center'
@@ -218,7 +222,7 @@ export const ProductInventoryTable = ({
           <Table className={cn('min-w-full border-separate border-spacing-0', isTableEmpty && 'h-full flex-1')}>
             <TableHeader className="sticky top-0 z-20 bg-surface shadow-sm">
               <TableRow className="bg-surface h-12">
-                <TableHead className={cn(HEAD_CLASS, 'w-12')}>
+                <TableHead className={cn(HEAD_CLASS, CHECKBOX_COL_CLASS)}>
                   <input
                     type="checkbox"
                     checked={allSelected}
@@ -228,7 +232,7 @@ export const ProductInventoryTable = ({
                     className="rounded border-border-primary"
                   />
                 </TableHead>
-                <SortableHead column="description" label="Product" className="min-w-[320px]" />
+                <SortableHead column="description" label="Product" className="ds-pinned-col left-[3rem] min-w-[320px]" />
                 <SortableHead column="totalQuantity" label="Total quantity" className="min-w-[170px]" />
                 <SortableHead column="amazonReserve" label="Amazon reserve" className="min-w-[170px]" />
                 <SortableHead column="otherMarketReserve" label="Other market reserve" className="min-w-[210px]" />
@@ -270,8 +274,8 @@ export const ProductInventoryTable = ({
                   const draft = edit.isEditing ? edit.drafts[product.id] : undefined
                   const rowErrors = edit.errors[product.id] ?? {}
                   return (
-                    <TableRow key={product.id} className={draft ? 'bg-surface-secondary hover:bg-surface-secondary' : undefined}>
-                      <TableCell className={CELL_CLASS}>
+                    <TableRow key={product.id} className={cn(draft && 'bg-surface-secondary hover:bg-surface-secondary')}>
+                      <TableCell className={cn(CELL_CLASS, CHECKBOX_COL_CLASS, pinnedBg(!!draft))}>
                         <input
                           type="checkbox"
                           checked={selectedProducts.includes(product.id)}
@@ -281,7 +285,7 @@ export const ProductInventoryTable = ({
                           className="rounded border-border-primary"
                         />
                       </TableCell>
-                      <TableCell className={CELL_CLASS}>
+                      <TableCell className={cn(CELL_CLASS, 'sticky left-[3rem] z-10', pinnedBg(!!draft))}>
                         {draft ? (
                           <div className="flex flex-col gap-2 min-w-[300px]">
                             <Input
