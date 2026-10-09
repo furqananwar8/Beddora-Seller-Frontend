@@ -11,6 +11,8 @@ export const metadata: Metadata = {
  * 
  * Main page for inventory planning and management
  */
-export default function InventoryPlannerPage() {
-  return <InventoryPlannerScreen />
+export default function InventoryPlannerPage({ searchParams }: { searchParams?: { search?: string | string[] } }) {
+  // ?search= opens the planner already filtered (e.g. from a product in a shipment)
+  const search = Array.isArray(searchParams?.search) ? searchParams?.search[0] : searchParams?.search
+  return <InventoryPlannerScreen initialSearch={search} />
 }

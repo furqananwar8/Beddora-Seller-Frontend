@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import Link from 'next/link'
 import { TableCell, TableRow } from '@/design-system/tables'
 import { Button } from '@/design-system/buttons'
 import { Spinner } from '@/design-system/loaders'
@@ -41,6 +42,9 @@ import {
 } from './ShipmentParts'
 
 export const SHIPMENT_TABLE_COLUMNS = 11
+
+/** The planner opens already searched for the product. */
+const plannerSearchHref = (title: string) => `/dashboard/inventory/planner?search=${encodeURIComponent(title)}`
 
 interface ShipmentRowProps {
   shipment: InboundShipment
@@ -527,15 +531,19 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({
                       return (
                         <tr key={item.productId} className="border-b border-border/60 last:border-0">
                           <td className="px-4 py-2.5">
-                            <div className="flex items-center gap-3">
+                            <Link
+                              href={plannerSearchHref(item.title)}
+                              title="Find this product in the planner"
+                              className="group flex items-center gap-3"
+                            >
                               <ProductThumb src={item.imageUrl} alt={item.title} size="sm" />
                               <div className="min-w-0">
-                                <div className="max-w-md truncate text-text-primary">{item.title}</div>
+                                <div className="max-w-md truncate text-text-primary group-hover:text-primary-700 group-hover:underline">{item.title}</div>
                                 <div className="text-xs text-text-muted">
                                   <span className="font-mono">{item.sku}</span> · {item.asin}
                                 </div>
                               </div>
-                            </div>
+                            </Link>
                           </td>
                           <td className="px-4 py-2.5 font-mono text-xs text-text-muted">{item.fnsku ?? '—'}</td>
                           {editable && (

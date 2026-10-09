@@ -75,12 +75,12 @@ const MARKETPLACES = [
 // SCREEN COMPONENT
 // ============================================
 
-export const InventoryPlannerScreen: React.FC = () => {
+export const InventoryPlannerScreen: React.FC<{ initialSearch?: string }> = ({ initialSearch = '' }) => {
   const dispatch = useAppDispatch()
   const router = useRouter()
 
   // ---- Search ----
-  const [searchTerm, setSearchTerm] = useState<string>('')
+  const [searchTerm, setSearchTerm] = useState<string>(initialSearch)
   const debouncedSearch = useDebounce(searchTerm, 300)
 
   // ---- Selected products ----

@@ -562,7 +562,8 @@ export const ShipmentsScreen: React.FC = () => {
                     onCancel={() => openDialog({ type: 'cancel', id: s.id })}
                     onGoBack={(to) => handleBack(s.id, to)}
                     onDownloadLabel={(type) => handleDownloadLabel(s.id, type)}
-                    downloadingLabels={downloadingFor(s.id)}
+                    // The open dialog's own buttons show the progress, so the row behind it stays still
+                    downloadingLabels={shippingTarget?.id === s.id ? {} : downloadingFor(s.id)}
                   />
                 ))
               )}
