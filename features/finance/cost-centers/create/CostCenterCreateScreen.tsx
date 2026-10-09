@@ -60,9 +60,9 @@ export const CostCenterCreateScreen: React.FC = () => {
 
   return (
     <Container size="full" className="py-4 sm:py-8">
-      <div className="mb-4 flex flex-wrap items-center gap-3">
+      <div className="mb-4 flex flex-col items-start gap-3">
         <Button variant="outline" onClick={goBack}>
-          {returnTo ? '← Back to the form' : '← Back to cost centers'}
+          {returnTo ? 'Back to the form' : 'Back to cost centers'}
         </Button>
         <h1 className="text-lg font-bold text-text-primary sm:text-xl">Create cost center & hierarchy</h1>
       </div>

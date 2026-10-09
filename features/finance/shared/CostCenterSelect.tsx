@@ -41,13 +41,11 @@ export const CostCenterSelect: React.FC<CostCenterSelectProps> = ({ id, options,
       onChange={onChange}
       options={shown}
       getKey={(option) => option.id}
-      getLabel={(option) => option.path}
+      getLabel={(option) => option.name}
       renderOption={(option) => (
         <span className="flex min-w-0 flex-col">
           <span className="truncate font-medium">{option.name}</span>
-          <span className="truncate text-xs text-text-muted">
-            {option.code} · {option.path}
-          </span>
+          <span className="truncate text-xs text-text-muted">{option.code}</span>
         </span>
       )}
       search={search}
