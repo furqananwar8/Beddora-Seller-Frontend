@@ -617,6 +617,7 @@ export const ShipmentsScreen: React.FC = () => {
 
       <MarkShippedModal
         shipment={shippingTarget}
+        pool={pool}
         onDownloadLabel={(type) => shippingTarget && handleDownloadLabel(shippingTarget.id, type)}
         downloadingLabels={shippingTarget ? downloadingFor(shippingTarget.id) : {}}
         onBack={() => shippingTarget && handleBack(shippingTarget.id, 'carrier')}

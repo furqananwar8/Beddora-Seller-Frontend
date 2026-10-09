@@ -6,7 +6,7 @@ import { Button } from '@/design-system/buttons'
 import { Spinner } from '@/design-system/loaders'
 import { formatCurrency } from '@/utils/format'
 import { cn } from '@/utils/cn'
-import { AmazonOption, InboundShipment, LabelType, ShipLegRequirement, ShipTrackingInput } from './types'
+import { AmazonOption, InboundShipment, LabelType, ReservedPoolItem, ShipLegRequirement, ShipTrackingInput } from './types'
 import { OptionKind } from './useShipments'
 import { LabelDownloadControl } from './labelFormats'
 import { DialogFooter, LabelButton, ProductThumb, formatUnits, formatWindow, unitsLabel } from './ShipmentParts'
@@ -266,6 +266,8 @@ const LABEL_BUTTON_SIZE = 'min-w-[11rem] justify-center'
 
 interface MarkShippedModalProps {
   shipment: InboundShipment | null
+  /** Total reserved per product, to show what is left once this shipment's units leave. */
+  pool: ReservedPoolItem[]
   /** Last step of the guided flow, so the labels are printable from here. */
   onDownloadLabel: (type: LabelType) => void
   downloadingLabels: Partial<Record<LabelType, boolean>>
@@ -279,6 +281,7 @@ interface MarkShippedModalProps {
 
 export const MarkShippedModal: React.FC<MarkShippedModalProps> = ({
   shipment,
+  pool,
   onDownloadLabel,
   downloadingLabels,
   loadRequirements,
@@ -393,16 +396,26 @@ export const MarkShippedModal: React.FC<MarkShippedModalProps> = ({
       </div>
 
       <div className="max-h-64 divide-y divide-border overflow-y-auto rounded-md border border-border">
-        {shipment.items.map((item) => (
-          <div key={item.productId} className="flex items-center gap-3 px-3 py-2">
-            <ProductThumb src={item.imageUrl} alt={item.title} size="sm" />
-            <div className="min-w-0 flex-1">
-              <div className="truncate text-sm text-text-primary">{item.title}</div>
-              <div className="font-mono text-xs text-text-muted">{item.sku}</div>
+        {shipment.items.map((item) => {
+          const reserved = pool.find((p) => p.productId === item.productId)?.reserved
+          return (
+            <div key={item.productId} className="flex items-center gap-3 px-3 py-2">
+              <ProductThumb src={item.imageUrl} alt={item.title} size="sm" />
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-sm text-text-primary">{item.title}</div>
+                <div className="font-mono text-xs text-text-muted">{item.sku}</div>
+              </div>
+              <div className="text-right">
+                <div className="text-sm font-semibold text-danger-600">−{formatUnits(item.quantity)}</div>
+                {reserved !== undefined && (
+                  <div className="text-xs text-text-muted">
+                    {formatUnits(reserved)} reserved · <strong className="font-semibold text-text-secondary">{formatUnits(Math.max(0, reserved - item.quantity))} remaining</strong>
+                  </div>
+                )}
+              </div>
             </div>
-            <div className="text-sm font-semibold text-danger-600">−{formatUnits(item.quantity)}</div>
-          </div>
-        ))}
+          )
+        })}
       </div>
 
       {/* What Amazon is told */}
