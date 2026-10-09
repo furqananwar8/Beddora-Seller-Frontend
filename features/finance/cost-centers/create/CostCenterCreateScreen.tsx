@@ -1,12 +1,13 @@
 'use client'
 
 import React, { useReducer, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Container } from '@/components/layout'
 import { ConfirmDialog } from '@/components/confirm-dialog/ConfirmDialog'
 import { Button } from '@/design-system/buttons'
 import { useCreateCostCentersMutation } from '@/services/api/costCenters.api'
 import { useFinanceFeedback } from '../../shared/useFinanceFeedback'
+import { safeFinanceReturnTo, withQueryParam } from '../../payment-requests/requestDraftStore'
 import { COST_CENTER_BASE } from '../CostCenterListScreen'
 import { LEVELS, levelLabel } from '../costCenterCode'
 import { CostCenterNameDialog } from './CostCenterNameDialog'
@@ -22,6 +23,9 @@ type NameTarget = { mode: 'add'; level: number; takenNames: Set<string> } | { mo
  */
 export const CostCenterCreateScreen: React.FC = () => {
   const router = useRouter()
+  // Opened from a form's cost center picker: Back returns there, and saving returns with the new L4 picked
+  const returnTo = safeFinanceReturnTo(useSearchParams().get('returnTo'))
+  const goBack = () => router.push(returnTo ? withQueryParam(returnTo, 'restore', '1') : COST_CENTER_BASE)
   const { success, failure } = useFinanceFeedback()
   const [state, dispatch] = useReducer(draftReducer, initialDraft)
   const [naming, setNaming] = useState<NameTarget | null>(null)
@@ -44,7 +48,9 @@ export const CostCenterCreateScreen: React.FC = () => {
       const created = await create(toPayload(state)).unwrap()
       success(`${created.length} cost center${created.length === 1 ? '' : 's'} saved`)
       dispatch({ type: 'reset' })
-      router.push(COST_CENTER_BASE)
+      const leaf = [...created].reverse().find((entry) => entry.level === LEVELS[LEVELS.length - 1])
+      if (returnTo) router.push(leaf ? withQueryParam(withQueryParam(returnTo, 'restore', '1'), 'costCenterId', String(leaf.id)) : withQueryParam(returnTo, 'restore', '1'))
+      else router.push(COST_CENTER_BASE)
     } catch (error) {
       failure(error, 'Could not save the cost centers')
     }
@@ -54,11 +60,11 @@ export const CostCenterCreateScreen: React.FC = () => {
 
   return (
     <Container size="full" className="py-4 sm:py-8">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-lg font-bold text-text-primary sm:text-xl">Create cost center & hierarchy</h1>
-        <Button variant="outline" onClick={() => router.push(COST_CENTER_BASE)}>
-          Back to cost centers
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        <Button variant="outline" onClick={goBack}>
+          {returnTo ? '← Back to the form' : '← Back to cost centers'}
         </Button>
+        <h1 className="text-lg font-bold text-text-primary sm:text-xl">Create cost center & hierarchy</h1>
       </div>
 
       <div className="max-w-4xl rounded-lg border border-border bg-surface p-4 shadow-sm sm:p-6">

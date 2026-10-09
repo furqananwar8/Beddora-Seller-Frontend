@@ -28,7 +28,7 @@ export const RequestPreview: React.FC<{ id: number; requestedBy: string }> = ({ 
 
   return (
     <div className="grid gap-4 p-2 text-left sm:grid-cols-2 lg:grid-cols-[repeat(4,minmax(0,1fr))_2fr]">
-      <Field label="Expense type">{data.expenseType.name}</Field>
+      <Field label="Expense">{data.expenseType.name}</Field>
       <Field label="Destination">{data.marketplace ? countryLabel(data.marketplace.code) || data.marketplace.name : '-'}</Field>
       <Field label="Requested by">{requestedBy}</Field>
       <Field label="Remarks">{data.remarks || '-'}</Field>

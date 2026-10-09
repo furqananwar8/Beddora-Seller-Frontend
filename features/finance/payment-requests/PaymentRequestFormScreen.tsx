@@ -20,7 +20,7 @@ import {
   PaymentRequestDetail,
   useAddRequestDocumentsMutation,
   useCreatePaymentRequestMutation,
-  useGetExpenseTypesQuery,
+  useGetLeafCostCentersQuery,
   useGetFinanceMarketplacesQuery,
   useGetPartnerQuery,
   useGetPaymentRequestQuery,
@@ -39,6 +39,7 @@ import { formatCurrencyAmount, formatMoney, formatRequestNo, toDateInputValue } 
 import { REQUEST_STATUS_META } from '../shared/statusMeta'
 import { useFinanceFeedback } from '../shared/useFinanceFeedback'
 import { DocumentChips } from '../shared/DocumentChips'
+import { CostCenterSelect } from '../shared/CostCenterSelect'
 import { PartnerChips, PartnerSelect, toPartnerOption } from './PartnerSelect'
 import { PayablePoSelect } from './PayablePoSelect'
 import { ContainerSelect, containerRefOf } from './ContainerSelect'
@@ -69,7 +70,7 @@ const toFormValues = (detail: PaymentRequestDetail): PaymentRequestFormValues =>
   marketplaceId: detail.marketplaceId ? String(detail.marketplaceId) : '',
   currency: detail.currency,
   amount: formatMoney(detail.amount),
-  expenseTypeId: String(detail.expenseType.id),
+  costCenterId: detail.costCenter ? String(detail.costCenter.id) : '',
   remarks: detail.remarks ?? '',
 })
 
@@ -90,7 +91,7 @@ export const PaymentRequestFormScreen: React.FC = () => {
   const requestId = editId ?? savedId
   const { data: detail, isLoading: loadingDetail, isError: detailError } = useGetPaymentRequestQuery(requestId ?? 0, { skip: requestId === null })
 
-  const { data: expenseTypes } = useGetExpenseTypesQuery()
+  const { data: costCenters, isFetching: loadingCostCenters } = useGetLeafCostCentersQuery()
   const { data: marketplaces } = useGetFinanceMarketplacesQuery()
   const [checkDuplicate] = useLazyCheckDuplicateInvoiceQuery()
   const [checkPurchaseInvoice] = useLazyCheckPurchaseInvoiceQuery()
@@ -156,8 +157,20 @@ export const PaymentRequestFormScreen: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [restored, newPartner, editId, detail])
 
-  const addPartnerHref = `/dashboard/finance/partner-profile/new?returnTo=${encodeURIComponent(editId ? withQueryParam(NEW_URL, 'edit', String(editId)) : NEW_URL)}`
+  const returnHere = encodeURIComponent(editId ? withQueryParam(NEW_URL, 'edit', String(editId)) : NEW_URL)
+  const addPartnerHref = `/dashboard/finance/partner-profile/new?returnTo=${returnHere}`
+  const addCostCenterHref = `/dashboard/finance/cost-center/new?returnTo=${returnHere}`
   const stashDraft = () => saveRequestDraft({ values: getValues(), files, partner })
+
+  // Back from creating a cost center: pick the L4 that was just created (after the draft is restored)
+  const costCenterParam = Number(searchParams.get('costCenterId'))
+  const appliedCostCenter = useRef(false)
+  useEffect(() => {
+    if (!restored || appliedCostCenter.current || !Number.isInteger(costCenterParam) || costCenterParam <= 0) return
+    if (editId && !hydrated.current) return
+    appliedCostCenter.current = true
+    setValue('costCenterId', String(costCenterParam), { shouldValidate: true, shouldDirty: true })
+  }, [restored, costCenterParam, editId, detail, setValue])
 
   const currency = watch('currency')
   const referenceType = watch('referenceType')
@@ -421,15 +434,17 @@ export const PaymentRequestFormScreen: React.FC = () => {
                 )}
               />
             </FormField>
-            <FormField label="Expense Type" htmlFor="expenseTypeId" required error={errors.expenseTypeId?.message}>
-              <SelectShell>
-              <Select
-                id="expenseTypeId"
-                className="appearance-none rounded-lg pr-9"
-                options={[{ value: '', label: 'Select expense type' }, ...(expenseTypes ?? []).map((t) => ({ value: String(t.id), label: t.name }))]}
-                {...register('expenseTypeId')}
+            <FormField label="Expense" htmlFor="costCenterId" required error={errors.costCenterId?.message}>
+              <CostCenterSelect
+                id="costCenterId"
+                options={costCenters}
+                loading={loadingCostCenters}
+                value={watch('costCenterId') ? Number(watch('costCenterId')) : null}
+                onChange={(option) => setValue('costCenterId', String(option.id), { shouldValidate: true, shouldDirty: true })}
+                error={errors.costCenterId?.message}
+                addHref={addCostCenterHref}
+                onAdd={stashDraft}
               />
-              </SelectShell>
             </FormField>
           </div>
           <FormField label="Remarks" htmlFor="remarks" className="mt-4" error={errors.remarks?.message}>

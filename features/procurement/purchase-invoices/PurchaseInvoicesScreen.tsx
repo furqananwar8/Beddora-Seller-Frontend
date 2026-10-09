@@ -145,7 +145,7 @@ export const PurchaseInvoicesScreen: React.FC = () => {
                 <TableHead className={cn(CELL, 'min-w-[160px]')}>Partner</TableHead>
                 <TableHead className={CELL}>Invoice date</TableHead>
                 <TableHead className={CELL}>Destination</TableHead>
-                <TableHead className={cn(CELL, 'min-w-[140px]')}>Expense type</TableHead>
+                <TableHead className={cn(CELL, 'min-w-[180px]')}>Expense</TableHead>
                 <TableHead className={CELL}>Amount</TableHead>
                 <TableHead className={cn(CELL, 'min-w-[170px]')}>Status</TableHead>
                 <TableHead className={CELL}>PDF</TableHead>

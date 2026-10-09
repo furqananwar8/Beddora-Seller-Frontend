@@ -14,7 +14,7 @@ import {
   PaymentRequestListParams,
   RequestStatus,
   useGetApproverStatusQuery,
-  useGetExpenseTypesQuery,
+  useGetLeafCostCentersQuery,
   useGetPaymentRequestsQuery,
   useGetPaymentRequestSummaryQuery,
 } from '@/services/api/finance.api'
@@ -88,7 +88,7 @@ export const PaymentRequestScreen: React.FC = () => {
   const debouncedSearch = useDebounce(search, 300)
   const [page, setPage] = useState(1)
   const [chosenTab, setChosenTab] = useState<TabId | null>(null)
-  const [expenseTypeId, setExpenseTypeId] = useState('')
+  const [costCenterId, setCostCenterId] = useState('')
   // `dateRange` is what the lists use; `draftRange` is what the picker shows while a custom range is being chosen.
   const [dateRange, setDateRange] = useState<DateRangeValue>(THIS_MONTH)
   const [draftRange, setDraftRange] = useState<DateRangeValue>(THIS_MONTH)
@@ -101,12 +101,12 @@ export const PaymentRequestScreen: React.FC = () => {
 
   const tab: TabId = chosenTab ?? (isApprover && !purchaseOrderId ? 'PENDING_APPROVAL' : 'ALL')
   const actions = useRequestActions()
-  const { data: expenseTypes } = useGetExpenseTypesQuery()
+  const { data: costCenters } = useGetLeafCostCentersQuery()
 
   const dates = useMemo(() => rangeFor(dateRange), [dateRange])
   const filters = {
     search: debouncedSearch,
-    expenseTypeId: expenseTypeId ? Number(expenseTypeId) : undefined,
+    costCenterId: costCenterId ? Number(costCenterId) : undefined,
     // A PO's payments are shown whenever they were raised, so the date range does not apply
     ...(purchaseOrderId ? { purchaseOrderId } : dates),
   }
@@ -199,19 +199,19 @@ export const PaymentRequestScreen: React.FC = () => {
         </div>
         <div className="flex flex-wrap items-end gap-3">
           <div className="w-full min-w-0 sm:w-48">
-            <label htmlFor="filter-expense-type" className="ds-input-label">
-              Expense type
+            <label htmlFor="filter-cost-center" className="ds-input-label">
+              Expense
             </label>
             <SelectShell>
             <Select
-              id="filter-expense-type"
+              id="filter-cost-center"
               className="h-10 appearance-none rounded-lg py-0 pr-9"
-              value={expenseTypeId}
+              value={costCenterId}
               onChange={(e) => {
-                setExpenseTypeId(e.target.value)
+                setCostCenterId(e.target.value)
                 setPage(1)
               }}
-              options={[{ value: '', label: 'All' }, ...(expenseTypes ?? []).map((t) => ({ value: String(t.id), label: t.name }))]}
+              options={[{ value: '', label: 'All' }, ...(costCenters ?? []).map((option) => ({ value: String(option.id), label: option.path }))]}
             />
             </SelectShell>
           </div>

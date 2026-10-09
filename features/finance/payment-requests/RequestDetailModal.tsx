@@ -41,7 +41,7 @@ const Summary: React.FC<{ detail: PaymentRequestDetail }> = ({ detail }) => (
     </Row>
     {detail.referenceType !== 'PURCHASE_ORDER' && <Row label="Container #">{detail.containerNo || '-'}</Row>}
     <Row label="Destination">{detail.marketplace ? countryLabel(detail.marketplace.code) || detail.marketplace.name : '-'}</Row>
-    <Row label="Expense type">{detail.expenseType.name}</Row>
+    <Row label="Expense">{detail.expenseType.name}</Row>
     <Row label="Amount">
       <span className="text-base">{formatCurrencyAmount(detail.currency, detail.amount)}</span>
     </Row>

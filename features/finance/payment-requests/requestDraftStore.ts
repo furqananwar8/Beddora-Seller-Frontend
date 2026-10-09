@@ -1,5 +1,6 @@
 import type { PartnerOption } from '@/services/api/finance.api'
 import type { PaymentRequestFormValues } from './schema'
+import { createFormDraft } from '../shared/formDraft'
 
 export interface RequestDraft {
   values: PaymentRequestFormValues
@@ -7,25 +8,20 @@ export interface RequestDraft {
   partner: PartnerOption | null
 }
 
-/**
- * In-memory hand-off for the request form while the user detours to create a partner.
- * Module state survives client-side navigation; a full reload clears it on purpose.
- */
-let draft: RequestDraft | null = null
+const store = createFormDraft<RequestDraft>()
 
-export const saveRequestDraft = (next: RequestDraft): void => {
-  draft = { values: { ...next.values }, files: [...next.files], partner: next.partner }
-}
+/** Kept while the user detours to create a partner or a cost center. */
+export const saveRequestDraft = (next: RequestDraft): void => store.save({ values: { ...next.values }, files: [...next.files], partner: next.partner })
 
-export const peekRequestDraft = (): RequestDraft | null => draft
+export const peekRequestDraft = (): RequestDraft | null => store.peek()
 
-export const clearRequestDraft = (): void => {
-  draft = null
-}
+export const clearRequestDraft = (): void => store.clear()
 
-/** Only same-app finance paths are valid return targets (prevents open redirects). */
+/** Screens a create form may send the user back to (same-app paths only, which prevents open redirects). */
+const RETURN_ROOTS = ['/dashboard/finance/', '/dashboard/procurement/']
+
 export const safeFinanceReturnTo = (value: string | null | undefined): string | null => {
-  if (!value || !value.startsWith('/dashboard/finance/') || value.startsWith('//') || value.includes('\\')) return null
+  if (!value || !RETURN_ROOTS.some((root) => value.startsWith(root)) || value.startsWith('//') || value.includes('\\')) return null
   return value
 }
 

@@ -137,6 +137,15 @@ export interface PurchaseInvoiceForPayment {
   blockedReason: string | null
 }
 
+/** An L4 cost center, the level expenses are booked to. */
+export interface CostCenterOption {
+  id: number
+  code: string
+  name: string
+  /** L1 › L2 › L3 › L4 names. */
+  path: string
+}
+
 export interface DuplicateInvoice {
   id: number
   status: RequestStatus
@@ -181,7 +190,9 @@ export interface PaymentRequestListItem {
   decisionNote: string | null
   remarks: string | null
   partner: { id: number; name: string; type: PartnerType }
+  /** Display name of what it is booked to: the L4 cost center's path (or, on older records, the expense type). */
   expenseType: { id: number; name: string }
+  costCenter: CostCenterOption | null
   requestedBy: UserRef
   decidedBy: UserRef | null
   documentCount: number
@@ -194,7 +205,7 @@ export interface PaymentRequestListParams extends PageParams {
   status?: RequestStatus
   /** Only requests paying this purchase order. */
   purchaseOrderId?: number
-  expenseTypeId?: number
+  costCenterId?: number
   dateFrom?: string
   dateTo?: string
   scope?: 'mine' | 'all'
@@ -229,7 +240,9 @@ export interface PaymentRequestDetail {
   submittedAt: string | null
   decidedAt: string | null
   partner: { id: number; name: string; type: PartnerType; country: string | null; currency: string }
+  /** Display name of what it is booked to: the L4 cost center's path (or, on older records, the expense type). */
   expenseType: { id: number; name: string }
+  costCenter: CostCenterOption | null
   marketplace: { id: number; name: string; code?: string } | null
   marketplaceId: number | null
   requestedBy: UserRef
@@ -331,7 +344,9 @@ export interface PaymentDocumentDetail {
     containerNo: string | null
     remarks: string | null
     partner: { id: number; name: string }
-    expenseType: { id: number; name: string }
+    /** Display name of what it is booked to: the L4 cost center's path (or, on older records, the expense type). */
+  expenseType: { id: number; name: string }
+  costCenter: CostCenterOption | null
     /** Documents the requester attached to the request. */
     documents: FinanceDocument[]
   }
@@ -515,6 +530,12 @@ export const financeApi = baseApi.injectEndpoints({
       transformResponse: unwrap,
     }),
     /** Is this invoice number one of our purchase invoices, and is it approved and still owing? */
+    /** Active L4 cost centers, with their paths, for the expense picker and the list filter. */
+    getLeafCostCenters: b.query<CostCenterOption[], void>({
+      query: () => '/finance/cost-centers/leaf-options',
+      transformResponse: unwrap,
+      providesTags: ['FinanceCostCenters'],
+    }),
     checkPurchaseInvoice: b.query<PurchaseInvoiceForPayment | null, { partnerId: number; invoiceNo: string }>({
       query: (params) => ({ url: '/finance/payment-requests/invoice-check', params }),
       transformResponse: unwrap,
@@ -624,6 +645,7 @@ export const {
   useGetPaymentRequestQuery,
   useLazyCheckDuplicateInvoiceQuery,
   useLazyCheckPurchaseInvoiceQuery,
+  useGetLeafCostCentersQuery,
   useGetPayablePurchaseOrdersQuery,
   useCreatePaymentRequestMutation,
   useUpdatePaymentRequestMutation,

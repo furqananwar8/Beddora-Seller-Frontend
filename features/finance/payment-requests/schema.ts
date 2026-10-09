@@ -27,7 +27,8 @@ export const paymentRequestSchema = z.object({
     .min(1, 'Amount is required')
     .refine((value) => Number.isFinite(parseAmount(value)), 'Enter a valid amount')
     .refine((value) => parseAmount(value) > 0, 'Amount must be greater than zero'),
-  expenseTypeId: z.string().min(1, 'Choose an expense type'),
+  /** The L4 cost center the expense is booked to. */
+  costCenterId: z.string().min(1, 'Choose an expense'),
   remarks: z.string().trim().max(1000, 'Keep it under 1000 characters'),
 }).superRefine((values, ctx) => {
   if (values.referenceType === 'INVOICE' && !values.invoiceNo.trim()) ctx.addIssue({ code: 'custom', path: ['invoiceNo'], message: 'Invoice number is required' })
@@ -46,7 +47,7 @@ export const emptyFormValues: PaymentRequestFormValues = {
   marketplaceId: '',
   currency: '',
   amount: '',
-  expenseTypeId: '',
+  costCenterId: '',
   remarks: '',
 }
 
@@ -62,7 +63,7 @@ export function toUpdateBody(values: PaymentRequestFormValues) {
     invoiceDate: values.invoiceDate,
     containerNo: values.containerNo.trim() || null,
     marketplaceId: values.marketplaceId ? Number(values.marketplaceId) : null,
-    expenseTypeId: Number(values.expenseTypeId),
+    costCenterId: Number(values.costCenterId),
     currency: values.currency,
     amount: parseAmount(values.amount),
     remarks: values.remarks.trim() || null,
@@ -81,7 +82,7 @@ export function toCreateFormData(values: PaymentRequestFormValues, files: File[]
   if (values.containerNo.trim()) body.append('containerNo', values.containerNo.trim())
   body.append('invoiceDate', values.invoiceDate)
   if (values.marketplaceId) body.append('marketplaceId', values.marketplaceId)
-  body.append('expenseTypeId', values.expenseTypeId)
+  body.append('costCenterId', values.costCenterId)
   body.append('currency', values.currency)
   body.append('amount', String(parseAmount(values.amount)))
   if (values.remarks.trim()) body.append('remarks', values.remarks.trim())

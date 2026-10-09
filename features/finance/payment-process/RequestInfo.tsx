@@ -20,7 +20,7 @@ export const RequestInfo: React.FC<{ request: PaymentDocumentDetail['request'] }
       <Item label="Request">
         {formatRequestNo(request.id)} · {request.reference.value}
       </Item>
-      <Item label="Expense type">{request.expenseType.name}</Item>
+      <Item label="Expense">{request.expenseType.name}</Item>
       <Item label="Container #">{request.containerNo || '-'}</Item>
       <div className="col-span-2 min-w-0 sm:col-span-2">
         <dt className="text-xs text-text-muted">Remarks</dt>

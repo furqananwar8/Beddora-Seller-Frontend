@@ -20,7 +20,10 @@ import { formatMoney, toDateInputValue } from '@/features/finance/shared/format'
 import { PartnerChips, PartnerSelect, toPartnerOption } from '@/features/finance/payment-requests/PartnerSelect'
 import { CURRENCIES, filesFormData } from '@/features/finance/payment-requests/schema'
 import { useApiFeedback } from '@/hooks/useApiFeedback'
-import { FinanceDocument, PartnerOption, useGetExpenseTypesQuery, useGetPartnerQuery } from '@/services/api/finance.api'
+import { FinanceDocument, PartnerOption, useGetPartnerQuery } from '@/services/api/finance.api'
+import { CostCenterSelect } from '@/features/finance/shared/CostCenterSelect'
+import { withQueryParam } from '@/features/finance/payment-requests/requestDraftStore'
+import { invoiceDraft } from './invoiceDraftStore'
 import {
   PurchaseInvoiceDetail,
   purchaseInvoiceDocumentPath,
@@ -30,6 +33,7 @@ import {
   useGetPurchaseInvoiceQuery,
   useGetPurchaseOrderInvoiceDocumentsQuery,
   useGetPurchaseInvoiceDestinationsQuery,
+  useGetPurchaseInvoiceCostCentersQuery,
   usePurchaseInvoiceActionMutation,
   useRemovePurchaseInvoiceDocumentMutation,
   useUpdatePurchaseInvoiceMutation,
@@ -63,7 +67,7 @@ const toFormValues = (detail: PurchaseInvoiceDetail): PurchaseInvoiceFormValues 
   currency: detail.currency,
   lines: linesFromInvoice(detail),
   expenses: expensesFromInvoice(detail),
-  expenseTypeId: String(detail.expenseType.id),
+  costCenterId: detail.costCenter ? String(detail.costCenter.id) : '',
   remarks: detail.remarks ?? '',
 })
 
@@ -89,7 +93,7 @@ export const PurchaseInvoiceFormScreen: React.FC = () => {
   const { data: supplierProfile, isError: supplierError } = useGetPartnerQuery(po?.supplier.id ?? 0, { skip: !po })
   // Without access to partner profiles the PO's own supplier record still names the partner
   const supplier = supplierProfile ?? (po && supplierError ? { ...po.supplier, type: 'SUPPLIER' as const } : undefined)
-  const { data: expenseTypes } = useGetExpenseTypesQuery()
+  const { data: costCenters, isFetching: loadingCostCenters } = useGetPurchaseInvoiceCostCentersQuery()
   const { data: marketplaces } = useGetPurchaseInvoiceDestinationsQuery()
 
   const [createInvoice] = useCreatePurchaseInvoiceMutation()
@@ -115,11 +119,23 @@ export const PurchaseInvoiceFormScreen: React.FC = () => {
   const [saving, setSaving] = useState<'draft' | 'submit' | null>(null)
   const [removingId, setRemovingId] = useState<string | null>(null)
   const hydrated = useRef(false)
+  // Back from creating a cost center: what was typed before leaving, applied in place of the saved/PO values
+  const [draft] = useState(() => (searchParams.get('restore') === '1' ? invoiceDraft.peek() : null))
+  const applyDraft = () => {
+    if (!draft) return false
+    reset(draft.values)
+    setPartner(draft.partner)
+    setFiles(draft.files)
+    if (draft.carried) setCarried(draft.carried)
+    invoiceDraft.clear()
+    return true
+  }
 
   // Editing: load the saved invoice into the form once.
   useEffect(() => {
     if (isNew || !detail || hydrated.current) return
     hydrated.current = true
+    if (applyDraft()) return
     reset(toFormValues(detail))
     setPartner(toPartnerOption(detail.partner))
   }, [isNew, detail, reset])
@@ -128,6 +144,7 @@ export const PurchaseInvoiceFormScreen: React.FC = () => {
   useEffect(() => {
     if (!isNew || !po || !supplier || hydrated.current) return
     hydrated.current = true
+    if (applyDraft()) return
     reset({ ...emptyFormValues, partnerId: String(supplier.id), currency: po.currency, lines: linesFromPurchaseOrder(po) })
     setPartner(toPartnerOption(supplier))
   }, [isNew, po, supplier, reset])
@@ -139,6 +156,16 @@ export const PurchaseInvoiceFormScreen: React.FC = () => {
     if (destination) setValue('marketplaceId', String(destination.id))
     // `partner` is set by the hydration above, so this re-runs once the form holds the PO
   }, [isNew, po, marketplaces, getValues, setValue, partner])
+
+  // Back from creating a cost center: pick the L4 that was just created, once the form holds its values
+  const costCenterParam = Number(searchParams.get('costCenterId'))
+  const appliedCostCenter = useRef(false)
+  useEffect(() => {
+    if (!hydrated.current || appliedCostCenter.current || !Number.isInteger(costCenterParam) || costCenterParam <= 0) return
+    appliedCostCenter.current = true
+    setValue('costCenterId', String(costCenterParam), { shouldValidate: true, shouldDirty: true })
+    // `partner` is set by the hydration above, so this runs right after it
+  }, [costCenterParam, partner, setValue])
 
   // New: every document of the PO's payment requests is carried over until removed.
   useEffect(() => {
@@ -198,6 +225,8 @@ export const PurchaseInvoiceFormScreen: React.FC = () => {
   }
 
   const busy = saving !== null
+  /** This form's own address, to come back to from the cost center screen. */
+  const returnHere = editId ? withQueryParam(`${PURCHASE_INVOICES_URL}/new`, 'edit', String(editId)) : withQueryParam(`${PURCHASE_INVOICES_URL}/new`, 'purchaseOrderId', String(purchaseOrderId ?? ''))
   const statusMeta = PURCHASE_INVOICE_STATUS_META[detail?.status ?? 'DRAFT']
   const loadFailed = isNew ? purchaseOrderId === null || poError : detailError || (detail && !detail.can.edit)
 
@@ -285,15 +314,17 @@ export const PurchaseInvoiceFormScreen: React.FC = () => {
             <FormField label="Amount" htmlFor="amount" hint="Invoiced items + additional expenses">
               <Input id="amount" readOnly tabIndex={-1} className="rounded-lg bg-secondary-50 text-right font-semibold" value={formatMoney(totals.amount)} />
             </FormField>
-            <FormField label="Expense Type" htmlFor="expenseTypeId" required error={errors.expenseTypeId?.message}>
-              <SelectShell>
-                <Select
-                  id="expenseTypeId"
-                  className="appearance-none rounded-lg pr-9"
-                  options={[{ value: '', label: 'Select expense type' }, ...(expenseTypes ?? []).map((t) => ({ value: String(t.id), label: t.name }))]}
-                  {...register('expenseTypeId')}
-                />
-              </SelectShell>
+            <FormField label="Expense" htmlFor="costCenterId" required error={errors.costCenterId?.message}>
+              <CostCenterSelect
+                id="costCenterId"
+                options={costCenters}
+                loading={loadingCostCenters}
+                value={watch('costCenterId') ? Number(watch('costCenterId')) : null}
+                onChange={(option) => setValue('costCenterId', String(option.id), { shouldValidate: true, shouldDirty: true })}
+                error={errors.costCenterId?.message}
+                addHref={`/dashboard/finance/cost-center/new?returnTo=${encodeURIComponent(returnHere)}`}
+                onAdd={() => invoiceDraft.save({ values: getValues(), files, partner, carried })}
+              />
             </FormField>
           </div>
           <FormField label="Remarks" htmlFor="remarks" className="mt-4" error={errors.remarks?.message}>

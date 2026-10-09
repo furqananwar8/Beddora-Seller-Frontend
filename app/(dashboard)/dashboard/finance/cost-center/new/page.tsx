@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import { Metadata } from 'next'
 import { CostCenterCreateScreen } from '@/features/finance/cost-centers'
 
@@ -7,5 +8,10 @@ export const metadata: Metadata = {
 }
 
 export default function NewCostCenterPage() {
-  return <CostCenterCreateScreen />
+  // The screen reads `returnTo` from the query string, which needs a Suspense boundary
+  return (
+    <Suspense fallback={null}>
+      <CostCenterCreateScreen />
+    </Suspense>
+  )
 }
