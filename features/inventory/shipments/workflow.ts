@@ -1,3 +1,4 @@
+import type { RewindTarget } from '@/services/api/inboundShipments.api'
 import {
   InboundShipment,
   Marketplace,
@@ -26,6 +27,28 @@ export const WORKFLOW_STEPS: WorkflowStep[] = [
   { key: 'labels_ready', label: 'Labels' },
   { key: 'shipped', label: 'Shipped' },
 ]
+
+/**
+ * Completed steps that reopen their dialog instead of redoing anything: Labels
+ * is where box labels are downloaded and tracking is entered for each box.
+ */
+export const STEP_REOPEN_ACTION: Partial<Record<WorkflowStep['key'], NextAction>> = {
+  labels_ready: 'mark_shipped',
+}
+
+/** Index of Packing: the steps before it (Items, Inbound plan) need no input once the plan exists. */
+export const FIRST_VISIBLE_STEP_AFTER_PLAN = 2
+
+/**
+ * Completed steps the seller can go back to and redo. Items and Inbound plan
+ * are changed through quantity edits instead, and Labels need no input.
+ */
+export const STEP_REWIND_TARGET: Partial<Record<WorkflowStep['key'], RewindTarget>> = {
+  packing_set: 'packing',
+  placement_confirmed: 'placement',
+  window_confirmed: 'window',
+  transport_confirmed: 'carrier',
+}
 
 const STAGE_ORDER: ShipmentStage[] = [
   'draft',

@@ -9,7 +9,7 @@ import { formatCurrency } from '@/utils/format'
 import { formatAddressLine } from './AddressForm'
 import { ShipFromChoice, ShipFromPicker, shipFromRequest } from './ShipFromPicker'
 import { LabelDownloadControl } from './labelFormats'
-import type { ShipFromRequest } from './useShipments'
+import type { RewindTarget, ShipFromRequest } from './useShipments'
 import {
   InboundShipment,
   InboundShipmentItem,
@@ -55,6 +55,8 @@ interface ShipmentRowProps {
   onChangeShipFrom: (choice: ShipFromRequest) => Promise<unknown>
   onAction: (action: NextAction) => Promise<void> | void
   onCancel: () => void
+  /** Redo a completed step from the stepper. */
+  onGoBack: (to: RewindTarget) => void
   onDownloadLabel: (type: LabelType) => void
   /** Label downloads running for this shipment. */
   downloadingLabels: Partial<Record<LabelType, boolean>>
@@ -80,6 +82,7 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({
   onChangeShipFrom,
   onAction,
   onCancel,
+  onGoBack,
   onDownloadLabel,
   downloadingLabels,
 }) => {
@@ -331,7 +334,7 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({
         <TableRow className="hover:bg-transparent">
           <TableCell colSpan={SHIPMENT_TABLE_COLUMNS} className="bg-background p-0">
             <div className="space-y-4 border-l-2 border-secondary-800 px-6 py-5">
-              <WorkflowStepper shipment={shipment} />
+              <WorkflowStepper shipment={shipment} onGoBack={onGoBack} onReopen={onAction} />
 
               {/* Amazon details */}
               <dl className="grid grid-cols-2 gap-x-6 gap-y-3 rounded-lg border border-border bg-surface p-4 text-sm md:grid-cols-3 xl:grid-cols-6">
@@ -454,7 +457,7 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({
                     <p className="text-xs text-text-muted">
                       {editable
                         ? shipment.stage === 'plan_created'
-                          ? 'Saving changes cancels the Amazon plan; send it to Amazon again afterwards.'
+                          ? 'Saving changes recreates the Amazon plan from the updated products.'
                           : 'Quantities come from your FBA reserved pool.'
                         : shipment.status === 'in_progress'
                         ? 'Quantities are locked once box contents are sent. Cancel and re-plan to change them.'
@@ -674,7 +677,7 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({
                       </Button>
                       <Button size="sm" onClick={handleSave} disabled={hasErrors || isSaving}>
                         {isSaving ? (
-                          <span className="flex items-center gap-2"><Spinner size="sm" className="text-white" /> Saving…</span>
+                          <span className="flex items-center gap-2"><Spinner size="sm" className="text-white" /> {shipment.stage === 'plan_created' ? 'Recreating Amazon plan…' : 'Saving…'}</span>
                         ) : (
                           'Save quantities'
                         )}
@@ -692,7 +695,7 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({
                           {isActing ? (
                             <span className="flex items-center gap-2"><Spinner size="sm" className="text-white" /> Working…</span>
                           ) : (
-                            `${next.label} →`
+                            next.label
                           )}
                         </Button>
                       )}

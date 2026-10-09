@@ -6,7 +6,8 @@ import { Button } from '@/design-system/buttons'
 import { Spinner } from '@/design-system/loaders'
 import { cn } from '@/utils/cn'
 import { DeliveryWindow, InboundShipment, LabelFileStatus, ShipmentStatus } from './types'
-import { STATUS_META, WORKFLOW_STEPS, getActiveStepIndex } from './workflow'
+import type { RewindTarget } from '@/services/api/inboundShipments.api'
+import { FIRST_VISIBLE_STEP_AFTER_PLAN, NextAction, STATUS_META, STEP_REOPEN_ACTION, STEP_REWIND_TARGET, WORKFLOW_STEPS, getActiveStepIndex } from './workflow'
 
 export const formatUnits = (n: number) => new Intl.NumberFormat('en-US').format(n)
 
@@ -96,21 +97,37 @@ export const StageProgress: React.FC<{ shipment: InboundShipment }> = ({ shipmen
 }
 
 /** Full horizontal stepper used in the expanded panel. */
-export const WorkflowStepper: React.FC<{ shipment: InboundShipment }> = ({ shipment }) => {
+export const WorkflowStepper: React.FC<{
+  shipment: InboundShipment
+  /** When given, completed steps that can be redone become buttons. */
+  onGoBack?: (to: RewindTarget) => void
+  /** When given, the Labels step reopens its dialog (label downloads and per-box tracking). */
+  onReopen?: (action: NextAction) => void
+}> = ({ shipment, onGoBack, onReopen }) => {
   const active = getActiveStepIndex(shipment)
   const cancelled = shipment.status === 'cancelled'
+  const open = shipment.status === 'in_progress'
+  // Items and Inbound plan are filled in when the shipment is created, so they only show until the plan exists
+  const hiddenSteps = active >= FIRST_VISIBLE_STEP_AFTER_PLAN ? FIRST_VISIBLE_STEP_AFTER_PLAN : 0
   return (
     <ol className="flex items-center gap-1 overflow-x-auto pb-1">
       {WORKFLOW_STEPS.map((step, i) => {
+        if (i < hiddenSteps) return null
         const done = i < active
         const current = i === active
         // A cancelled shipment keeps its completed steps (muted) and marks where it stopped
         const stoppedHere = cancelled && current
+        const rewindTo = onGoBack && open && done ? STEP_REWIND_TARGET[step.key] : undefined
+        const reopen = onReopen && open && done ? STEP_REOPEN_ACTION[step.key] : undefined
+        const onClick = rewindTo ? () => onGoBack?.(rewindTo) : reopen ? () => onReopen?.(reopen) : undefined
+        const Pill = onClick ? 'button' : 'div'
         return (
           <li key={step.key} className="flex min-w-0 items-center gap-1">
-            <div
+            <Pill
+              {...(onClick ? { type: 'button' as const, onClick, title: rewindTo ? `Go back to ${step.label.toLowerCase()}` : `Open ${step.label.toLowerCase()}` } : {})}
               className={cn(
                 'flex items-center gap-2 whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-medium',
+                onClick && 'cursor-pointer transition-colors hover:border-warning-400 hover:bg-warning-500 hover:text-white',
                 done && !cancelled && 'border-secondary-800 bg-secondary-800 text-white',
                 done && cancelled && 'border-secondary-300 bg-secondary-100 text-secondary-700',
                 current && !cancelled && 'border-warning-300 bg-warning-50 text-warning-800',
@@ -127,10 +144,10 @@ export const WorkflowStepper: React.FC<{ shipment: InboundShipment }> = ({ shipm
                     : stoppedHere ? 'bg-danger-100' : current ? 'bg-warning-200' : 'bg-secondary-100'
                 )}
               >
-                {done ? '✓' : stoppedHere ? '✕' : i + 1}
+                {done ? '✓' : stoppedHere ? '✕' : i + 1 - hiddenSteps}
               </span>
               {stoppedHere ? `Cancelled at ${step.label.toLowerCase()}` : step.label}
-            </div>
+            </Pill>
             {i < WORKFLOW_STEPS.length - 1 && (
               <span className={cn('h-px w-4 flex-shrink-0', done ? 'bg-secondary-800' : 'bg-border')} />
             )}

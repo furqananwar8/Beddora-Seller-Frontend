@@ -57,7 +57,8 @@ export interface ShipmentsController {
   shipments: InboundShipment[]
   pool: ReservedPoolItem[]
   lastSyncedAt: string
-  createShipment: (input: CreateShipmentInput) => Promise<InboundShipment>
+  /** deferListRefresh keeps the new draft out of the list until the caller's next call refreshes it. */
+  createShipment: (input: CreateShipmentInput, options?: { deferListRefresh?: boolean }) => Promise<InboundShipment>
   saveItems: (id: string, items: InboundShipmentItem[]) => Promise<InboundShipment>
   submitPlan: (id: string) => Promise<InboundShipment>
   getPackingPlan: (id: string) => Promise<PackingPlan>
@@ -151,9 +152,10 @@ export const useShipments = (): ShipmentsController => {
   const [syncAll] = useSyncShipmentsMutation()
 
   const createShipment = useCallback(
-    (input: CreateShipmentInput) =>
+    (input: CreateShipmentInput, options?: { deferListRefresh?: boolean }) =>
       call(
         create({
+          deferListRefresh: options?.deferListRefresh,
           name: input.name,
           marketplace: input.marketplace,
           items: toLines(input.items),

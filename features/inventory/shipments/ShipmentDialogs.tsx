@@ -353,12 +353,13 @@ export const MarkShippedModal: React.FC<MarkShippedModalProps> = ({
   }
 
   return (
-    <Modal isOpen onClose={isSubmitting ? () => {} : onClose} title="Mark as shipped" size="md">
-      <div className="mb-4 flex flex-wrap items-center gap-2 rounded-md border border-border bg-surface-secondary px-3 py-2.5">
-        <span className="mr-auto text-sm text-text-secondary">Labels are ready. Print and stick them on before pickup.</span>
+    <Modal isOpen onClose={isSubmitting ? () => {} : onClose} title="Mark as shipped" size="lg">
+      <div className="mb-4 flex flex-col items-start gap-2 rounded-md border border-border bg-surface-secondary px-3 py-2.5">
+        <span className="text-sm text-text-secondary">Labels are ready. Print and stick them on before pickup.</span>
         <LabelDownloadControl
           type="box"
           label="Box labels"
+          selectClassName="w-72"
           status={shipment.labels?.box}
           isDownloading={!!downloadingLabels.box}
           onClick={() => onDownloadLabel('box')}
@@ -366,6 +367,7 @@ export const MarkShippedModal: React.FC<MarkShippedModalProps> = ({
         <LabelDownloadControl
           type="unit"
           label="FNSKU unit labels"
+          selectClassName="w-72"
           status={shipment.labels?.unit}
           isDownloading={!!downloadingLabels.unit}
           onClick={() => onDownloadLabel('unit')}
