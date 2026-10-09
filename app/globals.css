@@ -430,21 +430,6 @@
     z-index: 30 !important;
   }
 
-  /* Pinned body cells slide under the sticky header, whatever z-index the table gives its thead (z-20 and up) */
-  .ds-table td.sticky,
-  table td.sticky {
-    z-index: 10 !important;
-  }
-
-  /* A sticky cell that sits flush against the pinned column after it (e.g. a checkbox column): no edge line or shadow */
-  .ds-table th.sticky.ds-pinned-flush,
-  .ds-table td.sticky.ds-pinned-flush,
-  table th.sticky.ds-pinned-flush,
-  table td.sticky.ds-pinned-flush {
-    border-right-width: 0 !important;
-    box-shadow: none !important;
-  }
-
   /* A pinned column's header (the first, or any marked ds-pinned-col) stays above the headers scrolling behind it */
   .ds-table th.sticky:first-child,
   .ds-table th.sticky.ds-pinned-col,

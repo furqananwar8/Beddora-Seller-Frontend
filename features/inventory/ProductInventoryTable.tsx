@@ -220,9 +220,9 @@ export const ProductInventoryTable = ({
         {/* Scroll container: body scrolls, header stays put */}
         <div className="w-full h-[500px] max-h-[calc(100vh-280px)] min-h-[400px] overflow-y-auto overflow-x-auto border border-border rounded-lg shadow-sm flex flex-col">
           <Table className={cn('min-w-full border-separate border-spacing-0', isTableEmpty && 'h-full flex-1')}>
-            <TableHeader className="sticky top-0 z-30 bg-surface shadow-sm">
+            <TableHeader className="sticky top-0 z-20 bg-surface shadow-sm">
               <TableRow className="bg-surface h-12">
-                <TableHead className={cn(HEAD_CLASS, CHECKBOX_COL_CLASS, 'ds-pinned-flush')}>
+                <TableHead className={cn(HEAD_CLASS, CHECKBOX_COL_CLASS)}>
                   <input
                     type="checkbox"
                     checked={allSelected}
