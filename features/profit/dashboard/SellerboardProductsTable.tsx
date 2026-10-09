@@ -616,7 +616,7 @@ export const SellerboardProductsTable: React.FC<
                   </button>
                 )}
 
-                <div className="flex items-start gap-3 min-w-[280px]">
+                <div className="flex items-start gap-3 min-w-[340px]">
                   <div className="w-12 h-12 bg-surface-secondary rounded flex items-center justify-center flex-shrink-0 overflow-hidden">
                     {product.imageUrl ? (
                       <img
@@ -641,7 +641,7 @@ export const SellerboardProductsTable: React.FC<
                     )}
                   </div>
 
-                  <div className="min-w-0 flex-1 max-w-[220px]">
+                  <div className="min-w-0 flex-1 max-w-[300px]">
                     <div className="text-xs text-text-muted mb-1 truncate flex items-center gap-1.5">
                       <MarketplaceFlag marketplace={product.marketplace} />
                       <span>{product.sku}</span>
@@ -823,7 +823,7 @@ export const SellerboardProductsTable: React.FC<
               <TableRow className="bg-surface h-12">
                 {/* Product Column */}
                 <TableHead
-                  className="sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-left min-w-[320px] py-3 px-4 border-b border-border align-middle"
+                  className="sticky top-0 bg-surface group cursor-pointer hover:bg-surface-secondary text-left min-w-[420px] py-3 px-4 border-b border-border align-middle"
                   onClick={() => handleSort('name')}
                 >
                   <div className="flex items-center justify-start gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
