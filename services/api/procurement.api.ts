@@ -1,5 +1,5 @@
 import { baseApi } from './baseApi'
-import type { Page, PageParams } from './finance.api'
+import type { FinanceDocument, Page, PageParams, PartnerType, UserRef } from './finance.api'
 
 interface Envelope<T> {
   success: boolean
@@ -272,6 +272,80 @@ export interface PoFilterOptions {
 export interface SupplierOption extends SupplierRef {
   type: 'SUPPLIER' | 'VENDOR'
 }
+
+/* ─────────────── Purchase invoices ─────────────── */
+
+/** DRAFT / REJECTED → PENDING_APPROVAL → PAYMENT_PENDING → PARTIALLY_PAID → PAID (the paid states follow the PO's payments). */
+export type PurchaseInvoiceStatus = 'DRAFT' | 'PENDING_APPROVAL' | 'REJECTED' | 'PAYMENT_PENDING' | 'PARTIALLY_PAID' | 'PAID'
+/** The PDF renders in the background after every change. */
+export type PurchaseInvoicePdfStatus = 'PENDING' | 'READY' | 'FAILED'
+
+export interface PurchaseInvoiceCan {
+  edit: boolean
+  submit: boolean
+  withdraw: boolean
+  decide: boolean
+}
+
+export interface PurchaseInvoiceListItem {
+  id: number
+  /** Our number, `INV#2411`. */
+  invoiceRef: string
+  /** The supplier's invoice number. */
+  invoiceNo: string
+  invoiceDate: string
+  purchaseOrder: { id: number; poNo: string }
+  marketplaceId: number | null
+  currency: string
+  amount: number
+  remarks: string | null
+  status: PurchaseInvoiceStatus
+  pdfStatus: PurchaseInvoicePdfStatus
+  decisionNote: string | null
+  createdAt: string
+  partner: { id: number; name: string }
+  expenseType: { id: number; name: string }
+  createdBy: UserRef
+  decidedBy: UserRef | null
+  can: PurchaseInvoiceCan
+}
+
+export interface PurchaseInvoiceListParams extends PageParams {
+  status?: PurchaseInvoiceStatus
+  purchaseOrderId?: number
+}
+
+/** A document on the invoice; `carried` ones come from the PO's payment requests and are only unlinked on removal. */
+export interface PurchaseInvoiceDocument extends FinanceDocument {
+  carried: boolean
+}
+
+export interface PurchaseInvoiceDetail extends Omit<PurchaseInvoiceListItem, 'partner' | 'can'> {
+  partner: { id: number; name: string; type: PartnerType; country: string | null; currency: string }
+  marketplace: { id: number; name: string; code: string } | null
+  documents: PurchaseInvoiceDocument[]
+  events: Array<{ id: number; type: string; actor: UserRef | null; payload: Record<string, unknown> | null; createdAt: string }>
+  can: PurchaseInvoiceCan
+}
+
+/** JSON body for edits; creation sends the same fields (plus the PO and files) as multipart form data. */
+export interface PurchaseInvoiceBody {
+  partnerId: number
+  invoiceNo: string
+  invoiceDate: string
+  marketplaceId: number | null
+  expenseTypeId: number
+  currency: string
+  amount: number
+  remarks: string | null
+  carriedDocumentIds: string[]
+}
+
+/** Where an invoice's stored files are served (readable by anyone who can see the invoice). */
+export const purchaseInvoiceDocumentPath = (invoiceId: number, documentId: string): string =>
+  `/procurement/purchase-invoices/${invoiceId}/documents/${documentId}/download`
+
+export const purchaseInvoicePdfPath = (invoiceId: number): string => `/procurement/purchase-invoices/${invoiceId}/pdf`
 
 /* ─────────────── Packaging lists ─────────────── */
 
@@ -757,6 +831,52 @@ export const procurementApi = baseApi.injectEndpoints({
       providesTags: ['FinancePartners'],
     }),
 
+    /* purchase invoices */
+    getPurchaseInvoices: b.query<Page<PurchaseInvoiceListItem>, PurchaseInvoiceListParams>({
+      query: ({ search, ...params }) => ({ url: '/procurement/purchase-invoices', params: { ...params, search: search || undefined } }),
+      providesTags: ['ProcurementPurchaseInvoices'],
+    }),
+    getPurchaseInvoiceSummary: b.query<{ byStatus: Record<PurchaseInvoiceStatus, number>; all: number }, Omit<PurchaseInvoiceListParams, 'page' | 'limit' | 'status'>>({
+      query: ({ search, ...params }) => ({ url: '/procurement/purchase-invoices/summary', params: { ...params, search: search || undefined } }),
+      transformResponse: unwrap,
+      providesTags: ['ProcurementPurchaseInvoices'],
+    }),
+    getPurchaseInvoice: b.query<PurchaseInvoiceDetail, number>({
+      query: (id) => `/procurement/purchase-invoices/${id}`,
+      transformResponse: unwrap,
+      providesTags: ['ProcurementPurchaseInvoices'],
+    }),
+    /** Documents of the PO's payment requests, offered to carry into a new invoice. */
+    getPurchaseOrderInvoiceDocuments: b.query<FinanceDocument[], number>({
+      query: (purchaseOrderId) => ({ url: '/procurement/purchase-invoices/po-documents', params: { purchaseOrderId } }),
+      transformResponse: unwrap,
+      providesTags: ['FinanceRequests'],
+    }),
+    createPurchaseInvoice: b.mutation<PurchaseInvoiceDetail, FormData>({
+      query: (body) => ({ url: '/procurement/purchase-invoices', method: 'POST', body }),
+      transformResponse: unwrap,
+      invalidatesTags: ['ProcurementPurchaseInvoices'],
+    }),
+    updatePurchaseInvoice: b.mutation<PurchaseInvoiceDetail, { id: number; body: Partial<PurchaseInvoiceBody> }>({
+      query: ({ id, body }) => ({ url: `/procurement/purchase-invoices/${id}`, method: 'PATCH', body }),
+      transformResponse: unwrap,
+      invalidatesTags: ['ProcurementPurchaseInvoices'],
+    }),
+    purchaseInvoiceAction: b.mutation<PurchaseInvoiceDetail, { id: number; action: 'submit' | 'withdraw' | 'approve' | 'reject' | 'hold'; reason?: string }>({
+      query: ({ id, action, reason }) => ({ url: `/procurement/purchase-invoices/${id}/${action}`, method: 'POST', body: reason ? { reason } : {} }),
+      transformResponse: unwrap,
+      invalidatesTags: ['ProcurementPurchaseInvoices'],
+    }),
+    addPurchaseInvoiceDocuments: b.mutation<FinanceDocument[], { id: number; body: FormData }>({
+      query: ({ id, body }) => ({ url: `/procurement/purchase-invoices/${id}/documents`, method: 'POST', body }),
+      transformResponse: unwrap,
+      invalidatesTags: ['ProcurementPurchaseInvoices'],
+    }),
+    removePurchaseInvoiceDocument: b.mutation<void, { id: number; documentId: string }>({
+      query: ({ id, documentId }) => ({ url: `/procurement/purchase-invoices/${id}/documents/${documentId}`, method: 'DELETE' }),
+      invalidatesTags: ['ProcurementPurchaseInvoices'],
+    }),
+
     /* packaging lists */
     getPackagingLists: b.query<Page<PackagingListItem>, PackagingListParams>({
       query: ({ search, ...params }) => ({ url: '/procurement/packaging-lists', params: { ...params, search: search || undefined } }),
@@ -935,6 +1055,15 @@ export const {
   useDeleteProcurementPurchaseOrderMutation,
   useSetPurchaseOrderLockedMutation,
   useGetSupplierOptionsQuery,
+  useGetPurchaseInvoicesQuery,
+  useGetPurchaseInvoiceSummaryQuery,
+  useGetPurchaseInvoiceQuery,
+  useGetPurchaseOrderInvoiceDocumentsQuery,
+  useCreatePurchaseInvoiceMutation,
+  useUpdatePurchaseInvoiceMutation,
+  usePurchaseInvoiceActionMutation,
+  useAddPurchaseInvoiceDocumentsMutation,
+  useRemovePurchaseInvoiceDocumentMutation,
   useGetPackagingListsQuery,
   useGetPackagingListSummaryQuery,
   useGetPackagingListQuery,

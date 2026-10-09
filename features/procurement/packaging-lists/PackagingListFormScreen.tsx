@@ -184,7 +184,7 @@ export const PackagingListFormScreen: React.FC<PackagingListFormScreenProps> = (
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-4">
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="text-xl font-bold text-text-primary sm:text-2xl">{title}</h1>
-          {isNew && <StatusBadge label="Draft" tone="neutral" />}
+          {isNew && <StatusBadge label="DRAFT" tone="neutral" />}
           {editing && <StatusBadge label="Editing quantities" tone="info" />}
           {destination && <StatusBadge label={DESTINATION_LABEL[destination]} tone="neutral" />}
           {container && <StatusBadge label={`In ${containerLabel(container)}`} tone="info" />}

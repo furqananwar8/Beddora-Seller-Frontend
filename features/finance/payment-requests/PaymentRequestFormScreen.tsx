@@ -11,7 +11,6 @@ import { SingleDatePicker } from '@/components/single-date-picker/SingleDatePick
 import { StatusBadge } from '@/components/status-badge/StatusBadge'
 import { SegmentedToggle } from '@/components/segmented-toggle/SegmentedToggle'
 import { Button } from '@/design-system/buttons'
-import { Card } from '@/design-system/cards'
 import { Input, Select, Textarea } from '@/design-system/inputs'
 import { SelectShell } from '../shared/SelectShell'
 import { Spinner } from '@/design-system/loaders'
@@ -33,6 +32,7 @@ import {
   useUpdatePaymentRequestMutation,
 } from '@/services/api/finance.api'
 import { FormField } from '../shared/FormField'
+import { FormSection as Section } from '../shared/FormSection'
 import { formatCurrencyAmount, formatMoney, formatRequestNo, toDateInputValue } from '../shared/format'
 import { REQUEST_STATUS_META } from '../shared/statusMeta'
 import { useFinanceFeedback } from '../shared/useFinanceFeedback'
@@ -56,16 +56,6 @@ import {
 
 const LIST_URL = '/dashboard/finance/payment-request'
 const NEW_URL = `${LIST_URL}/new`
-
-const Section: React.FC<{ title: string; note?: string; children: React.ReactNode }> = ({ title, note, children }) => (
-  <Card className="p-4 sm:p-5">
-    <h2 className="mb-4 flex flex-wrap items-baseline gap-2 text-base font-semibold text-text-primary">
-      {title}
-      {note && <span className="text-xs font-normal text-text-muted">{note}</span>}
-    </h2>
-    {children}
-  </Card>
-)
 
 const toFormValues = (detail: PaymentRequestDetail): PaymentRequestFormValues => ({
   partnerId: String(detail.partner.id),

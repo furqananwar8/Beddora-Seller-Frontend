@@ -1,6 +1,6 @@
 import React from 'react'
 import { StatusBadge, type StatusTone } from '@/components/status-badge/StatusBadge'
-import type { ContainerStatus, EtdAlert, PaymentState, PoDestination, PoPayment, PoStatus } from '@/services/api/procurement.api'
+import type { ContainerStatus, EtdAlert, PaymentState, PoDestination, PoPayment, PoStatus, PurchaseInvoicePdfStatus, PurchaseInvoiceStatus } from '@/services/api/procurement.api'
 import { cn } from '@/utils/cn'
 import { formatCalendarDay } from '@/utils/format'
 
@@ -13,16 +13,16 @@ export const poPaymentRequestsHref = (id: number): string => `/dashboard/finance
 export const DESTINATION_LABEL: Record<PoDestination, string> = { US: 'USA', CA: 'CANADA' }
 
 export const PO_STATUS_META: Record<PoStatus, { label: string; tone: StatusTone }> = {
-  DRAFT: { label: 'Draft', tone: 'neutral' },
-  PENDING_APPROVAL: { label: 'Pending approval', tone: 'warning' },
-  IN_PROGRESS: { label: 'In progress', tone: 'info' },
-  READY_TO_SHIP: { label: 'Ready to ship', tone: 'success' },
+  DRAFT: { label: 'DRAFT', tone: 'neutral' },
+  PENDING_APPROVAL: { label: 'PENDING FOR APPROVAL', tone: 'warning' },
+  IN_PROGRESS: { label: 'IN PROGRESS', tone: 'info' },
+  READY_TO_SHIP: { label: 'READY TO SHIP', tone: 'success' },
 }
 
 export const PAYMENT_META: Record<PaymentState, { label: string; tone: StatusTone }> = {
-  UNPAID: { label: 'Unpaid', tone: 'danger' },
-  PARTIALLY_PAID: { label: 'Partially paid', tone: 'warning' },
-  PAID: { label: 'Paid', tone: 'success' },
+  UNPAID: { label: 'UNPAID', tone: 'danger' },
+  PARTIALLY_PAID: { label: 'PARTIALLY PAID', tone: 'warning' },
+  PAID: { label: 'PAID', tone: 'success' },
 }
 
 export const PoStatusBadge: React.FC<{ status: PoStatus }> = ({ status }) => <StatusBadge label={PO_STATUS_META[status].label} tone={PO_STATUS_META[status].tone} />
@@ -36,7 +36,7 @@ export const PaymentBadge: React.FC<{ payment: PoPayment; withPercent?: boolean 
   </span>
 )
 
-export const OpenBadge: React.FC<{ isOpen: boolean }> = ({ isOpen }) => <StatusBadge label={isOpen ? 'Open' : 'Closed'} tone={isOpen ? 'info' : 'neutral'} />
+export const OpenBadge: React.FC<{ isOpen: boolean }> = ({ isOpen }) => <StatusBadge label={isOpen ? 'OPEN' : 'CLOSED'} tone={isOpen ? 'info' : 'neutral'} />
 
 const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? '' : 's'}`
 
@@ -84,9 +84,9 @@ export const isPackable = (po: { status: PoStatus; isOpen: boolean }): boolean =
 
 /** In lifecycle order: a container only moves forward through these. */
 export const CONTAINER_STATUS_META: Record<ContainerStatus, { label: string; tone: StatusTone }> = {
-  BOOKED: { label: 'Booked', tone: 'neutral' },
-  IN_TRANSIT: { label: 'In transit', tone: 'info' },
-  DELIVERED: { label: 'Delivered', tone: 'success' },
+  BOOKED: { label: 'BOOKED', tone: 'neutral' },
+  IN_TRANSIT: { label: 'IN TRANSIT', tone: 'info' },
+  DELIVERED: { label: 'DELIVERED', tone: 'success' },
 }
 
 export const CONTAINER_STATUSES = Object.keys(CONTAINER_STATUS_META) as ContainerStatus[]
@@ -98,3 +98,33 @@ export const nextContainerStatuses = (current: ContainerStatus): ContainerStatus
 export const containerLabel = (container: { containerNo: string; containerNumber: string | null }): string => container.containerNumber ?? container.containerNo
 
 export const ContainerStatusBadge: React.FC<{ status: ContainerStatus }> = ({ status }) => <StatusBadge label={CONTAINER_STATUS_META[status].label} tone={CONTAINER_STATUS_META[status].tone} />
+
+/** Status labels are UPPERCASE across Procurement and Finance; these match the payment request / payment process ones. */
+export const PURCHASE_INVOICE_STATUS_META: Record<PurchaseInvoiceStatus, { label: string; tone: StatusTone }> = {
+  DRAFT: { label: 'DRAFT', tone: 'neutral' },
+  PENDING_APPROVAL: { label: 'PENDING FOR APPROVAL', tone: 'warning' },
+  REJECTED: { label: 'REJECTED', tone: 'danger' },
+  PAYMENT_PENDING: { label: 'PAYMENT PENDING', tone: 'info' },
+  PARTIALLY_PAID: { label: 'PARTIALLY PAID', tone: 'warning' },
+  PAID: { label: 'PAID', tone: 'success' },
+}
+
+export const PURCHASE_INVOICE_STATUSES = Object.keys(PURCHASE_INVOICE_STATUS_META) as PurchaseInvoiceStatus[]
+
+export const PurchaseInvoiceStatusBadge: React.FC<{ status: PurchaseInvoiceStatus }> = ({ status }) => (
+  <StatusBadge label={PURCHASE_INVOICE_STATUS_META[status].label} tone={PURCHASE_INVOICE_STATUS_META[status].tone} />
+)
+
+export const PDF_STATUS_META: Record<PurchaseInvoicePdfStatus, { label: string; tone: StatusTone }> = {
+  PENDING: { label: 'GENERATING', tone: 'neutral' },
+  READY: { label: 'READY', tone: 'success' },
+  FAILED: { label: 'FAILED', tone: 'danger' },
+}
+
+export const PURCHASE_INVOICES_URL = '/dashboard/procurement/purchase-invoices'
+
+/** New purchase invoice prefilled from one PO. */
+export const newPurchaseInvoiceHref = (purchaseOrderId: number): string => `${PURCHASE_INVOICES_URL}/new?purchaseOrderId=${purchaseOrderId}`
+
+/** Purchase invoices narrowed to one PO. */
+export const poPurchaseInvoicesHref = (purchaseOrderId: number): string => `${PURCHASE_INVOICES_URL}?purchaseOrderId=${purchaseOrderId}`

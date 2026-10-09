@@ -39,9 +39,9 @@ interface Filters extends Record<string, unknown> {
 const DEFAULT_FILTERS: Filters = { status: 'ALL', category: null }
 
 export const PA_STATUS_META: Record<PriceAnalysisStatus, { label: string; tone: StatusTone }> = {
-  NONE: { label: 'No quotes', tone: 'neutral' },
-  PENDING: { label: 'Awaiting approval', tone: 'warning' },
-  APPROVED: { label: 'Approved', tone: 'success' },
+  NONE: { label: 'NO QUOTES', tone: 'neutral' },
+  PENDING: { label: 'AWAITING APPROVAL', tone: 'warning' },
+  APPROVED: { label: 'APPROVED', tone: 'success' },
 }
 
 /** The list holds analyses; products without one are started from "New price analysis". */

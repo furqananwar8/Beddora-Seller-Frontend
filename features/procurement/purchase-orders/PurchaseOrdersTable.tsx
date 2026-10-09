@@ -20,6 +20,9 @@ export interface PoRowActions {
   canViewPayments: boolean
   /** May create packaging lists. */
   canPack: boolean
+  /** May raise purchase invoices. */
+  canInvoice: boolean
+  onCreatePurchaseInvoice: (row: PurchaseOrderListItem) => void
   onCreatePackagingList: (row: PurchaseOrderListItem) => void
   onViewPackagingLists: (row: PurchaseOrderListItem) => void
   onViewPayments: (row: PurchaseOrderListItem) => void
@@ -45,6 +48,7 @@ function actionsFor(row: PurchaseOrderListItem, actions: PoRowActions): RowActio
   ]
   if (actions.canPack && isPackable(row)) items.push({ key: 'pack', label: 'Create packaging list', onSelect: () => actions.onCreatePackagingList(row) })
   if (approved) items.push({ key: 'lists', label: 'View packaging lists', onSelect: () => actions.onViewPackagingLists(row) })
+  if (actions.canInvoice && approved) items.push({ key: 'invoice', label: 'Create purchase invoice', onSelect: () => actions.onCreatePurchaseInvoice(row) })
   if (actions.canViewPayments) {
     items.push({ key: 'payments', label: `View payment requests (${row.payment.requestCount})`, onSelect: () => actions.onViewPayments(row) })
   }

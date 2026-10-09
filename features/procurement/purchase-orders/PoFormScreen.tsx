@@ -24,7 +24,7 @@ import {
 import { useAppSelector } from '@/store/hooks'
 import { applyServerIssues } from '@/utils/apiErrors'
 import { formatCalendarDay } from '@/utils/format'
-import { isApprovedPo, isPackable, newPackagingListHref, PaymentBadge, PoStatusBadge, poPackagingListsHref, poPaymentRequestsHref } from '../shared/poMeta'
+import { isApprovedPo, isPackable, newPackagingListHref, newPurchaseInvoiceHref, PaymentBadge, PoStatusBadge, poPackagingListsHref, poPaymentRequestsHref, poPurchaseInvoicesHref } from '../shared/poMeta'
 import { ApprovalPanel } from './ApprovalPanel'
 import { emptyPoValues, fromDetail, fromRemaining, poFormSchema, toPoBody, type PoFormValues } from './poForm'
 import { PoOrderDetailsSection, PoSupplierSection } from './PoDetailsSections'
@@ -177,6 +177,16 @@ export const PoFormScreen: React.FC<PoFormScreenProps> = ({ purchaseOrderId }) =
               {po && isPackable(po) && ability.can('write', 'procurement:packaging-lists') && (
                 <Link href={newPackagingListHref(po.id)} className="text-sm font-medium text-primary-600 underline-offset-2 hover:underline">
                   + Create packaging list
+                </Link>
+              )}
+              {po && isApprovedPo(po) && ability.can('write', 'procurement:purchase-invoices') && (
+                <Link href={newPurchaseInvoiceHref(po.id)} className="text-sm font-medium text-primary-600 underline-offset-2 hover:underline">
+                  + Create purchase invoice
+                </Link>
+              )}
+              {po && isApprovedPo(po) && ability.can('read', 'procurement:purchase-invoices') && (
+                <Link href={poPurchaseInvoicesHref(po.id)} className="text-sm font-medium text-primary-600 underline-offset-2 hover:underline">
+                  View purchase invoices
                 </Link>
               )}
               {po && ability.can('read', 'finance:payment-request') && (
