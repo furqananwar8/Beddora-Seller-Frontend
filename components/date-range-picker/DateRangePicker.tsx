@@ -659,12 +659,19 @@ export default function DateRangePicker({
       null
     )
 
+  const popupRef =
+    useRef<HTMLDivElement>(
+      null
+    )
+
   // The popup opens on the requested side, flips to the other when that would run
   // off the screen, and as a last resort is pinned to the screen's left edge.
+  // It opens below the trigger, or above it when it does not fit below and there is more room above.
   const [position, setPosition] =
     useState<{
       side: 'left' | 'right'
       shift?: number
+      vertical?: 'top' | 'bottom'
     }>({ side: placement })
 
   const activePresets =
@@ -740,14 +747,30 @@ export default function DateRangePicker({
         ? 'right'
         : 'left'
 
+    // Room for the popup (plus its 8px gap) below the trigger, otherwise open it above when that has more room.
+    const popupHeight =
+      popupRef.current?.offsetHeight ?? 0
+    const roomBelow =
+      window.innerHeight -
+      rect.bottom -
+      margin
+    const roomAbove =
+      rect.top - margin
+    const vertical =
+      popupHeight + 8 > roomBelow &&
+      roomAbove > roomBelow
+        ? 'top'
+        : 'bottom'
+
     if (fits(placement)) {
-      setPosition({ side: placement })
+      setPosition({ side: placement, vertical })
     } else if (fits(other)) {
-      setPosition({ side: other })
+      setPosition({ side: other, vertical })
     } else {
       setPosition({
         side: 'left',
         shift: margin - rect.left,
+        vertical,
       })
     }
   }, [isOpen, placement])
@@ -1105,13 +1128,18 @@ export default function DateRangePicker({
 
       {isOpen && (
         <div
+          ref={popupRef}
           style={
             position.shift !== undefined
               ? { left: position.shift }
               : undefined
           }
           className={cn(
-            'absolute z-50 mt-2 flex w-[640px] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-lg border border-border bg-surface shadow-lg sm:flex-row',
+            'absolute z-50 flex w-[640px] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-lg border border-border bg-surface shadow-lg sm:flex-row',
+
+            position.vertical === 'top'
+              ? 'bottom-full mb-2'
+              : 'mt-2',
 
             position.side === 'left'
               ? 'left-0'
