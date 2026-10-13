@@ -46,7 +46,7 @@ export default function DashboardLayout({
             icon: NavIcons.profit,
             children: [
               {
-                label: 'Dashboard',
+                label: 'Settlement Report',
                 subject: 'profit:dashboard',
                 action: 'read',
                 href: '/dashboard/profit/dashboard',
