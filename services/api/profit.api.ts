@@ -84,6 +84,8 @@ export interface ProfitSummary {
       salesTaxCollectionFee: number
       reversalReimbursement: number
       other: number
+      /** Tax charged on each fee; the fee amounts above are Base only. */
+      feeTax?: Record<string, number>
     }
   }
 
@@ -368,6 +370,8 @@ export interface CountryProfitBreakdown {
     salesTaxCollectionFee: number
     reversalReimbursement: number
     other: number
+    /** Tax charged on each fee; the fee amounts above are Base only. */
+    feeTax?: Record<string, number>
   }
 
   sellableReturns: number
