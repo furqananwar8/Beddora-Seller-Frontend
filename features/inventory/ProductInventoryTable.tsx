@@ -95,7 +95,12 @@ const DaysBadge = ({ days }: { days: number | null }) => {
   if (days <= 0) return <Badge variant="error">{days}</Badge>
   if (days < 7) return <Badge variant="warning">{days}</Badge>
   if (days < 30) return <Badge variant="success">{days}</Badge>
-  return <Badge variant="primary">{days}</Badge>
+  // The theme's `primary` scale is one dark shade, so the stock `primary` badge is dark text on a dark fill
+  return (
+    <Badge variant="primary" className="border-primary-900 bg-primary-900 text-text-inverse">
+      {days}
+    </Badge>
+  )
 }
 
 export const ProductInventoryTable = ({
