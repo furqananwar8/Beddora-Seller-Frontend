@@ -23,6 +23,7 @@ export const tagTypes = [
   'ScheduledJobs',
   'Permissions',
   'Profit',
+  'Barcode',
   'Inventory',
   'InventoryAdjustments',
   'SellerCentralShipments',
