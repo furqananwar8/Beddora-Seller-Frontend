@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React from 'react'
 import { format, parseISO } from 'date-fns'
 import DateRangePicker, { DateRangeValue } from '@/components/date-range-picker/DateRangePicker'
 import { useReportSyncManagement } from '@/hooks/user-report-sync-management'
@@ -8,13 +8,28 @@ import { Spinner } from '@/design-system/loaders'
 import { useAppDispatch } from '@/store/hooks'
 import { addNotification } from '@/store/ui.slice'
 
-const ALLOWED_SYNC_TYPES = ['ads', 'fees', 'products']
+type SyncMode = 'live' | 'backfill'
 
-const SYNC_TYPE_LABEL_MAP: Record<string, string> = {
-  ads: 'Ads Report',
-  fees: 'Payment Report',
-  products: 'Products'
+interface ManagedSyncJob {
+  syncType: string
+  label: string
+  /** Modes that have a start date worth resetting. */
+  modes: SyncMode[]
 }
+
+const BOTH_MODES: SyncMode[] = ['live', 'backfill']
+
+/** Every sync job that can be reset from this page. A new job is one entry here. */
+const MANAGED_SYNC_JOBS: ManagedSyncJob[] = [
+  { syncType: 'ads', label: 'Ads Report', modes: BOTH_MODES },
+  { syncType: 'fees', label: 'Payment Report', modes: BOTH_MODES },
+  { syncType: 'products', label: 'Products', modes: BOTH_MODES },
+  { syncType: 'orders', label: 'Orders', modes: BOTH_MODES },
+  // Amazon builds this report over a rolling month, so only its backfill has a start date to move back.
+  { syncType: 'fba_long_term_storage_fee', label: 'Long-Term Storage Fees', modes: ['backfill'] },
+]
+
+const SYNC_TYPE_LABEL_MAP: Record<string, string> = Object.fromEntries(MANAGED_SYNC_JOBS.map(({ syncType, label }) => [syncType, label]))
 
 export default function ReportSyncManagementPage() {
   const dispatch = useAppDispatch()
@@ -29,8 +44,6 @@ export default function ReportSyncManagementPage() {
     updateRowDate,
     applyReset,
   } = useReportSyncManagement()
-
-  const [activePickerKey, setActivePickerKey] = useState<string | null>(null)
 
   const getDefaultDateStr = (dateVal: string | null | undefined): string => {
     if (!dateVal) return '2026-09-01'
@@ -47,17 +60,7 @@ export default function ReportSyncManagementPage() {
     }
   }
 
-  const filteredSyncTypes = ALLOWED_SYNC_TYPES.filter((type) =>
-    syncStates.some((s) => s.syncType === type)
-  )
-
-  const rowsToRender: Array<{ syncType: string; mode: 'live' | 'backfill' }> = []
-  const targetSyncTypes = filteredSyncTypes.length > 0 ? filteredSyncTypes : ALLOWED_SYNC_TYPES
-
-  targetSyncTypes.forEach((syncType) => {
-    rowsToRender.push({ syncType, mode: 'live' })
-    rowsToRender.push({ syncType, mode: 'backfill' })
-  })
+  const rowsToRender = MANAGED_SYNC_JOBS.flatMap(({ syncType, modes }) => modes.map((mode) => ({ syncType, mode })))
 
   // Redux notification dispatch handler
   const handleApplyResetWithToast = async () => {
@@ -88,12 +91,12 @@ export default function ReportSyncManagementPage() {
   const isBusy = isLoading || isSubmitting || isFetching
 
   return (
-    <div className="p-6 max-w-6xl mx-auto font-sans pb-64">
+    <div className="p-6 max-w-6xl mx-auto font-sans">
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Amazon Sync Management</h1>
         <p className="text-sm text-gray-500 mt-1">
-          Reset sync start dates, flush pending BullMQ jobs, and purge cached report keys for Ads and Fees.
+          Reset sync start dates, flush pending BullMQ jobs, and purge cached report keys, so a sync can re-run from an earlier date.
         </p>
       </div>
 
@@ -111,7 +114,8 @@ export default function ReportSyncManagementPage() {
           </div>
         )}
 
-        <div className="ds-scroll-x">
+        {/* The date picker popup must overflow the card, so scrolling is only kept where the table does not fit */}
+        <div className="ds-scroll-x md:overflow-visible">
         <table className="w-full text-left border-collapse overflow-visible">
           <thead>
             <tr className="bg-gray-50 border-b text-xs font-semibold text-gray-600 uppercase tracking-wider relative z-0">
@@ -120,11 +124,11 @@ export default function ReportSyncManagementPage() {
               <th className="py-3 px-4 w-28">Mode</th>
               <th className="py-3 px-4 w-28">Status</th>
               <th className="py-3 px-4 text-center">Current Start Date</th>
-              <th className="py-3 px-4 text-right w-48 rounded-tr-lg">New Start Date</th>
+              <th className="py-3 px-4 w-52 rounded-tr-lg">New Start Date</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200 text-sm overflow-visible">
-            {rowsToRender.map(({ syncType, mode }, rowIndex) => {
+            {rowsToRender.map(({ syncType, mode }) => {
               const state = syncStates.find(
                 (s) => s.syncType === syncType && s.mode === mode
               )
@@ -139,15 +143,10 @@ export default function ReportSyncManagementPage() {
                 endDate: selectedDateStr,
               }
 
-              const isPickerOpen = activePickerKey === key && !isBusy
-              const rowZIndex = isPickerOpen ? 'z-40' : ''
-              const rowStyle = isPickerOpen ? { zIndex: 40 } : { zIndex: 20 - rowIndex }
-
               return (
                 <tr
                   key={key}
-                  style={rowStyle}
-                  className={`relative transition-colors ${rowZIndex} ${
+                  className={`transition-colors ${
                     isChecked ? 'bg-blue-50/40' : 'hover:bg-gray-50'
                   }`}
                 >
@@ -193,26 +192,18 @@ export default function ReportSyncManagementPage() {
                   </td>
 
                   {/* Date Picker Cell */}
-                  <td className="py-3 px-4 text-right relative overflow-visible">
-                    <div
-                      className={`inline-block relative ${isBusy ? 'pointer-events-none opacity-50' : ''}`}
-                      onFocus={() => !isBusy && setActivePickerKey(key)}
-                      onClick={() =>
-                        !isBusy && setActivePickerKey((prev) => (prev === key ? null : key))
-                      }
-                    >
+                  <td className="py-3 px-4 relative overflow-visible">
+                    <div className={`inline-block relative ${isBusy ? 'pointer-events-none opacity-50' : ''}`}>
                       <DateRangePicker
                         selectionMode="single"
                         disableFutureDates={true}
                         showPresets={false}
                         value={datePickerValue}
-                        onChange={(range) => {
-                          updateRowDate(key, range)
-                          setActivePickerKey(null)
-                        }}
+                        onChange={(range) => updateRowDate(key, range)}
                         displayFormat="MMM d, yyyy"
                         placeholder="Select Date"
                         placement="right"
+                        triggerClassName="w-44 [&>span]:flex-1 [&>span]:text-left"
                       />
                     </div>
                   </td>

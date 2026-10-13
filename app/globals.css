@@ -200,6 +200,11 @@
     height: 100vh;
   }
 
+  /* Opt-in for a page that is shorter than the screen: fill the space below the 4rem header instead of a full 100vh, so the document does not scroll. */
+  .ds-content-fit {
+    height: calc(100vh - 4rem);
+  }
+
   /* Buttons */
   .ds-button {
     @apply inline-flex items-center justify-center font-medium transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-200 disabled:opacity-50 disabled:cursor-not-allowed;
