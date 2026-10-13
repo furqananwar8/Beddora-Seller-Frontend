@@ -62,6 +62,7 @@ interface CartonCardProps {
 export const CartonCard: React.FC<CartonCardProps> = ({ carton, index, group, dimensionUnit, weightUnit, canRemove, onChange, onRemove }) => {
   const itemBySku = new Map(group.items.map((i) => [i.sku, i]))
   const canMix = addableItems(group, carton).length > 0
+  const boxes = Number(carton.count) || 0
 
   const setField = (field: 'count' | 'length' | 'width' | 'height' | 'weight', value: string) =>
     onChange((c) => ({ ...c, [field]: value }))
@@ -92,7 +93,7 @@ export const CartonCard: React.FC<CartonCardProps> = ({ carton, index, group, di
         </div>
         <div className="flex items-center gap-3">
           <span className="text-xs text-text-secondary">
-            {formatUnits(Number(carton.count) || 0)} boxes × {formatUnits(unitsPerCarton(carton))} units
+            {formatUnits(boxes)} {boxes === 1 ? 'box' : 'boxes'} × {formatUnits(unitsPerCarton(carton))} units
           </span>
           <button
             type="button"
