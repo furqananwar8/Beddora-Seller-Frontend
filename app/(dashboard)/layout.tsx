@@ -10,6 +10,7 @@ import { NavIcons } from '@/components/navigation/icons'
 import { setAmazonSession } from '@/store/amazon.slice'
 import { useAppAbility } from '@/hooks/useAppAbility'
 import { AiAssistant } from '@/components/ai-assistant'
+import { BarcodeScannerProvider } from '@/features/barcode/BarcodeScannerProvider'
 
 export interface NavItem {
   label: string
@@ -190,6 +191,13 @@ export default function DashboardLayout({
                 href: '/breakeven-analysis',
               },
             ],
+          },
+          {
+            label: 'Bar Code',
+            subject: 'barcode:scans',
+            action: 'read',
+            href: '/dashboard/barcode',
+            icon: NavIcons.barcode,
           },
           {
             label: 'Alerts',
@@ -415,6 +423,7 @@ export default function DashboardLayout({
 
   return (
     <ProtectedRoute>
+      <BarcodeScannerProvider>
       <div className="ds-page">
         <Sidebar
           sections={navSections as any}
@@ -447,6 +456,7 @@ export default function DashboardLayout({
           <AiAssistant />
         </div>
       </div>
+      </BarcodeScannerProvider>
     </ProtectedRoute>
   )
 }
