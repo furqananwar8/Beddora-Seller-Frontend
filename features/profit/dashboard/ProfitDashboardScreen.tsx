@@ -433,6 +433,7 @@ export const ProfitDashboardScreen: React.FC = () => {
           salesTaxCollectionFee: Number(apiPeriod.amazonFeeDetails?.salesTaxCollectionFee ?? 0),
           reversalReimbursement: Number(apiPeriod.amazonFeeDetails?.reversalReimbursement ?? 0),
           other: Number(apiPeriod.amazonFeeDetails?.other ?? 0),
+          feeTax: apiPeriod.amazonFeeDetails?.feeTax,
         },
         totalCOGS: Number(apiPeriod.totalCOGS ?? 0),
         totalExpenses: Number(apiPeriod.totalExpenses ?? 0),

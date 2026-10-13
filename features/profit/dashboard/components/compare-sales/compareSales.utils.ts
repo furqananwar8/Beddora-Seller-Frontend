@@ -83,8 +83,13 @@ export const getYearToDateRange = (): DateRangeValue => {
 
 /* --------------------------- formatters --------------------------- */
 
-export const formatMoney = (value: number, currency: string): string =>
-  new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(value)
+/** Currency symbol, a space, then the amount: 'CA$ 837.71', '$ 375.90'. */
+export const formatMoney = (value: number, currency: string): string => {
+  const parts = new Intl.NumberFormat('en-US', { style: 'currency', currency }).formatToParts(value)
+  const symbol = parts.filter((p) => p.type === 'currency').map((p) => p.value).join('')
+  const amount = parts.filter((p) => p.type !== 'currency').map((p) => p.value).join('').trim()
+  return `${symbol} ${amount}`
+}
 
 export const formatPercent = (value: number): string =>
   `${value > 0 ? '+' : ''}${value.toFixed(2)}%`

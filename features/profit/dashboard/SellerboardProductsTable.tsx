@@ -20,6 +20,7 @@ import {
 import { Button } from '@/design-system/buttons'
 import { Spinner } from '@/design-system/loaders'
 import { ProductProfitBreakdown } from '@/services/api/profit.api'
+import { getFeeTaxRows, sumFeeTaxRows } from '@/utils/feeTax'
 import { StatModal, StatModalData } from '@/components/stats/stats.modal'
 import {
   formatCurrency,
@@ -200,6 +201,7 @@ const buildProductStatData = (
   const feeDetails = (p as any).amazonFeeDetails || {}
 
   const refundTax = Number(refundDetails.refundTax ?? (p as any).refundTax ?? 0)
+  const feeTaxRows = getFeeTaxRows(feeDetails.feeTax)
 
   return {
     title: p.productTitle || p.sku || 'Product',
@@ -312,6 +314,21 @@ const buildProductStatData = (
           },
         ].filter((item) => Math.abs(Number(item.value || 0)) > 0),
       },
+      ...(feeTaxRows.length > 0
+        ? [
+            {
+              title: 'Tax',
+              value: sumFeeTaxRows(feeTaxRows),
+              currency: true,
+              defaultOpen: true,
+              children: feeTaxRows.map((row) => ({
+                label: row.label,
+                value: row.value,
+                currency: true,
+              })),
+            },
+          ]
+        : []),
       {
         title: 'Cost of goods',
         value: totalCOGS,

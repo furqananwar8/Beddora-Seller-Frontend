@@ -45,7 +45,7 @@ export function CompareSalesSnapshot({ snapshot, currency }: Props) {
             <div className="flex h-8 items-center justify-center text-xs font-medium uppercase leading-4 tracking-wide text-text-muted">
               {metric.label}
             </div>
-            <div className="text-2xl font-semibold leading-8 text-text-primary">{metric.value}</div>
+            <div className="text-xl font-semibold leading-7 text-text-primary">{metric.value}</div>
           </CardContent>
         </Card>
       ))}

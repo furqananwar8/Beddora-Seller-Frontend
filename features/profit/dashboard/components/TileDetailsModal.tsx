@@ -8,6 +8,7 @@ import {
   formatNumber,
 } from '@/utils/format'
 import { cn } from '@/utils/cn'
+import { getFeeTaxRows, sumFeeTaxRows } from '@/utils/feeTax'
 
 // ============================================================
 // TYPES
@@ -296,6 +297,7 @@ export const TileDetailsModal: React.FC<TileDetailsModalProps> = ({
   }
 
   const amazonFees = data.amazonFeeDetails || {}
+  const feeTaxRows = getFeeTaxRows(amazonFees.feeTax)
   const advertising = data.advertisingDetails || {}
   const refunds = data.refundDetails || {}
   const displayCurrency = data.currency || currency
@@ -355,6 +357,16 @@ export const TileDetailsModal: React.FC<TileDetailsModalProps> = ({
       value: formatCurrency(-totalFees, displayCurrency),
       expandable: true,
     },
+    ...(feeTaxRows.length > 0
+      ? [
+          {
+            key: 'fee-tax',
+            label: 'Tax',
+            value: formatCurrency(-sumFeeTaxRows(feeTaxRows), displayCurrency),
+            expandable: true,
+          },
+        ]
+      : []),
     {
       key: 'cogs',
       label: 'Cost of goods',
@@ -533,8 +545,6 @@ export const TileDetailsModal: React.FC<TileDetailsModalProps> = ({
                     'Warehouse lost': amazonFees.warehouseLost,
                     'Warehouse damage': amazonFees.warehouseDamage,
                     'Refund commission': amazonFees.refundCommission,
-                    'Base fee': amazonFees.baseFee,
-                    'Tax on fee': amazonFees.taxOnFee,
                     'Other': amazonFees.other,
                   })
                     .filter(([, feeValue]) => Math.abs(Number(feeValue || 0)) > 0)
@@ -546,6 +556,20 @@ export const TileDetailsModal: React.FC<TileDetailsModalProps> = ({
                         currency={displayCurrency}
                       />
                     ))}
+                </div>
+              )}
+
+              {/* TAX ON AMAZON FEES */}
+              {metric.key === 'fee-tax' && expanded['fee-tax'] && (
+                <div className="border-b border-border">
+                  {feeTaxRows.map((row) => (
+                    <DetailRow
+                      key={row.key}
+                      label={row.label}
+                      value={-row.value}
+                      currency={displayCurrency}
+                    />
+                  ))}
                 </div>
               )}
             </React.Fragment>
