@@ -12,6 +12,14 @@ import { useAppAbility } from '@/hooks/useAppAbility'
 import { AiAssistant } from '@/components/ai-assistant'
 import { BarcodeScannerProvider } from '@/features/barcode/BarcodeScannerProvider'
 
+/** Routes whose content is shorter than the screen, so the layout sizes them below the header (`.ds-content-fit`). */
+const FIT_BELOW_HEADER_ROUTES = [
+  '/dashboard/settings/report-sync-management',
+  '/dashboard/settings/general',
+  '/dashboard/settings/users',
+  '/dashboard/settings/addresses',
+]
+
 export interface NavItem {
   label: string
   href: string
@@ -409,6 +417,8 @@ export default function DashboardLayout({
   const isEbayDashboard = pathname?.includes('/dashboard/ebay/dashboard')
   const isSettlementReport = pathname?.includes('/dashboard/profit/settlement-report')
   const showDashboardTabs = isProfitDashboard || isEbayDashboard
+  // Short screens that should not scroll the whole document (see .ds-content-fit)
+  const fitsBelowHeader = FIT_BELOW_HEADER_ROUTES.some((route) => pathname?.includes(route))
 
   const handleLogout = React.useCallback(async () => {
     try {
@@ -452,7 +462,7 @@ export default function DashboardLayout({
             activeDashboardTab={showDashboardTabs ? activeDashboardTab : undefined}
             onDashboardTabChange={showDashboardTabs ? setActiveDashboardTab : undefined}
           />
-          <main className="ds-content">{children}</main>
+          <main className={fitsBelowHeader ? 'ds-content ds-content-fit' : 'ds-content'}>{children}</main>
           <AiAssistant />
         </div>
       </div>
