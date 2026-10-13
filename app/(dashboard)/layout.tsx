@@ -46,16 +46,10 @@ export default function DashboardLayout({
             icon: NavIcons.profit,
             children: [
               {
-                label: 'Dashboard',
+                label: 'Settlement Report',
                 subject: 'profit:dashboard',
                 action: 'read',
                 href: '/dashboard/profit/dashboard',
-              },
-              {
-                label: 'Products',
-                subject: 'profit:products',
-                action: 'read',
-                href: '/dashboard/profit/products',
               },
               {
                 label: 'Settlement Report',
@@ -68,6 +62,12 @@ export default function DashboardLayout({
                 subject: 'profit:business-report',
                 action: 'read',
                 href: '/dashboard/profit/business-report',
+              },
+              {
+                label: 'Products',
+                subject: 'profit:products',
+                action: 'read',
+                href: '/dashboard/profit/products',
               },
             ],
           },
