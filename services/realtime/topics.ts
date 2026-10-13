@@ -9,6 +9,8 @@ export const REALTIME_TOPICS: Record<string, TagType[]> = {
   notification: ['Notifications'],
   /** Inventory sync toasts; SyncEventListener refetches by event kind. */
   'inventory.sync': [],
+  /** A background report export is ready (or failed); `useReportExport` downloads it. */
+  export: [],
   'finance.partner': ['FinancePartners', 'ProcurementPriceAnalysis'],
   'finance.bank-profile': ['FinanceBankProfiles'],
   'finance.cost-center': ['FinanceCostCenters'],

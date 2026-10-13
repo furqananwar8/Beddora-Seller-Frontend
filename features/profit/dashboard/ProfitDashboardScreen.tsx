@@ -34,6 +34,8 @@ import {
 } from '@/services/api/profit.api'
 
 import { SellerboardProductsTable } from './SellerboardProductsTable'
+import { RowActionsMenu } from '@/components/row-actions-menu/RowActionsMenu'
+import { useReportExport } from '@/hooks/useReportExport'
 import { OrderItemsTable } from './OrderItemsTable'
 import { TileDetailsModal } from './components/TileDetailsModal'
 
@@ -512,17 +514,21 @@ export const ProfitDashboardScreen: React.FC = () => {
   // Product query (tiles tab)
   // ──────────────────────────────
 
+  const productQueryFilters = {
+    ...profitFilters,
+    accountId: effectiveAccountId,
+    marketplaces: appliedMarketplaces.length ? appliedMarketplaces : ALL_MARKETPLACES,
+    currency: appliedCurrency,
+    startDate: activeRange.startDate,
+    endDate: activeRange.endDate,
+    search: debouncedSearchTerm,
+    sku: debouncedSearchTerm,
+  }
+
+  const { start: startProductExport, isExporting: productExporting } = useReportExport('profit-by-product')
+
   const { data: productData, isFetching: productFetching } = useGetProfitByProductQuery(
-    {
-      ...profitFilters,
-      accountId: effectiveAccountId,
-      marketplaces: appliedMarketplaces.length ? appliedMarketplaces : ALL_MARKETPLACES,
-      currency: appliedCurrency,
-      startDate: activeRange.startDate,
-      endDate: activeRange.endDate,
-      search: debouncedSearchTerm,
-      sku: debouncedSearchTerm,
-    },
+    productQueryFilters,
     {
       skip: !effectiveAccountId || tableView === 'order-items' || activeTab !== 'tiles',
     },
@@ -832,6 +838,20 @@ export const ProfitDashboardScreen: React.FC = () => {
                     </div>
                   </div>
 
+                  <div className="flex items-center gap-3 flex-wrap">
+                  <RowActionsMenu
+                    label="products table"
+                    items={[
+                      {
+                        key: 'export-excel',
+                        label: 'Export Excel',
+                        onSelect: () => startProductExport('xlsx', productQueryFilters),
+                        disabled: !effectiveAccountId || tableView !== 'products' || productExporting,
+                        disabledReason: productExporting ? 'An export is being prepared…' : undefined,
+                      },
+                    ]}
+                  />
+
                   {/* Right Header Search Control */}
                   <div className="relative min-w-[240px] sm:w-72">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-text-muted">
@@ -877,6 +897,7 @@ export const ProfitDashboardScreen: React.FC = () => {
                         </svg>
                       </button>
                     )}
+                  </div>
                   </div>
                 </div>
 
