@@ -52,12 +52,6 @@ export default function DashboardLayout({
                 href: '/dashboard/profit/dashboard',
               },
               {
-                label: 'Products',
-                subject: 'profit:products',
-                action: 'read',
-                href: '/dashboard/profit/products',
-              },
-              {
                 label: 'Settlement Report',
                 subject: 'profit:settlement-report',
                 action: 'read',
@@ -68,6 +62,12 @@ export default function DashboardLayout({
                 subject: 'profit:business-report',
                 action: 'read',
                 href: '/dashboard/profit/business-report',
+              },
+              {
+                label: 'Products',
+                subject: 'profit:products',
+                action: 'read',
+                href: '/dashboard/profit/products',
               },
             ],
           },

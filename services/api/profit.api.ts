@@ -416,6 +416,7 @@ export interface CompareSalesSnapshot {
   totalOrderItems: number
   unitsOrdered: number
   orderedProductSales: number
+  adSpend: number
   avgUnitsPerOrderItem: number
   avgSalesPerOrderItem: number
 }
@@ -425,11 +426,15 @@ export interface CompareSalesPeriod {
   label: string
   subtitle: string
   color: string
+  /** Business dates of the period, yyyy-MM-dd. */
+  startDate: string
+  endDate: string
   units: number
   sales: number
   avgUnits: number
   avgSales: number
   orderItems: number
+  adSpend: number
 }
 
 export interface CompareSalesHourly {
@@ -441,6 +446,8 @@ export interface CompareSalesHourly {
 }
 
 export interface CompareSalesResponse {
+  /** Currency every amount is reported in. */
+  currency: string
   snapshot: CompareSalesSnapshot
   comparisons: CompareSalesPeriod[]
   hourly: {
