@@ -39,6 +39,7 @@ import {
   formatShortDate,
   formatUnits,
   formatWindow,
+  legBookingSummary,
 } from './ShipmentParts'
 
 export const SHIPMENT_TABLE_COLUMNS = 11
@@ -374,6 +375,7 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({
                                 {[l.carrier, l.deliveryWindow && formatWindow(l.deliveryWindow)].filter(Boolean).join(' · ')}
                               </div>
                             )}
+                            {legBookingSummary(l) && <div className="text-[11px] text-text-muted">{legBookingSummary(l)}</div>}
                           </div>
                         ))}
                       </div>

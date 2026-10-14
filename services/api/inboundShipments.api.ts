@@ -34,6 +34,12 @@ export interface RewindResponse {
 export interface CarrierEntry {
   shipmentId: string
   carrier: string
+  /** YYYY-MM-DD. Amazon is also told it as the ready-to-ship date the first time. */
+  pickupDate: string
+  /** YYYY-MM-DD. Our own record only. */
+  deliveryDate: string
+  /** Our own record only; never sent to Amazon. */
+  amazonAppointmentId?: string
 }
 
 export interface ShipmentLineInput {
@@ -144,7 +150,7 @@ export const inboundShipmentsApi = baseApi.injectEndpoints({
     }),
 
     /** The seller's own carrier per Amazon shipment; the backend tells Amazon the shipment ships with it. */
-    submitShipmentCarrier: builder.mutation<InboundShipment, { id: string; carriers: CarrierEntry[]; readyToShipDate?: string }>({
+    submitShipmentCarrier: builder.mutation<InboundShipment, { id: string; carriers: CarrierEntry[] }>({
       query: ({ id, ...body }) => ({ url: `/inventory/shipments/${id}/carrier`, method: 'POST', body }),
       invalidatesTags: ['InboundShipments'],
     }),

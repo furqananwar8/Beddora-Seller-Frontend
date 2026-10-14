@@ -11,6 +11,7 @@ import { DialogFooter, formatUnits } from './ShipmentParts'
 import { getShipmentUnits } from './workflow'
 
 const MAX_CARRIER_LENGTH = 60
+const MAX_APPOINTMENT_ID_LENGTH = 60
 
 const isoDay = (date: Date) => {
   const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000)
@@ -21,16 +22,25 @@ const tomorrow = () => isoDay(new Date(Date.now() + 24 * 60 * 60 * 1000))
 
 interface CarrierModalProps {
   shipment: InboundShipment | null
-  /** Saves the carrier names; the backend tells Amazon each shipment ships with the seller's own carrier. */
-  onConfirm: (carriers: CarrierEntry[], readyToShipDate?: string) => Promise<void>
+  /** Saves each shipment's carrier booking; the backend tells Amazon each one ships with the seller's own carrier. */
+  onConfirm: (carriers: CarrierEntry[]) => Promise<void>
   /** Back to the delivery window step. */
   onBack: () => void
   onClose: () => void
 }
 
+/** What the seller types for one Amazon shipment's carrier booking. */
+interface BookingFields {
+  carrier: string
+  pickupDate: string
+  deliveryDate: string
+  amazonAppointmentId: string
+}
+
 /**
- * The seller books the carrier outside Amazon and types its name here, one per
- * Amazon shipment. No carrier quotes are requested from Amazon.
+ * The seller books the carrier outside Amazon and types the booking here, one per
+ * Amazon shipment. No carrier quotes are requested from Amazon. Only the pickup date
+ * is passed on to Amazon (as ready-to-ship); delivery date and appointment ID are our own record.
  */
 export const CarrierModal: React.FC<CarrierModalProps> = ({ shipment, ...rest }) => (
   <Modal isOpen={shipment !== null} onClose={rest.onClose} title="Enter carrier" size="lg">
@@ -40,26 +50,51 @@ export const CarrierModal: React.FC<CarrierModalProps> = ({ shipment, ...rest })
 
 const CarrierForm: React.FC<Omit<CarrierModalProps, 'shipment'> & { shipment: InboundShipment }> = ({ shipment, onConfirm, onBack, onClose }) => {
   const legs = shipment.legs.filter((l) => l.amazonShipmentId)
-  const [names, setNames] = useState<Record<string, string>>(() =>
-    Object.fromEntries(legs.map((l) => [l.amazonShipmentId!, l.carrier ?? shipment.carrier ?? '']))
+  const [bookings, setBookings] = useState<Record<string, BookingFields>>(() =>
+    Object.fromEntries(
+      legs.map((l) => [
+        l.amazonShipmentId!,
+        {
+          carrier: l.carrier ?? shipment.carrier ?? '',
+          pickupDate: l.pickupDate ?? tomorrow(),
+          deliveryDate: l.deliveryDate ?? l.deliveryWindow?.start.slice(0, 10) ?? '',
+          amazonAppointmentId: l.amazonAppointmentId ?? '',
+        },
+      ])
+    )
   )
-  // Amazon is only told once; going Back to correct a carrier name doesn't ask for the date again
-  const needsDate = !legs.every((l) => l.shippingSolution === 'USE_YOUR_OWN_CARRIER')
-  const [readyDate, setReadyDate] = useState(tomorrow)
+  // Amazon is only told once; going Back to correct a booking can keep an earlier pickup date
+  const amazonNotToldYet = !legs.every((l) => l.shippingSolution === 'USE_YOUR_OWN_CARRIER')
   const [touched, setTouched] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const missing = legs.some((l) => !names[l.amazonShipmentId!]?.trim())
-  const dateInvalid = needsDate && (!readyDate || readyDate < today())
+  const update = (id: string, patch: Partial<BookingFields>) => setBookings((prev) => ({ ...prev, [id]: { ...prev[id], ...patch } }))
+  const errorsFor = (b: BookingFields) => ({
+    carrier: b.carrier.trim() ? undefined : 'Enter the carrier name',
+    pickupDate: !b.pickupDate || (amazonNotToldYet && b.pickupDate < today()) ? 'Pick today or a later date' : undefined,
+    deliveryDate: !b.deliveryDate ? 'Pick the delivery date' : b.deliveryDate < b.pickupDate ? "Can't be before the pickup date" : undefined,
+  })
+  const invalid = legs.some((l) => Object.values(errorsFor(bookings[l.amazonShipmentId!])).some(Boolean))
 
   const handleConfirm = async () => {
     setTouched(true)
-    if (missing || dateInvalid || legs.length === 0) return
+    if (invalid || legs.length === 0) return
     setIsSaving(true)
     setError(null)
     try {
-      await onConfirm(legs.map((l) => ({ shipmentId: l.amazonShipmentId!, carrier: names[l.amazonShipmentId!].trim() })), needsDate ? readyDate : undefined)
+      await onConfirm(
+        legs.map((l) => {
+          const b = bookings[l.amazonShipmentId!]
+          return {
+            shipmentId: l.amazonShipmentId!,
+            carrier: b.carrier.trim(),
+            pickupDate: b.pickupDate,
+            deliveryDate: b.deliveryDate,
+            amazonAppointmentId: b.amazonAppointmentId.trim() || undefined,
+          }
+        })
+      )
       onClose()
     } catch (err) {
       setError((err as Error).message || 'Could not save the carrier. Try again.')
@@ -71,7 +106,8 @@ const CarrierForm: React.FC<Omit<CarrierModalProps, 'shipment'> & { shipment: In
   return (
     <>
       <p className="mb-4 text-sm text-text-muted">
-        Enter the carrier you booked for each Amazon shipment. Amazon will be told you are shipping with your own carrier;
+        Enter the carrier booking for each Amazon shipment. Amazon will be told you are shipping with your own carrier and
+        when the boxes are ready (the pickup date). The delivery date and appointment ID are kept in Beddora only;
         tracking is entered when you mark the shipment as shipped.{' '}
         <span className="text-text-primary">
           {shipment.reference} · {formatUnits(getShipmentUnits(shipment))} units
@@ -83,6 +119,8 @@ const CarrierForm: React.FC<Omit<CarrierModalProps, 'shipment'> & { shipment: In
       <div className="space-y-4">
         {legs.map((leg) => {
           const id = leg.amazonShipmentId!
+          const b = bookings[id]
+          const errors = errorsFor(b)
           return (
             <div key={id} className="rounded-lg border border-border p-4">
               <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-text-muted">
@@ -93,34 +131,49 @@ const CarrierForm: React.FC<Omit<CarrierModalProps, 'shipment'> & { shipment: In
                 </span>
                 <span>{formatUnits(leg.units)} units</span>
               </div>
-              <Input
-                label="Carrier"
-                placeholder="e.g. UPS, FedEx, XPO"
-                maxLength={MAX_CARRIER_LENGTH}
-                value={names[id] ?? ''}
-                disabled={isSaving}
-                onChange={(e) => setNames((prev) => ({ ...prev, [id]: e.target.value }))}
-                error={touched && !names[id]?.trim() ? 'Enter the carrier name' : undefined}
-              />
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Input
+                  label="Carrier name"
+                  placeholder="e.g. UPS, FedEx, XPO"
+                  maxLength={MAX_CARRIER_LENGTH}
+                  value={b.carrier}
+                  disabled={isSaving}
+                  onChange={(e) => update(id, { carrier: e.target.value })}
+                  error={touched ? errors.carrier : undefined}
+                />
+                <Input
+                  label="Amazon appointment ID (optional)"
+                  maxLength={MAX_APPOINTMENT_ID_LENGTH}
+                  value={b.amazonAppointmentId}
+                  disabled={isSaving}
+                  onChange={(e) => update(id, { amazonAppointmentId: e.target.value })}
+                  helperText="Kept in Beddora only; not sent to Amazon."
+                />
+                <Input
+                  label="Pickup date"
+                  type="date"
+                  min={amazonNotToldYet ? today() : undefined}
+                  value={b.pickupDate}
+                  disabled={isSaving}
+                  onChange={(e) => update(id, { pickupDate: e.target.value })}
+                  helperText={amazonNotToldYet ? 'Also sent to Amazon as the date the boxes are ready.' : 'Kept in Beddora only.'}
+                  error={touched ? errors.pickupDate : undefined}
+                />
+                <Input
+                  label="Delivery date"
+                  type="date"
+                  min={b.pickupDate || undefined}
+                  value={b.deliveryDate}
+                  disabled={isSaving}
+                  onChange={(e) => update(id, { deliveryDate: e.target.value })}
+                  helperText="Kept in Beddora only; not sent to Amazon."
+                  error={touched ? errors.deliveryDate : undefined}
+                />
+              </div>
             </div>
           )
         })}
       </div>
-
-      {needsDate && (
-        <div className="mt-4 sm:max-w-xs">
-          <Input
-            label="Ready to ship on"
-            type="date"
-            min={today()}
-            value={readyDate}
-            disabled={isSaving}
-            onChange={(e) => setReadyDate(e.target.value)}
-            helperText="The date the boxes are ready for your carrier to pick up."
-            error={touched && dateInvalid ? 'Pick today or a later date' : undefined}
-          />
-        </div>
-      )}
 
       {error && (
         <div role="alert" className="mt-4 rounded-md border border-danger-200 bg-danger-50 px-3 py-2 text-sm text-danger-700">
