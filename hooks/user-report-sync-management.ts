@@ -6,12 +6,9 @@ import {
   useResetSyncStateMutation,
   AmazonSyncStateRow,
 } from '@/services/api/report-sync-management.api'
-import { DateRangeValue } from '@/components/date-range-picker/DateRangePicker'
+import { useSyncRowSelection } from './use-sync-row-selection'
 
-export interface RowSelectionState {
-  selected: boolean
-  startDate: string
-}
+export type { RowSelectionState } from './use-sync-row-selection'
 
 export interface UserMessage {
   text: string
@@ -21,9 +18,10 @@ export interface UserMessage {
 export function useReportSyncManagement() {
   const { data: syncData, isLoading, isFetching, refetch } = useGetSyncStatesQuery()
   const [resetSyncState, { isLoading: isSubmitting }] = useResetSyncStateMutation()
+  const { selectionMap, toggleRowSelection, updateRowDate, selectedEntries, hasSelection, clearSelection } =
+    useSyncRowSelection()
 
   const [message, setMessage] = useState<UserMessage | null>(null)
-  const [selectionMap, setSelectionMap] = useState<Record<string, RowSelectionState>>({})
 
   // Safely extract rows from response
   const syncStates: AmazonSyncStateRow[] = useMemo(() => {
@@ -35,43 +33,16 @@ export function useReportSyncManagement() {
     return Array.from(new Set(syncStates.map((s) => s.syncType)))
   }, [syncStates])
 
-  // Toggle selection for a row
-  const toggleRowSelection = (key: string, defaultDate: string) => {
-    setSelectionMap((prev) => ({
-      ...prev,
-      [key]: {
-        selected: !prev[key]?.selected,
-        startDate: prev[key]?.startDate || defaultDate,
-      },
-    }))
-  }
-
-  // Update selected date for a row (and auto-select it)
-  const updateRowDate = (key: string, range: DateRangeValue) => {
-    const newDate = range.startDate || range.endDate
-    if (!newDate) return
-
-    setSelectionMap((prev) => ({
-      ...prev,
-      [key]: {
-        selected: true,
-        startDate: newDate,
-      },
-    }))
-  }
-
   // Submit reset request for all selected items
   const applyReset = async () => {
-    const selectedItems = Object.entries(selectionMap)
-      .filter(([_, value]) => value.selected && value.startDate)
-      .map(([key, value]) => {
-        const [syncType, mode] = key.split(':')
-        return {
-          syncType,
-          mode: mode as 'live' | 'backfill',
-          startDate: value.startDate,
-        }
-      })
+    const selectedItems = selectedEntries.map(([key, value]) => {
+      const [syncType, mode] = key.split(':')
+      return {
+        syncType,
+        mode: mode as 'live' | 'backfill',
+        startDate: value.startDate,
+      }
+    })
 
     if (selectedItems.length === 0) {
       const emptyError = new Error('Please select at least one row to reset.')
@@ -86,7 +57,7 @@ export function useReportSyncManagement() {
 
       if (result.success) {
         setMessage({ text: result.message || 'Sync states reset successfully!' })
-        setSelectionMap({})
+        clearSelection()
         return result
       } else {
         const apiError = new Error(result.message || 'Failed to reset sync state')
@@ -112,6 +83,7 @@ export function useReportSyncManagement() {
     syncStates,
     groupedTypes,
     selectionMap,
+    hasSelection,
     isLoading,
     isFetching,
     isSubmitting,
