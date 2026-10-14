@@ -32,6 +32,13 @@ export interface CombinedBucket {
   perChannel: { channel: ChannelId; bucket: ChannelBucket | null }[]
 }
 
+export interface ChannelCounts {
+  channel: ChannelId
+  orders: number
+  units: number
+  refunds: number
+}
+
 export interface CombinedPeriod {
   period: ChannelPeriodSummary['period']
   salesChangePct: number | null
@@ -39,6 +46,8 @@ export interface CombinedPeriod {
   orders: number
   units: number
   refunds: number
+  /** Orders, units and refunds of each channel, in the applied order. */
+  counts: ChannelCounts[]
   buckets: Record<BucketId, CombinedBucket>
   sales: number
   grossProfit: number
@@ -83,6 +92,7 @@ export const combinePeriod = (
     orders: metrics.reduce((total, item) => total + item.orders, 0),
     units: metrics.reduce((total, item) => total + item.units, 0),
     refunds: metrics.reduce((total, item) => total + item.refunds, 0),
+    counts: metrics.map(({ channel, orders, units, refunds }) => ({ channel, orders, units, refunds })),
     buckets,
     sales,
     grossProfit,

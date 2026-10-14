@@ -25,6 +25,16 @@ interface ChannelBreakdownProps {
 }
 
 const SALES_KEY = 'sales'
+const COUNTS_KEY = 'counts'
+
+const ordersAndUnits = (orders: number, units: number) => `${formatNumber(orders, 0)} / ${formatNumber(units, 0)}`
+
+const ChannelName: React.FC<{ channel: ChannelId }> = ({ channel }) => (
+  <span className="inline-flex items-center gap-1.5">
+    <ChannelDot channel={channel} />
+    {getChannel(channel).name}
+  </span>
+)
 
 const NotReported: React.FC<{ channel: ChannelId; definition: BucketDefinition }> = ({ channel, definition }) => (
   <div className="py-2 pl-7 text-sm italic text-text-muted">
@@ -48,6 +58,38 @@ const BucketLines: React.FC<{ bucket: ChannelBucket; nested?: boolean }> = ({
     ))}
   </>
 )
+
+/**
+ * A section's count (e.g. refund count): the total, then one line per channel when several are combined.
+ * A channel that does not report the section shows n/a rather than 0.
+ */
+const CountLines: React.FC<{
+  period: CombinedPeriod
+  definition: BucketDefinition
+  count: NonNullable<BucketDefinition['count']>
+  single: boolean
+}> = ({ period, definition, count, single }) => {
+  const reports = (channel: ChannelId) =>
+    period.buckets[definition.id].perChannel.some((entry) => entry.channel === channel && entry.bucket)
+  return (
+    <>
+      <div className="flex items-center justify-between py-2 pl-7 text-sm text-text-muted">
+        <span>{count.label}</span>
+        <span className="text-text-primary">{formatNumber(period[count.key], 0)}</span>
+      </div>
+      {!single &&
+        period.counts.map((channelCounts) => (
+          <DetailRow
+            key={channelCounts.channel}
+            label={<ChannelName channel={channelCounts.channel} />}
+            value={channelCounts[count.key]}
+            formatValue={(value) => (reports(channelCounts.channel) ? formatNumber(value, 0) : 'n/a')}
+            className="pl-12 py-1.5"
+          />
+        ))}
+    </>
+  )
+}
 
 const SectionDetails: React.FC<{
   definition: BucketDefinition
@@ -113,12 +155,7 @@ export const ChannelBreakdown: React.FC<ChannelBreakdownProps> = ({ period, sect
           {period.buckets.sales.perChannel.map(({ channel, bucket }) => (
             <DetailRow
               key={channel}
-              label={
-                <span className="inline-flex items-center gap-1.5">
-                  <ChannelDot channel={channel} />
-                  {getChannel(channel).name}
-                </span>
-              }
+              label={<ChannelName channel={channel} />}
               value={bucket?.amount ?? 0}
               formatValue={formatMoney}
             />
@@ -128,8 +165,23 @@ export const ChannelBreakdown: React.FC<ChannelBreakdownProps> = ({ period, sect
 
       <MetricRow
         label="Orders / Units"
-        value={`${formatNumber(period.orders, 0)} / ${formatNumber(period.units, 0)}`}
+        value={ordersAndUnits(period.orders, period.units)}
+        isExpandable={!single}
+        isOpen={!!expanded[COUNTS_KEY]}
+        onClick={single ? undefined : () => toggle(COUNTS_KEY)}
       />
+      {!single && expanded[COUNTS_KEY] && (
+        <div className="border-b border-border">
+          {period.counts.map(({ channel, orders, units }) => (
+            <DetailRow
+              key={channel}
+              label={<ChannelName channel={channel} />}
+              value={orders}
+              formatValue={() => ordersAndUnits(orders, units)}
+            />
+          ))}
+        </div>
+      )}
 
       {sections.map((definition) => (
         <React.Fragment key={definition.id}>
@@ -148,10 +200,7 @@ export const ChannelBreakdown: React.FC<ChannelBreakdownProps> = ({ period, sect
                 single={single}
               />
               {definition.count && period[definition.count.key] > 0 && (
-                <div className="flex items-center justify-between py-2 pl-7 text-sm text-text-muted">
-                  <span>{definition.count.label}</span>
-                  <span className="text-text-primary">{formatNumber(period[definition.count.key], 0)}</span>
-                </div>
+                <CountLines period={period} definition={definition} count={definition.count} single={single} />
               )}
             </div>
           )}
