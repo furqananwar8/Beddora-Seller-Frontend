@@ -57,6 +57,20 @@ interface ProfitDashboardHeaderProps {
   showFilterButton?: boolean
 
   disabled?: boolean
+
+  /** Extra controls rendered between the date range and the marketplace dropdown. */
+  extraFilters?: React.ReactNode
+  /** Draft filters differ from the applied ones: Apply Filters gets primary styling. */
+  filterPending?: boolean
+  /** Note rendered under the filter row (e.g. "press Apply Filters"). */
+  note?: React.ReactNode
+  /** Let the filter row wrap onto several lines on narrow screens. */
+  wrap?: boolean
+  searchPlaceholder?: string
+  /** Render currency with the same dropdown as the marketplace filter instead of a native select. */
+  currencyAsDropdown?: boolean
+  /** Padding around the filter row. */
+  paddingClassName?: string
 }
 
 export const ProfitDashboardHeader: React.FC<
@@ -111,12 +125,24 @@ export const ProfitDashboardHeader: React.FC<
   showFilterButton = true,
 
   disabled = false,
+
+  extraFilters,
+  filterPending = false,
+  note,
+  wrap = false,
+  searchPlaceholder = 'Search',
+  currencyAsDropdown = false,
+  paddingClassName = 'px-6 py-4',
 }) => {
   return (
     <div className="bg-surface-secondary border-b border-border mb-6">
-      <div className="px-6 py-4">
+      <div className={paddingClassName}>
 
-        <div className="flex items-center w-full">
+        <div
+          className={`flex items-center w-full ${
+            wrap ? 'flex-wrap gap-y-3' : ''
+          }`}
+        >
 
           {/* SEARCH */}
           {showSearch && (
@@ -144,7 +170,7 @@ export const ProfitDashboardHeader: React.FC<
 
                 <Input
                   type="text"
-                  placeholder="Search"
+                  placeholder={searchPlaceholder}
                   value={searchTerm}
                   disabled={disabled}
                   onChange={(e) =>
@@ -175,6 +201,7 @@ export const ProfitDashboardHeader: React.FC<
 
           {/* GAP BETWEEN SEARCH AND FILTERS */}
           {showSearch &&
+            !wrap &&
             (showDateRange ||
               showMarketplace ||
               showCurrency ||
@@ -184,12 +211,9 @@ export const ProfitDashboardHeader: React.FC<
 
           {/* RIGHT SIDE CONTROLS */}
           <div
-            className="
-              flex
-              items-center
-              gap-3
-              shrink-0
-            "
+            className={`flex items-center gap-3 ${
+              wrap ? 'flex-wrap' : 'shrink-0'
+            }`}
           >
 
             {/* DATE RANGE */}
@@ -219,6 +243,9 @@ export const ProfitDashboardHeader: React.FC<
                 </div>
               )}
 
+            {/* EXTRA FILTERS (optional) */}
+            {extraFilters}
+
             {/* MARKETPLACE */}
             {showMarketplace &&
               onMarketplacesChange && (
@@ -242,44 +269,67 @@ export const ProfitDashboardHeader: React.FC<
                 <div
                   className={`${currencyWidth} shrink-0`}
                 >
-                  <Select
-                    value={currency}
-                    disabled={disabled}
-                    onChange={(e) =>
-                      onCurrencyChange(
-                        e.target.value
-                      )
-                    }
-                    options={
-                      currencyOptions
-                    }
-                  />
+                  {currencyAsDropdown ? (
+                    <MultiSelectInput
+                      single
+                      title="Currency"
+                      options={currencyOptions.map(
+                        ({ value, label }) => ({
+                          id: value,
+                          name: label,
+                        })
+                      )}
+                      value={[currency]}
+                      onChange={(value) =>
+                        onCurrencyChange(
+                          value[0]
+                        )
+                      }
+                    />
+                  ) : (
+                    <Select
+                      value={currency}
+                      disabled={disabled}
+                      onChange={(e) =>
+                        onCurrencyChange(
+                          e.target.value
+                        )
+                      }
+                      options={
+                        currencyOptions
+                      }
+                    />
+                  )}
                 </div>
               )}
 
             {/* FILTER */}
             {showFilterButton && (
               <Button
-                variant="ghost"
+                variant={
+                  filterPending
+                    ? 'primary'
+                    : 'ghost'
+                }
                 onClick={onFilter}
                 disabled={
                   disabled ||
                   isFiltering
                 }
-                className="
+                className={`
                   min-w-[140px]
                   shrink-0
                   whitespace-nowrap
-                  bg-surface
-                  border
-                  border-border
-                  hover:bg-surface-tertiary
-                  text-text-primary
                   flex
                   items-center
                   justify-center
                   gap-2
-                "
+                  ${
+                    filterPending
+                      ? ''
+                      : 'bg-surface border border-border hover:bg-surface-tertiary text-text-primary'
+                  }
+                `}
                 title="Apply filters"
               >
                 <svg
@@ -304,6 +354,8 @@ export const ProfitDashboardHeader: React.FC<
 
           </div>
         </div>
+
+        {note && <div className="mt-3">{note}</div>}
       </div>
     </div>
   )

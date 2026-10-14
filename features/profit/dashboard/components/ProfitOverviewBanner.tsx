@@ -1,0 +1,55 @@
+'use client'
+
+import React from 'react'
+
+import { formatCurrency } from '@/utils/format'
+
+interface ProfitOverviewBannerProps {
+  title: React.ReactNode
+  totalRevenue: number
+  totalProfit: number
+  totalOrders: number
+  totalUnits: number
+  /** Formats the amounts. Defaults to currency formatting. */
+  formatAmount?: (value: number) => string
+  /** Rendered under the figures, e.g. a channel share bar. */
+  children?: React.ReactNode
+}
+
+/** Blue "Profit Overview" banner above the period tiles. */
+export const ProfitOverviewBanner: React.FC<ProfitOverviewBannerProps> = ({
+  title,
+  totalRevenue,
+  totalProfit,
+  totalOrders,
+  totalUnits,
+  formatAmount = (value: number) => formatCurrency(value),
+  children,
+}) => (
+  <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl p-6 text-white mb-6">
+    <h2 className="text-lg font-semibold mb-4">{title}</h2>
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div>
+        <div className="text-3xl font-bold">{formatAmount(totalRevenue)}</div>
+        <div className="text-blue-100 text-sm">Total Revenue</div>
+      </div>
+      <div>
+        <div className={`text-3xl font-bold ${totalProfit >= 0 ? 'text-green-300' : 'text-red-300'}`}>
+          {formatAmount(totalProfit)}
+        </div>
+        <div className="text-blue-100 text-sm">Total Net Profit</div>
+      </div>
+      <div>
+        <div className="text-3xl font-bold">{totalOrders}</div>
+        <div className="text-blue-100 text-sm">Total Orders</div>
+      </div>
+      <div>
+        <div className="text-3xl font-bold">{totalUnits}</div>
+        <div className="text-blue-100 text-sm">Total Units</div>
+      </div>
+    </div>
+    {children}
+  </div>
+)
+
+export default ProfitOverviewBanner

@@ -14,8 +14,8 @@ import { getFeeTaxRows, sumFeeTaxRows } from '@/utils/feeTax'
 // TYPES
 // ============================================================
 
-interface MetricRowProps {
-  label: string
+export interface MetricRowProps {
+  label: React.ReactNode
   value: string | number
   isExpandable?: boolean
   isBold?: boolean
@@ -24,12 +24,16 @@ interface MetricRowProps {
   onClick?: () => void
 }
 
-interface DetailRowProps {
-  label: string
+export interface DetailRowProps {
+  label: React.ReactNode
   value: number
-  currency: string
+  currency?: string
+  /** Formats the value; defaults to currency formatting. */
+  formatValue?: (value: number) => string
   indent?: boolean
   tooltipKey?: string
+  /** Extra classes, e.g. a deeper indent. */
+  className?: string
 }
 
 interface TileDetailsModalProps {
@@ -39,6 +43,10 @@ interface TileDetailsModalProps {
   dateRange: string
   data: any | undefined
   currency?: string
+  /** Replaces the built-in (Amazon) metric list. Receives `data`. Header, scroll area and close stay shared. */
+  renderBody?: (data: any) => React.ReactNode
+  /** Extra header content under the date range (e.g. channel chips). */
+  headerExtra?: React.ReactNode
 }
 
 // ============================================================
@@ -205,7 +213,7 @@ const RowTooltip: React.FC<{ tooltipKey?: string }> = ({ tooltipKey }) => {
 // METRIC ROW
 // ============================================================
 
-const MetricRow: React.FC<MetricRowProps> = ({
+export const MetricRow: React.FC<MetricRowProps> = ({
   label,
   value,
   isExpandable = false,
@@ -250,25 +258,28 @@ const MetricRow: React.FC<MetricRowProps> = ({
 // DETAIL ROW
 // ============================================================
 
-const DetailRow: React.FC<DetailRowProps> = ({
+export const DetailRow: React.FC<DetailRowProps> = ({
   label,
   value,
   currency,
   indent = true,
   tooltipKey,
+  className,
+  formatValue,
 }) => {
   return (
     <div
       className={cn(
         'group/row relative flex items-center justify-between py-2 text-sm text-text-muted',
-        indent && 'pl-7'
+        indent && 'pl-7',
+        className
       )}
     >
       <span>{label}</span>
       <span className="text-text-primary">
-        {formatCurrency(value, currency)}
+        {formatValue ? formatValue(value) : formatCurrency(value, currency)}
       </span>
-      <RowTooltip tooltipKey={tooltipKey || label} />
+      <RowTooltip tooltipKey={tooltipKey || (typeof label === 'string' ? label : undefined)} />
     </div>
   )
 }
@@ -284,10 +295,25 @@ export const TileDetailsModal: React.FC<TileDetailsModalProps> = ({
   dateRange,
   data,
   currency = 'CAD',
+  renderBody,
+  headerExtra,
 }) => {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
 
   if (!data) return null
+
+  if (renderBody) {
+    return (
+      <Modal isOpen={isOpen} onClose={onClose}>
+        <div className="px-6 py-4 border-b border-border sticky top-0 bg-surface z-20">
+          <div className="text-lg font-semibold">{periodLabel}</div>
+          <div className="text-sm text-text-muted mt-1">{dateRange}</div>
+          {headerExtra}
+        </div>
+        <div className="px-6 py-4 max-h-[70vh] overflow-y-auto relative">{renderBody(data)}</div>
+      </Modal>
+    )
+  }
 
   const toggle = (key: string) => {
     setExpanded((prev) => ({
@@ -430,6 +456,7 @@ export const TileDetailsModal: React.FC<TileDetailsModalProps> = ({
       <div className="px-6 py-4 border-b border-border sticky top-0 bg-surface z-20">
         <div className="text-lg font-semibold">{periodLabel}</div>
         <div className="text-sm text-text-muted mt-1">{dateRange}</div>
+        {headerExtra}
       </div>
 
       <div className="px-6 py-4 max-h-[70vh] overflow-y-auto relative">

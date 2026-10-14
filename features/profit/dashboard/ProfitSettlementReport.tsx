@@ -38,13 +38,12 @@ import { SellerboardProductsTable } from './SellerboardProductsTable'
 import { OrderItemsTable } from './OrderItemsTable'
 import { TileDetailsModal } from './components/TileDetailsModal'
 
-import { formatCurrency } from '@/utils/format'
-
 import SummaryTiles from './SummaryTiles'
 
 import { DateRangeValue } from '@/components/date-range-picker/DateRangePicker'
 
 import ProfitDashboardHeader from '../dashboard/components/ProfitDashboardHeader'
+import { ProfitOverviewBanner } from './components/ProfitOverviewBanner'
 
 import {
   ALL_MARKETPLACES,
@@ -690,43 +689,13 @@ export const ProfitSettlementReport: React.FC = () => {
 
             {/* Overview banner */}
             {activeSummaryData?.summary && !isFetchingActive && (
-              <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl p-6 text-white mb-6">
-                <h2 className="text-lg font-semibold mb-4">
-                  Profit Overview ({currentPreset.label})
-                </h2>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div>
-                    <div className="text-3xl font-bold">
-                      {formatCurrency(activeSummaryData.summary.totalRevenue)}
-                    </div>
-                    <div className="text-blue-100 text-sm">Total Revenue</div>
-                  </div>
-                  <div>
-                    <div
-                      className={`text-3xl font-bold ${
-                        activeSummaryData.summary.totalProfit >= 0
-                          ? 'text-green-300'
-                          : 'text-red-300'
-                      }`}
-                    >
-                      {formatCurrency(activeSummaryData.summary.totalProfit)}
-                    </div>
-                    <div className="text-blue-100 text-sm">Total Net Profit</div>
-                  </div>
-                  <div>
-                    <div className="text-3xl font-bold">
-                      {activeSummaryData.summary.totalOrders}
-                    </div>
-                    <div className="text-blue-100 text-sm">Total Orders</div>
-                  </div>
-                  <div>
-                    <div className="text-3xl font-bold">
-                      {activeSummaryData.summary.totalUnits}
-                    </div>
-                    <div className="text-blue-100 text-sm">Total Units</div>
-                  </div>
-                </div>
-              </div>
+              <ProfitOverviewBanner
+                title={`Profit Overview (${currentPreset.label})`}
+                totalRevenue={activeSummaryData.summary.totalRevenue}
+                totalProfit={activeSummaryData.summary.totalProfit}
+                totalOrders={activeSummaryData.summary.totalOrders}
+                totalUnits={activeSummaryData.summary.totalUnits}
+              />
             )}
 
             {/* Tiles header */}
