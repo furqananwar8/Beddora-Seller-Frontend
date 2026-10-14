@@ -16,9 +16,9 @@ import {
   ProductInventoryItem,
   InventoryPlannerFilters,
 } from '@/services/api/inventoryPlanner.api'
+import { useReportExport } from '@/hooks/useReportExport'
 import { ProductInventoryTable } from './ProductInventoryTable'
 import { formatCurrency, formatNumber } from '@/utils/format'
-import { mockInventorySummary } from './mockData'
 import { MultiSelectInput } from '@/components/multi-select-input/MultiSelectInput'
 import { AllocationDrawer } from '@/components/allocation-drawer/AllocationDrawer'
 import { useInventoryBulkEdit } from './useInventoryBulkEdit'
@@ -95,6 +95,7 @@ export const InventoryPlannerScreen: React.FC<{ initialSearch?: string }> = ({ i
 
   // ---- API Mutations & Queries ----
   const [pushStock, { isLoading: isPushing }] = usePushStockMutation()
+  const { start: startExport, isExporting } = useReportExport('inventory-planner')
   const { data: channelTargets = [] } = useGetChannelTargetsQuery()
 
   // Close dropdown on outside click
@@ -146,8 +147,7 @@ export const InventoryPlannerScreen: React.FC<{ initialSearch?: string }> = ({ i
     error: productsError,
   } = useGetProductInventoryQuery(filters)
 
-  // ---- Summary cards still use mock data until the summary API exists ----
-  const displaySummary = summaryData ?? mockInventorySummary
+  const displaySummary = useMemo(() => summaryData ?? [], [summaryData])
   const displayProducts = useMemo(() => products ?? [], [products])
   const selectedRows = useMemo(
     () => displayProducts.filter((p) => selectedProducts.includes(p.id)),
@@ -155,10 +155,11 @@ export const InventoryPlannerScreen: React.FC<{ initialSearch?: string }> = ({ i
   )
   const bulkEdit = useInventoryBulkEdit(displayProducts)
 
-  // ---- Calculate totals ----
+  // ---- Calculate totals: stock on hand only; ordered units haven't arrived yet ----
   const totalSummary = useMemo<SummaryTotals | null>(() => {
-    if (!displaySummary || displaySummary.length === 0) return null
-    return displaySummary.reduce<SummaryTotals>(
+    const onHand = displaySummary.filter((s) => s.location === 'fba' || s.location === 'prep')
+    if (onHand.length === 0) return null
+    return onHand.reduce<SummaryTotals>(
       (acc, item) => ({
         units: acc.units + (item.units ?? 0),
         costOfGoods: acc.costOfGoods + (item.costOfGoods ?? 0),
@@ -235,6 +236,20 @@ export const InventoryPlannerScreen: React.FC<{ initialSearch?: string }> = ({ i
     setAppliedFilters({ ...pendingFilters })
   }, [pendingFilters])
 
+  // ---- Create FBA shipment: only stock already allocated to FBA can go into one ----
+  const handleCreateShipment = () => {
+    const ready = selectedRows.filter((row) => row.balances.FBA_POOL > 0)
+    const skipped = selectedRows.filter((row) => row.balances.FBA_POOL <= 0)
+    if (ready.length === 0) {
+      dispatch(addNotification({ message: 'Allocate stock to FBA first. None of the selected products has FBA stock to ship.', type: 'error' }))
+      return
+    }
+    if (skipped.length > 0) {
+      dispatch(addNotification({ message: `${skipped.length} selected product${skipped.length === 1 ? ' has' : 's have'} no FBA stock and ${skipped.length === 1 ? 'was' : 'were'} left out of the shipment.`, type: 'warning' }))
+    }
+    router.push(`/dashboard/inventory/shipments?create=1&productIds=${encodeURIComponent(ready.map((row) => row.id).join(','))}`)
+  }
+
   // ---- Trigger Multi-Channel Stock Push ----
   const handlePushToChannels = async () => {
     setIsMenuOpen(false)
@@ -246,9 +261,24 @@ export const InventoryPlannerScreen: React.FC<{ initialSearch?: string }> = ({ i
       return
     }
 
+    // Only FBM stock is pushed; a product with none would zero out or create empty listings
+    const pushable = selectedRows.filter((row) => row.otherMarketReserve > 0)
+    const skipped = selectedRows.filter((row) => row.otherMarketReserve <= 0)
+    if (skipped.length > 0) {
+      const names = skipped.slice(0, 3).map((row) => row.sku).join(', ')
+      const more = skipped.length > 3 ? ` and ${skipped.length - 3} more` : ''
+      dispatch(
+        addNotification({
+          message: `Allocate FBM stock first, nothing pushed for: ${names}${more}`,
+          type: pushable.length > 0 ? 'warning' : 'error',
+        })
+      )
+    }
+    if (pushable.length === 0) return
+
     // Per-listing results arrive as a live toast from the push endpoint's SSE event
     try {
-      await pushStock(selectedRows.map((row) => ({ inventoryItemId: Number(row.id), channels }))).unwrap()
+      await pushStock(pushable.map((row) => ({ inventoryItemId: Number(row.id), channels }))).unwrap()
     } catch (err: any) {
       dispatch(addNotification({ message: err?.data?.error ?? 'Couldn’t push stock. Try again.', type: 'error' }))
     }
@@ -461,9 +491,7 @@ export const InventoryPlannerScreen: React.FC<{ initialSearch?: string }> = ({ i
                         <button
                           onClick={() => {
                             setIsMenuOpen(false)
-                            router.push(
-                              `/dashboard/inventory/shipments?create=1&productIds=${encodeURIComponent(selectedProducts.join(','))}`
-                            )
+                            handleCreateShipment()
                           }}
                           disabled={selectedProducts.length === 0}
                           className="w-full text-left px-4 py-2 text-sm text-slate-800 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
@@ -481,16 +509,14 @@ export const InventoryPlannerScreen: React.FC<{ initialSearch?: string }> = ({ i
 
                       <div className="py-1 bg-white dark:bg-slate-900">
                         <button
-                          onClick={() => setIsMenuOpen(false)}
+                          onClick={() => {
+                            setIsMenuOpen(false)
+                            void startExport('xlsx', { ...filters })
+                          }}
+                          aria-busy={isExporting}
                           className="w-full text-left px-4 py-2 text-sm text-slate-800 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                         >
-                          Import
-                        </button>
-                        <button
-                          onClick={() => setIsMenuOpen(false)}
-                          className="w-full text-left px-4 py-2 text-sm text-slate-800 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                        >
-                          Export
+                          {isExporting ? 'Exporting…' : 'Export'}
                         </button>
                       </div>
                     </div>

@@ -55,6 +55,8 @@ const INITIAL_VIEW: ViewState = { sortColumn: 'daysOfStockLeft', sortDirection: 
 
 const ITEMS_PER_PAGE = 20
 const COLUMN_COUNT = 13
+/** Days of stock (or days until the next order) below which the number is flagged red. */
+const LOW_STOCK_DAYS = 25
 const NO_SALES_HINT = 'No sales in the last 30 days'
 
 export const STATUS_OPTIONS: { value: InventoryItemStatus; label: string }[] = [
@@ -92,15 +94,9 @@ const DaysBadge = ({ days }: { days: number | null }) => {
       </span>
     )
   }
-  if (days <= 0) return <Badge variant="error">{days}</Badge>
-  if (days < 7) return <Badge variant="warning">{days}</Badge>
-  if (days < 30) return <Badge variant="success">{days}</Badge>
-  // The theme's `primary` scale is one dark shade, so the stock `primary` badge is dark text on a dark fill
-  return (
-    <Badge variant="primary" className="border-primary-900 bg-primary-900 text-text-inverse">
-      {days}
-    </Badge>
-  )
+  // Only low stock is flagged; healthy stock is just the number
+  if (days < LOW_STOCK_DAYS) return <Badge variant="error">{days}</Badge>
+  return <span className="text-sm text-text-primary">{days}</span>
 }
 
 export const ProductInventoryTable = ({

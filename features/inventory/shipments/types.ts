@@ -86,6 +86,12 @@ export interface AmazonShipmentLeg {
   boxes?: number
   deliveryWindow?: DeliveryWindow
   carrier?: string
+  /** YYYY-MM-DD; our own record (Amazon only gets it as ready-to-ship, the first time). */
+  pickupDate?: string
+  /** YYYY-MM-DD; our own record only. */
+  deliveryDate?: string
+  /** Our own record only; never sent to Amazon. */
+  amazonAppointmentId?: string
   /** GROUND_SMALL_PARCEL | FREIGHT_LTL | FREIGHT_FTL_PALLET | ... */
   shippingMode?: string
   /** AMAZON_PARTNERED_CARRIER | USE_YOUR_OWN_CARRIER */

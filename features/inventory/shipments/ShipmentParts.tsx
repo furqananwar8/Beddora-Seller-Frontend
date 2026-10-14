@@ -9,6 +9,16 @@ import { DeliveryWindow, InboundShipment, LabelFileStatus, ShipmentStatus } from
 import type { RewindTarget } from '@/services/api/inboundShipments.api'
 import { FIRST_VISIBLE_STEP_AFTER_PLAN, NextAction, STATUS_META, STEP_REOPEN_ACTION, STEP_REWIND_TARGET, WORKFLOW_STEPS, getActiveStepIndex } from './workflow'
 
+/** "Pickup Oct 20 · Delivery Oct 24 · Appt A123" for a leg's carrier booking, or '' when nothing was entered. */
+export const legBookingSummary = (l: { pickupDate?: string; deliveryDate?: string; amazonAppointmentId?: string }) =>
+  [
+    l.pickupDate && `Pickup ${formatShortDate(l.pickupDate)}`,
+    l.deliveryDate && `Delivery ${formatShortDate(l.deliveryDate)}`,
+    l.amazonAppointmentId && `Appt ${l.amazonAppointmentId}`,
+  ]
+    .filter(Boolean)
+    .join(' · ')
+
 export const formatUnits = (n: number) => new Intl.NumberFormat('en-US').format(n)
 
 export const formatShortDate = (iso: string) =>

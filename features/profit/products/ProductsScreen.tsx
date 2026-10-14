@@ -14,6 +14,8 @@ import { useUpdateCOGSPerSkuMutation } from '@/services/api/cogs.api'
 import { formatNumber } from '@/utils/format'
 import { SplitTable, ColumnDef, PaginationConfig } from '@/components/split-table/SplitTable'
 import { useMinLoading } from '@/hooks/user-min-loading'
+import { useReportExport } from '@/hooks/useReportExport'
+import { RowActionsMenu } from '@/components/row-actions-menu/RowActionsMenu'
 
 type SortColumn = 'product' | 'cogs' | 'salesVelocity'
 type SortDirection = 'asc' | 'desc'
@@ -56,9 +58,11 @@ export const ProductsScreen: React.FC = () => {
 
   /* ── API Query ── */
   const {
-    data: productsResponse,
+    // currentData (not data): never show the previous search's rows while a new search is loading
+    currentData: productsResponse,
     isLoading,
     isFetching,
+    refetch,
   } = useGetAllProductsQuery(
     {
       accountId: effectiveAccountId!,
@@ -80,6 +84,7 @@ export const ProductsScreen: React.FC = () => {
   const totalPages = productsResponse?.totalPages ?? 0
 
   const [updateCOGS, { isLoading: isUpdatingCOGS }] = useUpdateCOGSPerSkuMutation()
+  const { start: startExport, isExporting } = useReportExport('products-cogs')
 
   const showToast = (message: string, type: 'success' | 'error' | 'warning' | 'info') => {
     dispatch(addNotification({ message, type }))
@@ -122,6 +127,9 @@ export const ProductsScreen: React.FC = () => {
 
   /* ── Apply Filters Button / Enter Key Handler ── */
   const handleApplyFilters = () => {
+    const unchanged = search.raw.trim() === search.applied && cogsFilter.raw === cogsFilter.applied && page === 1
+    // Same filters as already shown: nothing would trigger a request, so reload explicitly
+    if (unchanged && effectiveAccountId) void refetch()
     setCogsFilter((prev) => ({ ...prev, applied: prev.raw }))
     setSearch((prev) => ({ ...prev, applied: prev.raw.trim() }))
     setPage(1)
@@ -487,12 +495,22 @@ export const ProductsScreen: React.FC = () => {
                 <option value="notSet">COGS not set</option>
               </select>
 
-              <Button
-                variant="primary"
-                onClick={handleApplyFilters}
-                isLoading={visualFetching}
-                className="w-24 shrink-0 flex items-center justify-center"
-              >
+              <RowActionsMenu
+                label="products table"
+                items={[
+                  {
+                    key: 'export-excel',
+                    label: 'Export Excel',
+                    onSelect: () =>
+                      void startExport('xlsx', { accountId: effectiveAccountId, cogsSet: cogsFilter.applied, search: search.applied }),
+                    disabled: !effectiveAccountId || isExporting,
+                    disabledReason: isExporting ? 'An export is being prepared…' : undefined,
+                  },
+                ]}
+              />
+
+              {/* Not disabled while loading, so a click is never swallowed mid-fetch */}
+              <Button variant="primary" onClick={handleApplyFilters} className="w-24 shrink-0 flex items-center justify-center">
                 Filter
               </Button>
             </div>
