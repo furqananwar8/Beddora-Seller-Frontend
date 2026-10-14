@@ -8,6 +8,16 @@ import React, {
 export interface MultiSelectOption {
   id: string
   name: string
+  /** Optional colour dot shown before the name (always paired with the name, never colour alone). */
+  color?: string
+  /** Optional sub-line shown under the name. */
+  description?: string
+  /** Tone of the sub-line. Defaults to muted. */
+  descriptionTone?: 'muted' | 'warning'
+  /** Keep this option out of the "All" toggle and the "all selected" state. */
+  excludeFromAll?: boolean
+  /** Draw a divider above this option. */
+  separatorBefore?: boolean
 }
 
 export interface MultiSelectProps {
@@ -18,6 +28,16 @@ export interface MultiSelectProps {
   placeholder?: string
   className?: string
   single?: boolean
+  /** Label of the "All" row. Defaults to `All {title}s`. */
+  allLabel?: string
+  /** Minimum number of selected options; deselecting below it is ignored. Defaults to 0. */
+  minSelected?: number
+  /** Custom trigger content. Receives the selected options. Defaults to the built-in text label. */
+  renderValue?: (selected: MultiSelectOption[], allSelected: boolean) => React.ReactNode
+  /** Extra content rendered below the options inside the dropdown panel. */
+  footer?: React.ReactNode
+  /** Extra classes for the dropdown panel. */
+  panelClassName?: string
 }
 
 export const MultiSelectInput: React.FC<
@@ -30,6 +50,11 @@ export const MultiSelectInput: React.FC<
   placeholder,
   className = '',
   single = false,
+  allLabel,
+  minSelected = 0,
+  renderValue,
+  footer,
+  panelClassName = '',
 }) => {
   const [open, setOpen] =
     useState<boolean>(false)
@@ -39,9 +64,14 @@ export const MultiSelectInput: React.FC<
 
   const allIds = useMemo(
     () =>
-      options.map(
-        (option) => option.id
-      ),
+      options
+        .filter(
+          (option) =>
+            !option.excludeFromAll
+        )
+        .map(
+          (option) => option.id
+        ),
     [options]
   )
 
@@ -98,6 +128,9 @@ export const MultiSelectInput: React.FC<
     id: string
   ) => {
     if (value.includes(id)) {
+      if (value.length <= minSelected) {
+        return
+      }
       onChange(
         value.filter(
           (item) => item !== id
@@ -122,6 +155,9 @@ export const MultiSelectInput: React.FC<
      * when Apply Filters is pressed.
      */
     if (allSelected) {
+      if (minSelected > 0) {
+        return
+      }
       onChange([])
       return
     }
@@ -194,7 +230,17 @@ export const MultiSelectInput: React.FC<
         className="w-full flex items-center justify-between gap-2 px-3 py-2.5 bg-surface border border-border rounded-lg text-sm text-text-primary hover:bg-surface-secondary focus:outline-none focus:ring-2 focus:ring-primary-200 focus:border-primary-600"
       >
         <span className="truncate">
-          {displayLabel}
+          {renderValue
+            ? renderValue(
+                options.filter(
+                  (option) =>
+                    value.includes(
+                      option.id
+                    )
+                ),
+                allSelected
+              )
+            : displayLabel}
         </span>
 
         <svg
@@ -217,7 +263,7 @@ export const MultiSelectInput: React.FC<
       </button>
 
       {open && (
-        <div className="absolute z-50 mt-1 w-full min-w-[200px] bg-surface border border-border rounded-lg shadow-lg py-1">
+        <div className={`absolute z-50 mt-1 w-full min-w-[200px] bg-surface border border-border rounded-lg shadow-lg py-1 ${panelClassName}`}>
           {!single && (
             <label className="flex items-center gap-2.5 px-3 py-2.5 border-b border-border cursor-pointer hover:bg-surface-secondary">
               <input
@@ -232,7 +278,8 @@ export const MultiSelectInput: React.FC<
               />
 
               <span className="text-sm font-medium text-text-primary">
-                All {title}s
+                {allLabel ??
+                  `All ${title}s`}
               </span>
             </label>
           )}
@@ -247,6 +294,13 @@ export const MultiSelectInput: React.FC<
               return (
                 <div
                   key={option.id}
+                  className={
+                    option.separatorBefore
+                      ? 'border-t border-border mt-1 pt-1'
+                      : undefined
+                  }
+                >
+                <div
                   onClick={() =>
                     single
                       ? toggleSingle(
@@ -294,21 +348,51 @@ export const MultiSelectInput: React.FC<
                     />
                   )}
 
-                  <span
-                    className={`text-sm ${
-                      isSelected
-                        ? 'font-medium text-text-primary'
-                        : 'text-text-primary'
-                    }`}
-                  >
-                    {
-                      option.name
-                    }
+                  {option.color && (
+                    <span
+                      aria-hidden="true"
+                      className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                      style={{
+                        backgroundColor:
+                          option.color,
+                      }}
+                    />
+                  )}
+
+                  <span className="min-w-0">
+                    <span
+                      className={`block text-sm ${
+                        isSelected
+                          ? 'font-medium text-text-primary'
+                          : 'text-text-primary'
+                      }`}
+                    >
+                      {
+                        option.name
+                      }
+                    </span>
+                    {option.description && (
+                      <span
+                        className={`block text-xs ${
+                          option.descriptionTone ===
+                          'warning'
+                            ? 'text-warning-600'
+                            : 'text-text-muted'
+                        }`}
+                      >
+                        {
+                          option.description
+                        }
+                      </span>
+                    )}
                   </span>
+                </div>
                 </div>
               )
             }
           )}
+
+          {footer}
         </div>
       )}
     </div>

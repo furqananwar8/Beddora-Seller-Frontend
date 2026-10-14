@@ -6,6 +6,22 @@ import { formatCurrency, formatNumber, formatPercentage } from "@/utils"
 interface SummaryTilesProps {
     period: any
     setSelectedPeriodForDetails: (val: any) => void
+    /** Overrides the % shown under Sales (defaults to the legacy margin value). `null` hides it. */
+    salesChange?: number | null
+    /** Rendered under the Sales figure, e.g. a channel share bar. */
+    salesFooter?: React.ReactNode
+    /** Replaces the "Est. payout" cell. */
+    secondaryMetric?: { label: string; value: React.ReactNode }
+    /** Replaces the formatted "Adv. cost" value (e.g. "n/a"). */
+    advertisingDisplay?: React.ReactNode
+    /** Replaces the margin text next to Net profit. */
+    marginDisplay?: React.ReactNode
+    /** Label of the breakdown link. Defaults to "More". */
+    moreLabel?: string
+    /** Hover tooltips carry Amazon formulas; turn them off for other data sources. Defaults to on. */
+    showTooltips?: boolean
+    /** Formats the amounts. Defaults to currency formatting. */
+    formatAmount?: (value: number) => string
 }
 
 /* ──────────────────────────────────────────────────────
@@ -70,8 +86,23 @@ const FieldTooltip: React.FC<{ fieldKey: keyof typeof TILE_TOOLTIPS }> = ({ fiel
     )
 }
 
-const SummaryTiles = ({ period, setSelectedPeriodForDetails }: SummaryTilesProps) => {
+const NoTooltip: React.FC<{ fieldKey: keyof typeof TILE_TOOLTIPS }> = () => null
+
+const SummaryTiles = ({
+    period,
+    setSelectedPeriodForDetails,
+    salesChange,
+    salesFooter,
+    secondaryMetric,
+    advertisingDisplay,
+    marginDisplay,
+    moreLabel = 'More',
+    showTooltips = true,
+    formatAmount = (value: number) => formatCurrency(value),
+}: SummaryTilesProps) => {
     const margin = period.margin ?? 0
+    const salesPct = salesChange === undefined ? margin : salesChange
+    const Tooltip = showTooltips ? FieldTooltip : NoTooltip
 
     return (
         <div className="space-y-3 flex-1 flex flex-col">
@@ -87,12 +118,15 @@ const SummaryTiles = ({ period, setSelectedPeriodForDetails }: SummaryTilesProps
                     Sales
                 </div>
                 <div className="text-2xl font-bold text-text-primary break-words">
-                    {formatCurrency(period.salesRevenue)}
+                    {formatAmount(period.salesRevenue)}
                 </div>
-                <div className={`text-xs mt-1 break-words ${margin >= 0 ? 'text-success-600' : 'text-danger-600'}`}>
-                    {margin >= 0 ? '+' : ''}{formatPercentage(margin)}
-                </div>
-                <FieldTooltip fieldKey="sales" />
+                {salesPct !== null && (
+                    <div className={`text-xs mt-1 break-words ${salesPct >= 0 ? 'text-success-600' : 'text-danger-600'}`}>
+                        {salesPct >= 0 ? '+' : ''}{formatPercentage(salesPct)}
+                    </div>
+                )}
+                {salesFooter}
+                <Tooltip fieldKey="sales" />
             </div>
 
             {/* Orders / Refunds */}
@@ -102,14 +136,14 @@ const SummaryTiles = ({ period, setSelectedPeriodForDetails }: SummaryTilesProps
                     <div className="font-semibold text-text-primary break-words">
                         {period.salesCount} / {period.ordersUnitCount}
                     </div>
-                    <FieldTooltip fieldKey="ordersUnits" />
+                    <Tooltip fieldKey="ordersUnits" />
                 </div>
                 <div className="min-w-0 group relative cursor-pointer">
                     <div className="text-text-muted break-words">Refunds</div>
                     <div className="font-semibold text-text-primary break-words">
                         {formatNumber(period.totalRefundsCount ?? 0)}
                     </div>
-                    <FieldTooltip fieldKey="refunds" />
+                    <Tooltip fieldKey="refunds" />
                 </div>
             </div>
 
@@ -118,16 +152,16 @@ const SummaryTiles = ({ period, setSelectedPeriodForDetails }: SummaryTilesProps
                 <div className="min-w-0 group relative cursor-pointer">
                     <div className="text-text-muted break-words">Adv. cost</div>
                     <div className="font-semibold text-danger-600 break-words">
-                        -{formatCurrency(period.advertisingCost)}
+                        {advertisingDisplay ?? <>-{formatAmount(period.advertisingCost)}</>}
                     </div>
-                    <FieldTooltip fieldKey="advCost" />
+                    <Tooltip fieldKey="advCost" />
                 </div>
                 <div className="min-w-0 group relative cursor-pointer">
-                    <div className="text-text-muted break-words">Est. payout</div>
+                    <div className="text-text-muted break-words">{secondaryMetric?.label ?? 'Est. payout'}</div>
                     <div className="font-semibold text-text-primary break-words">
-                        {formatCurrency(period.estimatedPayout)}
+                        {secondaryMetric ? secondaryMetric.value : formatAmount(period.estimatedPayout)}
                     </div>
-                    <FieldTooltip fieldKey="estPayout" />
+                    <Tooltip fieldKey="estPayout" />
                 </div>
             </div>
 
@@ -136,13 +170,13 @@ const SummaryTiles = ({ period, setSelectedPeriodForDetails }: SummaryTilesProps
                 <div className="text-text-muted text-xs break-words">Net profit</div>
                 <div className="flex items-center justify-between min-w-0">
                     <div className={`text-xl font-bold break-words ${period.netProfit >= 0 ? 'text-success-600' : 'text-danger-600'}`}>
-                        {formatCurrency(period.netProfit)}
+                        {formatAmount(period.netProfit)}
                     </div>
                     <div className={`text-sm break-words ${margin >= 0 ? 'text-success-600' : 'text-danger-600'}`}>
-                        {margin >= 0 ? '+' : ''}{formatPercentage(margin)}
+                        {marginDisplay ?? <>{margin >= 0 ? '+' : ''}{formatPercentage(margin)}</>}
                     </div>
                 </div>
-                <FieldTooltip fieldKey="netProfit" />
+                <Tooltip fieldKey="netProfit" />
             </div>
 
             {/* Spacer pushes "More" to bottom */}
@@ -157,7 +191,7 @@ const SummaryTiles = ({ period, setSelectedPeriodForDetails }: SummaryTilesProps
                     }}
                     className="text-xs text-primary-600 hover:text-primary-700 hover:underline"
                 >
-                    More
+                    {moreLabel}
                 </button>
             </div>
         </div>

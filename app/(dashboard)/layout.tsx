@@ -67,6 +67,12 @@ export default function DashboardLayout({
                 href: '/dashboard/profit/settlement-report',
               },
               {
+                label: 'Channel Report',
+                subject: 'profit:channel-report',
+                action: 'read',
+                href: '/dashboard/profit/channel-report',
+              },
+              {
                 label: 'Business Report',
                 subject: 'profit:business-report',
                 action: 'read',
@@ -416,6 +422,7 @@ export default function DashboardLayout({
   const isProfitDashboard = pathname?.includes('/dashboard/profit/dashboard')
   const isEbayDashboard = pathname?.includes('/dashboard/ebay/dashboard')
   const isSettlementReport = pathname?.includes('/dashboard/profit/settlement-report')
+  const isChannelReport = pathname?.includes('/dashboard/profit/channel-report')
   const showDashboardTabs = isProfitDashboard || isEbayDashboard
   // Short screens that should not scroll the whole document (see .ds-content-fit)
   const fitsBelowHeader = FIT_BELOW_HEADER_ROUTES.some((route) => pathname?.includes(route))
@@ -457,7 +464,7 @@ export default function DashboardLayout({
             periodValue={periodValue}
             onMarketplaceChange={setMarketplaceValue}
             onPeriodChange={setPeriodValue}
-            dashboardTitle={showDashboardTabs ? 'Dashboard' : undefined}
+            dashboardTitle={showDashboardTabs ? 'Dashboard' : isChannelReport ? 'Channel Report' : undefined}
             dashboardTabs={showDashboardTabs ? dashboardTabs : undefined}
             activeDashboardTab={showDashboardTabs ? activeDashboardTab : undefined}
             onDashboardTabChange={showDashboardTabs ? setActiveDashboardTab : undefined}

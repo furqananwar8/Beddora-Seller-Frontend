@@ -34,6 +34,28 @@ import { cn } from '@/utils/cn'
  * Types
  * ────────────────────────────────────────────────────── */
 
+/** State handed to a column's cell renderer. */
+export interface ProductTableCellContext {
+  isChild: boolean
+  isExpanded: boolean
+  hasChildren: boolean
+  toggle: () => void
+}
+
+/**
+ * Column definition for the optional `columns` mode. Rows may carry `children` (grouped, expandable rows).
+ * Without `columns` the table renders its built-in Amazon columns exactly as before.
+ */
+export interface ProductTableColumn<Row = any> {
+  id: string
+  header: React.ReactNode
+  align?: 'left' | 'right' | 'center'
+  minWidth?: number
+  /** Makes the column sortable. Child rows keep their order. */
+  sortValue?: (row: Row) => number | string
+  render: (row: Row, ctx: ProductTableCellContext) => React.ReactNode
+}
+
 export interface SellerboardProductsTableProps {
   products?: ProductProfitBreakdown[]
   isLoading?: boolean
@@ -41,9 +63,23 @@ export interface SellerboardProductsTableProps {
   searchTerm?: string
   onSearchChange?: (term: string) => void
   error?: any
+  /** Custom columns. Rows are then arbitrary objects (not ProductProfitBreakdown). */
+  columns?: ProductTableColumn[]
+  /** Unique key of a row. Defaults to `row.sku`. */
+  getRowKey?: (row: any) => string
+  /** Sort column used on first render. Defaults to `netProfit`. */
+  defaultSortColumn?: string
+  /** Rows per page. Defaults to 20. */
+  pageSize?: number
+  /** Replaces the "Showing x to y" text and keeps the footer visible with a single page. */
+  footerContent?: React.ReactNode | ((range: { from: number; to: number; total: number }) => React.ReactNode)
+  /** Message when no rows match. */
+  emptyMessage?: string
 }
 
-type SortColumn =
+type SortColumn = string
+
+type BuiltInSortColumn =
   | 'name'
   | 'units'
   | 'refunds'
@@ -71,7 +107,7 @@ type ProductWithChildren = ProductProfitBreakdown & {
  * ────────────────────────────────────────────────────── */
 
 const COLUMN_TOOLTIPS: Record<
-  SortColumn | 'info',
+  BuiltInSortColumn | 'info',
   { title: string; formula: string; note?: string }
 > = {
   name: {
@@ -156,13 +192,13 @@ const COLUMN_TOOLTIPS: Record<
  * ────────────────────────────────────────────────────── */
 
 /** The last columns: their tooltip opens leftwards so it never reaches past the table's right edge. */
-const END_ALIGNED_TOOLTIPS = new Set<SortColumn | 'info'>(['bsr', 'info'])
+const END_ALIGNED_TOOLTIPS = new Set<BuiltInSortColumn | 'info'>(['bsr', 'info'])
 
 /**
  * A column's explanation on header hover. Not rendered (display: none) until then, so a hidden tooltip never widens
  * the table's scroll area and the table fills exactly the width it has.
  */
-const HeaderTooltip: React.FC<{ columnKey: SortColumn | 'info' }> = ({
+const HeaderTooltip: React.FC<{ columnKey: BuiltInSortColumn | 'info' }> = ({
   columnKey,
 }) => {
   const info = COLUMN_TOOLTIPS[columnKey]
@@ -405,12 +441,19 @@ export const SellerboardProductsTable: React.FC<
     isFetching,
     searchTerm = '',
     error,
+    columns,
+    getRowKey,
+    defaultSortColumn = 'netProfit',
+    pageSize = 20,
+    footerContent,
+    emptyMessage = 'No products found matching your search criteria.',
   }) => {
-    const [sortColumn, setSortColumn] = useState<SortColumn>('netProfit')
+    const [sortColumn, setSortColumn] = useState<SortColumn>(defaultSortColumn)
     const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
     const [currentPage, setCurrentPage] = useState(1)
     const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
-    const itemsPerPage = 20
+    const itemsPerPage = pageSize
+    const rowKeyOf = (row: any): string => (getRowKey ? getRowKey(row) : row.sku)
 
     // Preserve previous products so search refetches don't drop data to undefined
     const previousProductsRef = useRef<ProductProfitBreakdown[] | undefined>(products)
@@ -421,8 +464,12 @@ export const SellerboardProductsTable: React.FC<
 
     // Let the Ask AI assistant see this table's real numbers (top sellers first)
     useAiContext({
-      pageName: 'Profit by product (sales, ads, fees, COGS, profit)',
-      data: (activeProducts ?? [])
+      pageName: columns
+        ? 'Profit by product and channel listing'
+        : 'Profit by product (sales, ads, fees, COGS, profit)',
+      data: columns
+        ? []
+        : (activeProducts ?? [])
         .slice()
         .sort((x, y) => (y.salesRevenue || 0) - (x.salesRevenue || 0))
         .slice(0, 30)
@@ -450,7 +497,7 @@ export const SellerboardProductsTable: React.FC<
         activeProducts.forEach((product) => {
           const p = product as ProductWithChildren
           if (p.children && p.children.length > 0) {
-            parentSkusToExpand.add(p.sku)
+            parentSkusToExpand.add(rowKeyOf(p))
           }
         })
 
@@ -492,10 +539,20 @@ export const SellerboardProductsTable: React.FC<
       if (!activeProducts) return []
 
       const result = [...activeProducts] as ProductWithChildren[]
+      const customSortValue = columns?.find((column) => column.id === sortColumn)?.sortValue
 
       result.sort((a, b) => {
         let aVal: number | string = 0
         let bVal: number | string = 0
+
+        if (columns) {
+          if (!customSortValue) return 0
+          aVal = customSortValue(a)
+          bVal = customSortValue(b)
+          if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1
+          if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1
+          return 0
+        }
 
         switch (sortColumn) {
           case 'name':
@@ -562,7 +619,7 @@ export const SellerboardProductsTable: React.FC<
       })
 
       return result
-    }, [activeProducts, sortColumn, sortDirection])
+    }, [activeProducts, sortColumn, sortDirection, columns])
 
     const paginatedProducts = useMemo(() => {
       const startIndex = (currentPage - 1) * itemsPerPage
@@ -583,6 +640,44 @@ export const SellerboardProductsTable: React.FC<
         )}
       </span>
     )
+
+    const renderColumnsRow = (row: any, isChild = false): React.ReactNode => {
+      const key = rowKeyOf(row)
+      const isExpanded = expandedRows.has(key)
+      const hasChildren = !!row.children?.length
+
+      return (
+        <React.Fragment key={key}>
+          <TableRow
+            className={cn(
+              'hover:bg-surface-secondary transition-colors',
+              isChild && 'bg-surface-secondary/30'
+            )}
+          >
+            {columns!.map((column) => (
+              <TableCell
+                key={column.id}
+                className={cn(
+                  'px-4 py-3 align-middle',
+                  column.align === 'left' && 'text-left',
+                  column.align === 'center' && 'text-center',
+                  (!column.align || column.align === 'right') && 'text-right whitespace-nowrap'
+                )}
+              >
+                {column.render(row, {
+                  isChild,
+                  isExpanded,
+                  hasChildren,
+                  toggle: () => toggleRow(key),
+                })}
+              </TableCell>
+            ))}
+          </TableRow>
+
+          {isExpanded && row.children?.map((child: any) => renderColumnsRow(child, true))}
+        </React.Fragment>
+      )
+    }
 
     const renderProductRow = (
       product: ProductWithChildren,
@@ -837,6 +932,36 @@ export const SellerboardProductsTable: React.FC<
         <div className="w-full h-[500px] max-h-[calc(100vh-280px)] min-h-[400px] overflow-y-auto overflow-x-auto border border-border rounded-lg shadow-sm flex flex-col">
           <Table className={cn('min-w-full border-separate border-spacing-0', isTableEmpty && 'h-full flex-1')}>
             <TableHeader className="sticky top-0 z-20 bg-surface shadow-sm">
+              {columns ? (
+                <TableRow className="bg-surface h-12">
+                  {columns.map((column) => (
+                    <TableHead
+                      key={column.id}
+                      style={{ minWidth: column.minWidth }}
+                      className={cn(
+                        'sticky top-0 z-20 bg-surface py-3 px-4 border-b border-border align-middle',
+                        column.sortValue && 'cursor-pointer hover:bg-surface-secondary',
+                        column.align === 'left' && 'text-left',
+                        column.align === 'center' && 'text-center',
+                        (!column.align || column.align === 'right') && 'text-right'
+                      )}
+                      onClick={column.sortValue ? () => handleSort(column.id) : undefined}
+                    >
+                      <div
+                        className={cn(
+                          'flex items-center gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap',
+                          column.align === 'left' && 'justify-start',
+                          column.align === 'center' && 'justify-center',
+                          (!column.align || column.align === 'right') && 'justify-end'
+                        )}
+                      >
+                        <span>{column.header}</span>
+                        {column.sortValue && <SortIcon column={column.id} />}
+                      </div>
+                    </TableHead>
+                  ))}
+                </TableRow>
+              ) : (
               <TableRow className="bg-surface h-12">
                 {/* Product Column */}
                 <TableHead
@@ -1010,12 +1135,13 @@ export const SellerboardProductsTable: React.FC<
                   <HeaderTooltip columnKey="info" />
                 </TableHead>
               </TableRow>
+              )}
             </TableHeader>
 
             <TableBody className={cn(isTableEmpty && 'h-full')}>
               {showInitialLoading ? (
                 <TableRow className="h-full hover:bg-transparent bg-transparent">
-                  <TableCell colSpan={15} className="h-full text-center align-middle border-none p-0">
+                  <TableCell colSpan={columns ? columns.length : 15} className="h-full text-center align-middle border-none p-0">
                     <div className="flex flex-col items-center justify-center h-full min-h-[300px] gap-2 py-12">
                       <Spinner />
                       <span className="text-xs font-medium text-text-muted">
@@ -1026,7 +1152,7 @@ export const SellerboardProductsTable: React.FC<
                 </TableRow>
               ) : error ? (
                 <TableRow className="h-full hover:bg-transparent bg-transparent">
-                  <TableCell colSpan={15} className="h-full text-center align-middle border-none p-0">
+                  <TableCell colSpan={columns ? columns.length : 15} className="h-full text-center align-middle border-none p-0">
                     <div className="flex flex-col items-center justify-center h-full min-h-[300px] py-12 text-danger-600 font-medium">
                       Failed to load products. Please try again.
                     </div>
@@ -1034,28 +1160,40 @@ export const SellerboardProductsTable: React.FC<
                 </TableRow>
               ) : !paginatedProducts.length ? (
                 <TableRow className="h-full hover:bg-transparent bg-transparent">
-                  <TableCell colSpan={15} className="h-full text-center align-middle border-none p-0">
+                  <TableCell colSpan={columns ? columns.length : 15} className="h-full text-center align-middle border-none p-0">
                     <div className="flex flex-col items-center justify-center h-full min-h-[300px] py-12 text-text-muted">
-                      No products found matching your search criteria.
+                      {emptyMessage}
                     </div>
                   </TableCell>
                 </TableRow>
               ) : (
-                paginatedProducts.map((product) => renderProductRow(product))
+                paginatedProducts.map((product) =>
+                  columns ? renderColumnsRow(product) : renderProductRow(product)
+                )
               )}
             </TableBody>
           </Table>
         </div>
 
-        {totalPages > 1 && (
+        {(totalPages > 1 || footerContent) && (
           <div className="flex items-center justify-between">
             <div className="text-sm text-text-muted">
-              Showing {(currentPage - 1) * itemsPerPage + 1} to{' '}
-              {Math.min(
-                currentPage * itemsPerPage,
-                sortedProducts.length
-              )}{' '}
-              of {sortedProducts.length} products
+              {typeof footerContent === 'function'
+                ? footerContent({
+                    from: sortedProducts.length ? (currentPage - 1) * itemsPerPage + 1 : 0,
+                    to: Math.min(currentPage * itemsPerPage, sortedProducts.length),
+                    total: sortedProducts.length,
+                  })
+                : footerContent ?? (
+                <>
+                  Showing {(currentPage - 1) * itemsPerPage + 1} to{' '}
+                  {Math.min(
+                    currentPage * itemsPerPage,
+                    sortedProducts.length
+                  )}{' '}
+                  of {sortedProducts.length} products
+                </>
+              )}
             </div>
 
             <div className="flex gap-2">
