@@ -1,14 +1,13 @@
 'use client'
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, Search } from 'lucide-react'
+import { Search } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Container } from '@/components/layout'
 import { Switch } from '@/components/switch/Switch'
 import { Card, CardContent } from '@/design-system/cards'
 import { Input } from '@/design-system/inputs'
-import { MultiSelectInput } from '@/components/multi-select-input/MultiSelectInput'
 import { RowActionsMenu } from '@/components/row-actions-menu/RowActionsMenu'
 import { useReportExport } from '@/hooks/useReportExport'
 import { KpiCardSkeleton } from '@/design-system/loaders'
@@ -24,7 +23,7 @@ import { formatDateRangePST, nowInPST, type CurrencyCode } from '@/utils/profitD
 
 import type { ChannelId, ChannelReportParams, ReportBasis } from './channelReport.types'
 import { FEES_AND_EXPENSES_BUCKETS, LISTING_COST_BUCKETS, type BucketDefinition } from './config/buckets'
-import { getChannel, joinChannelNames } from './config/channels'
+import { joinChannelNames } from './config/channels'
 import { ChannelBreakdown } from './components/ChannelBreakdown'
 import { ChannelChips } from './components/ChannelBadges'
 import { ChannelMultiSelect } from './components/ChannelMultiSelect'
@@ -32,7 +31,7 @@ import { buildChannelProductColumns } from './components/channelProductColumns'
 import { ChannelShareBar } from './components/ChannelShareBar'
 import { useChannelConnections, useChannelListings, useChannelReportSummary } from './data/useChannelReportData'
 import { combinePeriod, sumCombinedBuckets, type CombinedPeriod } from './lib/aggregate'
-import { formatMargin, formatMoney, NOT_REPORTED } from './lib/format'
+import { formatMoney, NOT_REPORTED } from './lib/format'
 import { buildProductRows, countUnlinked, rowBreakdown, type ProductRow } from './lib/productRows'
 
 const STORAGE_KEY = 'profit-channel-report-preset'
@@ -44,10 +43,8 @@ const CURRENCY_OPTIONS = [
 ]
 /** Table-filter option that narrows the table to listings with no master product. */
 const UNLINKED_OPTION = { id: '__unlinked', name: 'Only unlinked listings', description: 'SKUs not yet matched to a product', excludeFromAll: true, separatorBefore: true }
-const BASIS_OPTIONS: { id: ReportBasis; name: string }[] = [
-  { id: 'business', name: 'Business Report' },
-  { id: 'settlement', name: 'Settlement Report' },
-]
+/** The Live Report always reads Business Report data (orders by order date). */
+const REPORT_BASIS: ReportBasis = 'business'
 const MTD_PERIOD = 'MONTH_TO_DATE'
 const PAGE_SIZE = 8
 
@@ -61,13 +58,6 @@ interface BreakdownTarget {
 }
 
 const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((item) => b.includes(item))
-
-const Warning: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <p className="flex items-center gap-2 text-xs text-warning-700">
-    <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-    {children}
-  </p>
-)
 
 export const ChannelReport: React.FC = () => {
   // ──────────────────────────────
@@ -84,8 +74,6 @@ export const ChannelReport: React.FC = () => {
   const [appliedMarketplaces, setAppliedMarketplaces] = useState<string[]>(DEFAULT_MARKETPLACES)
   const [draftCurrency, setDraftCurrency] = useState<CurrencyCode>('CAD')
   const [appliedCurrency, setAppliedCurrency] = useState<CurrencyCode>('CAD')
-  const [draftBasis, setDraftBasis] = useState<ReportBasis>('business')
-  const [appliedBasis, setAppliedBasis] = useState<ReportBasis>('business')
 
   // Select every connected channel once the connections arrive (async with the real API)
   useEffect(() => {
@@ -101,18 +89,14 @@ export const ChannelReport: React.FC = () => {
     period.isDirty ||
     !sameSet(draftChannels, appliedChannels) ||
     !sameSet(draftMarketplaces, appliedMarketplaces) ||
-    draftCurrency !== appliedCurrency ||
-    draftBasis !== appliedBasis
+    draftCurrency !== appliedCurrency
 
   const applyFilters = useCallback(() => {
     period.apply()
     setAppliedChannels([...draftChannels])
     setAppliedMarketplaces([...draftMarketplaces])
     setAppliedCurrency(draftCurrency)
-    setAppliedBasis(draftBasis)
-  }, [period, draftChannels, draftMarketplaces, draftCurrency, draftBasis])
-
-  const delayedChannels = draftChannels.filter((channel) => getChannel(channel).settlementNote)
+  }, [period, draftChannels, draftMarketplaces, draftCurrency])
 
   // ──────────────────────────────
   // Data
@@ -122,7 +106,7 @@ export const ChannelReport: React.FC = () => {
     channels: appliedChannels,
     marketplaces: appliedMarketplaces,
     currency: appliedCurrency,
-    basis: appliedBasis,
+    basis: REPORT_BASIS,
   }
   const noChannels = appliedChannels.length === 0
   const tilePeriods = period.currentPreset.tiles.map((tile) => tile.apiPeriod as string)
@@ -285,7 +269,6 @@ export const ChannelReport: React.FC = () => {
           <ProfitOverviewBanner
             title={`Month to date · ${joinChannelNames(bannerPeriod.channels)}`}
             totalRevenue={bannerPeriod.sales}
-            totalProfit={bannerPeriod.netProfit}
             totalOrders={bannerPeriod.orders}
             totalUnits={bannerPeriod.units}
             formatAmount={formatMoney}
@@ -310,7 +293,6 @@ export const ChannelReport: React.FC = () => {
           onDateRangeChange={period.onDateRangeChange}
           datePickerKey={period.datePickerKey}
           extraFilters={
-            <>
             <div className="min-w-[160px] shrink-0">
               <ChannelMultiSelect
                 channels={connectedChannels}
@@ -319,17 +301,6 @@ export const ChannelReport: React.FC = () => {
                 onChange={setDraftChannels}
               />
             </div>
-            <div className="shrink-0">
-              <MultiSelectInput
-                single
-                title="Report"
-                options={BASIS_OPTIONS}
-                value={[draftBasis]}
-                onChange={(value) => setDraftBasis(value[0] as ReportBasis)}
-                className="w-[200px]"
-              />
-            </div>
-            </>
           }
           marketplaces={draftMarketplaces}
           onMarketplacesChange={setDraftMarketplaces}
@@ -340,15 +311,6 @@ export const ChannelReport: React.FC = () => {
           paddingClassName="py-4"
           onFilter={applyFilters}
           filterPending={filterPending}
-          note={
-            delayedChannels.length > 0 && (
-              <div className="space-y-1">
-                {delayedChannels.map((channel) => (
-                  <Warning key={channel}>{getChannel(channel).settlementNote}</Warning>
-                ))}
-              </div>
-            )
-          }
         />
 
         {/* Period tiles */}
@@ -391,7 +353,6 @@ export const ChannelReport: React.FC = () => {
                       salesCount: formatNumber(data?.orders ?? 0, 0),
                       ordersUnitCount: formatNumber(data?.units ?? 0, 0),
                       totalRefundsCount: data?.refunds ?? 0,
-                      netProfit: data?.netProfit ?? 0,
                       margin: data?.margin ?? 0,
                     }}
                     formatAmount={formatMoney}
@@ -411,11 +372,7 @@ export const ChannelReport: React.FC = () => {
                         </span>
                       ),
                     }}
-                    marginDisplay={
-                      <span className="text-xs text-text-muted">
-                        Margin <b className="text-text-primary">{formatMargin(data?.margin ?? null)}</b>
-                      </span>
-                    }
+                    showNetProfit={false}
                     moreLabel="See breakdown"
                     setSelectedPeriodForDetails={openTileDetails}
                   />

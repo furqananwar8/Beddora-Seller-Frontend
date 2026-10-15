@@ -22,6 +22,8 @@ interface SummaryTilesProps {
     showTooltips?: boolean
     /** Formats the amounts. Defaults to currency formatting. */
     formatAmount?: (value: number) => string
+    /** Shows the Net profit / margin row. Defaults to on. */
+    showNetProfit?: boolean
 }
 
 /* ──────────────────────────────────────────────────────
@@ -99,6 +101,7 @@ const SummaryTiles = ({
     moreLabel = 'More',
     showTooltips = true,
     formatAmount = (value: number) => formatCurrency(value),
+    showNetProfit = true,
 }: SummaryTilesProps) => {
     const margin = period.margin ?? 0
     const salesPct = salesChange === undefined ? margin : salesChange
@@ -166,6 +169,7 @@ const SummaryTiles = ({
             </div>
 
             {/* Net profit */}
+            {showNetProfit && (
             <div className="pt-3 border-t border-border group relative cursor-pointer">
                 <div className="text-text-muted text-xs break-words">Net profit</div>
                 <div className="flex items-center justify-between min-w-0">
@@ -178,6 +182,7 @@ const SummaryTiles = ({
                 </div>
                 <Tooltip fieldKey="netProfit" />
             </div>
+            )}
 
             {/* Spacer pushes "More" to bottom */}
             <div className="flex-1" />

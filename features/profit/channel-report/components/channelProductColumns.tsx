@@ -148,17 +148,6 @@ export const buildChannelProductColumns = ({
   costColumn('fulfillment', 'Fulfillment'),
   costColumn('cogs', 'COGS'),
   {
-    id: 'netProfit',
-    align: 'center',
-    header: 'Net profit',
-    sortValue: (row) => row.netProfit,
-    render: (row) => (
-      <span className={cn('font-semibold', row.netProfit >= 0 ? 'text-success-700' : 'text-danger-700')}>
-        {formatMoney(row.netProfit)}
-      </span>
-    ),
-  },
-  {
     id: 'margin',
     align: 'center',
     header: 'Margin',

@@ -67,7 +67,7 @@ export default function DashboardLayout({
                 href: '/dashboard/profit/settlement-report',
               },
               {
-                label: 'Channel Report',
+                label: 'Live Report',
                 subject: 'profit:channel-report',
                 action: 'read',
                 href: '/dashboard/profit/channel-report',
@@ -464,7 +464,7 @@ export default function DashboardLayout({
             periodValue={periodValue}
             onMarketplaceChange={setMarketplaceValue}
             onPeriodChange={setPeriodValue}
-            dashboardTitle={showDashboardTabs ? 'Dashboard' : isChannelReport ? 'Channel Report' : undefined}
+            dashboardTitle={showDashboardTabs ? 'Dashboard' : isChannelReport ? 'Live Report' : undefined}
             dashboardTabs={showDashboardTabs ? dashboardTabs : undefined}
             activeDashboardTab={showDashboardTabs ? activeDashboardTab : undefined}
             onDashboardTabChange={showDashboardTabs ? setActiveDashboardTab : undefined}

@@ -7,7 +7,8 @@ import { formatCurrency } from '@/utils/format'
 interface ProfitOverviewBannerProps {
   title: React.ReactNode
   totalRevenue: number
-  totalProfit: number
+  /** Omit to hide the Net Profit figure. */
+  totalProfit?: number
   totalOrders: number
   totalUnits: number
   /** Formats the amounts. Defaults to currency formatting. */
@@ -33,12 +34,14 @@ export const ProfitOverviewBanner: React.FC<ProfitOverviewBannerProps> = ({
         <div className="text-3xl font-bold">{formatAmount(totalRevenue)}</div>
         <div className="text-blue-100 text-sm">Total Revenue</div>
       </div>
+      {totalProfit !== undefined && (
       <div>
         <div className={`text-3xl font-bold ${totalProfit >= 0 ? 'text-green-300' : 'text-red-300'}`}>
           {formatAmount(totalProfit)}
         </div>
         <div className="text-blue-100 text-sm">Total Net Profit</div>
       </div>
+      )}
       <div>
         <div className="text-3xl font-bold">{totalOrders}</div>
         <div className="text-blue-100 text-sm">Total Orders</div>

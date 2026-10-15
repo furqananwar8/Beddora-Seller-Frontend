@@ -208,7 +208,6 @@ export const ChannelBreakdown: React.FC<ChannelBreakdownProps> = ({ period, sect
       ))}
 
       <MetricRow label="Gross profit" value={formatMoney(period.grossProfit)} isBold />
-      <MetricRow label="Net profit" value={formatMoney(period.netProfit)} isBold />
       <MetricRow label="Margin" value={formatMargin(period.margin)} />
 
       <p className="pt-3 text-xs text-text-muted">
