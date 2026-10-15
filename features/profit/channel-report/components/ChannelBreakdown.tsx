@@ -53,9 +53,39 @@ const BucketLines: React.FC<{ bucket: ChannelBucket; nested?: boolean }> = ({
         label={line.label}
         value={line.amount}
         formatValue={formatMoney}
-        className={nested ? 'pl-12 py-1.5' : undefined}
+        className={nested ? 'pl-4 py-1.5' : undefined}
       />
     ))}
+  </>
+)
+
+/**
+ * One channel's block inside a combined section: a bold heading (channel · its own name for the section, and its
+ * total), then its lines indented under a guide line so they read as its children. A channel that doesn't report the
+ * section keeps the same heading, valued n/a.
+ */
+const ChannelGroup: React.FC<{
+  channel: ChannelId
+  heading: string
+  amount: number | null
+  note?: string
+  children?: React.ReactNode
+}> = ({ channel, heading, amount, note, children }) => (
+  <>
+    <DetailRow
+      label={
+        <span className="inline-flex items-center gap-1.5 font-semibold text-text-primary">
+          <ChannelDot channel={channel} />
+          <span>{getChannel(channel).name}</span>
+          <span>· {heading}</span>
+          {note && <span className="font-normal italic text-text-muted">· {note}</span>}
+        </span>
+      }
+      value={amount ?? 0}
+      formatValue={(value) => (amount === null ? 'n/a' : formatMoney(value))}
+      className="font-semibold"
+    />
+    {children && <div className="ml-[31px] mb-1 border-l-2 border-border">{children}</div>}
   </>
 )
 
@@ -105,23 +135,17 @@ const SectionDetails: React.FC<{
     <>
       {combined.perChannel.map(({ channel, bucket }) =>
         bucket ? (
-          <React.Fragment key={channel}>
-            <DetailRow
-              label={
-                <span className="inline-flex items-center gap-1.5">
-                  <ChannelDot channel={channel} />
-                  <span className="font-medium text-text-primary">{getChannel(channel).name}</span>
-                  <span>· {bucket.nativeGroup}</span>
-                  {bucket.inProfit === false && <span className="italic">· not in profit</span>}
-                </span>
-              }
-              value={bucket.amount}
-              formatValue={formatMoney}
-            />
-            <BucketLines bucket={bucket} nested />
-          </React.Fragment>
+          <ChannelGroup
+            key={channel}
+            channel={channel}
+            heading={bucket.nativeGroup}
+            amount={bucket.amount}
+            note={bucket.inProfit === false ? 'not in profit' : undefined}
+          >
+            {bucket.lines.length > 0 && <BucketLines bucket={bucket} nested />}
+          </ChannelGroup>
         ) : (
-          <NotReported key={channel} channel={channel} definition={definition} />
+          <ChannelGroup key={channel} channel={channel} heading={definition.label} amount={null} note="not reported" />
         ),
       )}
     </>
