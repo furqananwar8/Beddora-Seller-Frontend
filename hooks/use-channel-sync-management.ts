@@ -5,7 +5,7 @@ import {
 } from '@/services/api/report-sync-management.api'
 import { useSyncRowSelection } from './use-sync-row-selection'
 
-/** Sync management of one channel's syncs (e.g. Walmart): its rows, row selection and reset. */
+/** Sync management of one channel's syncs (e.g. Walmart, Shopify): its rows, row selection and reset. */
 export function useChannelSyncManagement(channel: string) {
   const { data, isLoading, isFetching } = useGetChannelSyncStatesQuery(channel)
   const [resetChannelSyncs, { isLoading: isSubmitting }] = useResetChannelSyncsMutation()

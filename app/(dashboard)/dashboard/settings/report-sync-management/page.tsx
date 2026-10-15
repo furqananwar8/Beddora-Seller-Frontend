@@ -7,6 +7,7 @@ import { Spinner } from '@/design-system/loaders'
 import { useAppDispatch } from '@/store/hooks'
 import { addNotification } from '@/store/ui.slice'
 import { SyncManagementTable, type SyncTableRow } from '@/features/report-sync-management/SyncManagementTable'
+import { CHANNEL_SYNC_GROUPS, toChannelSyncGroup } from '@/features/report-sync-management/channel-sync-groups'
 
 type SyncMode = 'live' | 'backfill'
 
@@ -34,8 +35,13 @@ const MANAGED_SYNC_JOBS: ManagedSyncJob[] = [
 export default function ReportSyncManagementPage() {
   const dispatch = useAppDispatch()
   const amazon = useReportSyncManagement()
-  // Walmart syncs come from the API: one row per data type and mode, covering every connected market
-  const walmart = useChannelSyncManagement('walmart')
+  // Channel syncs come from the API: one row per data type and mode, covering every connected market / store
+  const walmart = useChannelSyncManagement(CHANNEL_SYNC_GROUPS.walmart.channel)
+  const shopify = useChannelSyncManagement(CHANNEL_SYNC_GROUPS.shopify.channel)
+  const channels = [
+    { config: CHANNEL_SYNC_GROUPS.walmart, sync: walmart },
+    { config: CHANNEL_SYNC_GROUPS.shopify, sync: shopify },
+  ]
 
   const amazonRows: SyncTableRow[] = MANAGED_SYNC_JOBS.flatMap(({ syncType, label, modes }) =>
     modes.map((mode) => {
@@ -52,24 +58,13 @@ export default function ReportSyncManagementPage() {
     })
   )
 
-  const walmartRows: SyncTableRow[] = walmart.rows.map((row) => ({
-    key: row.key,
-    label: row.label,
-    mode: row.mode,
-    markets: row.markets,
-    status: row.status,
-    errorMessage: row.errorMessage,
-    currentStart: row.currentStart,
-    hasStartDate: row.resetKind === 'date',
-  }))
-
-  const isSubmitting = amazon.isSubmitting || walmart.isSubmitting
-  const isBusy = isSubmitting || amazon.isLoading || amazon.isFetching || walmart.isFetching
+  const isSubmitting = amazon.isSubmitting || channels.some(({ sync }) => sync.isSubmitting)
+  const isBusy = isSubmitting || amazon.isLoading || amazon.isFetching || channels.some(({ sync }) => sync.isFetching)
   const busyText = isSubmitting ? 'Resetting queues and updating sync states...' : 'Loading sync states...'
 
   // Resets the selected rows of every group; each group calls its own API
   const handleApplyResetWithToast = async () => {
-    if (!amazon.hasSelection && !walmart.hasSelection) {
+    if (!amazon.hasSelection && !channels.some(({ sync }) => sync.hasSelection)) {
       dispatch(addNotification({ message: 'Please select at least one row to reset.', type: 'error' }))
       return
     }
@@ -77,7 +72,7 @@ export default function ReportSyncManagementPage() {
     const resets = [
       amazon.hasSelection &&
         amazon.applyReset().then((res) => res?.message || 'Amazon reset completed. Active queues flushed and scheduler restarted.'),
-      walmart.hasSelection && walmart.applyReset().then((res) => res.message),
+      ...channels.map(({ sync }) => sync.hasSelection && sync.applyReset().then((res) => res.message)),
     ].filter((reset): reset is Promise<string> => !!reset)
 
     const results = await Promise.allSettled(resets)
@@ -118,16 +113,7 @@ export default function ReportSyncManagementPage() {
             onDateChange: amazon.updateRowDate,
             isLoading: amazon.isLoading,
           },
-          {
-            id: 'walmart',
-            title: 'Walmart',
-            rows: walmartRows,
-            selectionMap: walmart.selectionMap,
-            onToggle: walmart.toggleRowSelection,
-            onDateChange: walmart.updateRowDate,
-            isLoading: walmart.isLoading,
-            emptyText: 'No Walmart market is connected (no Walmart credentials configured).',
-          },
+          ...channels.map(({ config, sync }) => toChannelSyncGroup(config, sync)),
         ]}
       />
 

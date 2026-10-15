@@ -42,6 +42,9 @@ const NotReported: React.FC<{ channel: ChannelId; definition: BucketDefinition }
   </div>
 )
 
+/** Child rows of a NestedGroup: indented from its guide line. */
+const NESTED_ROW = 'pl-4 py-1.5'
+
 const BucketLines: React.FC<{ bucket: ChannelBucket; nested?: boolean }> = ({
   bucket,
   nested = false,
@@ -53,15 +56,61 @@ const BucketLines: React.FC<{ bucket: ChannelBucket; nested?: boolean }> = ({
         label={line.label}
         value={line.amount}
         formatValue={formatMoney}
-        className={nested ? 'pl-12 py-1.5' : undefined}
+        className={nested ? NESTED_ROW : undefined}
       />
     ))}
   </>
 )
 
+/** A bold heading row with its total, then its child rows indented under a guide line so they read as its children. */
+const NestedGroup: React.FC<{
+  label: React.ReactNode
+  value: number
+  formatValue: (value: number) => string
+  children?: React.ReactNode
+}> = ({ label, value, formatValue, children }) => (
+  <>
+    <DetailRow
+      label={<span className="inline-flex items-center gap-1.5 font-semibold text-text-primary">{label}</span>}
+      value={value}
+      formatValue={formatValue}
+      className="font-semibold"
+    />
+    {children && <div className="ml-[31px] mb-1 border-l-2 border-border">{children}</div>}
+  </>
+)
+
 /**
- * A section's count (e.g. refund count): the total, then one line per channel when several are combined.
- * A channel that does not report the section shows n/a rather than 0.
+ * One channel's block inside a combined section: channel · its own name for the section, and its total. A channel
+ * that doesn't report the section keeps the same heading, valued n/a.
+ */
+const ChannelGroup: React.FC<{
+  channel: ChannelId
+  heading: string
+  amount: number | null
+  note?: string
+  children?: React.ReactNode
+}> = ({ channel, heading, amount, note, children }) => (
+  <NestedGroup
+    label={
+      <>
+        <ChannelDot channel={channel} />
+        <span>{getChannel(channel).name}</span>
+        <span>· {heading}</span>
+        {note && <span className="font-normal italic text-text-muted">· {note}</span>}
+      </>
+    }
+    value={amount ?? 0}
+    formatValue={(value) => (amount === null ? 'n/a' : formatMoney(value))}
+  >
+    {children}
+  </NestedGroup>
+)
+
+/**
+ * A section's count (e.g. refund count): a bold total, then one nested line per channel when several are combined.
+ * A channel shows n/a only when it reports neither the section nor any count (Walmart's live view books returns in
+ * Sales, yet counts them).
  */
 const CountLines: React.FC<{
   period: CombinedPeriod
@@ -71,23 +120,23 @@ const CountLines: React.FC<{
 }> = ({ period, definition, count, single }) => {
   const reports = (channel: ChannelId) =>
     period.buckets[definition.id].perChannel.some((entry) => entry.channel === channel && entry.bucket)
+  const label = <span>{count.label}</span>
+  const total = period[count.key]
+  const formatCount = (value: number) => formatNumber(value, 0)
+  if (single) return <NestedGroup label={label} value={total} formatValue={formatCount} />
+
   return (
-    <>
-      <div className="flex items-center justify-between py-2 pl-7 text-sm text-text-muted">
-        <span>{count.label}</span>
-        <span className="text-text-primary">{formatNumber(period[count.key], 0)}</span>
-      </div>
-      {!single &&
-        period.counts.map((channelCounts) => (
-          <DetailRow
-            key={channelCounts.channel}
-            label={<ChannelName channel={channelCounts.channel} />}
-            value={channelCounts[count.key]}
-            formatValue={(value) => (reports(channelCounts.channel) ? formatNumber(value, 0) : 'n/a')}
-            className="pl-12 py-1.5"
-          />
-        ))}
-    </>
+    <NestedGroup label={label} value={total} formatValue={formatCount}>
+      {period.counts.map((channelCounts) => (
+        <DetailRow
+          key={channelCounts.channel}
+          label={<ChannelName channel={channelCounts.channel} />}
+          value={channelCounts[count.key]}
+          formatValue={(value) => (reports(channelCounts.channel) || value !== 0 ? formatNumber(value, 0) : 'n/a')}
+          className={NESTED_ROW}
+        />
+      ))}
+    </NestedGroup>
   )
 }
 
@@ -105,23 +154,17 @@ const SectionDetails: React.FC<{
     <>
       {combined.perChannel.map(({ channel, bucket }) =>
         bucket ? (
-          <React.Fragment key={channel}>
-            <DetailRow
-              label={
-                <span className="inline-flex items-center gap-1.5">
-                  <ChannelDot channel={channel} />
-                  <span className="font-medium text-text-primary">{getChannel(channel).name}</span>
-                  <span>· {bucket.nativeGroup}</span>
-                  {bucket.inProfit === false && <span className="italic">· not in profit</span>}
-                </span>
-              }
-              value={bucket.amount}
-              formatValue={formatMoney}
-            />
-            <BucketLines bucket={bucket} nested />
-          </React.Fragment>
+          <ChannelGroup
+            key={channel}
+            channel={channel}
+            heading={bucket.nativeGroup}
+            amount={bucket.amount}
+            note={bucket.inProfit === false ? 'not in profit' : undefined}
+          >
+            {bucket.lines.length > 0 && <BucketLines bucket={bucket} nested />}
+          </ChannelGroup>
         ) : (
-          <NotReported key={channel} channel={channel} definition={definition} />
+          <ChannelGroup key={channel} channel={channel} heading={definition.label} amount={null} note="not reported" />
         ),
       )}
     </>

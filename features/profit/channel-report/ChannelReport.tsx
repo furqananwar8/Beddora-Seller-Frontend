@@ -282,11 +282,11 @@ export const ChannelReport: React.FC = () => {
           </ProfitOverviewBanner>
         )}
 
+        {/* One line: search takes the room the filters leave, every control sits next to it */}
         <ProfitDashboardHeader
-          wrap
           searchTerm={searchTerm}
           onSearchChange={setSearchTerm}
-          searchWidth="basis-full"
+          searchWidth="flex-1 min-w-[180px]"
           dateRange={period.dateRangeValue}
           datePresets={period.datePresets}
           keepOpenPresetIds={period.keepOpenPresetIds}

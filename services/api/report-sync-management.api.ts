@@ -33,7 +33,7 @@ export interface ResetSyncResponse {
   message: string
 }
 
-/** A channel sync (Walmart, later Shopify / Temu): one per data type and mode, covering every market. */
+/** A channel sync (Walmart, Shopify, later Temu): one per data type and mode, covering every market. */
 export interface ChannelSyncStateRow {
   /** `channel:syncType:mode`, e.g. `walmart:orders:live` */
   key: string
