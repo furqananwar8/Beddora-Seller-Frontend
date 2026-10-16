@@ -40,8 +40,13 @@ export const formatShortDate = (iso: string) =>
     new Date(iso)
   )
 
-export const formatWindow = (w?: DeliveryWindow) =>
-  w ? `${formatShortDate(w.start)} – ${formatShortDate(w.end)}` : '—'
+/** "Oct 20 – Oct 24", or one date when the window is a single day (WFS's expected delivery). */
+export const formatWindow = (w?: DeliveryWindow) => {
+  if (!w) return '—'
+  const start = formatShortDate(w.start)
+  const end = formatShortDate(w.end)
+  return start === end ? start : `${start} – ${end}`
+}
 
 /** "1 unit", "12 units". */
 export const unitsLabel = (n: number) => `${formatUnits(n)} unit${n === 1 ? '' : 's'}`

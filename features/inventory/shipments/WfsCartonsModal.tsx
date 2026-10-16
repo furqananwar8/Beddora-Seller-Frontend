@@ -48,13 +48,21 @@ export const WfsCartonsModal: React.FC<WfsCartonsModalProps> = ({ shipment, ...r
   </Modal>
 )
 
-/** Starting values: what was saved before, else one single-SKU carton per case, sized like the first SKU's case pack. */
-function initialForm(shipment: InboundShipment, leg: ShipmentLeg): LegForm {
-  const cases = (leg.items ?? []).reduce((sum, line) => {
+const casesOf = (lines: { sku: string; quantity: number }[], shipment: InboundShipment) =>
+  lines.reduce((sum, line) => {
     const perCase = shipment.items.find((i) => i.sku === line.sku)?.unitsPerCase
     return sum + (perCase ? Math.ceil(line.quantity / perCase) : 0)
   }, 0)
-  const count = String(leg.boxes ?? cases ?? '')
+
+/**
+ * Starting values: what was saved before, else one single-SKU carton per case. A
+ * single-shipment order whose Walmart lines don't name our SKUs falls back to the
+ * shipment's own lines.
+ */
+function initialForm(shipment: InboundShipment, leg: ShipmentLeg): LegForm {
+  const fromLeg = casesOf(leg.items ?? [], shipment)
+  const cases = fromLeg || (shipment.legs.length === 1 ? casesOf(shipment.items, shipment) : 0)
+  const count = String(leg.boxes ?? cases)
   return {
     singleSku: count,
     mixedSku: '0',
