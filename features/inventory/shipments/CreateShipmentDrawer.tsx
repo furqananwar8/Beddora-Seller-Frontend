@@ -120,7 +120,8 @@ const DrawerPanel: React.FC<Omit<CreateShipmentDrawerProps, 'isOpen'>> = ({
   const marketplaceConfig = connectedMarketplaces(channel).find((m) => m.id === marketplace)
 
   // FBA's pool without an argument shares the screen's cached copy; WFS eligibility depends on the marketplace
-  const { data: pool = [], isFetching: poolLoading } = useGetShipmentPoolQuery(wfs ? { channel, marketplace } : undefined)
+  // currentData: never the previous channel's / marketplace's pool while the new one loads
+  const { currentData: pool = [], isFetching: poolLoading } = useGetShipmentPoolQuery(wfs ? { channel, marketplace } : undefined)
   const channelShipments = useMemo(() => ofChannel(shipments, channel), [shipments, channel])
   const unassigned = useMemo(() => getUnassignedUnits(pool, channelShipments), [pool, channelShipments])
 
@@ -140,10 +141,23 @@ const DrawerPanel: React.FC<Omit<CreateShipmentDrawerProps, 'isOpen'>> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pool, unassigned, seeded])
 
+  const moveTo = (next: ShipmentChannel) =>
+    patch({ channel: next, marketplace: connectedMarketplaces(next)[0]?.id ?? marketplace, book: {}, unitsPerCase: {}, inventoryTransfer: false, error: null })
+
+  // The drawer can open before the channel config has loaded; land on the requested channel once it's available
+  const [channelPicked, setChannelPicked] = useState(false)
+  useEffect(() => {
+    if (channelPicked || !initialChannel || channel === initialChannel || !enabled(initialChannel)) return
+    moveTo(initialChannel)
+    setSeeded(initialProductIds.length === 0)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [channels])
+
   const switchChannel = (next: ShipmentChannel) => {
     if (next === channel || !enabled(next)) return
+    setChannelPicked(true)
     setSeeded(true)
-    patch({ channel: next, marketplace: connectedMarketplaces(next)[0]?.id ?? marketplace, book: {}, unitsPerCase: {}, inventoryTransfer: false, error: null })
+    moveTo(next)
   }
 
   const rows = useMemo(
@@ -334,7 +348,7 @@ const DrawerPanel: React.FC<Omit<CreateShipmentDrawerProps, 'isOpen'>> = ({
             </div>
           )}
 
-          <div className="overflow-x-auto !rounded-xl border border-slate-200"><div className="min-w-[760px]">
+          <div className="shrink-0 overflow-x-auto !rounded-xl border border-slate-200"><div className="min-w-[760px]">
             <div className={cn('grid border-b border-slate-200 bg-slate-100 text-xs font-semibold text-slate-700', columns)}>
               <div className="px-4 py-3">Product</div>
               <div className="px-2 py-3 text-right">{def.program} pool</div>

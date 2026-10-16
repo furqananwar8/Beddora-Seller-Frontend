@@ -32,7 +32,7 @@ import {
 import { CHANNEL_ORDER, SHIPMENT_CHANNELS, channelIdOf, channelOf, isShipmentChannel } from './channels'
 import { ShipmentRow, SHIPMENT_TABLE_COLUMNS } from './ShipmentRow'
 import { CreateMode, CreateShipmentDrawer } from './CreateShipmentDrawer'
-import { ConfirmModal, MarkShippedModal, OptionPickerModal } from './ShipmentDialogs'
+import { ConfirmModal, LabelsStepModal, MarkShippedModal, OptionPickerModal } from './ShipmentDialogs'
 import { PackingModal } from './PackingModal'
 import { CarrierModal } from './CarrierModal'
 import { WfsCartonsModal } from './WfsCartonsModal'
@@ -51,6 +51,8 @@ type Dialog =
   /** Box contents (FBA) or cartons (WFS). */
   | { type: 'packing'; id: string }
   | { type: 'carrier'; id: string }
+  /** Labels being generated between the carrier and Mark as shipped; `error` keeps it open with Try again. */
+  | { type: 'labels'; id: string; error?: string }
   | { type: 'ship'; id: string }
   | { type: 'cancel'; id: string }
   /** Edit the ship-from address of a shipment that already has an Amazon plan. */
@@ -165,6 +167,9 @@ export const ShipmentsScreen: React.FC = () => {
     downloading: Record<string, true>
   }>({ dialog: null, downloading: {} })
   const { dialog, downloading } = ui
+  /** The open dialog as of the latest render, for async steps that must not reopen a dialog the seller closed. */
+  const openDialogRef = useRef<Dialog>(null)
+  openDialogRef.current = dialog
   const openDialog = (next: Dialog) => setUi((prev) => ({ ...prev, dialog: next }))
   const closeDialog = useCallback(() => setUi((prev) => ({ ...prev, dialog: null })), [])
   /**
@@ -302,8 +307,9 @@ export const ShipmentsScreen: React.FC = () => {
 
   /**
    * Guided flow: once a step succeeds, open the next one. Labels need no input,
-   * so they're generated on the way to "Mark as shipped". Closing a dialog just
-   * pauses; the row's next-step button resumes from the same place.
+   * so they're generated on the way to "Mark as shipped" in a dialog of their own
+   * that replaces the previous one. Closing a dialog just pauses; the row's
+   * next-step button resumes from the same place.
    */
   const continueFlow = async (shipment: InboundShipment): Promise<void> => {
     const next = nextActionOf(shipment)
@@ -314,18 +320,29 @@ export const ShipmentsScreen: React.FC = () => {
     if (action === 'set_packing') return openDialog({ type: 'packing', id: shipment.id })
     if (action === 'enter_carrier') return openDialog({ type: 'carrier', id: shipment.id })
     if (action === 'mark_shipped') return openDialog({ type: 'ship', id: shipment.id })
-    if (action === 'generate_labels') {
-      closeDialog()
-      try {
-        const ready = await generateLabels(shipment.id)
-        dispatch(addNotification({ message: `Labels generated for ${shipment.reference}`, type: 'success' }))
-        return continueFlow(ready)
-      } catch (err) {
-        dispatch(addNotification({ message: (err as Error).message || 'Could not generate labels.', type: 'error' }))
-        return
-      }
-    }
+    if (action === 'generate_labels') return runLabelsStep(shipment)
     closeDialog()
+  }
+
+  /**
+   * Generates the labels with the labels dialog open, then goes on to Mark as shipped.
+   * A failure stays in the dialog with the reason, so the seller can try again from there.
+   */
+  const runLabelsStep = async (shipment: InboundShipment): Promise<void> => {
+    const step: Dialog = { type: 'labels', id: shipment.id }
+    openDialog(step)
+    try {
+      const ready = await generateLabels(shipment.id)
+      dispatch(addNotification({ message: `Labels generated for ${shipment.reference}`, type: 'success' }))
+      // Only carry on if the seller didn't close the dialog meanwhile
+      const open = openDialogRef.current
+      if (open?.type === 'labels' && open.id === shipment.id) await continueFlow(ready)
+    } catch (err) {
+      const error = (err as Error).message || 'Could not generate labels.'
+      setUi((prev) =>
+        prev.dialog?.type === 'labels' && prev.dialog.id === shipment.id ? { ...prev, dialog: { ...step, error } } : prev
+      )
+    }
   }
 
   const handleAction = async (id: string, action: NextAction) => {
@@ -424,7 +441,7 @@ export const ShipmentsScreen: React.FC = () => {
     try {
       const file = await downloadLabels(id, type, isSizedLabelType(type) ? labelFormats.selected[type] : undefined)
       const ext = FILE_EXTENSIONS[file.type] ?? 'pdf'
-      saveFile(file, `${shipment?.reference ?? 'shipment'}-${LABEL_NAMES[type].toLowerCase().replace(/s+/g, '-')}.${ext}`)
+      saveFile(file, `${shipment?.reference ?? 'shipment'}-${LABEL_NAMES[type].toLowerCase().replace(/\s+/g, '-')}.${ext}`)
     } catch (err) {
       dispatch(addNotification({ message: (err as Error).message || `Could not download ${LABEL_NAMES[type].toLowerCase()}`, type: 'error' }))
     } finally {
@@ -759,6 +776,14 @@ export const ShipmentsScreen: React.FC = () => {
         onConfirm={(carriers) => handleSubmitWfsCarrier(dialogId('carrier')!, carriers)}
         onBack={() => dialog?.type === 'carrier' && handleBack(dialog.id, 'packing')}
         onClose={closeIfCurrent(dialog?.type === 'carrier' ? dialog : null)}
+      />
+
+      <LabelsStepModal
+        shipment={dialog?.type === 'labels' ? byId(dialog.id) : null}
+        error={dialog?.type === 'labels' ? dialog.error : undefined}
+        onRetry={() => dialog?.type === 'labels' && byId(dialog.id) && runLabelsStep(byId(dialog.id)!)}
+        onBack={() => dialog?.type === 'labels' && handleBack(dialog.id, 'carrier')}
+        onClose={closeIfCurrent(dialog?.type === 'labels' ? dialog : null)}
       />
 
       <MarkShippedModal

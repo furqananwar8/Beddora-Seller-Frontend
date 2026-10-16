@@ -6,7 +6,7 @@ import { AllocationSplit, BucketBalances, PlannedMove, StockBucket } from '@/ser
  * backend planner (preview / save), so there is one planner, not two.
  */
 
-export type AssignMode = 'fba' | 'fbm' | 'even'
+export type AssignMode = 'fba' | 'wfs' | 'fbm' | 'even'
 
 /** WFS buckets; servers that predate WFS don't send them. */
 export const wfsReserved = (b: BucketBalances): number => b.WFS_RESERVED ?? 0
@@ -43,30 +43,58 @@ export function splitError(b: BucketBalances, split: AllocationSplit): string | 
   return null
 }
 
-/** Puts every unassigned unit into FBA, FBM, or splits them evenly (odd unit goes to FBM). */
+/** Puts every unassigned unit into FBA, WFS or FBM, or splits them evenly between FBA and FBM (odd unit goes to FBM). */
 export function assignRemaining(b: BucketBalances, split: AllocationSplit, mode: AssignMode): AllocationSplit {
   const left = Math.max(0, unassigned(b, split))
   if (mode === 'fba') return { ...split, fba: split.fba + left }
+  if (mode === 'wfs') return { ...split, wfs: split.wfs + left }
   if (mode === 'fbm') return { ...split, fbm: split.fbm + left }
   const toFba = Math.floor(left / 2)
   return { ...split, fba: split.fba + toFba, fbm: split.fbm + (left - toFba) }
 }
 
-/** Share of new units the slider sends to FBA: 0 = all FBM (left), 100 = all FBA (right). */
-export const DEFAULT_FBA_PERCENT = 50
+/** How the slider divides the new units, in whole percent; the three always add up to 100. */
+export interface SplitShares {
+  fba: number
+  wfs: number
+  fbm: number
+}
+
+/** Where the slider starts: half FBA, half FBM, nothing to WFS until the seller drags it open. */
+export const DEFAULT_SHARES: SplitShares = { fba: 50, wfs: 0, fbm: 50 }
+
+/** New units the slider divides: unallocated stock not already put in the buffer. */
+const sliderPool = (b: BucketBalances, split: AllocationSplit): number => {
+  const bufferedFromNew = Math.max(0, split.buffer - splitFromBalances(b).buffer)
+  return Math.max(0, b.UNALLOCATED - bufferedFromNew)
+}
 
 /**
- * Divides the new (unallocated) units between FBA and FBM by percentage, on top of
- * the current stock. Units already set aside for the buffer are left alone, and
- * rounding leftovers go to FBM so the percentages always add up to every unit.
+ * Divides the new (unallocated) units between FBA, WFS and FBM by percentage, on
+ * top of the current stock. Units already set aside for the buffer are left alone,
+ * and rounding leftovers go to FBM so the shares always add up to every unit.
  */
-export function assignByPercent(b: BucketBalances, split: AllocationSplit, fbaPercent: number): AllocationSplit {
+export function assignByShares(b: BucketBalances, split: AllocationSplit, shares: SplitShares): AllocationSplit {
   const base = splitFromBalances(b)
-  const bufferedFromNew = Math.max(0, split.buffer - base.buffer)
-  const pool = Math.max(0, b.UNALLOCATED - bufferedFromNew)
-  const pct = Math.min(100, Math.max(0, fbaPercent))
-  const toFba = Math.round((pool * pct) / 100)
-  return { ...split, fba: base.fba + toFba, fbm: base.fbm + (pool - toFba) }
+  const pool = sliderPool(b, split)
+  const clamp = (pct: number) => Math.min(100, Math.max(0, pct))
+  const toFba = Math.round((pool * clamp(shares.fba)) / 100)
+  const toWfs = Math.min(pool - toFba, Math.round((pool * clamp(shares.wfs)) / 100))
+  return { ...split, fba: base.fba + toFba, wfs: base.wfs + toWfs, fbm: base.fbm + (pool - toFba - toWfs) }
+}
+
+/**
+ * The shares the current split gives the new units, so the slider follows numbers
+ * typed into the fields. Null when there are no new units to divide.
+ */
+export function sharesOf(b: BucketBalances, split: AllocationSplit): SplitShares | null {
+  const pool = sliderPool(b, split)
+  if (pool === 0) return null
+  const base = splitFromBalances(b)
+  const pct = (units: number) => Math.round((Math.max(0, units) / pool) * 100)
+  const fba = Math.min(100, pct(split.fba - base.fba))
+  const wfs = Math.min(100 - fba, pct(split.wfs - base.wfs))
+  return { fba, wfs, fbm: 100 - fba - wfs }
 }
 
 const BUCKET_LABEL: Record<StockBucket, string> = {

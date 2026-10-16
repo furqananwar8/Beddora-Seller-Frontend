@@ -533,6 +533,62 @@ export const MarkShippedModal: React.FC<MarkShippedModalProps> = ({
 }
 
 // ============================================
+// LABELS (between the carrier and Mark as shipped)
+// ============================================
+
+interface LabelsStepModalProps {
+  shipment: InboundShipment | null
+  /** Why generating failed; the dialog stays open with Try again. */
+  error?: string
+  onRetry: () => void
+  /** Back to the carrier step. */
+  onBack: () => void
+  onClose: () => void
+}
+
+/**
+ * Shown while the partner generates the labels, right after the carrier is saved,
+ * so the guided flow goes straight on to Mark as shipped without a gap. When it
+ * fails it keeps the reason here instead of closing.
+ */
+export const LabelsStepModal: React.FC<LabelsStepModalProps> = ({ shipment, error, onRetry, onBack, onClose }) => {
+  if (!shipment) return null
+  const partner = channelOf(shipment).partner
+  const working = !error
+  return (
+    <Modal isOpen onClose={onClose} title="Generate labels" size="md">
+      {working ? (
+        <div className="flex items-center gap-3 py-2 text-sm text-text-secondary" role="status">
+          <Spinner size="sm" />
+          <span>
+            Carrier saved. Generating {shipment.reference}&apos;s labels with {partner}…
+          </span>
+        </div>
+      ) : (
+        <div role="alert" className="rounded-md border border-danger-200 bg-danger-50 px-3 py-2 text-sm text-danger-700">
+          <div className="font-medium">The carrier is saved, but the labels couldn&apos;t be generated.</div>
+          <div className="mt-0.5">{error}</div>
+        </div>
+      )}
+      <DialogFooter onBack={onBack} backDisabled={working}>
+        <Button variant="outline" onClick={onClose}>
+          {working ? 'Hide' : 'Close'}
+        </Button>
+        <Button onClick={onRetry} disabled={working}>
+          {working ? (
+            <span className="flex items-center gap-2">
+              <Spinner size="sm" className="text-white" /> Generating…
+            </span>
+          ) : (
+            'Try again'
+          )}
+        </Button>
+      </DialogFooter>
+    </Modal>
+  )
+}
+
+// ============================================
 // GENERIC CONFIRM (cancel shipment, discard, etc.)
 // ============================================
 

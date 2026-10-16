@@ -5,7 +5,7 @@ import { AllocationDrawerModel } from './useAllocationDrawer'
 import { STOCK_LEGEND, StockBar } from './StockBar'
 import { Chip, Tile } from './drawerUi'
 import { AllocationSlider } from './AllocationSlider'
-import { DEFAULT_FBA_PERCENT, onHand, parseUnits, splitFromBalances, unassigned, wfsReserved } from './allocationMath'
+import { DEFAULT_SHARES, onHand, parseUnits, sharesOf, splitFromBalances, unassigned, wfsReserved } from './allocationMath'
 
 const n = (value: number) => value.toLocaleString()
 
@@ -102,24 +102,38 @@ const SplitCard = ({ item, model }: { item: ProductInventoryItem; model: Allocat
                 aria-pressed={sliderOpen}
                 className={sliderOpen ? 'bg-amber-100' : undefined}
                 onClick={() => {
-                  if (!sliderOpen) model.assignPercent(item.id, DEFAULT_FBA_PERCENT)
+                  // Start from half FBA / half FBM only when nothing is assigned yet; typed numbers are kept
+                  if (!sliderOpen && newFba + newWfs + newFbm === 0) model.assignShares(item.id, DEFAULT_SHARES)
                   setSliderOpen((open) => !open)
                 }}
               >
                 Allocation slider
               </Chip>
               <Chip onClick={() => model.assign(item.id, 'fba')} disabled={left <= 0}>All to FBA</Chip>
+              <Chip onClick={() => model.assign(item.id, 'wfs')} disabled={left <= 0}>All to WFS</Chip>
               <Chip onClick={() => model.assign(item.id, 'fbm')} disabled={left <= 0}>All to FBM</Chip>
               <Chip onClick={() => model.assign(item.id, 'even')} disabled={left <= 0}>Split evenly</Chip>
             </div>
           </div>
-          {sliderOpen && <AllocationSlider itemId={item.sku} newUnits={newUnits} onChange={(pct) => model.assignPercent(item.id, pct)} />}
-          <div className="flex items-end gap-3">
-            <div className="w-40">
+          {sliderOpen && (
+            <AllocationSlider
+              itemId={item.sku}
+              shares={sharesOf(balances, split) ?? DEFAULT_SHARES}
+              units={{ fba: newFba, wfs: newWfs, fbm: newFbm }}
+              unassigned={Math.max(0, left)}
+              onChange={(shares) => model.assignShares(item.id, shares)}
+            />
+          )}
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="w-36">
               <NumberField id={fieldId('new-fba')} label="To FBA" tone="amber" value={newFba} onChange={(u) => set('fba')(base.fba + u)} />
             </div>
             <span className="pb-2 text-xl text-amber-800">+</span>
-            <div className="w-40">
+            <div className="w-36">
+              <NumberField id={fieldId('new-wfs')} label="To WFS" tone="amber" value={newWfs} onChange={(u) => set('wfs')(base.wfs + u)} />
+            </div>
+            <span className="pb-2 text-xl text-amber-800">+</span>
+            <div className="w-36">
               <NumberField id={fieldId('new-fbm')} label="To FBM" tone="amber" value={newFbm} onChange={(u) => set('fbm')(base.fbm + u)} />
             </div>
             <span className="pb-2 text-xl text-amber-800">=</span>
