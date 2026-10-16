@@ -1,11 +1,13 @@
 import React from 'react'
 import { AllocationSplit, BucketBalances } from '@/services/api/inventoryPlanner.api'
 import { cn } from '@/utils/cn'
-import { onHand, splitFromBalances, unassigned } from './allocationMath'
+import { onHand, splitFromBalances, unassigned, wfsReserved } from './allocationMath'
 
 export const STOCK_LEGEND = [
   { key: 'reserved', label: 'FBA in shipments (locked)', swatch: 'bg-blue-800' },
   { key: 'pool', label: 'FBA pool', swatch: 'bg-blue-300' },
+  { key: 'wfs-reserved', label: 'WFS in shipments (locked)', swatch: 'bg-indigo-800' },
+  { key: 'wfs', label: 'WFS pool', swatch: 'bg-indigo-300' },
   { key: 'buffer', label: 'Safety buffer', swatch: 'bg-slate-300' },
   { key: 'fbm', label: 'FBM', swatch: 'bg-emerald-400' },
   { key: 'unassigned', label: 'Unassigned', swatch: 'bg-amber-300 border border-dashed border-amber-700' },
@@ -34,11 +36,16 @@ export const StockBar: React.FC<{ balances: BucketBalances; split: AllocationSpl
   const pool = Math.max(0, split.fba - balances.FBA_RESERVED)
   const newFba = Math.max(0, split.fba - base.fba)
   const newFbm = Math.max(0, split.fbm - base.fbm)
+  const wfsPool = Math.max(0, split.wfs - wfsReserved(balances))
+  const newWfs = Math.max(0, split.wfs - base.wfs)
 
   const segments: Segment[] = [
     { key: 'reserved', text: '', units: balances.FBA_RESERVED, className: 'bg-blue-800 text-white' },
     { key: 'pool', text: 'FBA', units: pool - Math.min(pool, newFba), className: 'bg-blue-300 text-blue-950' },
     { key: 'pool-new', text: 'new', units: Math.min(pool, newFba), className: cn('bg-blue-300 text-blue-950 border-blue-900', NEW_EDGE) },
+    { key: 'wfs-reserved', text: '', units: wfsReserved(balances), className: 'bg-indigo-800 text-white' },
+    { key: 'wfs', text: 'WFS', units: wfsPool - Math.min(wfsPool, newWfs), className: 'bg-indigo-300 text-indigo-950' },
+    { key: 'wfs-new', text: 'new', units: Math.min(wfsPool, newWfs), className: cn('bg-indigo-300 text-indigo-950 border-indigo-900', NEW_EDGE) },
     { key: 'buffer', text: '', units: split.buffer, className: 'bg-slate-300 text-slate-800' },
     { key: 'fbm', text: 'FBM', units: split.fbm - Math.min(split.fbm, newFbm), className: 'bg-emerald-400 text-emerald-950' },
     { key: 'fbm-new', text: 'new', units: Math.min(split.fbm, newFbm), className: cn('bg-emerald-400 text-emerald-950 border-emerald-900', NEW_EDGE) },
@@ -57,7 +64,7 @@ export const StockBar: React.FC<{ balances: BucketBalances; split: AllocationSpl
     <div
       className={cn('flex h-[30px] w-full overflow-hidden !rounded-lg border', over > 0 ? 'border-2 border-red-700' : 'border-slate-200')}
       role="img"
-      aria-label={`FBA ${split.fba}, buffer ${split.buffer}, FBM ${split.fbm}, ${left >= 0 ? `${left} unassigned` : `${over} over`}`}
+      aria-label={`FBA ${split.fba}, WFS ${split.wfs}, buffer ${split.buffer}, FBM ${split.fbm}, ${left >= 0 ? `${left} unassigned` : `${over} over`}`}
     >
       {segments
         .filter((s) => s.units > 0)

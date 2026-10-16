@@ -1,129 +1,50 @@
-import type { RewindTarget } from '@/services/api/inboundShipments.api'
 import {
   InboundShipment,
   Marketplace,
   ReservedPoolItem,
-  ShipmentStage,
+  ShipmentChannel,
   ShipmentStatus,
 } from './types'
+import { FBA_CHANNEL, NextAction, NextActionDef, WorkflowStep, channelIdOf, channelOf } from './channels'
 
 /**
- * Single source of truth for the shipment workflow: step order, what action
- * advances each stage and which states allow quantity edits.
+ * Workflow helpers shared by every channel: step position, what action
+ * advances a shipment and which states allow quantity edits. Each channel's
+ * steps and copy live in its definition (channels/); these read it from the
+ * shipment.
  */
 
-export interface WorkflowStep {
-  key: ShipmentStage | 'shipped'
-  label: string
-}
+export type { NextAction, WorkflowStep }
 
-export const WORKFLOW_STEPS: WorkflowStep[] = [
-  { key: 'draft', label: 'Items' },
-  { key: 'plan_created', label: 'Inbound plan' },
-  { key: 'packing_set', label: 'Packing' },
-  { key: 'placement_confirmed', label: 'Warehouse' },
-  { key: 'window_confirmed', label: 'Delivery window' },
-  { key: 'transport_confirmed', label: 'Carrier' },
-  { key: 'labels_ready', label: 'Labels' },
-  { key: 'shipped', label: 'Shipped' },
-]
+/** Amazon FBA's steps, kept for callers that predate channels. */
+export const WORKFLOW_STEPS: WorkflowStep[] = FBA_CHANNEL.steps
+export const NEXT_ACTION = FBA_CHANNEL.nextAction as Record<InboundShipment['stage'], NextActionDef>
+export const STEP_REOPEN_ACTION = FBA_CHANNEL.stepReopenAction
+export const STEP_REWIND_TARGET = FBA_CHANNEL.stepRewindTarget
+export const FIRST_VISIBLE_STEP_AFTER_PLAN = FBA_CHANNEL.firstVisibleStepAfterPlan
+
+/** What advances this shipment now, or null when it isn't open (or the channel has no step there). */
+export const nextActionOf = (s: InboundShipment): NextActionDef | null =>
+  s.status === 'in_progress' ? channelOf(s).nextAction[s.stage] ?? null : null
 
 /**
- * Completed steps that reopen their dialog instead of redoing anything: Labels
- * is where box labels are downloaded and tracking is entered for each box.
- */
-export const STEP_REOPEN_ACTION: Partial<Record<WorkflowStep['key'], NextAction>> = {
-  labels_ready: 'mark_shipped',
-}
-
-/** Index of Packing: the steps before it (Items, Inbound plan) need no input once the plan exists. */
-export const FIRST_VISIBLE_STEP_AFTER_PLAN = 2
-
-/**
- * Completed steps the seller can go back to and redo. Items and Inbound plan
- * are changed through quantity edits instead, and Labels need no input.
- */
-export const STEP_REWIND_TARGET: Partial<Record<WorkflowStep['key'], RewindTarget>> = {
-  packing_set: 'packing',
-  placement_confirmed: 'placement',
-  window_confirmed: 'window',
-  transport_confirmed: 'carrier',
-}
-
-const STAGE_ORDER: ShipmentStage[] = [
-  'draft',
-  'plan_created',
-  'packing_set',
-  'placement_confirmed',
-  'window_confirmed',
-  'transport_confirmed',
-  'labels_ready',
-]
-
-export type NextAction =
-  | 'submit_plan'
-  | 'set_packing'
-  | 'choose_placement'
-  | 'choose_window'
-  | 'enter_carrier'
-  | 'generate_labels'
-  | 'mark_shipped'
-
-export const NEXT_ACTION: Record<ShipmentStage, { action: NextAction; label: string; hint: string }> = {
-  draft: {
-    action: 'submit_plan',
-    label: 'Send to Amazon',
-    hint: 'Internal draft. Nothing has been sent to Amazon yet.',
-  },
-  plan_created: {
-    action: 'set_packing',
-    label: 'Enter box contents',
-    hint: 'Amazon accepted the inbound plan. Tell Amazon how the units are packed into boxes.',
-  },
-  packing_set: {
-    action: 'choose_placement',
-    label: 'Choose placement',
-    hint: 'Box contents sent. Pick one of Amazon’s placement options; Amazon assigns the warehouses.',
-  },
-  placement_confirmed: {
-    action: 'choose_window',
-    label: 'Choose delivery window',
-    hint: 'Warehouse confirmed. Request a ship date / delivery window.',
-  },
-  window_confirmed: {
-    action: 'enter_carrier',
-    label: 'Enter carrier',
-    hint: 'Delivery window booked. Enter the carrier you booked; Amazon is told you ship with your own carrier.',
-  },
-  transport_confirmed: {
-    action: 'generate_labels',
-    label: 'Generate labels',
-    hint: 'Carrier saved. Generate pallet, box and FNSKU unit labels.',
-  },
-  labels_ready: {
-    action: 'mark_shipped',
-    label: 'Mark as shipped',
-    hint: 'Labels are ready. Mark as shipped once the truck has left.',
-  },
-}
-
-/**
- * 0-based index into WORKFLOW_STEPS of the step currently being worked on. For
- * a cancelled shipment it's the step it was cancelled at; the steps before it
- * were completed.
+ * 0-based index into the channel's steps of the step currently being worked on.
+ * For a cancelled shipment it's the step it was cancelled at; the steps before
+ * it were completed.
  */
 export const getActiveStepIndex = (s: InboundShipment): number => {
-  if (s.status !== 'in_progress' && s.status !== 'cancelled') return WORKFLOW_STEPS.length
-  return STAGE_ORDER.indexOf(s.stage) + 1
+  const channel = channelOf(s)
+  if (s.status !== 'in_progress' && s.status !== 'cancelled') return channel.steps.length
+  return channel.stageOrder.indexOf(s.stage) + 1
 }
 
 /** "Packing", "Carrier", ...: the step a cancelled shipment stopped at. */
-export const cancelledAtLabel = (s: InboundShipment) => WORKFLOW_STEPS[getActiveStepIndex(s)]?.label
+export const cancelledAtLabel = (s: InboundShipment) => channelOf(s).steps[getActiveStepIndex(s)]?.label
 
 /**
- * Quantities can change until box contents are sent. Amazon can't change a
- * plan's items, so editing after the plan exists cancels it and the shipment
- * goes back to Draft to be sent again.
+ * Quantities can change until the packing step is sent. The partner can't change
+ * a plan's items, so editing after the plan exists rebuilds it (FBA: a new
+ * inbound plan; WFS: the order is cancelled and sent again).
  */
 export const canEditItems = (s: InboundShipment) =>
   s.status === 'in_progress' && (s.stage === 'draft' || s.stage === 'plan_created')
@@ -133,9 +54,9 @@ export const isOpen = (s: InboundShipment) => s.status === 'in_progress'
 /** Pallet labels only exist for freight (LTL / FTL) legs. */
 export const shipsAsFreight = (s: InboundShipment) => s.legs.some((l) => l.shippingMode?.startsWith('FREIGHT'))
 
-/** The ID Amazon prints on labels (FBA15…), falling back to the API shipment id. */
-export const legReference = (l: { shipmentConfirmationId?: string; amazonShipmentId?: string }) =>
-  l.shipmentConfirmationId ?? l.amazonShipmentId
+/** The ID printed on labels (FBA15…), falling back to the partner's shipment id. */
+export const legReference = (l: { shipmentConfirmationId?: string; amazonShipmentId?: string; shipmentId?: string }) =>
+  l.shipmentConfirmationId ?? l.amazonShipmentId ?? l.shipmentId
 
 export const getShipmentUnits = (s: InboundShipment) =>
   s.items.reduce((sum, i) => sum + i.quantity, 0)
@@ -143,9 +64,14 @@ export const getShipmentUnits = (s: InboundShipment) =>
 export const getReceivedUnits = (s: InboundShipment) =>
   s.items.reduce((sum, i) => sum + (i.quantityReceived ?? 0), 0)
 
+/** Shipments of one channel; each channel books from its own pool. */
+export const ofChannel = (shipments: InboundShipment[], channel: ShipmentChannel) =>
+  shipments.filter((s) => channelIdOf(s) === channel)
+
 /**
  * Units of a product committed to open shipments, optionally excluding one
  * shipment (the one being edited, whose own qty is still available to it).
+ * Pass shipments of the pool's channel only.
  */
 export const getCommittedUnits = (
   shipments: InboundShipment[],
@@ -159,7 +85,7 @@ export const getCommittedUnits = (
       0
     )
 
-/** Reserved units not yet assigned to any open shipment. */
+/** Reserved units not yet assigned to any open shipment (of the pool's channel). */
 export const getUnassignedUnits = (
   pool: ReservedPoolItem[],
   shipments: InboundShipment[],
@@ -203,8 +129,10 @@ export const STATUS_META: Record<
   },
 }
 
-export const MARKETPLACE_META: Record<Marketplace, { label: string; flag: string; currency: string }> = {
-  'Amazon.com': { label: 'US', flag: '🇺🇸', currency: 'USD' },
-  'Amazon.ca': { label: 'CA', flag: '🇨🇦', currency: 'CAD' },
-  'Amazon.mx': { label: 'MX', flag: '🇲🇽', currency: 'MXN' },
+export const MARKETPLACE_META: Record<Marketplace, { label: string; flag: string; currency: string; name: string }> = {
+  'Amazon.com': { label: 'US', flag: '🇺🇸', currency: 'USD', name: 'Amazon.com' },
+  'Amazon.ca': { label: 'CA', flag: '🇨🇦', currency: 'CAD', name: 'Amazon.ca' },
+  'Amazon.mx': { label: 'MX', flag: '🇲🇽', currency: 'MXN', name: 'Amazon.mx' },
+  'Walmart.US': { label: 'US', flag: '🇺🇸', currency: 'USD', name: 'Walmart.com' },
+  'Walmart.CA': { label: 'CA', flag: '🇨🇦', currency: 'CAD', name: 'Walmart.ca' },
 }

@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useAppDispatch } from '@/store/hooks'
 import { addNotification } from '@/store/ui.slice'
@@ -17,32 +17,38 @@ import {
 } from '@/design-system/tables'
 import { useDebounce } from '@/utils/debounce'
 import { cn } from '@/utils/cn'
-import { AmazonOption, InboundShipment, LabelType, Marketplace, PackingSubmission, ShipmentStatus } from './types'
-import { CarrierEntry, CreateShipmentInput, OptionKind, RewindTarget, ShipFromRequest, ShipmentsMode, useShipments } from './useShipments'
+import { AmazonOption, InboundShipment, LabelType, Marketplace, PackingSubmission, ShipmentChannel, ShipmentStatus, WfsCarrierEntry, WfsCartons, legId } from './types'
+import { CarrierEntry, ChannelConfig, CreateShipmentInput, OptionKind, RewindTarget, ShipFromRequest, useShipments } from './useShipments'
 import {
   MARKETPLACE_META,
-  NEXT_ACTION,
   NextAction,
   STATUS_META,
   getReceivedUnits,
   getShipmentUnits,
   getUnassignedUnits,
+  nextActionOf,
+  ofChannel,
 } from './workflow'
+import { CHANNEL_ORDER, SHIPMENT_CHANNELS, channelIdOf, channelOf, isShipmentChannel } from './channels'
 import { ShipmentRow, SHIPMENT_TABLE_COLUMNS } from './ShipmentRow'
 import { CreateMode, CreateShipmentDrawer } from './CreateShipmentDrawer'
 import { ConfirmModal, MarkShippedModal, OptionPickerModal } from './ShipmentDialogs'
 import { PackingModal } from './PackingModal'
 import { CarrierModal } from './CarrierModal'
-import { LabelFormatProvider, useLabelFormatState } from './labelFormats'
+import { WfsCartonsModal } from './WfsCartonsModal'
+import { WfsCarrierModal } from './WfsCarrierModal'
+import { LabelFormatProvider, isSizedLabelType, useLabelFormatState } from './labelFormats'
 import { EditShipFromModal } from './EditShipFromModal'
-import { formatUnits, unitsLabel } from './ShipmentParts'
+import { ChannelChip, FloatingMenu, formatUnits, unitsLabel } from './ShipmentParts'
 
 type StatusFilter = 'all' | ShipmentStatus
+type ChannelFilter = 'all' | ShipmentChannel
 
 /** At most one dialog is open at a time. */
 type Dialog =
-  | { type: 'create'; preselect: string[] }
+  | { type: 'create'; preselect: string[]; channel?: ShipmentChannel }
   | { type: 'options'; id: string; kind: OptionKind }
+  /** Box contents (FBA) or cartons (WFS). */
   | { type: 'packing'; id: string }
   | { type: 'carrier'; id: string }
   | { type: 'ship'; id: string }
@@ -60,26 +66,25 @@ const ACTION_TO_OPTION: Partial<Record<NextAction, OptionKind>> = {
   choose_window: 'window',
 }
 
-/** What the seller redoes when going back to each target. */
-const REWIND_LABEL: Record<RewindTarget, string> = {
-  packing: 'box contents',
-  placement: 'the destination warehouse',
-  window: 'the delivery window',
-  carrier: 'the carrier',
-}
-
 const LABEL_NAMES: Record<LabelType, string> = {
   box: 'Box labels',
   pallet: 'Pallet labels',
   unit: 'FNSKU unit labels',
+  carton: 'Carton labels',
+  carrier: 'Carrier labels',
 }
+
+const FILE_EXTENSIONS: Record<string, string> = { 'application/zip': 'zip', 'application/x-zpl': 'zpl' }
+
+/** Only shipments of this channel, or null (keeps FBA-only dialogs away from WFS shipments and back). */
+const ofChannelOrNull = (s: InboundShipment | null, channel: ShipmentChannel) => (s && channelIdOf(s) === channel ? s : null)
 
 export const ShipmentsScreen: React.FC = () => {
   const dispatch = useAppDispatch()
   const {
     shipments,
-    pool,
-    mode,
+    pools,
+    channels,
     labelFormats: labelFormatCatalog,
     createShipment,
     saveItems,
@@ -89,6 +94,9 @@ export const ShipmentsScreen: React.FC = () => {
     getOptions,
     confirmOptions,
     submitCarrier,
+    submitWfsCartons,
+    quoteWfsCarrier,
+    submitWfsCarrier,
     rewind,
     generateLabels,
     downloadLabels,
@@ -103,6 +111,31 @@ export const ShipmentsScreen: React.FC = () => {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
+
+  // ---- Channel switch (kept in ?channel= so Planner links can land on it) ----
+  const urlChannel = searchParams.get('channel')
+  const channelFilter: ChannelFilter = isShipmentChannel(urlChannel) ? urlChannel : 'all'
+  const setChannelFilter = (next: ChannelFilter) => {
+    const params = new URLSearchParams(searchParams.toString())
+    if (next === 'all') params.delete('channel')
+    else params.set('channel', next)
+    const query = params.toString()
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false })
+    setFilter({ marketplace: 'all' })
+  }
+  /** Channels the backend offers, in display order. */
+  const offered = useMemo(() => CHANNEL_ORDER.map((id) => channels.find((c) => c.id === id)).filter((c): c is ChannelConfig => !!c), [channels])
+  const multiChannel = offered.length > 1
+  const inScope = useMemo(
+    () => offered.filter((c) => channelFilter === 'all' || c.id === channelFilter),
+    [offered, channelFilter]
+  )
+  const scopedShipments = useMemo(
+    () => (channelFilter === 'all' ? shipments : ofChannel(shipments, channelFilter)),
+    [shipments, channelFilter]
+  )
+  /** One channel in view: copy can name its partner. */
+  const scopeChannel = inScope.length === 1 ? SHIPMENT_CHANNELS[inScope[0].id] : null
 
   // ---- Filters ----
   const [filters, setFilters] = useState<{ search: string; status: StatusFilter; marketplace: 'all' | Marketplace }>({
@@ -147,29 +180,50 @@ export const ShipmentsScreen: React.FC = () => {
   const dialogId = (type: 'options' | 'packing' | 'carrier' | 'ship' | 'cancel' | 'shipFrom') =>
     dialog && dialog.type === type ? dialog.id : null
 
-  // Deep link from Planner: /shipments?create=1&productIds=1,2,3
+  // Deep link from Planner: /shipments?create=1&productIds=1,2,3[&channel=walmart_wfs]
   useEffect(() => {
     if (searchParams.get('create') !== '1') return
-    openDialog({ type: 'create', preselect: (searchParams.get('productIds') ?? '').split(',').filter(Boolean) })
-    router.replace(pathname, { scroll: false })
+    const channel = searchParams.get('channel')
+    openDialog({
+      type: 'create',
+      preselect: (searchParams.get('productIds') ?? '').split(',').filter(Boolean),
+      channel: isShipmentChannel(channel) ? channel : undefined,
+    })
+    router.replace(isShipmentChannel(channel) ? `${pathname}?channel=${channel}` : pathname, { scroll: false })
   }, [searchParams, router, pathname])
 
   // ---- Derived ----
-  const unassigned = useMemo(() => getUnassignedUnits(pool, shipments), [pool, shipments])
+  /** Unassigned units per channel: each channel books from its own pool. */
+  const unassignedByChannel = useMemo(
+    () =>
+      Object.fromEntries(
+        offered.map((c) => [c.id, getUnassignedUnits(pools[c.id] ?? [], ofChannel(shipments, c.id))])
+      ) as Partial<Record<ShipmentChannel, Record<string, number>>>,
+    [offered, pools, shipments]
+  )
 
   const summary = useMemo(() => {
-    const by = (st: ShipmentStatus) => shipments.filter((s) => s.status === st)
-    const sumUnits = (list: typeof shipments) => list.reduce((n, s) => n + getShipmentUnits(s), 0)
+    const by = (st: ShipmentStatus) => scopedShipments.filter((s) => s.status === st)
+    const sumUnits = (list: InboundShipment[]) => list.reduce((n, s) => n + getShipmentUnits(s), 0)
     const inProgress = by('in_progress')
     const shipped = by('shipped')
     const receiving = by('receiving')
     const receivingUnits = sumUnits(receiving)
     const receivedUnits = receiving.reduce((n, s) => n + getReceivedUnits(s), 0)
-    const unassignedSkus = Object.values(unassigned).filter((u) => u > 0).length
+    const perChannel = inScope.map((c) => {
+      const unassigned = unassignedByChannel[c.id] ?? {}
+      return {
+        id: c.id,
+        units: Object.values(unassigned).reduce((a, b) => a + b, 0),
+        skus: Object.values(unassigned).filter((u) => u > 0).length,
+        reserved: (pools[c.id] ?? []).reduce((a, p) => a + p.reserved, 0),
+      }
+    })
     return {
-      unassignedUnits: Object.values(unassigned).reduce((a, b) => a + b, 0),
-      unassignedSkus,
-      reservedUnits: pool.reduce((a, p) => a + p.reserved, 0),
+      perChannel,
+      unassignedUnits: perChannel.reduce((a, c) => a + c.units, 0),
+      unassignedSkus: perChannel.reduce((a, c) => a + c.skus, 0),
+      reservedUnits: perChannel.reduce((a, c) => a + c.reserved, 0),
       inProgressCount: inProgress.length,
       inProgressUnits: sumUnits(inProgress),
       draftCount: inProgress.filter((s) => s.stage === 'draft').length,
@@ -179,55 +233,56 @@ export const ShipmentsScreen: React.FC = () => {
       receivingUnits,
       receivedPct: receivingUnits ? Math.round((receivedUnits / receivingUnits) * 100) : 0,
     }
-  }, [shipments, unassigned, pool])
+  }, [scopedShipments, inScope, unassignedByChannel, pools])
+
+  const channelCounts = useMemo(() => {
+    const counts: Record<ChannelFilter, number> = { all: shipments.length, amazon_fba: 0, walmart_wfs: 0 }
+    shipments.forEach((s) => counts[channelIdOf(s)]++)
+    return counts
+  }, [shipments])
 
   const statusCounts = useMemo(() => {
     const counts: Record<StatusFilter, number> = {
-      all: shipments.length,
+      all: scopedShipments.length,
       in_progress: 0,
       shipped: 0,
       receiving: 0,
       closed: 0,
       cancelled: 0,
     }
-    shipments.forEach((s) => counts[s.status]++)
+    scopedShipments.forEach((s) => counts[s.status]++)
     return counts
-  }, [shipments])
+  }, [scopedShipments])
 
   const visible = useMemo(() => {
     const q = debouncedSearch.trim().toLowerCase()
-    return shipments
+    const has = (value?: string) => !!value && value.toLowerCase().includes(q)
+    return scopedShipments
       .filter((s) => statusFilter === 'all' || s.status === statusFilter)
       .filter((s) => marketplaceFilter === 'all' || s.marketplace === marketplaceFilter)
       .filter(
         (s) =>
           !q ||
-          s.reference.toLowerCase().includes(q) ||
-          s.name.toLowerCase().includes(q) ||
-          s.legs.some(
-            (l) =>
-              l.amazonShipmentId?.toLowerCase().includes(q) ||
-              l.shipmentConfirmationId?.toLowerCase().includes(q) ||
-              l.fulfillmentCenter.toLowerCase().includes(q)
-          ) ||
-          s.items.some(
-            (i) =>
-              i.sku.toLowerCase().includes(q) ||
-              i.asin.toLowerCase().includes(q) ||
-              i.title.toLowerCase().includes(q)
-          )
+          has(s.reference) ||
+          has(s.name) ||
+          has(s.externalRef) ||
+          s.legs.some((l) => has(legId(l)) || has(l.shipmentConfirmationId) || has(l.fulfillmentCenter)) ||
+          s.items.some((i) => has(i.sku) || has(i.asin) || has(i.gtin) || has(i.title))
       )
       .sort(
         (a, b) =>
           STATUS_ORDER.indexOf(a.status) - STATUS_ORDER.indexOf(b.status) ||
           b.updatedAt.localeCompare(a.updatedAt)
       )
-  }, [shipments, statusFilter, marketplaceFilter, debouncedSearch])
+  }, [scopedShipments, statusFilter, marketplaceFilter, debouncedSearch])
 
   const byId = (id: string | null) => (id ? shipments.find((s) => s.id === id) ?? null : null)
+  /** The marketplace's optional features, as the backend reported them. */
+  const capabilitiesOf = (s: InboundShipment | null) =>
+    (s && channels.find((c) => c.id === channelIdOf(s))?.marketplaces.find((m) => m.id === s.marketplace)?.capabilities) || {}
 
   // ---- Handlers ----
-  /** Runs an action with a success toast; failures toast the server's message (Amazon's own text when it has one). */
+  /** Runs an action with a success toast; failures toast the server's message (the partner's own text when it has one). */
   const run = async (fn: () => Promise<unknown>, success: string, failure: string) => {
     try {
       await fn()
@@ -239,14 +294,21 @@ export const ShipmentsScreen: React.FC = () => {
     }
   }
 
+  /** "SHP-0042 sent to Amazon. Inbound plan created." */
+  const sentMessage = (s: InboundShipment) =>
+    channelIdOf(s) === 'walmart_wfs'
+      ? `${s.reference} sent to Walmart. Inbound order created.`
+      : `${s.reference} sent to Amazon. Inbound plan created.`
+
   /**
    * Guided flow: once a step succeeds, open the next one. Labels need no input,
    * so they're generated on the way to "Mark as shipped". Closing a dialog just
    * pauses; the row's next-step button resumes from the same place.
    */
   const continueFlow = async (shipment: InboundShipment): Promise<void> => {
-    if (shipment.status !== 'in_progress') return closeDialog()
-    const { action } = NEXT_ACTION[shipment.stage]
+    const next = nextActionOf(shipment)
+    if (!next) return closeDialog()
+    const { action } = next
     const kind = ACTION_TO_OPTION[action]
     if (kind) return openDialog({ type: 'options', id: shipment.id, kind })
     if (action === 'set_packing') return openDialog({ type: 'packing', id: shipment.id })
@@ -278,10 +340,10 @@ export const ShipmentsScreen: React.FC = () => {
     if (action === 'submit_plan') {
       try {
         const planned = await submitPlan(id)
-        dispatch(addNotification({ message: `${shipment.reference} sent to Amazon. Inbound plan created.`, type: 'success' }))
+        dispatch(addNotification({ message: sentMessage(shipment), type: 'success' }))
         return continueFlow(planned)
       } catch (err) {
-        dispatch(addNotification({ message: (err as Error).message || 'Amazon rejected the inbound plan.', type: 'error' }))
+        dispatch(addNotification({ message: (err as Error).message || `${channelOf(shipment).partner} rejected the shipment.`, type: 'error' }))
       }
     }
   }
@@ -305,17 +367,26 @@ export const ShipmentsScreen: React.FC = () => {
     await continueFlow(updated)
   }
 
+  const handleSubmitWfsCarrier = async (id: string, carriers: WfsCarrierEntry[]) => {
+    const updated = await submitWfsCarrier(id, carriers)
+    const booked = carriers.some((c) => c.mode === 'walmart')
+    dispatch(addNotification({ message: `${updated.reference}: ${booked ? 'carrier booked with Walmart' : 'carrier saved'}`, type: 'success' }))
+    await continueFlow(updated)
+  }
+
   /** Redoes an earlier step, then reopens the dialog for wherever the shipment landed. */
   const performRewind = async (id: string, to: RewindTarget, shipFrom?: ShipFromRequest) => {
+    const label = (byId(id) ? channelOf(byId(id)!) : SHIPMENT_CHANNELS.amazon_fba).rewindLabel[to] ?? to
     const { shipment, notice } = await rewind(id, to, shipFrom)
-    dispatch(addNotification({ message: `${shipment.reference}: back to ${REWIND_LABEL[to]}`, type: 'success' }))
+    dispatch(addNotification({ message: `${shipment.reference}: back to ${label}`, type: 'success' }))
     if (notice) dispatch(addNotification({ message: notice, type: 'warning' }))
     await continueFlow(shipment)
   }
 
-  /** Steps that only change our own record go back straight away; the rest recreate the Amazon plan, so they ask first. */
+  /** Steps that only change our own record go back straight away; the rest rebuild the partner's plan, so they ask first. */
   const handleBack = (id: string, to: RewindTarget) => {
-    if (to === 'carrier') {
+    const shipment = byId(id)
+    if (shipment && channelOf(shipment).instantRewinds.includes(to)) {
       performRewind(id, to).catch((err: Error) =>
         dispatch(addNotification({ message: err.message || 'Could not go back', type: 'error' }))
       )
@@ -327,6 +398,12 @@ export const ShipmentsScreen: React.FC = () => {
   const handleSubmitPacking = async (id: string, submission: PackingSubmission) => {
     const updated = await submitPacking(id, submission)
     dispatch(addNotification({ message: `${updated.reference}: box contents sent to Amazon`, type: 'success' }))
+    await continueFlow(updated)
+  }
+
+  const handleSubmitCartons = async (id: string, legs: WfsCartons[]) => {
+    const updated = await submitWfsCartons(id, legs)
+    dispatch(addNotification({ message: `${updated.reference}: cartons saved`, type: 'success' }))
     await continueFlow(updated)
   }
 
@@ -345,8 +422,8 @@ export const ShipmentsScreen: React.FC = () => {
     const shipment = byId(id)
     setDownloading(key, true)
     try {
-      const file = await downloadLabels(id, type, type === 'pallet' ? undefined : labelFormats.selected[type])
-      const ext = file.type === 'application/zip' ? 'zip' : 'pdf'
+      const file = await downloadLabels(id, type, isSizedLabelType(type) ? labelFormats.selected[type] : undefined)
+      const ext = FILE_EXTENSIONS[file.type] ?? 'pdf'
       saveFile(file, `${shipment?.reference ?? 'shipment'}-${LABEL_NAMES[type].toLowerCase().replace(/s+/g, '-')}.${ext}`)
     } catch (err) {
       dispatch(addNotification({ message: (err as Error).message || `Could not download ${LABEL_NAMES[type].toLowerCase()}`, type: 'error' }))
@@ -356,15 +433,16 @@ export const ShipmentsScreen: React.FC = () => {
   }
 
   const downloadingFor = (id: string): Partial<Record<LabelType, boolean>> =>
-    Object.fromEntries((['box', 'unit', 'pallet'] as LabelType[]).map((t) => [t, !!downloading[`${id}:${t}`]]))
+    Object.fromEntries((Object.keys(LABEL_NAMES) as LabelType[]).map((t) => [t, !!downloading[`${id}:${t}`]]))
 
-  const openCreate = () => openDialog({ type: 'create', preselect: [] })
+  const openCreate = (channel?: ShipmentChannel) =>
+    openDialog({ type: 'create', preselect: [], channel: channel ?? (channelFilter === 'all' ? undefined : channelFilter) })
 
-  /** Save draft holds the units; Confirm with Amazon also creates the inbound plan. */
+  /** Save draft holds the units; Confirm with the partner also creates its plan / order. */
   const handleCreate = async (input: CreateShipmentInput, createMode: CreateMode) => {
     let created
     try {
-      // Confirming goes on to the Amazon plan, so the draft stays hidden until that call returns
+      // Confirming goes on to the partner's plan, so the draft stays hidden until that call returns
       created = await createShipment(input, { deferListRefresh: createMode === 'confirm' })
     } catch (err) {
       dispatch(addNotification({ message: (err as Error).message || 'Could not create the shipment', type: 'error' }))
@@ -379,16 +457,21 @@ export const ShipmentsScreen: React.FC = () => {
     // The shipment exists either way; a rejected plan leaves it as a draft to retry from the row
     try {
       const confirmed = await submitPlan(created.id)
-      dispatch(addNotification({ message: `${created.reference} sent to Amazon. Inbound plan created.`, type: 'success' }))
+      dispatch(addNotification({ message: sentMessage(created), type: 'success' }))
       return confirmed
     } catch (err) {
-      dispatch(addNotification({ message: `${created.reference} saved as a draft, but Amazon rejected the plan: ${(err as Error).message}`, type: 'error' }))
+      const partner = channelOf(created).partner
+      const what = channelIdOf(created) === 'walmart_wfs' ? 'the inbound order' : 'the plan'
+      dispatch(addNotification({ message: `${created.reference} saved as a draft, but ${partner} rejected ${what}: ${(err as Error).message}`, type: 'error' }))
       return created
     }
   }
 
   const cancelTarget = byId(dialogId('cancel'))
   const shippingTarget = byId(dialogId('ship'))
+  const packingTarget = byId(dialogId('packing'))
+  const carrierTarget = byId(dialogId('carrier'))
+  const rewindTarget = dialog?.type === 'rewind' ? byId(dialog.id) : null
 
   return (
     <LabelFormatProvider value={labelFormats}>
@@ -398,36 +481,65 @@ export const ShipmentsScreen: React.FC = () => {
         <div>
           <h1 className="text-xl font-bold text-text-primary sm:text-2xl">Shipments</h1>
           <p className="mt-1 text-sm text-text-muted">
-            Split your FBA reserved stock into Amazon inbound shipments and track them to receipt.
+            {multiChannel
+              ? 'Split your reserved stock into Amazon FBA or Walmart WFS inbound shipments and track them to receipt.'
+              : 'Split your FBA reserved stock into Amazon inbound shipments and track them to receipt.'}
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <Button onClick={openCreate} disabled={summary.unassignedUnits === 0}>
-            + New shipment
-          </Button>
+          <NewShipmentButton channels={offered} disabled={summary.unassignedUnits === 0} onCreate={openCreate} />
         </div>
       </div>
 
-      <ModeBanner mode={mode} />
+      {inScope.filter((c) => c.sandbox).map((c) => (
+        <ModeBanner key={c.id} channel={c.id} />
+      ))}
+
+      {/* Channel switch */}
+      {multiChannel && (
+        <div className="mb-4 inline-flex rounded-full border border-border bg-secondary-50 p-1" role="tablist" aria-label="Channel">
+          {(['all', ...offered.map((c) => c.id)] as ChannelFilter[]).map((id) => {
+            const active = channelFilter === id
+            return (
+              <button
+                key={id}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => setChannelFilter(id)}
+                className={cn(
+                  'flex items-center gap-2 rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors',
+                  active ? 'bg-surface text-text-primary shadow-sm' : 'text-text-muted hover:text-text-primary'
+                )}
+              >
+                {id !== 'all' && <ChannelChip channel={id} />}
+                {id === 'all' ? 'All channels' : SHIPMENT_CHANNELS[id].label}
+                <span className="text-xs text-text-subtle">{channelCounts[id]}</span>
+              </button>
+            )
+          })}
+        </div>
+      )}
 
       {/* Summary */}
       <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <SummaryCard accent="border-t-secondary-800" title="Unassigned FBA reserve">
+        <SummaryCard accent="border-t-secondary-800" title={scopeChannel ? `Unassigned ${scopeChannel.program} reserve` : 'Unassigned reserve'}>
           <Metric value={formatUnits(summary.unassignedUnits)} unit="units" />
           <p className="mt-1 text-xs text-text-muted">
-            {summary.unassignedSkus} SKU{summary.unassignedSkus !== 1 && 's'} ·{' '}
-            {formatUnits(summary.reservedUnits)} reserved in total
+            {summary.perChannel.length > 1
+              ? summary.perChannel.map((c) => `${SHIPMENT_CHANNELS[c.id].program} ${formatUnits(c.units)}`).join(' · ')
+              : `${summary.unassignedSkus} SKU${summary.unassignedSkus !== 1 ? 's' : ''} · ${formatUnits(summary.reservedUnits)} reserved in total`}
           </p>
         </SummaryCard>
         <SummaryCard accent="border-t-warning-500" title="In progress">
           <Metric value={String(summary.inProgressCount)} unit={`shipments · ${formatUnits(summary.inProgressUnits)} units`} />
           <p className="mt-1 text-xs text-text-muted">
-            {summary.draftCount} draft{summary.draftCount !== 1 && 's'} not sent to Amazon yet
+            {summary.draftCount} draft{summary.draftCount !== 1 && 's'} not sent to {scopeChannel?.partner ?? 'the partner'} yet
           </p>
         </SummaryCard>
         <SummaryCard accent="border-t-blue-500" title="Shipped">
           <Metric value={String(summary.shippedCount)} unit={`shipments · ${formatUnits(summary.shippedUnits)} units`} />
-          <p className="mt-1 text-xs text-text-muted">On the way to Amazon</p>
+          <p className="mt-1 text-xs text-text-muted">On the way to {scopeChannel?.partner ?? 'Amazon or Walmart'}</p>
         </SummaryCard>
         <SummaryCard accent="border-t-violet-500" title="Receiving">
           <Metric value={`${summary.receivedPct}%`} unit={`of ${formatUnits(summary.receivingUnits)} units`} />
@@ -474,7 +586,7 @@ export const ShipmentsScreen: React.FC = () => {
           </svg>
           <input
             type="search"
-            placeholder="Search shipment ID, FBA ID, FC, SKU or product"
+            placeholder={multiChannel ? 'Search shipment ID, FBA / WFS ID, FC, SKU or product' : 'Search shipment ID, FBA ID, FC, SKU or product'}
             value={search}
             onChange={(e) => setFilter({ search: e.target.value })}
             className="w-full rounded-md border border-border bg-surface py-2 pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-secondary-200"
@@ -488,11 +600,20 @@ export const ShipmentsScreen: React.FC = () => {
           className="rounded-md border border-border bg-surface px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-secondary-200"
         >
           <option value="all">All marketplaces</option>
-          {(Object.keys(MARKETPLACE_META) as Marketplace[]).map((mp) => (
-            <option key={mp} value={mp}>
-              {MARKETPLACE_META[mp].flag} {mp}
-            </option>
-          ))}
+          {inScope.map((c) => {
+            const options = SHIPMENT_CHANNELS[c.id].marketplaces.map((mp) => (
+              <option key={mp} value={mp}>
+                {MARKETPLACE_META[mp].flag} {mp}
+              </option>
+            ))
+            return multiChannel ? (
+              <optgroup key={c.id} label={SHIPMENT_CHANNELS[c.id].label}>
+                {options}
+              </optgroup>
+            ) : (
+              <React.Fragment key={c.id}>{options}</React.Fragment>
+            )
+          })}
         </select>
 
         {expanded.size > 0 && (
@@ -510,7 +631,7 @@ export const ShipmentsScreen: React.FC = () => {
               <TableRow>
                 <TableHead className="w-10" />
                 <TableHead>Shipment</TableHead>
-                <TableHead>Market</TableHead>
+                <TableHead>{multiChannel ? 'Channel' : 'Market'}</TableHead>
                 <TableHead>Destination</TableHead>
                 <TableHead className="text-right">SKUs</TableHead>
                 <TableHead className="text-right">Units</TableHead>
@@ -525,12 +646,12 @@ export const ShipmentsScreen: React.FC = () => {
               {visible.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={SHIPMENT_TABLE_COLUMNS} className="py-14 text-center">
-                    {shipments.length === 0 ? (
+                    {scopedShipments.length === 0 ? (
                       <div className="space-y-3">
                         <p className="text-sm text-text-muted">
-                          No shipments yet. Allocate stock to FBA in the Planner, then split it into shipments here.
+                          No shipments yet. Allocate stock to {scopeChannel?.program ?? 'FBA or WFS'} in the Planner, then split it into shipments here.
                         </p>
-                        <Button onClick={openCreate} disabled={summary.unassignedUnits === 0}>
+                        <Button onClick={() => openCreate()} disabled={summary.unassignedUnits === 0}>
                           + New shipment
                         </Button>
                       </div>
@@ -540,32 +661,38 @@ export const ShipmentsScreen: React.FC = () => {
                   </TableCell>
                 </TableRow>
               ) : (
-                visible.map((s) => (
-                  <ShipmentRow
-                    key={s.id}
-                    shipment={s}
-                    isExpanded={expanded.has(s.id)}
-                    onToggle={() => toggle(s.id)}
-                    pool={pool}
-                    availableElsewhere={getUnassignedUnits(pool, shipments, s.id)}
-                    onChangeShipFrom={(choice) => run(() => setShipFrom(s.id, choice), `${s.reference} will ship from the new address`, 'Could not change the ship-from address')}
-                    onSaveItems={(items) =>
-                      run(
-                        () => saveItems(s.id, items),
-                        s.stage === 'plan_created'
-                          ? `${s.reference} updated. A new Amazon plan was created.`
-                          : `${s.reference} quantities saved`,
-                        'Could not save quantities'
-                      )
-                    }
-                    onAction={(action) => handleAction(s.id, action)}
-                    onCancel={() => openDialog({ type: 'cancel', id: s.id })}
-                    onGoBack={(to) => handleBack(s.id, to)}
-                    onDownloadLabel={(type) => handleDownloadLabel(s.id, type)}
-                    // The open dialog's own buttons show the progress, so the row behind it stays still
-                    downloadingLabels={shippingTarget?.id === s.id ? {} : downloadingFor(s.id)}
-                  />
-                ))
+                visible.map((s) => {
+                  const channel = channelIdOf(s)
+                  const pool = pools[channel] ?? []
+                  return (
+                    <ShipmentRow
+                      key={s.id}
+                      shipment={s}
+                      isExpanded={expanded.has(s.id)}
+                      onToggle={() => toggle(s.id)}
+                      pool={pool}
+                      availableElsewhere={getUnassignedUnits(pool, ofChannel(shipments, channel), s.id)}
+                      onChangeShipFrom={(choice) => run(() => setShipFrom(s.id, choice), `${s.reference} will ship from the new address`, 'Could not change the ship-from address')}
+                      onSaveItems={(items) =>
+                        run(
+                          () => saveItems(s.id, items),
+                          s.stage === 'plan_created'
+                            ? channel === 'walmart_wfs'
+                              ? `${s.reference} updated. A new Walmart inbound order was sent.`
+                              : `${s.reference} updated. A new Amazon plan was created.`
+                            : `${s.reference} quantities saved`,
+                          'Could not save quantities'
+                        )
+                      }
+                      onAction={(action) => handleAction(s.id, action)}
+                      onCancel={() => openDialog({ type: 'cancel', id: s.id })}
+                      onGoBack={(to) => handleBack(s.id, to)}
+                      onDownloadLabel={(type) => handleDownloadLabel(s.id, type)}
+                      // The open dialog's own buttons show the progress, so the row behind it stays still
+                      downloadingLabels={shippingTarget?.id === s.id ? {} : downloadingFor(s.id)}
+                    />
+                  )
+                })
               )}
             </TableBody>
           </Table>
@@ -576,16 +703,17 @@ export const ShipmentsScreen: React.FC = () => {
       <CreateShipmentDrawer
         isOpen={dialog?.type === 'create'}
         onClose={closeIfCurrent(dialog?.type === 'create' ? dialog : null)}
-        pool={pool}
+        channels={offered}
+        initialChannel={dialog?.type === 'create' ? dialog.channel : undefined}
         shipments={shipments}
-        unassigned={unassigned}
         initialProductIds={dialog?.type === 'create' ? dialog.preselect : []}
         onCreate={handleCreate}
       />
 
+      {/* Amazon FBA steps */}
       <OptionPickerModal
         kind={dialog?.type === 'options' ? dialog.kind : null}
-        shipment={byId(dialogId('options'))}
+        shipment={ofChannelOrNull(byId(dialogId('options')), 'amazon_fba')}
         loadOptions={getOptions}
         onConfirm={handleConfirmOptions}
         onBack={() => dialog?.type === 'options' && handleBack(dialog.id, dialog.kind === 'placement' ? 'packing' : 'placement')}
@@ -594,14 +722,14 @@ export const ShipmentsScreen: React.FC = () => {
       />
 
       <CarrierModal
-        shipment={byId(dialogId('carrier'))}
+        shipment={ofChannelOrNull(carrierTarget, 'amazon_fba')}
         onConfirm={(carriers) => handleSubmitCarrier(dialogId('carrier')!, carriers)}
         onBack={() => dialog?.type === 'carrier' && handleBack(dialog.id, 'window')}
         onClose={closeIfCurrent(dialog?.type === 'carrier' ? dialog : null)}
       />
 
       <EditShipFromModal
-        shipment={byId(dialogId('shipFrom'))}
+        shipment={ofChannelOrNull(byId(dialogId('shipFrom')), 'amazon_fba')}
         onConfirm={(choice) => performRewind(dialogId('shipFrom')!, 'placement', choice)}
         onClose={closeTo(
           dialog?.type === 'shipFrom' ? dialog : null,
@@ -610,15 +738,32 @@ export const ShipmentsScreen: React.FC = () => {
       />
 
       <PackingModal
-        shipment={byId(dialogId('packing'))}
+        shipment={ofChannelOrNull(packingTarget, 'amazon_fba')}
         loadPlan={getPackingPlan}
         onSubmit={handleSubmitPacking}
         onClose={closeIfCurrent(dialog?.type === 'packing' ? dialog : null)}
       />
 
+      {/* Walmart WFS steps */}
+      <WfsCartonsModal
+        shipment={ofChannelOrNull(packingTarget, 'walmart_wfs')}
+        askSizes={!!capabilitiesOf(packingTarget).walmartCarrier}
+        onSubmit={(legs) => handleSubmitCartons(dialogId('packing')!, legs)}
+        onClose={closeIfCurrent(dialog?.type === 'packing' ? dialog : null)}
+      />
+
+      <WfsCarrierModal
+        shipment={ofChannelOrNull(carrierTarget, 'walmart_wfs')}
+        walmartCarrier={!!capabilitiesOf(carrierTarget).walmartCarrier}
+        loadQuotes={(shipmentId) => quoteWfsCarrier(dialogId('carrier')!, shipmentId)}
+        onConfirm={(carriers) => handleSubmitWfsCarrier(dialogId('carrier')!, carriers)}
+        onBack={() => dialog?.type === 'carrier' && handleBack(dialog.id, 'packing')}
+        onClose={closeIfCurrent(dialog?.type === 'carrier' ? dialog : null)}
+      />
+
       <MarkShippedModal
         shipment={shippingTarget}
-        pool={pool}
+        pool={shippingTarget ? pools[channelIdOf(shippingTarget)] ?? [] : []}
         onDownloadLabel={(type) => shippingTarget && handleDownloadLabel(shippingTarget.id, type)}
         downloadingLabels={shippingTarget ? downloadingFor(shippingTarget.id) : {}}
         onBack={() => shippingTarget && handleBack(shippingTarget.id, 'carrier')}
@@ -626,9 +771,10 @@ export const ShipmentsScreen: React.FC = () => {
         loadRequirements={getShipRequirements}
         onConfirm={(tracking) => {
           const s = shippingTarget
+          const partner = s ? channelOf(s).partner : 'the partner'
           return run(
             () => markShipped(s!.id, tracking),
-            `${s?.reference} confirmed with Amazon and marked as shipped. ${unitsLabel(s ? getShipmentUnits(s) : 0)} deducted from inventory.`,
+            `${s?.reference} confirmed with ${partner} and marked as shipped. ${unitsLabel(s ? getShipmentUnits(s) : 0)} deducted from inventory.`,
             'Could not mark as shipped'
           )
         }}
@@ -636,8 +782,8 @@ export const ShipmentsScreen: React.FC = () => {
 
       <ConfirmModal
         isOpen={dialog?.type === 'rewind'}
-        title={`Go back to ${dialog?.type === 'rewind' ? REWIND_LABEL[dialog.to] : ''}?`}
-        message="Amazon locks each step once it is confirmed, so going back cancels the inbound plan and creates a new one. Your earlier choices are re-applied automatically where Amazon offers the same options; anything it can't match, you choose again."
+        title={`Go back to ${dialog?.type === 'rewind' ? (rewindTarget ? channelOf(rewindTarget) : SHIPMENT_CHANNELS.amazon_fba).rewindLabel[dialog.to] ?? dialog.to : ''}?`}
+        message={(rewindTarget ? channelOf(rewindTarget) : SHIPMENT_CHANNELS.amazon_fba).copy.rewindWarning}
         confirmLabel="Go back"
         onClose={closeTo(dialog?.type === 'rewind' ? dialog : null, dialog?.type === 'rewind' ? dialog.resume : null)}
         onConfirm={() => performRewind((dialog as { id: string }).id, (dialog as { to: RewindTarget }).to)}
@@ -647,13 +793,17 @@ export const ShipmentsScreen: React.FC = () => {
         isOpen={!!cancelTarget}
         title={`Cancel ${cancelTarget?.reference ?? ''}?`}
         message={
-          <>
-            {cancelTarget?.amazonInboundPlanId
-              ? 'The inbound plan will be cancelled with Amazon. '
-              : 'This draft was never sent to Amazon. '}
-            Its {formatUnits(cancelTarget ? getShipmentUnits(cancelTarget) : 0)} units go back to your
-            unassigned FBA reserve.
-          </>
+          cancelTarget && (
+            <>
+              {cancelTarget.externalRef ?? cancelTarget.amazonInboundPlanId
+                ? channelIdOf(cancelTarget) === 'walmart_wfs'
+                  ? 'The inbound order will be cancelled with Walmart, with all of its shipments. '
+                  : 'The inbound plan will be cancelled with Amazon. '
+                : `This draft was never sent to ${channelOf(cancelTarget).partner}. `}
+              Its {formatUnits(getShipmentUnits(cancelTarget))} units go back to your
+              unassigned {channelOf(cancelTarget).program} reserve.
+            </>
+          )
         }
         confirmLabel="Cancel shipment"
         variant="danger"
@@ -667,15 +817,74 @@ export const ShipmentsScreen: React.FC = () => {
   )
 }
 
-/** Only shown in sandbox mode, so nobody mistakes Amazon's sample data for a real plan. */
-const ModeBanner: React.FC<{ mode: ShipmentsMode }> = ({ mode }) =>
-  mode === 'sandbox' ? (
-    <div className="mb-6 rounded-lg border border-warning-200 bg-warning-50 px-4 py-3 text-sm text-warning-800">
-      <strong>Amazon sandbox mode.</strong> Inbound steps go to the SP-API sandbox with sandbox credentials, so nothing
-      reaches your Seller Central account. Your shipments and stock are real; Amazon&apos;s side answers with its sample
-      data (plan wf1234…, SKU &quot;msku&quot;, FC YYZ5).
+/** "+ New shipment", with a menu to pick the channel when there's more than one. */
+const NewShipmentButton: React.FC<{
+  channels: ChannelConfig[]
+  disabled: boolean
+  onCreate: (channel?: ShipmentChannel) => void
+}> = ({ channels, disabled, onCreate }) => {
+  const [open, setOpen] = useState(false)
+  const anchor = useRef<HTMLDivElement>(null)
+  const close = useCallback(() => setOpen(false), [])
+  if (channels.length <= 1) {
+    return (
+      <Button onClick={() => onCreate()} disabled={disabled}>
+        + New shipment
+      </Button>
+    )
+  }
+  return (
+    <div ref={anchor} className="flex">
+      <Button onClick={() => onCreate()} disabled={disabled} className="!rounded-r-none">
+        + New shipment
+      </Button>
+      <Button
+        onClick={() => setOpen((o) => !o)}
+        disabled={disabled}
+        aria-label="Pick the channel"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        className="!rounded-l-none border-l border-white/20 !px-2"
+      >
+        ▾
+      </Button>
+      <FloatingMenu anchorRef={anchor} open={open} onClose={close} width={260}>
+        {channels.map((c) => (
+          <button
+            key={c.id}
+            type="button"
+            role="menuitem"
+            disabled={!c.enabled}
+            title={c.enabled ? undefined : c.disabledReason}
+            onClick={() => {
+              setOpen(false)
+              onCreate(c.id)
+            }}
+            className="flex w-full items-start gap-2 px-3 py-2 text-left hover:bg-secondary-50 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <ChannelChip channel={c.id} className="mt-0.5" />
+            <span className="min-w-0">
+              <span className="block text-sm font-medium text-text-primary">{SHIPMENT_CHANNELS[c.id].label} shipment</span>
+              <span className="block text-xs text-text-muted">
+                {c.enabled ? c.marketplaces.filter((m) => m.capabilities.connected !== false).map((m) => m.id).join(' · ') : c.disabledReason}
+              </span>
+            </span>
+          </button>
+        ))}
+      </FloatingMenu>
     </div>
-  ) : null
+  )
+}
+
+/** Only shown in sandbox mode, so nobody mistakes the partner's sample data for a real plan. */
+const ModeBanner: React.FC<{ channel: ShipmentChannel }> = ({ channel }) => {
+  const def = SHIPMENT_CHANNELS[channel]
+  return (
+    <div className="mb-6 rounded-lg border border-warning-200 bg-warning-50 px-4 py-3 text-sm text-warning-800">
+      <strong>{def.partner} sandbox mode.</strong> {def.copy.sandboxBanner}
+    </div>
+  )
+}
 
 /** Hands a downloaded file to the browser's own download manager. */
 function saveFile(blob: Blob, fileName: string): void {

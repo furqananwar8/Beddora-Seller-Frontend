@@ -6,8 +6,12 @@ import type { LabelType } from './types'
 import { LabelButton } from './ShipmentParts'
 import type { LabelFileStatus } from './types'
 
-/** Label kinds that come in more than one printable size (pallet labels don't). */
-export type SizedLabelType = Extract<LabelType, 'box' | 'unit'>
+/** Label kinds that come in more than one printable size (pallet and Walmart carrier labels don't). */
+export type SizedLabelType = Extract<LabelType, 'box' | 'unit' | 'carton'>
+
+const SIZED_KINDS: SizedLabelType[] = ['box', 'unit', 'carton']
+
+export const isSizedLabelType = (type: LabelType): type is SizedLabelType => (SIZED_KINDS as LabelType[]).includes(type)
 
 export interface LabelFormatOption {
   id: string
@@ -15,8 +19,8 @@ export interface LabelFormatOption {
   description?: string
 }
 
-/** What the backend offers per label kind, with its default. */
-export type LabelFormatCatalog = Record<SizedLabelType, { default: string; options: LabelFormatOption[] }>
+/** What the backend offers per label kind, with its default (each channel offers its own kinds). */
+export type LabelFormatCatalog = Partial<Record<SizedLabelType, { default: string; options: LabelFormatOption[] }>>
 
 type Selection = Record<SizedLabelType, string>
 
@@ -44,11 +48,14 @@ export function useLabelFormatState(catalog?: LabelFormatCatalog): LabelFormatSt
 
   const selected = useMemo(() => {
     if (!catalog) return {}
-    const pick = (kind: SizedLabelType) => {
+    const picks: Partial<Selection> = {}
+    for (const kind of SIZED_KINDS) {
+      const offered = catalog[kind]
+      if (!offered) continue
       const saved = stored[kind]
-      return saved && catalog[kind].options.some((o) => o.id === saved) ? saved : catalog[kind].default
+      picks[kind] = saved && offered.options.some((o) => o.id === saved) ? saved : offered.default
     }
-    return { box: pick('box'), unit: pick('unit') }
+    return picks
   }, [catalog, stored])
 
   const select = useCallback((kind: SizedLabelType, id: string) => {
@@ -70,7 +77,7 @@ const LabelFormatContext = createContext<LabelFormatState>({ selected: {}, selec
 export const LabelFormatProvider = LabelFormatContext.Provider
 export const useLabelFormats = () => useContext(LabelFormatContext)
 
-/** A label download button with its size picker beside it (box and FNSKU labels). */
+/** A label download button with its size picker beside it (box, FNSKU and carton labels). */
 export const LabelDownloadControl: React.FC<{
   type: LabelType
   label: string
@@ -83,8 +90,8 @@ export const LabelDownloadControl: React.FC<{
   buttonClassName?: string
 }> = ({ type, label, status, isDownloading, onClick, selectClassName = 'min-w-[200px]', buttonClassName }) => {
   const { catalog, selected, select } = useLabelFormats()
-  const kind = type === 'box' || type === 'unit' ? type : null
-  const options = kind ? catalog?.[kind].options : undefined
+  const kind = isSizedLabelType(type) ? type : null
+  const options = kind ? catalog?.[kind]?.options : undefined
 
   return (
     // items-stretch: the button takes the size picker's height

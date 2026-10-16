@@ -8,21 +8,26 @@ import { AllocationSplit, BucketBalances, PlannedMove, StockBucket } from '@/ser
 
 export type AssignMode = 'fba' | 'fbm' | 'even'
 
+/** WFS buckets; servers that predate WFS don't send them. */
+export const wfsReserved = (b: BucketBalances): number => b.WFS_RESERVED ?? 0
+const wfsTotal = (b: BucketBalances): number => (b.WFS_POOL ?? 0) + wfsReserved(b)
+
 export const onHand = (b: BucketBalances): number =>
-  b.UNALLOCATED + b.FBA_POOL + b.FBA_RESERVED + b.BUFFER + b.FBM
+  b.UNALLOCATED + b.FBA_POOL + b.FBA_RESERVED + wfsTotal(b) + b.BUFFER + b.FBM
 
 export const splitFromBalances = (b: BucketBalances): AllocationSplit => ({
   fba: b.FBA_POOL + b.FBA_RESERVED,
+  wfs: wfsTotal(b),
   buffer: b.BUFFER,
   fbm: b.FBM,
 })
 
 export const unassigned = (b: BucketBalances, split: AllocationSplit): number =>
-  onHand(b) - split.fba - split.buffer - split.fbm
+  onHand(b) - split.fba - split.wfs - split.buffer - split.fbm
 
 export const isSplitChanged = (b: BucketBalances, split: AllocationSplit): boolean => {
   const current = splitFromBalances(b)
-  return current.fba !== split.fba || current.buffer !== split.buffer || current.fbm !== split.fbm
+  return current.fba !== split.fba || current.wfs !== split.wfs || current.buffer !== split.buffer || current.fbm !== split.fbm
 }
 
 /** Why this split can't be saved, or null when it can. */
@@ -30,8 +35,11 @@ export function splitError(b: BucketBalances, split: AllocationSplit): string | 
   if (split.fba < b.FBA_RESERVED) {
     return `FBA can't go below ${b.FBA_RESERVED}. Shipments hold those units; edit or cancel them first.`
   }
+  if (split.wfs < wfsReserved(b)) {
+    return `WFS can't go below ${wfsReserved(b)}. Shipments hold those units; edit or cancel them first.`
+  }
   const over = -unassigned(b, split)
-  if (over > 0) return `That's ${over.toLocaleString()} more than on hand. Lower FBA, buffer or FBM.`
+  if (over > 0) return `That's ${over.toLocaleString()} more than on hand. Lower FBA, WFS, buffer or FBM.`
   return null
 }
 
@@ -65,6 +73,8 @@ const BUCKET_LABEL: Record<StockBucket, string> = {
   UNALLOCATED: 'unassigned',
   FBA_POOL: 'FBA',
   FBA_RESERVED: 'FBA shipments',
+  WFS_POOL: 'WFS',
+  WFS_RESERVED: 'WFS shipments',
   BUFFER: 'buffer',
   FBM: 'FBM',
 }

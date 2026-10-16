@@ -236,18 +236,21 @@ export const InventoryPlannerScreen: React.FC<{ initialSearch?: string }> = ({ i
     setAppliedFilters({ ...pendingFilters })
   }, [pendingFilters])
 
-  // ---- Create FBA shipment: only stock already allocated to FBA can go into one ----
-  const handleCreateShipment = () => {
-    const ready = selectedRows.filter((row) => row.balances.FBA_POOL > 0)
-    const skipped = selectedRows.filter((row) => row.balances.FBA_POOL <= 0)
+  // ---- Create an FBA / WFS shipment: only stock already allocated to that program can go into one ----
+  const handleCreateShipment = (channel: 'amazon_fba' | 'walmart_wfs' = 'amazon_fba') => {
+    const program = channel === 'walmart_wfs' ? 'WFS' : 'FBA'
+    const poolOf = (row: (typeof selectedRows)[number]) => (channel === 'walmart_wfs' ? row.balances.WFS_POOL ?? 0 : row.balances.FBA_POOL)
+    const ready = selectedRows.filter((row) => poolOf(row) > 0)
+    const skipped = selectedRows.filter((row) => poolOf(row) <= 0)
     if (ready.length === 0) {
-      dispatch(addNotification({ message: 'Allocate stock to FBA first. None of the selected products has FBA stock to ship.', type: 'error' }))
+      dispatch(addNotification({ message: `Allocate stock to ${program} first. None of the selected products has ${program} stock to ship.`, type: 'error' }))
       return
     }
     if (skipped.length > 0) {
-      dispatch(addNotification({ message: `${skipped.length} selected product${skipped.length === 1 ? ' has' : 's have'} no FBA stock and ${skipped.length === 1 ? 'was' : 'were'} left out of the shipment.`, type: 'warning' }))
+      dispatch(addNotification({ message: `${skipped.length} selected product${skipped.length === 1 ? ' has' : 's have'} no ${program} stock and ${skipped.length === 1 ? 'was' : 'were'} left out of the shipment.`, type: 'warning' }))
     }
-    router.push(`/dashboard/inventory/shipments?create=1&productIds=${encodeURIComponent(ready.map((row) => row.id).join(','))}`)
+    const channelParam = channel === 'walmart_wfs' ? '&channel=walmart_wfs' : ''
+    router.push(`/dashboard/inventory/shipments?create=1&productIds=${encodeURIComponent(ready.map((row) => row.id).join(','))}${channelParam}`)
   }
 
   // ---- Trigger Multi-Channel Stock Push ----
@@ -499,6 +502,16 @@ export const InventoryPlannerScreen: React.FC<{ initialSearch?: string }> = ({ i
                           Create FBA shipment
                         </button>
                         <button
+                          onClick={() => {
+                            setIsMenuOpen(false)
+                            handleCreateShipment('walmart_wfs')
+                          }}
+                          disabled={selectedProducts.length === 0}
+                          className="w-full text-left px-4 py-2 text-sm text-slate-800 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                        >
+                          Create WFS shipment
+                        </button>
+                        <button
                           onClick={() => setIsMenuOpen(false)}
                           disabled={selectedProducts.length === 0}
                           className="w-full text-left px-4 py-2 text-sm text-slate-800 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
@@ -700,9 +713,10 @@ export const InventoryPlannerScreen: React.FC<{ initialSearch?: string }> = ({ i
         <AllocationDrawer
           items={allocation.items}
           onClose={() => setAllocation(null)}
-          onCreateShipment={(itemIds) => {
+          onCreateShipment={(itemIds, channel) => {
             setAllocation(null)
-            router.push(`/dashboard/inventory/shipments?create=1&productIds=${encodeURIComponent(itemIds.join(','))}`)
+            const channelParam = channel === 'walmart_wfs' ? '&channel=walmart_wfs' : ''
+            router.push(`/dashboard/inventory/shipments?create=1&productIds=${encodeURIComponent(itemIds.join(','))}${channelParam}`)
           }}
         />
       )}

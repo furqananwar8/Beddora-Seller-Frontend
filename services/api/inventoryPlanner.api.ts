@@ -12,7 +12,7 @@ export interface InventorySummary {
 
 export type InventoryItemStatus = 'ACTIVE' | 'INACTIVE' | 'DISCONTINUED'
 
-export type StockBucket = 'UNALLOCATED' | 'FBA_POOL' | 'FBA_RESERVED' | 'BUFFER' | 'FBM'
+export type StockBucket = 'UNALLOCATED' | 'FBA_POOL' | 'FBA_RESERVED' | 'WFS_POOL' | 'WFS_RESERVED' | 'BUFFER' | 'FBM'
 export type BucketBalances = Record<StockBucket, number>
 
 /** One planner row: warehouse stock synced from the InBound_Logs sheet. */
@@ -27,6 +27,8 @@ export interface ProductInventoryItem {
   unallocated: number
   amazonReserve: number
   amazonAllocated: number // on FBA shipments not yet shipped to Amazon
+  walmartReserve?: number // WFS_POOL + WFS_RESERVED (servers that predate WFS leave it out)
+  walmartAllocated?: number // on WFS shipments not yet shipped to Walmart
   otherMarketReserve: number
   buffer: number
   balances: BucketBalances // raw per-bucket stock, echoed back when saving an allocation
@@ -91,9 +93,10 @@ export interface ChannelTarget {
   connected: boolean
 }
 
-/** Target split for one item; `fba` includes units held by FBA shipments. */
+/** Target split for one item; `fba` / `wfs` include units held by FBA / WFS shipments. */
 export interface AllocationSplit {
   fba: number
+  wfs: number
   buffer: number
   fbm: number
 }

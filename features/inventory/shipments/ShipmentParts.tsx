@@ -5,9 +5,23 @@ import { createPortal } from 'react-dom'
 import { Button } from '@/design-system/buttons'
 import { Spinner } from '@/design-system/loaders'
 import { cn } from '@/utils/cn'
-import { DeliveryWindow, InboundShipment, LabelFileStatus, ShipmentStatus } from './types'
+import { DeliveryWindow, InboundShipment, LabelFileStatus, ShipmentChannel, ShipmentStatus } from './types'
 import type { RewindTarget } from '@/services/api/inboundShipments.api'
-import { FIRST_VISIBLE_STEP_AFTER_PLAN, NextAction, STATUS_META, STEP_REOPEN_ACTION, STEP_REWIND_TARGET, WORKFLOW_STEPS, getActiveStepIndex } from './workflow'
+import { NextAction, STATUS_META, getActiveStepIndex } from './workflow'
+import { SHIPMENT_CHANNELS, channelOf } from './channels'
+
+/** "FBA" / "WFS" chip in the channel's colours. */
+export const ChannelChip: React.FC<{ channel: ShipmentChannel; className?: string }> = ({ channel, className }) => {
+  const def = SHIPMENT_CHANNELS[channel]
+  return (
+    <span
+      title={def.label}
+      className={cn('inline-flex items-center justify-center rounded px-1.5 py-0.5 font-mono text-[10px] font-bold tracking-wide', def.chipClassName, className)}
+    >
+      {def.program}
+    </span>
+  )
+}
 
 /** "Pickup Oct 20 · Delivery Oct 24 · Appt A123" for a leg's carrier booking, or '' when nothing was entered. */
 export const legBookingSummary = (l: { pickupDate?: string; deliveryDate?: string; amazonAppointmentId?: string }) =>
@@ -78,14 +92,15 @@ export const ProductThumb: React.FC<{ src?: string; alt: string; size?: 'sm' | '
 
 /** Compact "3 / 7" progress used in the collapsed row. */
 export const StageProgress: React.FC<{ shipment: InboundShipment }> = ({ shipment }) => {
+  const steps = channelOf(shipment).steps
   const active = getActiveStepIndex(shipment)
-  const total = WORKFLOW_STEPS.length
+  const total = steps.length
   const done = Math.min(active, total)
   const cancelled = shipment.status === 'cancelled'
   return (
     <div className="flex items-center gap-2">
       <div className="flex gap-0.5" aria-hidden>
-        {WORKFLOW_STEPS.map((step, i) => (
+        {steps.map((step, i) => (
           <span
             key={step.key}
             className={cn(
@@ -114,21 +129,24 @@ export const WorkflowStepper: React.FC<{
   /** When given, the Labels step reopens its dialog (label downloads and per-box tracking). */
   onReopen?: (action: NextAction) => void
 }> = ({ shipment, onGoBack, onReopen }) => {
+  const channel = channelOf(shipment)
+  const steps = channel.steps
   const active = getActiveStepIndex(shipment)
   const cancelled = shipment.status === 'cancelled'
   const open = shipment.status === 'in_progress'
-  // Items and Inbound plan are filled in when the shipment is created, so they only show until the plan exists
-  const hiddenSteps = active >= FIRST_VISIBLE_STEP_AFTER_PLAN ? FIRST_VISIBLE_STEP_AFTER_PLAN : 0
+  // Items and the plan / order are filled in when the shipment is created, so they only show until the plan exists
+  const firstAfterPlan = channel.firstVisibleStepAfterPlan
+  const hiddenSteps = active >= firstAfterPlan ? firstAfterPlan : 0
   return (
     <ol className="flex items-center gap-1 overflow-x-auto pb-1">
-      {WORKFLOW_STEPS.map((step, i) => {
+      {steps.map((step, i) => {
         if (i < hiddenSteps) return null
         const done = i < active
         const current = i === active
         // A cancelled shipment keeps its completed steps (muted) and marks where it stopped
         const stoppedHere = cancelled && current
-        const rewindTo = onGoBack && open && done ? STEP_REWIND_TARGET[step.key] : undefined
-        const reopen = onReopen && open && done ? STEP_REOPEN_ACTION[step.key] : undefined
+        const rewindTo = onGoBack && open && done ? channel.stepRewindTarget[step.key] : undefined
+        const reopen = onReopen && open && done ? channel.stepReopenAction[step.key] : undefined
         const onClick = rewindTo ? () => onGoBack?.(rewindTo) : reopen ? () => onReopen?.(reopen) : undefined
         const Pill = onClick ? 'button' : 'div'
         return (
@@ -158,7 +176,7 @@ export const WorkflowStepper: React.FC<{
               </span>
               {stoppedHere ? `Cancelled at ${step.label.toLowerCase()}` : step.label}
             </Pill>
-            {i < WORKFLOW_STEPS.length - 1 && (
+            {i < steps.length - 1 && (
               <span className={cn('h-px w-4 flex-shrink-0', done ? 'bg-secondary-800' : 'bg-border')} />
             )}
           </li>

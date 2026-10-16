@@ -16,8 +16,8 @@ interface AllocationDrawerProps {
   /** Snapshot of the selected planner rows, taken when the drawer opens. */
   items: ProductInventoryItem[]
   onClose: () => void
-  /** Opens FBA shipment creation for the drawer's items. */
-  onCreateShipment: (itemIds: string[]) => void
+  /** Opens shipment creation (FBA or WFS) for the drawer's items. */
+  onCreateShipment: (itemIds: string[], channel: 'amazon_fba' | 'walmart_wfs') => void
 }
 
 type WizardStep = Exclude<AllocationStep, 'result'>
@@ -142,7 +142,8 @@ function FooterActions({ model, items, onClose, onCreateShipment }: { model: All
     case 'result':
       return (
         <>
-          <DrawerButton onClick={() => onCreateShipment(items.map((i) => i.id))}>Create FBA shipment</DrawerButton>
+          <DrawerButton onClick={() => onCreateShipment(items.map((i) => i.id), 'amazon_fba')}>Create FBA shipment</DrawerButton>
+          <DrawerButton onClick={() => onCreateShipment(items.map((i) => i.id), 'walmart_wfs')}>Create WFS shipment</DrawerButton>
           <DrawerButton variant="primary" onClick={onClose}>
             Done
           </DrawerButton>

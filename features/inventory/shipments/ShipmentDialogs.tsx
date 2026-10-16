@@ -8,9 +8,10 @@ import { formatCurrency } from '@/utils/format'
 import { cn } from '@/utils/cn'
 import { AmazonOption, InboundShipment, LabelType, ReservedPoolItem, ShipLegRequirement, ShipTrackingInput } from './types'
 import { OptionKind } from './useShipments'
-import { LabelDownloadControl } from './labelFormats'
+import { LabelDownloadControl, isSizedLabelType } from './labelFormats'
 import { DialogFooter, LabelButton, ProductThumb, formatUnits, formatWindow, unitsLabel } from './ShipmentParts'
-import { MARKETPLACE_META, getShipmentUnits, shipsAsFreight } from './workflow'
+import { MARKETPLACE_META, getShipmentUnits } from './workflow'
+import { channelOf } from './channels'
 
 // ============================================
 // OPTION PICKER (placement / delivery window)
@@ -294,9 +295,10 @@ export const MarkShippedModal: React.FC<MarkShippedModalProps> = ({
   const [error, setError] = useState<string | null>(null)
   /** null while Amazon is being asked. */
   const [legs, setLegs] = useState<ShipLegRequirement[] | null>(null)
-  /** Typed tracking: per box id for parcel legs, BOL / freight bills per leg for freight. */
+  /** Typed tracking: per box id for parcel legs, BOL / freight bills per leg for freight, a list per shipment (Walmart). */
   const [boxTracking, setBoxTracking] = useState<Record<string, string>>({})
   const [freight, setFreight] = useState<Record<string, { bol: string; bills: string }>>({})
+  const [numbers, setNumbers] = useState<Record<string, string>>({})
 
   useEffect(() => {
     setAcknowledged(false)
@@ -304,6 +306,7 @@ export const MarkShippedModal: React.FC<MarkShippedModalProps> = ({
     setLegs(null)
     setBoxTracking({})
     setFreight({})
+    setNumbers({})
     if (!shipment) return
     let cancelled = false
     loadRequirements(shipment.id)
@@ -311,7 +314,7 @@ export const MarkShippedModal: React.FC<MarkShippedModalProps> = ({
       .catch((err: Error) => {
         if (cancelled) return
         setLegs([])
-        setError(err.message || 'Could not check the shipment with Amazon.')
+        setError(err.message || 'Could not check the shipment with the partner.')
       })
     return () => {
       cancelled = true
@@ -322,17 +325,29 @@ export const MarkShippedModal: React.FC<MarkShippedModalProps> = ({
 
   if (!shipment) return null
   const units = getShipmentUnits(shipment)
+  const channel = channelOf(shipment)
+  const partner = channel.partner
+  const labelDefs = channel.labels.filter((l) => !l.appliesTo || l.appliesTo(shipment))
 
   const ownLegs = (legs ?? []).filter((l) => l.solution === 'own')
+  const numbersOf = (shipmentId: string) =>
+    (numbers[shipmentId] ?? '')
+      .split(/[\s,]+/)
+      .map((n) => n.trim())
+      .filter(Boolean)
   const trackingComplete = ownLegs.every((l) =>
-    l.mode === 'freight'
+    l.tracking === 'numbers'
+      ? numbersOf(l.shipmentId).length > 0
+      : l.mode === 'freight'
       ? !!freight[l.shipmentId]?.bol.trim()
       : l.boxes.length > 0 && l.boxes.every((b) => !!boxTracking[b.boxId]?.trim())
   )
 
   const buildTracking = (): ShipTrackingInput[] =>
     ownLegs.map((l) =>
-      l.mode === 'freight'
+      l.tracking === 'numbers'
+        ? { shipmentId: l.shipmentId, trackingNumbers: numbersOf(l.shipmentId) }
+        : l.mode === 'freight'
         ? {
             shipmentId: l.shipmentId,
             billOfLadingNumber: freight[l.shipmentId].bol.trim(),
@@ -362,31 +377,36 @@ export const MarkShippedModal: React.FC<MarkShippedModalProps> = ({
     <Modal isOpen onClose={isSubmitting ? () => {} : onClose} title="Mark as shipped" size="lg">
       <div className="mb-4 flex flex-col items-start gap-2 rounded-md border border-border bg-surface-secondary px-3 py-2.5">
         <span className="text-sm text-text-secondary">Labels are ready. Print and stick them on before pickup.</span>
-        <LabelDownloadControl
-          type="box"
-          label="Box labels"
-          selectClassName="w-72"
-          buttonClassName={LABEL_BUTTON_SIZE}
-          status={shipment.labels?.box}
-          isDownloading={!!downloadingLabels.box}
-          onClick={() => onDownloadLabel('box')}
-        />
-        <LabelDownloadControl
-          type="unit"
-          label="FNSKU unit labels"
-          selectClassName="w-72"
-          buttonClassName={LABEL_BUTTON_SIZE}
-          status={shipment.labels?.unit}
-          isDownloading={!!downloadingLabels.unit}
-          onClick={() => onDownloadLabel('unit')}
-        />
-        {shipsAsFreight(shipment) && (
-          <LabelButton
-            label="Pallet labels"
-            buttonClassName={LABEL_BUTTON_SIZE}
-            isDownloading={!!downloadingLabels.pallet}
-            onClick={() => onDownloadLabel('pallet')}
-          />
+        {labelDefs.map((l) =>
+          l.type === 'pallet' ? (
+            <LabelButton
+              key={l.type}
+              label={l.label}
+              buttonClassName={LABEL_BUTTON_SIZE}
+              isDownloading={!!downloadingLabels.pallet}
+              onClick={() => onDownloadLabel('pallet')}
+            />
+          ) : isSizedLabelType(l.type) ? (
+            <LabelDownloadControl
+              key={l.type}
+              type={l.type}
+              label={l.label}
+              selectClassName="w-72"
+              buttonClassName={LABEL_BUTTON_SIZE}
+              status={shipment.labels?.[l.type]}
+              isDownloading={!!downloadingLabels[l.type]}
+              onClick={() => onDownloadLabel(l.type)}
+            />
+          ) : (
+            <LabelButton
+              key={l.type}
+              label={l.label}
+              buttonClassName={LABEL_BUTTON_SIZE}
+              status={shipment.labels?.[l.type as 'carrier']}
+              isDownloading={!!downloadingLabels[l.type]}
+              onClick={() => onDownloadLabel(l.type)}
+            />
+          )
         )}
       </div>
 
@@ -418,12 +438,12 @@ export const MarkShippedModal: React.FC<MarkShippedModalProps> = ({
         })}
       </div>
 
-      {/* What Amazon is told */}
+      {/* What the partner is told */}
       <div className="mt-4 rounded-md border border-border p-3">
-        <div className="mb-2 text-sm font-semibold text-text-primary">Confirm with Amazon</div>
+        <div className="mb-2 text-sm font-semibold text-text-primary">Confirm with {partner}</div>
         {!legs && (
           <div className="flex items-center gap-2 text-sm text-text-muted">
-            <Spinner size="sm" /> Checking the shipment with Amazon…
+            <Spinner size="sm" /> Checking the shipment with {partner}…
           </div>
         )}
         {legs && legs.length > 0 && (
@@ -433,8 +453,23 @@ export const MarkShippedModal: React.FC<MarkShippedModalProps> = ({
                 <div className="font-mono text-xs font-semibold text-text-secondary">{leg.label}</div>
                 {leg.solution === 'partnered' ? (
                   <p className="mt-0.5 text-xs text-text-muted">
-                    {leg.carrier ?? 'Amazon partnered carrier'}: Amazon books the pickup and is told by the carrier. Nothing to enter.
+                    {channel.id === 'amazon_fba'
+                      ? `${leg.carrier ?? 'Amazon partnered carrier'}: Amazon books the pickup and is told by the carrier. Nothing to enter.`
+                      : `${leg.carrier ?? 'Walmart carrier'}: booked through Walmart, which gets the tracking from the carrier. Nothing to enter.`}
                   </p>
+                ) : leg.tracking === 'numbers' ? (
+                  <div className="mt-1 space-y-1">
+                    <p className="text-xs text-text-muted">
+                      {leg.carrier ? `${leg.carrier}: e` : 'E'}nter the tracking numbers, separated by commas or new lines.
+                    </p>
+                    <textarea
+                      rows={2}
+                      placeholder="Tracking numbers"
+                      value={numbers[leg.shipmentId] ?? ''}
+                      onChange={(e) => setNumbers((n) => ({ ...n, [leg.shipmentId]: e.target.value }))}
+                      className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm"
+                    />
+                  </div>
                 ) : leg.mode === 'freight' ? (
                   <div className="mt-1 grid grid-cols-1 gap-2 md:grid-cols-2">
                     <input
@@ -490,7 +525,7 @@ export const MarkShippedModal: React.FC<MarkShippedModalProps> = ({
           Cancel
         </Button>
         <Button onClick={handleConfirm} disabled={!acknowledged || isSubmitting || !legs || legs.length === 0 || !trackingComplete}>
-          {isSubmitting ? 'Confirming with Amazon…' : `Confirm with Amazon & deduct ${unitsLabel(units)}`}
+          {isSubmitting ? `Confirming with ${partner}…` : `Confirm with ${partner} & deduct ${unitsLabel(units)}`}
         </Button>
       </DialogFooter>
     </Modal>
