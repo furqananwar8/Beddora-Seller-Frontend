@@ -32,8 +32,13 @@ export const BUCKETS: BucketDefinition[] = [
   { id: 'other', label: 'Other expenses', inGrossProfit: false, notReportedText: 'nothing else reported' },
 ]
 
-/** Cost buckets: every bucket except sales, in breakdown order. */
-export const COST_BUCKETS = BUCKETS.filter((bucket) => bucket.id !== 'sales')
+/** Buckets the Live Report keeps off screen: still counted in profit and margin, never listed. */
+export const HIDDEN_BUCKET_IDS: BucketId[] = ['refund']
+
+const isShown = (bucket: BucketDefinition) => !HIDDEN_BUCKET_IDS.includes(bucket.id)
+
+/** Cost buckets shown in the breakdown: every bucket except sales and the hidden ones, in breakdown order. */
+export const COST_BUCKETS = BUCKETS.filter((bucket) => bucket.id !== 'sales' && isShown(bucket))
 
 /** Buckets reported per listing, in breakdown order. */
 export const LISTING_BUCKET_IDS: ListingBucketId[] = ['sales', 'promo', 'ads', 'refund', 'fees', 'fulfillment', 'cogs']
@@ -42,6 +47,3 @@ export const LISTING_BUCKET_IDS: ListingBucketId[] = ['sales', 'promo', 'ads', '
 export const LISTING_COST_BUCKETS = COST_BUCKETS.filter((bucket) =>
   (LISTING_BUCKET_IDS as BucketId[]).includes(bucket.id),
 )
-
-/** Buckets that make up the tile's "Fees & expenses". */
-export const FEES_AND_EXPENSES_BUCKETS: BucketId[] = ['fees', 'fulfillment', 'other']

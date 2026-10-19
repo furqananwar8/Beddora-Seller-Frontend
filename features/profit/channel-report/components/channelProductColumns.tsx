@@ -128,13 +128,6 @@ export const buildChannelProductColumns = ({
     render: (row) => formatNumber(row.units, 0),
   },
   {
-    id: 'refunds',
-    align: 'center',
-    header: 'Refunds',
-    sortValue: (row) => row.refunds,
-    render: (row) => formatNumber(row.refunds, 0),
-  },
-  {
     id: 'sales',
     align: 'center',
     header: 'Sales',
@@ -143,7 +136,6 @@ export const buildChannelProductColumns = ({
   },
   costColumn('promo', 'Promo'),
   costColumn('ads', 'Ads'),
-  costColumn('refund', 'Refund cost'),
   costColumn('fees', 'Channel fees'),
   costColumn('fulfillment', 'Fulfillment'),
   costColumn('cogs', 'COGS'),

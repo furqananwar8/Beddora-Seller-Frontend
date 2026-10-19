@@ -105,7 +105,3 @@ export const combinePeriod = (
     })),
   }
 }
-
-/** Sum of several combined buckets (null if none of them is reported). */
-export const sumCombinedBuckets = (period: CombinedPeriod, ids: BucketId[]): number | null =>
-  sumNullable(ids.map((id) => period.buckets[id].total))

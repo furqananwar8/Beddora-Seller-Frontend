@@ -16,13 +16,13 @@ import { ProfitOverviewBanner } from '@/features/profit/dashboard/components/Pro
 import { TileDetailsModal } from '@/features/profit/dashboard/components/TileDetailsModal'
 import { useTilePeriodFilters } from '@/features/profit/dashboard/hooks/useTilePeriodFilters'
 import { SellerboardProductsTable } from '@/features/profit/dashboard/SellerboardProductsTable'
-import SummaryTiles from '@/features/profit/dashboard/SummaryTiles'
+import SummaryTiles, { type SummaryTileMetric } from '@/features/profit/dashboard/SummaryTiles'
 import { useDebounce } from '@/utils/debounce'
 import { formatNumber } from '@/utils/format'
 import { formatDateRangePST, nowInPST, type CurrencyCode } from '@/utils/profitDashboard.util'
 
 import type { ChannelId, ChannelReportParams, ReportBasis } from './channelReport.types'
-import { FEES_AND_EXPENSES_BUCKETS, LISTING_COST_BUCKETS, type BucketDefinition } from './config/buckets'
+import { LISTING_COST_BUCKETS, type BucketDefinition } from './config/buckets'
 import { joinChannelNames } from './config/channels'
 import { ChannelBreakdown } from './components/ChannelBreakdown'
 import { ChannelChips } from './components/ChannelBadges'
@@ -30,7 +30,7 @@ import { ChannelMultiSelect } from './components/ChannelMultiSelect'
 import { buildChannelProductColumns } from './components/channelProductColumns'
 import { ChannelShareBar } from './components/ChannelShareBar'
 import { useChannelConnections, useChannelListings, useChannelReportSummary } from './data/useChannelReportData'
-import { combinePeriod, sumCombinedBuckets, type CombinedPeriod } from './lib/aggregate'
+import { combinePeriod, type CombinedPeriod } from './lib/aggregate'
 import { formatMoney, NOT_REPORTED } from './lib/format'
 import { buildProductRows, countUnlinked, rowBreakdown, type ProductRow } from './lib/productRows'
 
@@ -47,6 +47,8 @@ const UNLINKED_OPTION = { id: '__unlinked', name: 'Only unlinked listings', desc
 const REPORT_BASIS: ReportBasis = 'business'
 const MTD_PERIOD = 'MONTH_TO_DATE'
 const PAGE_SIZE = 8
+/** Tile cells the Live Report leaves out. */
+const HIDDEN_TILE_METRICS: SummaryTileMetric[] = ['refunds', 'secondary']
 
 /** What the breakdown modal shows: a period tile or a products-table row. */
 interface BreakdownTarget {
@@ -332,7 +334,6 @@ export const ChannelReport: React.FC = () => {
               )
             }
 
-            const feesAndExpenses = data ? sumCombinedBuckets(data, FEES_AND_EXPENSES_BUCKETS) : null
             const ads = data?.buckets.ads.total ?? null
 
             return (
@@ -352,7 +353,6 @@ export const ChannelReport: React.FC = () => {
                       salesRevenue: data?.sales ?? 0,
                       salesCount: formatNumber(data?.orders ?? 0, 0),
                       ordersUnitCount: formatNumber(data?.units ?? 0, 0),
-                      totalRefundsCount: data?.refunds ?? 0,
                       margin: data?.margin ?? 0,
                     }}
                     formatAmount={formatMoney}
@@ -364,14 +364,7 @@ export const ChannelReport: React.FC = () => {
                       )
                     }
                     advertisingDisplay={ads === null ? NOT_REPORTED : formatMoney(ads)}
-                    secondaryMetric={{
-                      label: 'Fees & expenses',
-                      value: (
-                        <span className={feesAndExpenses === null ? 'italic text-text-muted' : 'text-danger-600'}>
-                          {formatMoney(feesAndExpenses)}
-                        </span>
-                      ),
-                    }}
+                    hiddenMetrics={HIDDEN_TILE_METRICS}
                     showNetProfit={false}
                     moreLabel="See breakdown"
                     setSelectedPeriodForDetails={openTileDetails}

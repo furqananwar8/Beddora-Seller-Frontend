@@ -3,6 +3,9 @@
 import React from 'react'
 import { formatCurrency, formatNumber, formatPercentage } from "@/utils"
 
+/** Optional cells of the tile's metric grid. */
+export type SummaryTileMetric = 'refunds' | 'secondary'
+
 interface SummaryTilesProps {
     period: any
     setSelectedPeriodForDetails: (val: any) => void
@@ -24,6 +27,8 @@ interface SummaryTilesProps {
     formatAmount?: (value: number) => string
     /** Shows the Net profit / margin row. Defaults to on. */
     showNetProfit?: boolean
+    /** Cells left out of the metric grid; the remaining ones close up. */
+    hiddenMetrics?: SummaryTileMetric[]
 }
 
 /* ──────────────────────────────────────────────────────
@@ -102,10 +107,12 @@ const SummaryTiles = ({
     showTooltips = true,
     formatAmount = (value: number) => formatCurrency(value),
     showNetProfit = true,
+    hiddenMetrics = [],
 }: SummaryTilesProps) => {
     const margin = period.margin ?? 0
     const salesPct = salesChange === undefined ? margin : salesChange
     const Tooltip = showTooltips ? FieldTooltip : NoTooltip
+    const isShown = (metric: SummaryTileMetric) => !hiddenMetrics.includes(metric)
 
     return (
         <div className="space-y-3 flex-1 flex flex-col">
@@ -132,7 +139,7 @@ const SummaryTiles = ({
                 <Tooltip fieldKey="sales" />
             </div>
 
-            {/* Orders / Refunds */}
+            {/* Orders / Refunds / Adv cost / Est payout */}
             <div className="grid grid-cols-2 gap-3 text-xs min-w-0">
                 <div className="min-w-0 group relative cursor-pointer">
                     <div className="text-text-muted break-words">Orders / Units</div>
@@ -141,6 +148,7 @@ const SummaryTiles = ({
                     </div>
                     <Tooltip fieldKey="ordersUnits" />
                 </div>
+                {isShown('refunds') && (
                 <div className="min-w-0 group relative cursor-pointer">
                     <div className="text-text-muted break-words">Refunds</div>
                     <div className="font-semibold text-text-primary break-words">
@@ -148,10 +156,7 @@ const SummaryTiles = ({
                     </div>
                     <Tooltip fieldKey="refunds" />
                 </div>
-            </div>
-
-            {/* Adv cost / Est payout */}
-            <div className="grid grid-cols-2 gap-3 text-xs min-w-0">
+                )}
                 <div className="min-w-0 group relative cursor-pointer">
                     <div className="text-text-muted break-words">Adv. cost</div>
                     <div className="font-semibold text-danger-600 break-words">
@@ -159,6 +164,7 @@ const SummaryTiles = ({
                     </div>
                     <Tooltip fieldKey="advCost" />
                 </div>
+                {isShown('secondary') && (
                 <div className="min-w-0 group relative cursor-pointer">
                     <div className="text-text-muted break-words">{secondaryMetric?.label ?? 'Est. payout'}</div>
                     <div className="font-semibold text-text-primary break-words">
@@ -166,6 +172,7 @@ const SummaryTiles = ({
                     </div>
                     <Tooltip fieldKey="estPayout" />
                 </div>
+                )}
             </div>
 
             {/* Net profit */}
