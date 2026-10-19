@@ -13,6 +13,9 @@ import {
   buildBreakEvenColumns,
 } from "@/features/breakeven/breakEvenColumns";
 import { ApplyFiltersButton } from "@/features/profit/dashboard/components/ApplyFiltersButton";
+import { TableSearchInput } from "@/features/profit/dashboard/components/TableSearchInput";
+import { RowActionsMenu } from "@/components/row-actions-menu/RowActionsMenu";
+import { useReportExport } from "@/hooks/useReportExport";
 import { SellerboardProductsTable } from "@/features/profit/dashboard/SellerboardProductsTable";
 import {
   useGetBreakEvenDataQuery,
@@ -140,6 +143,11 @@ export default function BreakevenAnalysis() {
     {
       skip: !params,
     },
+  );
+
+  // Excel export of every SKU for the applied filters (built by the export worker, offered for download when ready)
+  const { start: startExport, isExporting } = useReportExport(
+    "break-even-analysis",
   );
 
   const columns = useMemo(
@@ -323,35 +331,73 @@ export default function BreakevenAnalysis() {
         </div>
       ) : null}
 
-      {/* Products */}
-      <div className="bg-surface border border-border rounded-xl p-6">
-        <SellerboardProductsTable
-          products={rows as any}
-          isLoading={isLoading}
-          isFetching={isFetching}
-          error={error}
-          columns={columns}
-          getRowKey={(row: BreakEvenItem) =>
-            `${row.marketplace ?? ""}:${row.sku}`
-          }
-          getRowClassName={breakEvenRowClassName}
-          searchTerm={debouncedSearch}
-          pageSize={PAGE_SIZE}
-          emptyMessage={
-            error
-              ? "Failed to load break-even data. Please try again."
-              : "No SKUs match these filters."
-          }
-          footerContent={({ to, total }) => (
-            <>
-              Showing {to} of {total} SKUs · red: margin below {targetMargin}% ·
-              amber: {targetMargin}% to{" "}
-              {targetMargin + (summary?.aboveTargetPoints ?? 10)}% · green:
-              above that · break-even and target prices use the period&apos;s
-              costs per unit
-            </>
-          )}
-        />
+      {/* Products: header bar as on the profit dashboard (period, export menu, table search) */}
+      <div className="bg-surface border border-border rounded-xl">
+        <div className="flex items-center justify-between px-6 pt-4 pb-2 border-b border-border flex-wrap gap-3">
+          <div className="flex items-center gap-4">
+            <h2 className="text-lg font-semibold text-text-primary">
+              {dateDisplay || "Period"}
+            </h2>
+            <span className="px-4 py-1.5 text-sm font-medium rounded bg-primary-600 text-white">
+              Products
+            </span>
+          </div>
+
+          <div className="flex items-center gap-3 flex-wrap">
+            <RowActionsMenu
+              label="break-even table"
+              items={[
+                {
+                  key: "export-excel",
+                  label: "Export Excel",
+                  onSelect: () =>
+                    params &&
+                    startExport("xlsx", {
+                      ...params,
+                      ...(statuses.length > 0 && {
+                        statuses: statuses.join(","),
+                      }),
+                    }),
+                  disabled: !params || isExporting,
+                  disabledReason: isExporting
+                    ? "An export is being prepared…"
+                    : undefined,
+                },
+              ]}
+            />
+            <TableSearchInput value={search} onChange={setSearch} />
+          </div>
+        </div>
+
+        <div className="p-6">
+          <SellerboardProductsTable
+            products={rows as any}
+            isLoading={isLoading}
+            isFetching={isFetching}
+            error={error}
+            columns={columns}
+            getRowKey={(row: BreakEvenItem) =>
+              `${row.marketplace ?? ""}:${row.sku}`
+            }
+            getRowClassName={breakEvenRowClassName}
+            searchTerm={debouncedSearch}
+            pageSize={PAGE_SIZE}
+            emptyMessage={
+              error
+                ? "Failed to load break-even data. Please try again."
+                : "No SKUs match these filters."
+            }
+            footerContent={({ to, total }) => (
+              <>
+                Showing {to} of {total} SKUs · red: margin below {targetMargin}%
+                · amber: {targetMargin}% to{" "}
+                {targetMargin + (summary?.aboveTargetPoints ?? 10)}% · green:
+                above that · break-even and target prices use the period&apos;s
+                costs per unit
+              </>
+            )}
+          />
+        </div>
       </div>
     </div>
   );

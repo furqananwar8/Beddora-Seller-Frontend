@@ -4,7 +4,7 @@ import { Envelope, unwrap } from './finance.api'
 export type ExportFormat = 'xlsx' | 'csv'
 
 /** Keys of the reports the API can export (`POST /exports`). */
-export type ExportReport = 'profit-by-product' | 'inventory-planner' | 'products-cogs' | 'channel-report-listings'
+export type ExportReport = 'profit-by-product' | 'inventory-planner' | 'products-cogs' | 'channel-report-listings' | 'break-even-analysis'
 
 export interface ExportRequest {
   report: ExportReport
