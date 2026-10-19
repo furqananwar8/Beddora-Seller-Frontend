@@ -47,6 +47,7 @@ const UNLINKED_OPTION = { id: '__unlinked', name: 'Only unlinked listings', desc
 const REPORT_BASIS: ReportBasis = 'business'
 const MTD_PERIOD = 'MONTH_TO_DATE'
 const PAGE_SIZE = 8
+const NO_CHANNELS: ChannelId[] = []
 /** Tile cells the Live Report leaves out. */
 const HIDDEN_TILE_METRICS: SummaryTileMetric[] = ['refunds', 'secondary']
 
@@ -59,6 +60,13 @@ interface BreakdownTarget {
   sections?: BucketDefinition[]
 }
 
+/**
+ * True while a query has data on the way: fetching, or about to start (a query that just stopped being skipped is
+ * uninitialized for one render). A skipped query (no channel selected) stays uninitialized and is not pending.
+ */
+const isPending = (query: { isFetching: boolean; isUninitialized: boolean }, skipped = false) =>
+  query.isFetching || (query.isUninitialized && !skipped)
+
 const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((item) => b.includes(item))
 
 export const ChannelReport: React.FC = () => {
@@ -67,22 +75,23 @@ export const ChannelReport: React.FC = () => {
   // ──────────────────────────────
 
   const period = useTilePeriodFilters({ storageKey: STORAGE_KEY })
-  const { data: connections = [] } = useChannelConnections()
-  const connectedChannels = useMemo(() => connections.map((item) => item.channel), [connections])
+  const { data: connectionsData, isLoading: connectionsLoading } = useChannelConnections()
+  const connections = connectionsData ?? []
+  // Stable while loading, so the selections derived from it do not change on every render
+  const connectedChannels = useMemo(
+    () => connectionsData?.map((item) => item.channel) ?? NO_CHANNELS,
+    [connectionsData],
+  )
 
-  const [draftChannels, setDraftChannels] = useState<ChannelId[]>(connectedChannels)
-  const [appliedChannels, setAppliedChannels] = useState<ChannelId[]>(connectedChannels)
+  // null until the user picks channels: every connected channel, as soon as the connections arrive
+  const [draftSelection, setDraftChannels] = useState<ChannelId[] | null>(null)
+  const [appliedSelection, setAppliedChannels] = useState<ChannelId[] | null>(null)
+  const draftChannels = draftSelection ?? connectedChannels
+  const appliedChannels = appliedSelection ?? connectedChannels
   const [draftMarketplaces, setDraftMarketplaces] = useState<string[]>(DEFAULT_MARKETPLACES)
   const [appliedMarketplaces, setAppliedMarketplaces] = useState<string[]>(DEFAULT_MARKETPLACES)
   const [draftCurrency, setDraftCurrency] = useState<CurrencyCode>('CAD')
   const [appliedCurrency, setAppliedCurrency] = useState<CurrencyCode>('CAD')
-
-  // Select every connected channel once the connections arrive (async with the real API)
-  useEffect(() => {
-    if (!connectedChannels.length) return
-    setDraftChannels((current) => (current.length ? current : connectedChannels))
-    setAppliedChannels((current) => (current.length ? current : connectedChannels))
-  }, [connectedChannels])
 
   const [searchTerm, setSearchTerm] = useState('')
   const debouncedSearch = useDebounce(searchTerm, 300)
@@ -117,18 +126,19 @@ export const ChannelReport: React.FC = () => {
     ? { ...baseParams, startDate: period.appliedRange?.startDate, endDate: period.appliedRange?.endDate }
     : { ...baseParams, periods: tilePeriods }
 
-  const { data: summary, isFetching: summaryFetching } = useChannelReportSummary(summaryParams, { skip: noChannels })
+  const summaryQuery = useChannelReportSummary(summaryParams, { skip: noChannels })
+  const summary = summaryQuery.data
+  const summaryFetching = connectionsLoading || isPending(summaryQuery, noChannels)
 
   // The banner always shows month to date: reuse the MTD tile when there is one, else ask for it
   const tilesHaveMtd = !period.isCustom && tilePeriods.includes(MTD_PERIOD)
-  const { data: mtdSummary, isFetching: mtdFetching } = useChannelReportSummary(
-    { ...baseParams, periods: [MTD_PERIOD] },
-    { skip: noChannels || tilesHaveMtd },
-  )
+  const mtdQuery = useChannelReportSummary({ ...baseParams, periods: [MTD_PERIOD] }, { skip: noChannels || tilesHaveMtd })
+  const mtdSummary = mtdQuery.data
+  const mtdFetching = connectionsLoading || isPending(mtdQuery, noChannels || tilesHaveMtd)
   const bannerSummary = tilesHaveMtd ? summary : mtdSummary
   const bannerFetching = tilesHaveMtd ? summaryFetching : mtdFetching
 
-  const { data: listings, isFetching: listingsFetching } = useChannelListings(
+  const listingsQuery = useChannelListings(
     {
       ...baseParams,
       startDate: period.selectedTileRange.startDate,
@@ -136,6 +146,8 @@ export const ChannelReport: React.FC = () => {
     },
     { skip: noChannels },
   )
+  const listings = listingsQuery.data
+  const listingsFetching = connectionsLoading || isPending(listingsQuery, noChannels)
 
   const periods = useMemo(() => {
     const map = new Map<string, CombinedPeriod>()
