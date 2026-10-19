@@ -7,11 +7,14 @@ import { cn } from '@/utils/cn'
  * Table component - Pure UI component with sticky header support
  */
 
-export interface TableProps extends React.HTMLAttributes<HTMLTableElement> {}
+export interface TableProps extends React.HTMLAttributes<HTMLTableElement> {
+  /** Classes for the wrapper around the table, e.g. `overflow-visible` when a parent already scrolls it. */
+  wrapperClassName?: string
+}
 
-export const Table: React.FC<TableProps> = ({ className, ...props }) => {
+export const Table: React.FC<TableProps> = ({ className, wrapperClassName, ...props }) => {
   return (
-    <div className="ds-table-wrap ds-scroll-x bg-transparent p-0 m-0 border-none">
+    <div className={cn('ds-table-wrap ds-scroll-x bg-transparent p-0 m-0 border-none', wrapperClassName)}>
       <table className={cn('ds-table border-separate border-spacing-0 min-w-full', className)} {...props} />
     </div>
   )

@@ -270,8 +270,8 @@ export default function BreakevenAnalysis() {
               key={index}
               className="bg-surface border border-border rounded-lg p-4 animate-pulse"
             >
-              <div className="h-3 bg-surface-secondary rounded w-20 mb-2" />
-              <div className="h-6 bg-surface-secondary rounded w-24" />
+              <div className="h-3 bg-border rounded w-20 mb-2" />
+              <div className="h-6 bg-border rounded w-24" />
             </div>
           ))}
         </div>
