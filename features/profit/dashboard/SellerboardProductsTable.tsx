@@ -759,6 +759,13 @@ export const SellerboardProductsTable: React.FC<
                       <span>{product.sku}</span>
                     </div>
 
+                    {product.asin && (
+                      <div className="text-xs text-text-muted mb-1 truncate">
+                        <span className="font-semibold text-text-primary">ASIN</span>{' '}
+                        <span className="select-all">{product.asin}</span>
+                      </div>
+                    )}
+
                     <div className="font-medium text-text-primary text-sm mb-1.5 line-clamp-2 break-words">
                       {product.productTitle || '-'}
                     </div>
