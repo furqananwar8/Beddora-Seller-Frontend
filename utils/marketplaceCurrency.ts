@@ -35,3 +35,11 @@ export function getDefaultCurrencyForMarketplaces(
   const key = Object.keys(MARKETPLACE_CURRENCY).find((k) => primary.includes(k))
   return key ? MARKETPLACE_CURRENCY[key] : fallback
 }
+
+/**
+ * Currency after the marketplace selection changes: a single marketplace switches it to that marketplace's currency;
+ * several (or none) leave it as it is, for the user to choose.
+ */
+export function currencyForMarketplaceSelection<T extends string>(marketplaces: string[], current: T): T | ReportCurrency {
+  return marketplaces?.length === 1 ? getDefaultCurrencyForMarketplaces(marketplaces, current as ReportCurrency) : current
+}

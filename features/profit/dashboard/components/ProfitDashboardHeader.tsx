@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { Button } from '@/design-system/buttons'
+import { ApplyFiltersButton } from './ApplyFiltersButton'
 import { Select, Input } from '@/design-system/inputs'
 import { MultiSelectInput } from '@/components/multi-select-input/MultiSelectInput'
 import DateRangePicker, {
@@ -305,51 +305,7 @@ export const ProfitDashboardHeader: React.FC<
 
             {/* FILTER */}
             {showFilterButton && (
-              <Button
-                variant={
-                  filterPending
-                    ? 'primary'
-                    : 'ghost'
-                }
-                onClick={onFilter}
-                disabled={
-                  disabled ||
-                  isFiltering
-                }
-                className={`
-                  min-w-[140px]
-                  shrink-0
-                  whitespace-nowrap
-                  flex
-                  items-center
-                  justify-center
-                  gap-2
-                  ${
-                    filterPending
-                      ? ''
-                      : 'bg-surface border border-border hover:bg-surface-tertiary text-text-primary'
-                  }
-                `}
-                title="Apply filters"
-              >
-                <svg
-                  className="w-4 h-4 shrink-0"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M3 4h18M6 10h12M10 16h4M11 22h2"
-                  />
-                </svg>
-
-                <span className="whitespace-nowrap">
-                  Apply Filters
-                </span>
-              </Button>
+              <ApplyFiltersButton onClick={onFilter} pending={filterPending} disabled={disabled || isFiltering} />
             )}
 
           </div>

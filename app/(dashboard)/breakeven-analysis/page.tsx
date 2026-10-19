@@ -1,60 +1,49 @@
-'use client';
+"use client";
 
-import React, { useState, useCallback, useMemo } from 'react';
-import { format, parseISO, subDays } from 'date-fns';
+import React, { useMemo, useState } from "react";
+import { format, parseISO, subDays } from "date-fns";
+import { Search } from "lucide-react";
 
-import { PageHeader } from '@/components/layout';
-import { EmptyState } from '@/components/data-display/EmptyState';
-import { MultiSelectInput } from '@/components/multi-select-input/MultiSelectInput';
-import { MARKETPLACES } from '@/utils/marketplaces';
-import DateRangePicker from '@/components/date-range-picker/DateRangePicker';
-import { Button } from '@/design-system/buttons';
-import { formatCurrency, formatPercentage } from '@/utils/format';
-import { useGetBreakEvenDataQuery } from '@/services/api/breakEven.api';
-import { Select } from '@/design-system/inputs';
+import { PageHeader } from "@/components/layout";
+import { MultiSelectInput } from "@/components/multi-select-input/MultiSelectInput";
+import DateRangePicker from "@/components/date-range-picker/DateRangePicker";
 import {
-  SplitTable,
-  ColumnDef,
-  PaginationConfig,
-  SortDirection,
-} from '@/components/split-table/SplitTable';
+  STATUS_TONES,
+  breakEvenRowClassName,
+  buildBreakEvenColumns,
+} from "@/features/breakeven/breakEvenColumns";
+import { ApplyFiltersButton } from "@/features/profit/dashboard/components/ApplyFiltersButton";
+import { SellerboardProductsTable } from "@/features/profit/dashboard/SellerboardProductsTable";
+import {
+  useGetBreakEvenDataQuery,
+  type BreakEvenItem,
+  type BreakEvenStatus,
+} from "@/services/api/breakEven.api";
+import { useDebounce } from "@/utils/debounce";
+import { formatCurrency, formatPercentage } from "@/utils/format";
+import { MARKETPLACES } from "@/utils/marketplaces";
+import {
+  REPORT_CURRENCY_OPTIONS,
+  currencyForMarketplaceSelection,
+} from "@/utils/marketplaceCurrency";
 
-// ─────────────────────────────────────────────────────────────
-// Constants
-// ─────────────────────────────────────────────────────────────
+/**
+ * Break-even Analysis: the profit dashboard's products table, one row per SKU (same sales, promo, ads, Amazon fees, COGS
+ * and profit) plus each SKU's break-even price and the price it needs for a target margin.
+ */
 
-const FBA_OPTIONS = [
-  { id: 'fba', name: 'FBA' },
-  { id: 'fbm', name: 'FBM' },
-  { id: 'fbaAndFbm', name: 'FBA And FBM' },
+const CURRENCY_OPTIONS = REPORT_CURRENCY_OPTIONS.map(({ value, label }) => ({
+  id: value,
+  name: label,
+}));
+const DEFAULT_MARGIN = 10;
+const STATUS_OPTIONS: { id: BreakEvenStatus; name: string }[] = [
+  { id: "Below target", name: "Below target" },
+  { id: "Meets target", name: "Meets target" },
+  { id: "Above target", name: "Above target" },
+  { id: "No sales", name: "No sales" },
 ];
-
-const STATUS_OPTIONS = [
-  { id: 'active', name: 'Active' },
-  { id: 'inactive', name: 'Inactive' },
-  { id: 'discontinued', name: 'Discontinued' },
-];
-
-const CURRENCY_OPTIONS = [
-  { value: 'CAD', label: 'CAD' },
-  { value: 'USD', label: 'USD' },
-  { value: 'EUR', label: 'EUR' },
-];
-
-const PAGE_SIZE = 50;
-
-// ─────────────────────────────────────────────────────────────
-// Types
-// ─────────────────────────────────────────────────────────────
-
-type CurrencyCode = 'CAD' | 'USD' | 'EUR';
-
-interface Filters {
-  search: string;
-  status: string[];
-  marketplaces: string[];
-  fba: string[];
-}
+const PAGE_SIZE = 20;
 
 interface DateRangeValue {
   startDate: string | null;
@@ -62,1497 +51,355 @@ interface DateRangeValue {
   presetId?: string | null;
 }
 
-interface BreakevenItem {
-  sku: string;
-  description: string;
-
-  units: number;
-
-  productSales: number;
-
-  // Amazon expenses remain NEGATIVE from API
-  promoRebates: number;
-  sellingFees: number;
-  fbaFees: number;
-  otherAmazonAdj: number;
-  totalAmazonExpenses: number;
-
-  // Ads / marketing allocation
-  marketingExpense: number;
-
-  allocatedNonSkuExpenses: number;
-
-  totalExpensesInclMarketing: number;
-  totalCogs: number;
-  totalExpensesInclMarketingCogs: number;
-  totalExpensesInclAmazonCogs: number;
-
-  netAfterAmazon: number;
-  netAfterAmazonMarketing: number;
-
-  amazonMarginPct: number;
-  marginAfterMarketingPct: number;
-  marginAfterAllPct: number;
-
-  targetProfitAtB6Pct: number;
-  targetGap: number;
-
-  status: string;
-
-  breakevenPrice: number;
-  breakevenPriceExcMarketing: number;
-
-  avgSellingPrice: number;
-  adsPerUnit: number;
-
-  allocatedOpex: number;
-  trueNetProfit: number;
+/** The filter bar's values: edited as a draft, used once Apply Filters is pressed (search applies as you type). */
+interface FilterState {
+  dateRange: DateRangeValue;
+  currency: string;
+  marketplaces: string[];
+  margin: string;
+  /** Target statuses shown in the table; empty for all. */
+  statuses: BreakEvenStatus[];
 }
 
-type SortColumn =
-  | 'sku'
-  | 'description'
-  | 'units'
-  | 'productSales'
-  | 'promoRebates'
-  | 'sellingFees'
-  | 'fbaFees'
-  | 'otherAmazonAdj'
-  | 'totalAmazonExpenses'
-  | 'marketingExpense'
-  | 'allocatedNonSkuExpenses'
-  | 'totalExpensesInclMarketing'
-  | 'totalCogs'
-  | 'totalExpensesInclMarketingCogs'
-  | 'totalExpensesInclAmazonCogs'
-  | 'netAfterAmazon'
-  | 'netAfterAmazonMarketing'
-  | 'amazonMarginPct'
-  | 'marginAfterMarketingPct'
-  | 'marginAfterAllPct'
-  | 'targetProfitAtB6Pct'
-  | 'targetGap'
-  | 'status'
-  | 'breakevenPrice'
-  | 'breakevenPriceExcMarketing'
-  | 'avgSellingPrice'
-  | 'adsPerUnit'
-  | 'allocatedOpex'
-  | 'trueNetProfit';
-
-// ─────────────────────────────────────────────────────────────
-// Helpers
-// ─────────────────────────────────────────────────────────────
-
-const toNumber = (value: unknown): number => {
-  if (value === null || value === undefined || value === '') {
-    return 0;
-  }
-
-  const parsed = Number(value);
-
-  return Number.isFinite(parsed) ? parsed : 0;
+const INITIAL_FILTERS: FilterState = {
+  dateRange: {
+    startDate: format(subDays(new Date(), 29), "yyyy-MM-dd"),
+    endDate: format(new Date(), "yyyy-MM-dd"),
+    presetId: "last30",
+  },
+  currency: "CAD",
+  marketplaces: ["Amazon.ca"],
+  margin: String(DEFAULT_MARGIN),
+  statuses: [],
 };
 
-/**
- * Important:
- *
- * Backend values are already signed.
- *
- * Example:
- * sellingFee = -100
- *
- * We DO NOT do:
- * Math.abs(-100) -> 100
- *
- * for the underlying data.
- *
- * We only use Math.abs() for formatting so the minus sign
- * can be controlled by the UI.
- */
-const formatSignedCurrency = (value: unknown): React.ReactNode => {
-  const amount = toNumber(value);
+const sameSet = (a: string[], b: string[]) =>
+  a.length === b.length && a.every((value) => b.includes(value));
 
-  if (amount === 0) {
-    return (
-      <span className="tabular-nums">
-        {formatCurrency(0)}
-      </span>
-    );
-  }
+const sameFilters = (a: FilterState, b: FilterState) =>
+  a.dateRange.startDate === b.dateRange.startDate &&
+  a.dateRange.endDate === b.dateRange.endDate &&
+  a.currency === b.currency &&
+  a.margin === b.margin &&
+  sameSet(a.marketplaces, b.marketplaces) &&
+  sameSet(a.statuses, b.statuses);
 
-  const isNegative = amount < 0;
-
-  return (
-    <span
-      className={`tabular-nums ${
-        isNegative ? 'text-danger-600' : ''
-      }`}
-    >
-      {isNegative ? '-' : ''}
-      {formatCurrency(Math.abs(amount))}
-    </span>
-  );
+/** A target margin the API accepts (1 to 99 %), else the default. */
+const validMargin = (value: string) => {
+  const margin = parseFloat(value);
+  return Number.isFinite(margin) && margin >= 1 && margin < 100
+    ? margin
+    : DEFAULT_MARGIN;
 };
-
-const formatSignedNumber = (value: unknown): React.ReactNode => {
-  const amount = toNumber(value);
-
-  if (amount === 0) {
-    return <span className="tabular-nums">0</span>;
-  }
-
-  const isNegative = amount < 0;
-
-  return (
-    <span
-      className={`tabular-nums ${
-        isNegative ? 'text-danger-600' : ''
-      }`}
-    >
-      {isNegative ? '-' : ''}
-      {Math.abs(amount).toLocaleString()}
-    </span>
-  );
-};
-
-// ─────────────────────────────────────────────────────────────
-// Columns
-// ─────────────────────────────────────────────────────────────
-
-const COLUMNS: ColumnDef<BreakevenItem>[] = [
-  {
-    key: 'sku',
-    header: 'SKU',
-    align: 'left',
-    width: 'min-w-[190px]',
-    style: { minWidth: 190, width: 190 },
-    sortable: true,
-    sortKey: 'sku',
-    cellClassName: 'break-all whitespace-normal max-w-[210px]',
-    headerClassName: 'break-words leading-tight',
-  },
-
-  {
-    key: 'description',
-    header: 'Description',
-    align: 'left',
-    width: 'min-w-[310px]',
-    style: { minWidth: 310, width: 310 },
-    sortable: true,
-    sortKey: 'description',
-    headerClassName: 'break-words leading-tight',
-  },
-
-  {
-    key: 'units',
-    header: 'Units',
-    align: 'right',
-    width: 'min-w-[120px]',
-    style: { minWidth: 120, width: 120 },
-    sortable: true,
-    sortKey: 'units',
-    heatmap: 'green',
-    headerClassName: 'break-words leading-tight',
-  },
-
-  {
-    key: 'productSales',
-    header: 'Product Sales',
-    align: 'right',
-    width: 'min-w-[160px]',
-    style: { minWidth: 160, width: 160 },
-    sortable: true,
-    sortKey: 'productSales',
-    heatmap: 'green',
-    headerClassName: 'break-words leading-tight',
-  },
-
-  {
-    key: 'promoRebates',
-    header: 'Promo Rebates',
-    align: 'right',
-    width: 'min-w-[160px]',
-    style: { minWidth: 160, width: 160 },
-    sortable: true,
-    sortKey: 'promoRebates',
-    heatmap: 'red',
-    headerClassName: 'break-words leading-tight',
-  },
-
-  {
-    key: 'sellingFees',
-    header: 'Selling Fees',
-    align: 'right',
-    width: 'min-w-[150px]',
-    style: { minWidth: 150, width: 150 },
-    sortable: true,
-    sortKey: 'sellingFees',
-    heatmap: 'red',
-    headerClassName: 'break-words leading-tight',
-  },
-
-  {
-    key: 'fbaFees',
-    header: 'FBA Fees',
-    align: 'right',
-    width: 'min-w-[140px]',
-    style: { minWidth: 140, width: 140 },
-    sortable: true,
-    sortKey: 'fbaFees',
-    heatmap: 'red',
-    headerClassName: 'break-words leading-tight',
-  },
-
-  {
-    key: 'otherAmazonAdj',
-    header: 'Other Amazon Adj.',
-    align: 'right',
-    width: 'min-w-[170px]',
-    style: { minWidth: 170, width: 170 },
-    sortable: true,
-    sortKey: 'otherAmazonAdj',
-    heatmap: 'neutral',
-    headerClassName: 'break-words leading-tight',
-  },
-
-  {
-    key: 'totalAmazonExpenses',
-    header: 'Total Amazon Expenses',
-    align: 'right',
-    width: 'min-w-[190px]',
-    style: { minWidth: 190, width: 190 },
-    sortable: true,
-    sortKey: 'totalAmazonExpenses',
-    heatmap: 'red',
-    headerClassName: 'break-words leading-tight',
-  },
-
-  {
-    key: 'marketingExpense',
-    header: 'Marketing Expense',
-    align: 'right',
-    width: 'min-w-[180px]',
-    style: { minWidth: 180, width: 180 },
-    sortable: true,
-    sortKey: 'marketingExpense',
-    heatmap: 'red',
-    headerClassName: 'break-words leading-tight',
-  },
-
-  {
-    key: 'allocatedNonSkuExpenses',
-    header: 'Allocated Non-SKU Expenses',
-    align: 'right',
-    width: 'min-w-[220px]',
-    style: { minWidth: 220, width: 220 },
-    sortable: true,
-    sortKey: 'allocatedNonSkuExpenses',
-    heatmap: 'neutral',
-    headerClassName: 'break-words leading-tight',
-  },
-
-  {
-    key: 'totalExpensesInclMarketing',
-    header: 'Total Expenses incl. Marketing',
-    align: 'right',
-    width: 'min-w-[220px]',
-    style: { minWidth: 220, width: 220 },
-    sortable: true,
-    sortKey: 'totalExpensesInclMarketing',
-    heatmap: 'red',
-    headerClassName: 'break-words leading-tight',
-  },
-
-  {
-    key: 'totalCogs',
-    header: 'Total COGS',
-    align: 'right',
-    width: 'min-w-[150px]',
-    style: { minWidth: 150, width: 150 },
-    sortable: true,
-    sortKey: 'totalCogs',
-    heatmap: 'red',
-    headerClassName: 'break-words leading-tight',
-  },
-
-  {
-    key: 'totalExpensesInclMarketingCogs',
-    header: 'Total Expenses incl. Marketing + COGS',
-    align: 'right',
-    width: 'min-w-[270px]',
-    style: { minWidth: 270, width: 270 },
-    sortable: true,
-    sortKey: 'totalExpensesInclMarketingCogs',
-    heatmap: 'red',
-    headerClassName: 'break-words leading-tight',
-  },
-
-  {
-    key: 'totalExpensesInclAmazonCogs',
-    header: 'Total Expenses incl. Amazon + COGS',
-    align: 'right',
-    width: 'min-w-[270px]',
-    style: { minWidth: 270, width: 270 },
-    sortable: true,
-    sortKey: 'totalExpensesInclAmazonCogs',
-    heatmap: 'red',
-    headerClassName: 'break-words leading-tight',
-  },
-
-  {
-    key: 'breakevenPrice',
-    header: 'Breakeven Price',
-    align: 'right',
-    width: 'min-w-[170px]',
-    style: { minWidth: 170, width: 170 },
-    sortable: true,
-    sortKey: 'breakevenPrice',
-    heatmap: 'neutral',
-    headerClassName: 'break-words leading-tight',
-  },
-
-  {
-    key: 'breakevenPriceExcMarketing',
-    header: 'Breakeven Price Exc. Marketing',
-    align: 'right',
-    width: 'min-w-[210px]',
-    style: { minWidth: 210, width: 210 },
-    sortable: true,
-    sortKey: 'breakevenPriceExcMarketing',
-    heatmap: 'neutral',
-    headerClassName: 'break-words leading-tight',
-  },
-
-  {
-    key: 'netAfterAmazon',
-    header: 'Net After Amazon',
-    align: 'right',
-    width: 'min-w-[180px]',
-    style: { minWidth: 180, width: 180 },
-    sortable: true,
-    sortKey: 'netAfterAmazon',
-    heatmap: 'green',
-    headerClassName: 'break-words leading-tight',
-  },
-
-  {
-    key: 'netAfterAmazonMarketing',
-    header: 'Net After Amazon + Marketing',
-    align: 'right',
-    width: 'min-w-[240px]',
-    style: { minWidth: 240, width: 240 },
-    sortable: true,
-    sortKey: 'netAfterAmazonMarketing',
-    heatmap: 'green',
-    headerClassName: 'break-words leading-tight',
-  },
-
-  {
-    key: 'amazonMarginPct',
-    header: 'Amazon Margin %',
-    align: 'right',
-    width: 'min-w-[170px]',
-    style: { minWidth: 170, width: 170 },
-    sortable: true,
-    sortKey: 'amazonMarginPct',
-    heatmap: 'green',
-    headerClassName: 'break-words leading-tight',
-  },
-
-  {
-    key: 'marginAfterMarketingPct',
-    header: 'Margin After Marketing %',
-    align: 'right',
-    width: 'min-w-[210px]',
-    style: { minWidth: 210, width: 210 },
-    sortable: true,
-    sortKey: 'marginAfterMarketingPct',
-    heatmap: 'green',
-    headerClassName: 'break-words leading-tight',
-  },
-
-  {
-    key: 'marginAfterAllPct',
-    header: 'Margin After All %',
-    align: 'right',
-    width: 'min-w-[180px]',
-    style: { minWidth: 180, width: 180 },
-    sortable: true,
-    sortKey: 'marginAfterAllPct',
-    heatmap: 'neutral',
-    headerClassName: 'break-words leading-tight',
-  },
-
-  {
-    key: 'targetProfitAtB6Pct',
-    header: 'Target Profit @ B6',
-    align: 'right',
-    width: 'min-w-[190px]',
-    style: { minWidth: 190, width: 190 },
-    sortable: true,
-    sortKey: 'targetProfitAtB6Pct',
-    heatmap: 'neutral',
-    headerClassName: 'break-words leading-tight',
-  },
-
-  {
-    key: 'targetGap',
-    header: 'Target Gap / (Surplus)',
-    align: 'right',
-    width: 'min-w-[200px]',
-    style: { minWidth: 200, width: 200 },
-    sortable: true,
-    sortKey: 'targetGap',
-    heatmap: 'neutral',
-    headerClassName: 'break-words leading-tight',
-  },
-
-  {
-    key: 'status',
-    header: 'Status',
-    align: 'left',
-    width: 'min-w-[130px]',
-    style: { minWidth: 130, width: 130 },
-    sortable: true,
-    sortKey: 'status',
-    headerClassName: 'break-words leading-tight',
-  },
-
-  {
-    key: 'avgSellingPrice',
-    header: 'Avg Selling Price',
-    align: 'right',
-    width: 'min-w-[180px]',
-    style: { minWidth: 180, width: 180 },
-    sortable: true,
-    sortKey: 'avgSellingPrice',
-    heatmap: 'neutral',
-    headerClassName: 'break-words leading-tight',
-  },
-
-  {
-    key: 'adsPerUnit',
-    header: 'Ads / Unit',
-    align: 'right',
-    width: 'min-w-[130px]',
-    style: { minWidth: 130, width: 130 },
-    sortable: true,
-    sortKey: 'adsPerUnit',
-    heatmap: 'red',
-    headerClassName: 'break-words leading-tight',
-  },
-
-  {
-    key: 'allocatedOpex',
-    header: 'Allocated OPEX',
-    align: 'right',
-    width: 'min-w-[170px]',
-    style: { minWidth: 170, width: 170 },
-    sortable: true,
-    sortKey: 'allocatedOpex',
-    heatmap: 'neutral',
-    headerClassName: 'break-words leading-tight',
-  },
-
-  {
-    key: 'trueNetProfit',
-    header: 'True Net Profit',
-    align: 'right',
-    width: 'min-w-[180px]',
-    style: { minWidth: 180, width: 180 },
-    sortable: true,
-    sortKey: 'trueNetProfit',
-    heatmap: 'green',
-    headerClassName: 'bg-success-50 break-words leading-tight',
-  },
-];
-
-// ─────────────────────────────────────────────────────────────
-// Cell Renderer
-// ─────────────────────────────────────────────────────────────
-
-const renderCell = (
-  row: BreakevenItem,
-  column: ColumnDef<BreakevenItem>
-): React.ReactNode => {
-  const key = column.key as SortColumn;
-  const val = (row as any)[key];
-
-  // SKU
-  if (key === 'sku') {
-    return (
-      <span className="text-primary-600 font-medium">
-        {val || '—'}
-      </span>
-    );
-  }
-
-  // Description / status
-  if (key === 'description' || key === 'status') {
-    return String(val ?? '—');
-  }
-
-  // Units
-  if (key === 'units') {
-    return (
-      <span className="tabular-nums">
-        {toNumber(val).toLocaleString()}
-      </span>
-    );
-  }
-
-  // Percentages
-  if (
-    key === 'amazonMarginPct' ||
-    key === 'marginAfterMarketingPct' ||
-    key === 'marginAfterAllPct'
-  ) {
-    return (
-      <span className="tabular-nums">
-        {formatPercentage(toNumber(val))}
-      </span>
-    );
-  }
-
-  // Target gap
-  if (key === 'targetGap') {
-    const amount = toNumber(val);
-    const isPositive = amount >= 0;
-
-    return (
-      <span
-        className={`font-semibold tabular-nums ${
-          isPositive
-            ? 'text-success-600'
-            : 'text-danger-600'
-        }`}
-      >
-        {isPositive ? '+' : '-'}
-        {formatCurrency(Math.abs(amount))}
-      </span>
-    );
-  }
-
-  // True net profit
-  if (key === 'trueNetProfit') {
-    const amount = toNumber(val);
-    const isNegative = amount < 0;
-
-    return (
-      <span
-        className={`font-semibold tabular-nums ${
-          isNegative
-            ? 'text-danger-600'
-            : 'text-success-600'
-        }`}
-      >
-        {isNegative ? '-' : ''}
-        {formatCurrency(Math.abs(amount))}
-      </span>
-    );
-  }
-
-  // ───────────────────────────────────────────────────────
-  // Currency columns
-  //
-  // IMPORTANT:
-  // Values are already signed by the API.
-  //
-  // Example:
-  // sellingFees = -100
-  //
-  // We render:
-  // -$100.00
-  //
-  // We DO NOT transform -100 into +100.
-  // ───────────────────────────────────────────────────────
-
-  const currencyCols: SortColumn[] = [
-    'productSales',
-
-    'promoRebates',
-    'sellingFees',
-    'fbaFees',
-    'otherAmazonAdj',
-    'totalAmazonExpenses',
-
-    'marketingExpense',
-    'allocatedNonSkuExpenses',
-    'totalExpensesInclMarketing',
-
-    'totalCogs',
-    'totalExpensesInclMarketingCogs',
-    'totalExpensesInclAmazonCogs',
-
-    'netAfterAmazon',
-    'netAfterAmazonMarketing',
-
-    'targetProfitAtB6Pct',
-
-    'breakevenPrice',
-    'breakevenPriceExcMarketing',
-
-    'avgSellingPrice',
-    'adsPerUnit',
-    'allocatedOpex',
-  ];
-
-  if (currencyCols.includes(key)) {
-    return formatSignedCurrency(val);
-  }
-
-  return String(val ?? '—');
-};
-
-// ─────────────────────────────────────────────────────────────
-// Skeletons
-// ─────────────────────────────────────────────────────────────
-
-function SummaryCardSkeleton() {
-  return (
-    <div className="bg-white rounded-lg border border-gray-200 p-4 animate-pulse">
-      <div className="h-3 bg-gray-200 rounded w-20 mb-2" />
-      <div className="h-6 bg-gray-200 rounded w-24" />
-    </div>
-  );
-}
-
-function SummaryCardsSkeleton() {
-  return (
-    <div className="p-4 grid grid-cols-5 gap-4">
-      <SummaryCardSkeleton />
-      <SummaryCardSkeleton />
-      <SummaryCardSkeleton />
-      <SummaryCardSkeleton />
-      <SummaryCardSkeleton />
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────
-// Component
-// ─────────────────────────────────────────────────────────────
 
 export default function BreakevenAnalysis() {
-  const [filters, setFilters] = useState<Filters>({
-    search: '',
-    status: [],
-    marketplaces: [],
-    fba: [],
-  });
+  const [draft, setDraft] = useState<FilterState>(INITIAL_FILTERS);
+  const [applied, setApplied] = useState<FilterState>(INITIAL_FILTERS);
+  const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search.trim(), 300);
 
-  const [dateRange, setDateRange] =
-    useState<DateRangeValue>({
-      startDate: format(
-        subDays(new Date(), 29),
-        'yyyy-MM-dd'
-      ),
-      endDate: format(new Date(), 'yyyy-MM-dd'),
-      presetId: 'last30',
-    });
+  const update = <K extends keyof FilterState>(key: K, value: FilterState[K]) =>
+    setDraft((current) => ({ ...current, [key]: value }));
+  const filterPending = !sameFilters(draft, applied);
+  const applyFilters = () => {
+    // An out-of-range margin falls back to the default, and the input shows the margin actually used
+    const next = { ...draft, margin: String(validMargin(draft.margin)) };
+    setDraft(next);
+    setApplied(next);
+  };
 
-  const [page, setPage] = useState(1);
+  /** Summary status chips: show only that status at once (a second click shows every status again). */
+  const quickFilterStatus = (status: BreakEvenStatus) => {
+    const statuses: BreakEvenStatus[] =
+      applied.statuses.length === 1 && applied.statuses[0] === status
+        ? []
+        : [status];
+    setDraft((current) => ({ ...current, statuses }));
+    setApplied((current) => ({ ...current, statuses }));
+  };
 
-  const [sortColumn, setSortColumn] =
-    useState<SortColumn>('trueNetProfit');
+  const { dateRange, currency, marketplaces, statuses } = applied;
+  const targetMargin = validMargin(applied.margin);
 
-  const [sortDirection, setSortDirection] =
-    useState<SortDirection>('desc');
+  const params =
+    dateRange.startDate && dateRange.endDate
+      ? {
+          startDate: dateRange.startDate,
+          endDate: dateRange.endDate,
+          currency,
+          targetMargin,
+          ...(marketplaces.length > 0 && {
+            marketplaces: marketplaces.join(","),
+          }),
+          ...(debouncedSearch && { search: debouncedSearch }),
+        }
+      : null;
 
-  const [selectedCurrency, setSelectedCurrency] =
-    useState<CurrencyCode>('USD');
-
-  const [targetMargin, setTargetMargin] =
-    useState<string>('10');
-
-  // ─────────────────────────────────────────────────────────
-  // API params
-  // ─────────────────────────────────────────────────────────
-
-  const apiParams = useMemo(() => {
-    if (!dateRange.startDate || !dateRange.endDate) {
-      return null;
-    }
-
-    const marginNum = parseFloat(targetMargin);
-
-    const validatedMargin =
-      !isNaN(marginNum) &&
-      marginNum >= 1 &&
-      marginNum <= 100
-        ? marginNum
-        : 10;
-
-    return {
-      startDate: dateRange.startDate,
-      endDate: dateRange.endDate,
-
-      currency: selectedCurrency,
-
-      targetMargin: validatedMargin,
-
-      ...(filters.status.length > 0 && {
-        status: filters.status.join(','),
-      }),
-
-      ...(filters.marketplaces.length > 0 && {
-        marketplaces: filters.marketplaces.join(','),
-      }),
-
-      ...(filters.fba.length > 0 && {
-        fba: filters.fba.join(','),
-      }),
-    };
-  }, [
-    dateRange.startDate,
-    dateRange.endDate,
-    filters.status,
-    filters.marketplaces,
-    filters.fba,
-    selectedCurrency,
-    targetMargin,
-  ]);
-
-  const {
-    data: apiData,
-    isLoading,
-    isFetching,
-    error,
-  } = useGetBreakEvenDataQuery(
-    apiParams ?? {
-      startDate: '',
-      endDate: '',
-      currency: 'USD',
-      targetMargin: 10,
-    },
+  const { data, isLoading, isFetching, error } = useGetBreakEvenDataQuery(
+    params ?? { startDate: "", endDate: "" },
     {
-      skip: !apiParams,
-    }
-  );
-
-  // ─────────────────────────────────────────────────────────
-  // API → Table mapping
-  // ─────────────────────────────────────────────────────────
-
-  const tableData: BreakevenItem[] = useMemo(() => {
-    if (!apiData?.items) {
-      return [];
-    }
-
-    return apiData.items.map((item: any) => ({
-      sku: item.sku ?? '',
-
-      description:
-        item.title ??
-        item.description ??
-        '',
-
-      units: toNumber(item.unitsSold),
-
-      productSales: toNumber(
-        item.productSales
-      ),
-
-      // Keep API sign exactly as returned.
-      promoRebates: toNumber(
-        item.promoRebates
-      ),
-
-      sellingFees: toNumber(
-        item.sellingFee
-      ),
-
-      fbaFees: toNumber(
-        item.fbaFees
-      ),
-
-      otherAmazonAdj: toNumber(
-        item.otherAmazonAdj
-      ),
-
-      // IMPORTANT:
-      // This is the API's calculated total.
-      // Do not recalculate it here.
-      totalAmazonExpenses: toNumber(
-        item.totalAmazonExpense
-      ),
-
-      // This is where the newly allocated AdsFee
-      // amount reaches the table.
-      //
-      // The backend is responsible for:
-      // 1. matching SKU substring inside campaignName
-      // 2. assigning matched campaign cost to SKU
-      // 3. handling unmatched costs according to the
-      //    allocation logic we implemented
-      marketingExpense: toNumber(
-        item.marketingExpense
-      ),
-
-      allocatedNonSkuExpenses: toNumber(
-        item.allocatedNonSku
-      ),
-
-      totalExpensesInclMarketing: toNumber(
-        item.totalExpenseInclMarketing
-      ),
-
-      totalCogs: toNumber(
-        item.totalCogs
-      ),
-
-      totalExpensesInclMarketingCogs:
-        toNumber(
-          item.totalExpenseInclMarketingAndCogs
-        ),
-
-      totalExpensesInclAmazonCogs:
-        toNumber(
-          item.totalExpenseInclAmazonAndCogs
-        ),
-
-      netAfterAmazon: toNumber(
-        item.netAfterAmazon
-      ),
-
-      netAfterAmazonMarketing: toNumber(
-        item.netAfterAmazonAndMarketing
-      ),
-
-      amazonMarginPct: toNumber(
-        item.amazonMarginPct
-      ),
-
-      marginAfterMarketingPct: toNumber(
-        item.marginAfterMarketingPct
-      ),
-
-      marginAfterAllPct: toNumber(
-        item.marginAfterAllPct
-      ),
-
-      targetProfitAtB6Pct: toNumber(
-        item.targetProfit
-      ),
-
-      targetGap: toNumber(
-        item.targetGap
-      ),
-
-      status: String(
-        item.status ?? ''
-      ).toUpperCase(),
-
-      breakevenPrice: toNumber(
-        item.breakevenPrice
-      ),
-
-      breakevenPriceExcMarketing:
-        toNumber(
-          item.breakevenPriceExcMarketing
-        ),
-
-      avgSellingPrice: toNumber(
-        item.avgSellingPrice
-      ),
-
-      adsPerUnit: toNumber(
-        item.adsPerUnit
-      ),
-
-      allocatedOpex: toNumber(
-        item.allocatedOpex
-      ),
-
-      trueNetProfit: toNumber(
-        item.trueNetProfit
-      ),
-    }));
-  }, [apiData]);
-
-  // ─────────────────────────────────────────────────────────
-  // Sorting
-  // ─────────────────────────────────────────────────────────
-
-  const handleSort = useCallback(
-    (column: string) => {
-      const col = column as SortColumn;
-
-      if (sortColumn === col) {
-        setSortDirection((prev) =>
-          prev === 'asc' ? 'desc' : 'asc'
-        );
-      } else {
-        setSortColumn(col);
-        setSortDirection('desc');
-      }
-
-      setPage(1);
+      skip: !params,
     },
-    [sortColumn]
   );
 
-  // ─────────────────────────────────────────────────────────
-  // Client-side filtering + sorting
-  // ─────────────────────────────────────────────────────────
-
-  const filteredData = useMemo(() => {
-    let result = [...tableData];
-
-    if (filters.search.trim()) {
-      const q = filters.search
-        .trim()
-        .toLowerCase();
-
-      result = result.filter(
-        (item) =>
-          item.sku
-            .toLowerCase()
-            .includes(q) ||
-          item.description
-            .toLowerCase()
-            .includes(q)
-      );
-    }
-
-    result.sort((a, b) => {
-      const aVal = (a as any)[sortColumn];
-      const bVal = (b as any)[sortColumn];
-
-      if (
-        typeof aVal === 'string' ||
-        typeof bVal === 'string'
-      ) {
-        const aString = String(
-          aVal ?? ''
-        ).toLowerCase();
-
-        const bString = String(
-          bVal ?? ''
-        ).toLowerCase();
-
-        if (aString < bString) {
-          return sortDirection === 'asc'
-            ? -1
-            : 1;
-        }
-
-        if (aString > bString) {
-          return sortDirection === 'asc'
-            ? 1
-            : -1;
-        }
-
-        return 0;
-      }
-
-      const aNumber = toNumber(aVal);
-      const bNumber = toNumber(bVal);
-
-      if (aNumber < bNumber) {
-        return sortDirection === 'asc'
-          ? -1
-          : 1;
-      }
-
-      if (aNumber > bNumber) {
-        return sortDirection === 'asc'
-          ? 1
-          : -1;
-      }
-
-      return 0;
-    });
-
-    return result;
-  }, [
-    tableData,
-    filters.search,
-    sortColumn,
-    sortDirection,
-  ]);
-
-  // ─────────────────────────────────────────────────────────
-  // Pagination
-  // ─────────────────────────────────────────────────────────
-
-  const totalItems = filteredData.length;
-
-  const totalPages = Math.ceil(
-    totalItems / PAGE_SIZE
+  const columns = useMemo(
+    () => buildBreakEvenColumns(targetMargin),
+    [targetMargin],
   );
-
-  const paginatedData = useMemo(() => {
-    const startIndex =
-      (page - 1) * PAGE_SIZE;
-
-    return filteredData.slice(
-      startIndex,
-      startIndex + PAGE_SIZE
-    );
-  }, [filteredData, page]);
-
-  // ─────────────────────────────────────────────────────────
-  // Handlers
-  // ─────────────────────────────────────────────────────────
-
-  const handleSearch = useCallback(
-    (
-      e: React.ChangeEvent<HTMLInputElement>
-    ) => {
-      setFilters((prev) => ({
-        ...prev,
-        search: e.target.value,
-      }));
-
-      setPage(1);
-    },
-    []
+  // The status filter narrows the rows already loaded; the summary still covers every SKU
+  const rows = useMemo(
+    () =>
+      statuses.length
+        ? data?.items.filter((item) => statuses.includes(item.breakEven.status))
+        : data?.items,
+    [data?.items, statuses],
   );
-
-  const handleTargetMarginChange =
-    useCallback(
-      (
-        e: React.ChangeEvent<HTMLInputElement>
-      ) => {
-        const raw = e.target.value;
-
-        if (raw === '') {
-          setTargetMargin('');
-          return;
-        }
-
-        if (!/^\d*\.?\d*$/.test(raw)) {
-          return;
-        }
-
-        const num = parseFloat(raw);
-
-        if (num > 100) {
-          return;
-        }
-
-        setTargetMargin(raw);
-      },
-      []
-    );
-
-  const handleExportCSV = useCallback(() => {
-    const headers = COLUMNS.map((c) =>
-      String(c.header)
-    );
-
-    const rows = filteredData.map(
-      (item) =>
-        COLUMNS.map((col) => {
-          const val = (item as any)[
-            col.key
-          ];
-
-          if (typeof val === 'string') {
-            return `"${val.replace(
-              /"/g,
-              '""'
-            )}"`;
-          }
-
-          return String(val ?? '');
-        })
-    );
-
-    const csv = [
-      headers.join(','),
-      ...rows.map((r) =>
-        r.join(',')
-      ),
-    ].join('\n');
-
-    const blob = new Blob([csv], {
-      type: 'text/csv',
-    });
-
-    const url =
-      URL.createObjectURL(blob);
-
-    const a =
-      document.createElement('a');
-
-    a.href = url;
-
-    a.download =
-      `breakeven-analysis-${
-        new Date()
-          .toISOString()
-          .split('T')[0]
-      }.csv`;
-
-    a.click();
-
-    URL.revokeObjectURL(url);
-  }, [filteredData]);
-
-  // ─────────────────────────────────────────────────────────
-  // Date display
-  // ─────────────────────────────────────────────────────────
-
-  const dateDisplay = useMemo(() => {
-    if (
-      !dateRange.startDate ||
-      !dateRange.endDate
-    ) {
-      return '';
-    }
-
-    const start = parseISO(
-      dateRange.startDate
-    );
-
-    const end = parseISO(
-      dateRange.endDate
-    );
-
-    return `${format(
-      start,
-      'MMM d, yyyy'
-    )} – ${format(
-      end,
-      'MMM d, yyyy'
-    )}`;
-  }, [dateRange]);
-
-  // ─────────────────────────────────────────────────────────
-  // Pagination config
-  // ─────────────────────────────────────────────────────────
-
-  const paginationConfig:
-    | PaginationConfig
-    | undefined = useMemo(() => {
-    if (totalItems === 0) {
-      return undefined;
-    }
-
-    return {
-      page,
-      pageSize: PAGE_SIZE,
-      totalItems,
-      totalPages,
-      onPageChange: setPage,
-      itemLabel: 'products',
-    };
-  }, [
-    page,
-    totalItems,
-    totalPages,
-  ]);
-
-  // ─────────────────────────────────────────────────────────
-  // Empty state
-  // ─────────────────────────────────────────────────────────
-
-  const emptyState = useMemo(
-    () => (
-      <EmptyState
-        title={
-          error
-            ? 'Failed to load data'
-            : 'No products found'
-        }
-        description={
-          error
-            ? 'Please try again later.'
-            : 'Try adjusting your filters or search query.'
-        }
-      />
-    ),
-    [error]
-  );
-
-  // ─────────────────────────────────────────────────────────
-  // Render
-  // ─────────────────────────────────────────────────────────
+  const summary = data?.summary;
+  const dateDisplay =
+    dateRange.startDate && dateRange.endDate
+      ? `${format(parseISO(dateRange.startDate), "MMM d, yyyy")} – ${format(parseISO(dateRange.endDate), "MMM d, yyyy")}`
+      : "";
 
   return (
-    <div className="p-6 flex flex-col gap-4 h-[calc(100vh-64px)]">
+    <div className="p-6 flex flex-col gap-4">
       <PageHeader
         title="Breakeven Analysis"
-        description={`Profitability breakdown by SKU${
-          dateDisplay
-            ? ` • ${dateDisplay}`
-            : ''
-        }`}
+        description={`Profitability and break-even price by SKU${dateDisplay ? ` • ${dateDisplay}` : ""}`}
       />
 
-      {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-3">
-        {/* Search */}
-        <div className="relative flex-1 min-w-[240px] max-w-[320px]">
-          <svg
-            className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+      {/* Filters: what to report on, then how to judge it */}
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative flex-1 min-w-[320px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
+            <input
+              type="text"
+              placeholder="Search SKU, ASIN, title..."
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              className="w-full pl-10 pr-3 py-2 border border-border rounded-lg text-sm bg-surface-primary text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
             />
-          </svg>
+          </div>
 
-          <input
-            type="text"
-            placeholder="Search SKU or Description..."
-            value={filters.search}
-            onChange={handleSearch}
-            className="
-              w-full
-              pl-10
-              pr-3
-              py-2
-              border
-              border-gray-200
-              rounded-lg
-              text-sm
-              focus:outline-none
-              focus:ring-2
-              focus:ring-primary-500
-              focus:border-transparent
-              bg-surface-primary
-              text-text-primary
-            "
+          <DateRangePicker
+            value={draft.dateRange}
+            onChange={(range) => update("dateRange", range)}
+            displayFormat="MMM d, yyyy"
+            placeholder="Select date range"
           />
+
+          {/* Same dropdowns, in the same order, as the profit dashboard's filter bar */}
+          <div className="min-w-[160px] shrink-0">
+            <MultiSelectInput
+              title="Marketplace"
+              options={MARKETPLACES}
+              value={draft.marketplaces}
+              onChange={(value) =>
+                setDraft((current) => ({
+                  ...current,
+                  marketplaces: value,
+                  currency: currencyForMarketplaceSelection(
+                    value,
+                    current.currency,
+                  ),
+                }))
+              }
+              placeholder="All Marketplaces"
+            />
+          </div>
+
+          <div className="min-w-[120px] shrink-0">
+            <MultiSelectInput
+              single
+              title="Currency"
+              options={CURRENCY_OPTIONS}
+              value={[draft.currency]}
+              onChange={(value) => value[0] && update("currency", value[0])}
+            />
+          </div>
         </div>
 
-        {/* Date */}
-        <DateRangePicker
-          value={dateRange}
-          onChange={(range) => {
-            setDateRange(range);
-            setPage(1);
-          }}
-          displayFormat="MMM d, yyyy"
-          placeholder="Select date range"
-        />
-
-        {/* Currency */}
-        <div className="min-w-[100px]">
-          <Select
-            value={selectedCurrency}
-            onChange={(e) =>
-              setSelectedCurrency(
-                e.target.value as CurrencyCode
-              )
-            }
-            options={CURRENCY_OPTIONS}
-          />
-        </div>
-
-        {/* Status */}
-        <MultiSelectInput
-          title="Status"
-          options={STATUS_OPTIONS}
-          value={filters.status}
-          onChange={(val: string[]) => {
-            setFilters((prev) => ({
-              ...prev,
-              status: val,
-            }));
-
-            setPage(1);
-          }}
-          placeholder="All Status"
-        />
-
-        {/* Marketplace */}
-        <MultiSelectInput
-          title="Marketplace"
-          options={MARKETPLACES}
-          value={filters.marketplaces}
-          onChange={(val: string[]) => {
-            setFilters((prev) => ({
-              ...prev,
-              marketplaces: val,
-            }));
-
-            setPage(1);
-          }}
-          placeholder="All Marketplaces"
-        />
-
-        {/* FBA */}
-        <MultiSelectInput
-          title="FBA"
-          options={FBA_OPTIONS}
-          value={filters.fba}
-          onChange={(val: string[]) => {
-            setFilters((prev) => ({
-              ...prev,
-              fba: val,
-            }));
-
-            setPage(1);
-          }}
-          placeholder="Select FBA"
-        />
-
-        <div className="flex-1" />
-
-        {/* Export */}
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleExportCSV}
-          disabled={!filteredData.length}
-        >
-          <svg
-            className="w-4 h-4 mr-1.5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center">
+            <label
+              htmlFor="target-margin"
+              className="text-sm text-white px-3 py-2.5 bg-primary-500 rounded-l-lg whitespace-nowrap"
+            >
+              Target margin %
+            </label>
+            <input
+              id="target-margin"
+              type="text"
+              inputMode="decimal"
+              value={draft.margin}
+              onChange={(event) =>
+                update("margin", event.target.value.replace(/[^0-9.]/g, ""))
+              }
+              onKeyDown={(event) => event.key === "Enter" && applyFilters()}
+              className="w-16 px-2 py-2.5 border border-border rounded-r-lg text-sm text-center bg-surface-primary text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
-          </svg>
+          </div>
 
-          Export CSV
-        </Button>
-      </div>
+          <div className="min-w-[170px] shrink-0">
+            <MultiSelectInput
+              title="Target status"
+              options={STATUS_OPTIONS}
+              value={draft.statuses}
+              onChange={(value) =>
+                update("statuses", value as BreakEvenStatus[])
+              }
+              placeholder="All statuses"
+            />
+          </div>
 
-      {/* Target margin */}
-      <div className="flex">
-        <div className="flex items-center gap-2">
-          <label className="text-sm text-white p-2.5 bg-primary-500 whitespace-nowrap">
-            Target SKU Margin %
-          </label>
+          <div className="flex-1" />
 
-          <input
-            type="text"
-            inputMode="decimal"
-            value={targetMargin}
-            onChange={
-              handleTargetMarginChange
-            }
-            placeholder="10"
-            className="
-              w-16
-              px-2
-              py-2.5
-              border
-              border-gray-200
-              rounded-lg
-              text-sm
-              text-center
-              focus:outline-none
-              focus:ring-2
-              focus:ring-primary-500
-              focus:border-transparent
-              bg-surface-primary
-              text-text-primary
-            "
+          <ApplyFiltersButton
+            onClick={applyFilters}
+            pending={filterPending}
+            disabled={isFetching && !filterPending}
           />
         </div>
       </div>
 
       {/* Summary */}
-      {isLoading ||
-      (isFetching && !apiData?.summary) ? (
-        <SummaryCardsSkeleton />
-      ) : apiData?.summary ? (
-        <div className="grid grid-cols-5 gap-4">
+      {isLoading || (isFetching && !summary) ? (
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
+          {Array.from({ length: 6 }, (_, index) => (
+            <div
+              key={index}
+              className="bg-surface border border-border rounded-lg p-4 animate-pulse"
+            >
+              <div className="h-3 bg-surface-secondary rounded w-20 mb-2" />
+              <div className="h-6 bg-surface-secondary rounded w-24" />
+            </div>
+          ))}
+        </div>
+      ) : summary ? (
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
           <SummaryCard
-            label="Products"
-            value={apiData.summary.totalProducts.toLocaleString()}
+            label="SKUs"
+            value={summary.totalProducts.toLocaleString()}
           />
-
           <SummaryCard
-            label="Total Sales"
-            value={formatCurrency(
-              apiData.summary.totalSales
-            )}
+            label="Sales"
+            value={formatCurrency(summary.totalSales)}
           />
-
           <SummaryCard
-            label="Total Units"
-            value={apiData.summary.totalUnits.toLocaleString()}
+            label="Units sold"
+            value={summary.totalUnits.toLocaleString()}
           />
-
           <SummaryCard
-            label="Net Profit"
-            value={formatCurrency(
-              apiData.summary.totalNetProfit
-            )}
+            label="Net profit"
+            value={formatCurrency(summary.totalNetProfit)}
           />
-
           <SummaryCard
-            label="Avg Margin"
-            value={formatPercentage(
-              apiData.summary.avgMarginPct
-            )}
+            label="Net margin"
+            value={formatPercentage(summary.avgMarginPct)}
+          />
+          <SummaryCard
+            label={`vs ${summary.targetMargin}% target`}
+            value={
+              <div className="flex flex-wrap gap-1.5 text-sm">
+                {(
+                  [
+                    ["Below target", summary.belowTarget, "below"],
+                    ["Meets target", summary.meetsTarget, "meets"],
+                    ["Above target", summary.aboveTarget, "above"],
+                  ] as const
+                ).map(([status, count, label]) => (
+                  <StatusCount
+                    key={status}
+                    status={status}
+                    count={count}
+                    label={label}
+                    active={statuses.length === 1 && statuses[0] === status}
+                    onClick={() => quickFilterStatus(status)}
+                  />
+                ))}
+              </div>
+            }
           />
         </div>
       ) : null}
 
-      {/* Table */}
-      <div
-        className="
-          bg-white
-          border
-          border-gray-200
-          rounded-xl
-          overflow-hidden
-          shadow-sm
-          flex
-          flex-col
-        "
-        style={{
-          maxHeight:
-            'calc(100vh - 340px)',
-        }}
-      >
-        <SplitTable
-          columns={COLUMNS}
-          data={paginatedData}
-          rowKey="sku"
-          renderCell={renderCell}
+      {/* Products */}
+      <div className="bg-surface border border-border rounded-xl p-6">
+        <SellerboardProductsTable
+          products={rows as any}
           isLoading={isLoading}
-          emptyState={emptyState}
-          pagination={paginationConfig}
-          sortColumn={sortColumn}
-          sortDirection={sortDirection}
-          onSort={handleSort}
-          wrapperClassName="flex-1 min-h-0"
+          isFetching={isFetching}
+          error={error}
+          columns={columns}
+          getRowKey={(row: BreakEvenItem) =>
+            `${row.marketplace ?? ""}:${row.sku}`
+          }
+          getRowClassName={breakEvenRowClassName}
+          searchTerm={debouncedSearch}
+          pageSize={PAGE_SIZE}
+          emptyMessage={
+            error
+              ? "Failed to load break-even data. Please try again."
+              : "No SKUs match these filters."
+          }
+          footerContent={({ to, total }) => (
+            <>
+              Showing {to} of {total} SKUs · red: margin below {targetMargin}% ·
+              amber: {targetMargin}% to{" "}
+              {targetMargin + (summary?.aboveTargetPoints ?? 10)}% · green:
+              above that · break-even and target prices use the period&apos;s
+              costs per unit
+            </>
+          )}
         />
       </div>
     </div>
   );
 }
 
-// ─────────────────────────────────────────────────────────────
-// Summary Card
-// ─────────────────────────────────────────────────────────────
+function StatusCount({
+  status,
+  count,
+  label,
+  active,
+  onClick,
+}: {
+  status: BreakEvenStatus;
+  count: number;
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      title={
+        active ? "Show every status" : `Show only SKUs ${label} the target`
+      }
+      className={`px-2 py-0.5 text-xs rounded border font-semibold uppercase tracking-wide whitespace-nowrap transition-shadow hover:shadow ${STATUS_TONES[status].badge} ${
+        active ? "ring-2 ring-offset-1 ring-primary-500" : ""
+      }`}
+    >
+      {count.toLocaleString()} {label}
+    </button>
+  );
+}
 
 function SummaryCard({
   label,
   value,
 }: {
   label: string;
-  value: string | number;
+  value: React.ReactNode;
 }) {
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-4">
-      <div className="text-xs text-gray-500 uppercase tracking-wide">
+    <div className="bg-surface rounded-lg border border-border p-4">
+      <div className="text-xs text-text-muted uppercase tracking-wide">
         {label}
       </div>
-
-      <div className="text-lg font-bold text-gray-900 mt-1">
-        {value}
-      </div>
+      <div className="text-lg font-bold text-text-primary mt-1">{value}</div>
     </div>
   );
 }
