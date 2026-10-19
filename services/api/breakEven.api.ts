@@ -1,50 +1,41 @@
 import { baseApi } from './baseApi';
+import type { ProductProfitBreakdown } from './profit.api';
 
 export interface BreakEvenFilters {
   accountId?: string;
   amazonAccountId?: string;
-  marketplaceId?: string;
-  currency?: any;
+  currency?: string;
+  /** Target net margin, percent of sales (1 to 99). */
   targetMargin?: number;
-  sku?: string;
-  startDate: string;   // YYYY-MM-DD (PDT — Amazon timezone)
-  endDate: string;     // YYYY-MM-DD (PDT — Amazon timezone)
+  /** Comma-separated marketplaces, e.g. `Amazon.ca,Amazon.com`. */
+  marketplaces?: string;
+  search?: string;
+  startDate: string; // YYYY-MM-DD (PDT — Amazon timezone)
+  endDate: string; // YYYY-MM-DD (PDT — Amazon timezone)
 }
 
-export interface BreakEvenItem {
-  skuId: string;
-  sku: string;
-  asin: string;
-  title: string;
-  currentPrice: number;
-  cost: number;
-  productSales: number;
-  unitsSold: number;
-  promoRebates: number;
-  sellingFee: number;
-  otherAmazonAdj: number;
-  totalAmazonExpense: number;
-  amazonExpenses: number;
-  marketingExpense: number;
-  allocatedNonSku: number;
-  totalExpenseInclMarketing: number;
-  totalCogs: number;
-  totalExpenseInclMarketingAndCogs: number;
-  netAfterAmazon: number;
-  netAfterAmazonAndMarketing: number;
-  netAfterAmazonMarketingAndCogs: number;
-  amazonMarginPct: number;
-  marginAfterMarketingPct: number;
-  marginAfterAllPct: number;
-  targetProfit: number;
-  targetGap: number;
-  status: 'Below Target' | 'Meet Target';
-  breakevenPrice: number;
+export type BreakEvenStatus = 'Above target' | 'Meets target' | 'Below target' | 'No sales';
+
+/** A row's break-even figures, at the period's costs per unit. */
+export interface BreakEvenMetrics {
   avgSellingPrice: number;
-  adsPerUnit: number;
-  allocatedOpex: number;
-  trueNetProfit: number;
+  costPerUnit: number;
+  /** Price per unit at which net profit is zero. */
+  breakevenPrice: number;
+  breakevenPriceExclAds: number;
+  /** Price per unit that earns the target margin. */
+  targetPrice: number;
+  targetProfit: number;
+  /** Positive: short of the target; negative: surplus. */
+  targetGap: number;
+  status: BreakEvenStatus;
 }
+
+/** One SKU's products-table row (same numbers as the profit dashboard) with its break-even figures. */
+export type BreakEvenItem = ProductProfitBreakdown & {
+  marketplace?: string;
+  breakEven: BreakEvenMetrics;
+};
 
 export interface BreakEvenSummary {
   totalProducts: number;
@@ -52,21 +43,18 @@ export interface BreakEvenSummary {
   totalUnits: number;
   totalNetProfit: number;
   avgMarginPct: number;
-}
-
-export interface BreakEvenApiResponse {
-  success: boolean;
-  data: {
-    items: BreakEvenItem[];
-    summary: BreakEvenSummary;
-    filters: { startDate: string; endDate: string };
-  };
+  belowTarget: number;
+  meetsTarget: number;
+  aboveTarget: number;
+  /** Points over the target from which a SKU counts as above it. */
+  aboveTargetPoints: number;
+  targetMargin: number;
 }
 
 export interface BreakEvenData {
   items: BreakEvenItem[];
   summary: BreakEvenSummary;
-  filters: { startDate: string; endDate: string };
+  filters: { startDate: string; endDate: string; targetMargin: number };
 }
 
 export const breakEvenApi = baseApi.injectEndpoints({
@@ -76,7 +64,7 @@ export const breakEvenApi = baseApi.injectEndpoints({
         url: '/products/break-even-analysis',
         params: filters,
       }),
-      transformResponse: (response: BreakEvenApiResponse) => response.data,
+      transformResponse: (response: { success: boolean; data: BreakEvenData }) => response.data,
       providesTags: ['Profit'],
       keepUnusedDataFor: 300,
     }),

@@ -197,14 +197,6 @@ export default function DashboardLayout({
             action: 'read',
             href: '/breakeven-analysis',
             icon: NavIcons.products,
-            children: [
-              {
-                label: 'SKU Wise',
-                subject: 'breakeven-analysis:sku-wise',
-                action: 'read',
-                href: '/breakeven-analysis',
-              },
-            ],
           },
           {
             label: 'Bar Code',
