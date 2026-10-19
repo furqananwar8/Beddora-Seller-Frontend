@@ -810,6 +810,19 @@ export const SellerboardProductsTable: React.FC<
     const showInitialLoading = isLoading || (isFetching && (!activeProducts || activeProducts.length === 0))
     const isTableEmpty = showInitialLoading || error || !paginatedProducts.length
 
+    // Loading / error / no rows: shown over the visible part of the table (below the header), never as a cell as wide
+    // as every column, so it stays centred in view however far the table scrolls
+    const stateMessage = showInitialLoading ? (
+      <div className="flex flex-col items-center gap-2">
+        <Spinner />
+        <span className="text-xs font-medium text-text-muted">Loading products...</span>
+      </div>
+    ) : error ? (
+      <span className="text-danger-600 font-medium">Failed to load products. Please try again.</span>
+    ) : !paginatedProducts.length ? (
+      <span className="text-text-muted">{emptyMessage}</span>
+    ) : null
+
     return (
       // data-ai-registered: the AI already gets this table via useAiContext, skip the DOM copy
       <div className="w-full space-y-4 relative min-h-[400px]" data-ai-registered>
@@ -833,9 +846,10 @@ export const SellerboardProductsTable: React.FC<
           anchorRect={productStat?.anchorRect || null}
         />
 
-        {/* Scroll Container */}
+        {/* Scroll Container: the only scroller (the table's own wrapper does not scroll), so its scrollbars sit on its edges */}
+        <div className="relative">
         <div className="w-full h-[500px] max-h-[calc(100vh-280px)] min-h-[400px] overflow-y-auto overflow-x-auto border border-border rounded-lg shadow-sm flex flex-col">
-          <Table className={cn('min-w-full border-separate border-spacing-0', isTableEmpty && 'h-full flex-1')}>
+          <Table wrapperClassName="overflow-visible" className="min-w-full border-separate border-spacing-0">
             <TableHeader className="sticky top-0 z-20 bg-surface shadow-sm">
               {columns ? (
                 <TableRow className="bg-surface h-12">
@@ -1043,41 +1057,19 @@ export const SellerboardProductsTable: React.FC<
               )}
             </TableHeader>
 
-            <TableBody className={cn(isTableEmpty && 'h-full')}>
-              {showInitialLoading ? (
-                <TableRow className="h-full hover:bg-transparent bg-transparent">
-                  <TableCell colSpan={columns ? columns.length : 15} className="h-full text-center align-middle border-none p-0">
-                    <div className="flex flex-col items-center justify-center h-full min-h-[300px] gap-2 py-12">
-                      <Spinner />
-                      <span className="text-xs font-medium text-text-muted">
-                        Loading products...
-                      </span>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ) : error ? (
-                <TableRow className="h-full hover:bg-transparent bg-transparent">
-                  <TableCell colSpan={columns ? columns.length : 15} className="h-full text-center align-middle border-none p-0">
-                    <div className="flex flex-col items-center justify-center h-full min-h-[300px] py-12 text-danger-600 font-medium">
-                      Failed to load products. Please try again.
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ) : !paginatedProducts.length ? (
-                <TableRow className="h-full hover:bg-transparent bg-transparent">
-                  <TableCell colSpan={columns ? columns.length : 15} className="h-full text-center align-middle border-none p-0">
-                    <div className="flex flex-col items-center justify-center h-full min-h-[300px] py-12 text-text-muted">
-                      {emptyMessage}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ) : (
+            <TableBody>
+              {!isTableEmpty &&
                 paginatedProducts.map((product) =>
                   columns ? renderColumnsRow(product) : renderProductRow(product)
-                )
-              )}
+                )}
             </TableBody>
           </Table>
+        </div>
+          {stateMessage && (
+            <div className="absolute inset-x-0 top-12 bottom-0 flex items-center justify-center pointer-events-none text-center px-6">
+              {stateMessage}
+            </div>
+          )}
         </div>
 
         {(totalPages > 1 || footerContent) && (
