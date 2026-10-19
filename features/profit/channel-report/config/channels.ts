@@ -18,6 +18,7 @@ const CHANNELS: ChannelDefinition[] = [
   { id: 'amazon', name: 'Amazon', color: '#232F3E', itemIdLabel: 'ASIN' },
   { id: 'walmart', name: 'Walmart', color: '#2563EB', itemIdLabel: 'Item ID' },
   { id: 'shopify', name: 'Shopify', color: '#5E8E3E', itemIdLabel: 'Variant' },
+  { id: 'wayfair', name: 'Wayfair', color: '#7B189F', itemIdLabel: 'Wayfair SKU' },
   {
     id: 'temu',
     name: 'Temu',

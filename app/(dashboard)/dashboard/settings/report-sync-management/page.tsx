@@ -38,9 +38,11 @@ export default function ReportSyncManagementPage() {
   // Channel syncs come from the API: one row per data type and mode, covering every connected market / store
   const walmart = useChannelSyncManagement(CHANNEL_SYNC_GROUPS.walmart.channel)
   const shopify = useChannelSyncManagement(CHANNEL_SYNC_GROUPS.shopify.channel)
+  const wayfair = useChannelSyncManagement(CHANNEL_SYNC_GROUPS.wayfair.channel)
   const channels = [
     { config: CHANNEL_SYNC_GROUPS.walmart, sync: walmart },
     { config: CHANNEL_SYNC_GROUPS.shopify, sync: shopify },
+    { config: CHANNEL_SYNC_GROUPS.wayfair, sync: wayfair },
   ]
 
   const amazonRows: SyncTableRow[] = MANAGED_SYNC_JOBS.flatMap(({ syncType, label, modes }) =>

@@ -24,6 +24,11 @@ export const CHANNEL_SYNC_GROUPS = {
     title: 'Shopify',
     emptyText: 'No Shopify store is connected (no Shopify credentials configured).',
   },
+  wayfair: {
+    channel: 'wayfair',
+    title: 'Wayfair',
+    emptyText: 'Wayfair is not connected (no Wayfair API credentials configured).',
+  },
 } satisfies Record<string, ChannelSyncGroupConfig>
 
 /** A channel sync row (one data type and mode, covering every market / store) as a table row. */
