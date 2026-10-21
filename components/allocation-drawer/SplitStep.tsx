@@ -5,6 +5,7 @@ import { AllocationDrawerModel } from './useAllocationDrawer'
 import { STOCK_LEGEND, StockBar } from './StockBar'
 import { Chip, Tile } from './drawerUi'
 import { AllocationSlider } from './AllocationSlider'
+import { AddSkuMenu } from './AddSkuMenu'
 import { DEFAULT_FBA_PERCENT, onHand, parseUnits, splitFromBalances, unassigned } from './allocationMath'
 
 const n = (value: number) => value.toLocaleString()
@@ -86,6 +87,18 @@ const SplitCard = ({ item, model }: { item: ProductInventoryItem; model: Allocat
               )}
             </span>
           </div>
+          <button
+            type="button"
+            onClick={() => model.removeItem(item.id)}
+            disabled={model.items.length === 1}
+            aria-label={`Remove ${item.sku}`}
+            title={model.items.length === 1 ? 'At least one product is needed' : `Remove ${item.sku}`}
+            className="self-start p-1 !rounded-md text-slate-500 hover:bg-slate-100 hover:text-red-700 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-slate-500"
+          >
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
         </div>
       </div>
 
@@ -182,13 +195,16 @@ export const SplitStep: React.FC<{ items: ProductInventoryItem[]; model: Allocat
         <Tile label="FBM" value={n(totals.fbm)} tone="green" />
       </div>
 
-      <div className="flex flex-wrap gap-[18px] text-[13px] text-slate-600">
-        {STOCK_LEGEND.map((entry) => (
-          <span key={entry.key} className="flex items-center gap-1.5">
-            <span className={cn('inline-block w-3 h-3 !rounded-[3px]', entry.swatch)} />
-            {entry.label}
-          </span>
-        ))}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap gap-[18px] text-[13px] text-slate-600">
+          {STOCK_LEGEND.map((entry) => (
+            <span key={entry.key} className="flex items-center gap-1.5">
+              <span className={cn('inline-block w-3 h-3 !rounded-[3px]', entry.swatch)} />
+              {entry.label}
+            </span>
+          ))}
+        </div>
+        <AddSkuMenu excludeIds={items.map((i) => i.id)} onAdd={model.addItem} />
       </div>
 
       {items.map((item) => (

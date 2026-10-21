@@ -3,7 +3,9 @@
 import React, { useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useScrollLock } from '@/hooks/useScrollLock'
+import { usePagedSearch } from '@/hooks/usePagedSearch'
 import { DrawerButton } from '@/components/allocation-drawer/drawerUi'
+import { PaginationFooter } from '@/components/pagination-footer/PaginationFooter'
 import { cn } from '@/utils/cn'
 import { InboundShipment, Marketplace, ReservedPoolItem } from './types'
 import { CreateShipmentInput } from './useShipments'
@@ -51,6 +53,19 @@ const defaultName = (marketplace: Marketplace) => {
 
 const MAX_LISTED = 2
 
+/** Products listed per page of the booking table. */
+const PAGE_SIZE = 20
+
+interface PoolRow {
+  product: ReservedPoolItem
+  available: number
+  held: string
+}
+
+/** A row matches its title, SKU, ASIN or FNSKU. */
+const matchesPoolRow = ({ product: p }: PoolRow, query: string) =>
+  [p.title, p.sku, p.asin, p.fnsku].some((value) => value?.toLowerCase().includes(query))
+
 /** "SHP-0002 draft · 10, SHP-0003 confirmed · 40", or "3 confirmed · 400" when many hold it. */
 function heldBy(productId: string, shipments: InboundShipment[]): string {
   const holders = shipments
@@ -95,13 +110,15 @@ const DrawerPanel: React.FC<Omit<CreateShipmentDrawerProps, 'isOpen'>> = ({
   const { marketplace, book, shipFrom, submitting, error: submitError, showAddressErrors } = form
   const patch = (next: Partial<FormState>) => setForm((prev) => ({ ...prev, ...next }))
 
-  const rows = useMemo(
+  const rows = useMemo<PoolRow[]>(
     () =>
       pool
         .filter((p) => p.reserved > 0)
         .map((p) => ({ product: p, available: unassigned[p.productId] ?? 0, held: heldBy(p.productId, shipments) })),
     [pool, unassigned, shipments]
   )
+  // Units typed on one page stay booked while searching or paging
+  const search = usePagedSearch(rows, matchesPoolRow, { pageSize: PAGE_SIZE })
 
   const booked = rows
     .map((r) => ({ ...r, qty: Number(book[r.product.productId] || 0) }))
@@ -193,7 +210,24 @@ const DrawerPanel: React.FC<Omit<CreateShipmentDrawerProps, 'isOpen'>> = ({
             disabled={!!submitting}
           />
 
-          <div className="overflow-x-auto !rounded-xl border border-slate-200"><div className="min-w-[760px]">
+          {rows.length > 0 && (
+            <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between">
+              <input
+                type="search"
+                value={search.query}
+                onChange={(e) => search.setQuery(e.target.value)}
+                placeholder="Search by title, SKU, ASIN or FNSKU"
+                aria-label="Search products"
+                className="h-10 w-full !rounded-lg border border-slate-300 bg-white px-3 text-[15px] focus:outline-none focus:ring-2 focus:ring-slate-300 sm:max-w-sm"
+              />
+              <span className="text-[13px] text-slate-600">
+                {search.isPending ? 'Searching…' : `${search.totalItems} of ${rows.length} products`}
+              </span>
+            </div>
+          )}
+
+          <div className="!rounded-xl border border-slate-200">
+          <div className="overflow-x-auto"><div className="min-w-[760px]">
             <div className="grid grid-cols-[260px_110px_minmax(0,1fr)_110px_150px] border-b border-slate-200 bg-slate-100 text-xs font-semibold text-slate-700">
               <div className="px-4 py-3">Product</div>
               <div className="px-2 py-3 text-right">FBA pool</div>
@@ -208,7 +242,11 @@ const DrawerPanel: React.FC<Omit<CreateShipmentDrawerProps, 'isOpen'>> = ({
               </div>
             )}
 
-            {rows.map(({ product: p, available, held }) => {
+            {rows.length > 0 && search.totalItems === 0 && !search.isPending && (
+              <div className="px-4 py-10 text-center text-sm text-slate-600">No products match “{search.query.trim()}”.</div>
+            )}
+
+            {search.pageRows.map(({ product: p, available, held }) => {
               const full = available === 0
               const error = errors[p.productId]
               return (
@@ -256,6 +294,15 @@ const DrawerPanel: React.FC<Omit<CreateShipmentDrawerProps, 'isOpen'>> = ({
               )
             })}
           </div></div>
+          <PaginationFooter
+            page={search.page}
+            pageSize={search.pageSize}
+            totalItems={search.totalItems}
+            totalPages={search.totalPages}
+            onPageChange={search.setPage}
+            itemLabel="products"
+          />
+          </div>
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="flex flex-col gap-1.5 !rounded-[10px] border border-slate-200 px-4 py-3.5">

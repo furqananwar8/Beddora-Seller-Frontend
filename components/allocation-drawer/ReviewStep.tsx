@@ -112,7 +112,6 @@ export const ReviewStep: React.FC<{ items: ProductInventoryItem[]; model: Alloca
                   <TH className="bg-slate-50 font-medium">Reason</TH>
                   <TH className="bg-slate-50 font-medium">From → to</TH>
                   <TH className="bg-slate-50 font-medium text-right">Qty</TH>
-                  <TH className="bg-slate-50 font-medium">Reference</TH>
                 </tr>
               </thead>
               <tbody>
@@ -124,7 +123,6 @@ export const ReviewStep: React.FC<{ items: ProductInventoryItem[]; model: Alloca
                       {bucketLabel(m.from)} → {bucketLabel(m.to)}
                     </TD>
                     <TD className="py-2.5 text-right">{n(m.quantity)}</TD>
-                    <TD className="py-2.5 text-slate-600">this save</TD>
                   </tr>
                 ))}
               </tbody>

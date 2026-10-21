@@ -18,6 +18,8 @@ interface AllocationDrawerProps {
   onClose: () => void
   /** Opens FBA shipment creation for the drawer's items. */
   onCreateShipment: (itemIds: string[]) => void
+  /** The split was saved with no FBM change, so the Channels step was skipped and nothing was pushed. */
+  onSavedWithoutChannels: (itemIds: string[]) => void
 }
 
 type WizardStep = Exclude<AllocationStep, 'result'>
@@ -83,7 +85,12 @@ function stepCopy(model: AllocationDrawerModel, items: ProductInventoryItem[]) {
     split: {
       title: 'Allocate stock',
       subtitle: `${plural(items.length, 'product')} · each new sheet entry adds stock to assign`,
-      hint: attention > 0 ? `${plural(attention, 'product')} need${attention === 1 ? 's' : ''} attention before you continue` : 'Step 1 of 3',
+      hint:
+        attention > 0
+          ? `${plural(attention, 'product')} need${attention === 1 ? 's' : ''} attention before you continue`
+          : model.hasFbmChange
+          ? 'Step 1 of 3'
+          : 'No FBM change, so saving skips channels',
     },
     channels: {
       title: 'Allocate stock',
@@ -105,18 +112,37 @@ function stepCopy(model: AllocationDrawerModel, items: ProductInventoryItem[]) {
   }[state.step]
 }
 
-function FooterActions({ model, items, onClose, onCreateShipment }: { model: AllocationDrawerModel } & AllocationDrawerProps) {
-  const { state, goTo, save, isSaving, hasErrors, listingCount, preview } = model
+function FooterActions({ model, onClose, onCreateShipment, onSavedWithoutChannels }: { model: AllocationDrawerModel } & AllocationDrawerProps) {
+  const { items, state, goTo, save, isSaving, hasErrors, hasFbmChange, changedCount, listingCount, preview } = model
   const reviewBlocked = (preview.data?.conflicts.length ?? 0) > 0
+  const itemIds = items.map((i) => i.id)
+
+  const saveWithoutChannels = async () => {
+    if (await save({ push: false })) onSavedWithoutChannels(itemIds)
+  }
 
   switch (state.step) {
     case 'split':
       return (
         <>
-          <DrawerButton onClick={onClose}>Cancel</DrawerButton>
-          <DrawerButton variant="primary" onClick={() => goTo('channels')} disabled={hasErrors}>
-            Continue to channels
+          <DrawerButton onClick={onClose} disabled={isSaving}>
+            Cancel
           </DrawerButton>
+          {hasFbmChange ? (
+            <DrawerButton variant="primary" onClick={() => goTo('channels')} disabled={hasErrors}>
+              Continue to channels
+            </DrawerButton>
+          ) : (
+            <DrawerButton
+              variant="primary"
+              onClick={saveWithoutChannels}
+              isLoading={isSaving}
+              disabled={hasErrors || changedCount === 0}
+              title={changedCount === 0 ? 'Nothing changed yet' : undefined}
+            >
+              Save allocation
+            </DrawerButton>
+          )}
         </>
       )
     case 'channels':
@@ -134,7 +160,7 @@ function FooterActions({ model, items, onClose, onCreateShipment }: { model: All
           <DrawerButton onClick={() => goTo('channels')} disabled={isSaving}>
             Back
           </DrawerButton>
-          <DrawerButton variant="primary" onClick={save} isLoading={isSaving} disabled={reviewBlocked || preview.isFetching}>
+          <DrawerButton variant="primary" onClick={() => save()} isLoading={isSaving} disabled={reviewBlocked || preview.isFetching}>
             {listingCount > 0 ? `Save and push ${plural(listingCount, 'listing')}` : 'Save'}
           </DrawerButton>
         </>
@@ -142,7 +168,7 @@ function FooterActions({ model, items, onClose, onCreateShipment }: { model: All
     case 'result':
       return (
         <>
-          <DrawerButton onClick={() => onCreateShipment(items.map((i) => i.id))}>Create FBA shipment</DrawerButton>
+          <DrawerButton onClick={() => onCreateShipment(itemIds)}>Create FBA shipment</DrawerButton>
           <DrawerButton variant="primary" onClick={onClose}>
             Done
           </DrawerButton>
@@ -156,15 +182,15 @@ export const AllocationDrawer: React.FC<AllocationDrawerProps> = (props) => {
   const model = useAllocationDrawer(items)
   const { state, isSaving } = model
   const close = () => !isSaving && onClose()
-  const copy = stepCopy(model, items)
+  const copy = stepCopy(model, model.items)
 
   useScrollLock()
 
   const body: Record<AllocationStep, React.ReactNode> = {
-    split: <SplitStep items={items} model={model} />,
-    channels: <ChannelsStep items={items} model={model} />,
-    review: <ReviewStep items={items} model={model} />,
-    result: <ResultStep items={items} model={model} />,
+    split: <SplitStep items={model.items} model={model} />,
+    channels: <ChannelsStep items={model.items} model={model} />,
+    review: <ReviewStep items={model.items} model={model} />,
+    result: <ResultStep items={model.items} model={model} />,
   }
 
   // Portal to <body> so scrolling over the drawer or backdrop never reaches the page's own scroll area
