@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { ProductInventoryItem } from '@/services/api/inventoryPlanner.api'
 import { cn } from '@/utils/cn'
 import { AllocationDrawerModel } from './useAllocationDrawer'
@@ -26,26 +26,39 @@ const NumberField = ({
   invalid?: boolean
   tone?: 'default' | 'amber'
   onChange: (units: number) => void
-}) => (
-  <div className="flex flex-col gap-1.5">
-    <label htmlFor={id} className={cn('text-[13px] font-medium', tone === 'amber' ? 'text-amber-900' : 'text-slate-700')}>
-      {label}
-    </label>
-    <input
-      id={id}
-      type="number"
-      min={0}
-      step={1}
-      value={value}
-      onChange={(e) => onChange(parseUnits(e.target.value))}
-      className={cn(
-        'h-10 w-full px-3 !rounded-lg border bg-white text-[15px] font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-200',
-        invalid ? 'border-red-700' : tone === 'amber' ? 'border-amber-600' : 'border-slate-300'
-      )}
-    />
-    {hint && <span className="text-xs text-slate-600">{hint}</span>}
-  </div>
-)
+}) => {
+  // The text as typed, so the field can be emptied mid-edit (it counts as 0). Bound to the number instead, React
+  // writes "0" back into an emptied field and leaves "054" as typed; on blur the text shows the number again.
+  const [text, setText] = useState(String(value))
+
+  // Follow changes made elsewhere (All to FBA, the slider) unless the text already stands for that number
+  useEffect(() => setText((current) => (parseUnits(current) === value ? current : String(value))), [value])
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label htmlFor={id} className={cn('text-[13px] font-medium', tone === 'amber' ? 'text-amber-900' : 'text-slate-700')}>
+        {label}
+      </label>
+      <input
+        id={id}
+        type="number"
+        min={0}
+        step={1}
+        value={text}
+        onChange={(e) => {
+          setText(e.target.value)
+          onChange(parseUnits(e.target.value))
+        }}
+        onBlur={() => setText(String(value))}
+        className={cn(
+          'h-10 w-full px-3 !rounded-lg border bg-white text-[15px] font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-200',
+          invalid ? 'border-red-700' : tone === 'amber' ? 'border-amber-600' : 'border-slate-300'
+        )}
+      />
+      {hint && <span className="text-xs text-slate-600">{hint}</span>}
+    </div>
+  )
+}
 
 const joinHint = (...parts: (string | false | undefined)[]) => parts.filter(Boolean).join(' · ') || undefined
 
