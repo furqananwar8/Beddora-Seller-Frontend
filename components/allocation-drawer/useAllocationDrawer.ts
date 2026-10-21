@@ -21,6 +21,8 @@ export type AllocationStep = 'split' | 'channels' | 'review' | 'result'
 
 interface DrawerState {
   step: AllocationStep
+  /** The products being allocated: the planner selection, plus any added or minus any removed in the drawer. */
+  items: ProductInventoryItem[]
   splits: Record<string, AllocationSplit>
   /** Per-item channel picks; an item with no entry uses every connected target. */
   channelPicks: Record<string, string[]>
@@ -30,6 +32,7 @@ interface DrawerState {
 
 const initialState = (items: ProductInventoryItem[]): DrawerState => ({
   step: 'split',
+  items,
   splits: Object.fromEntries(items.map((item) => [item.id, splitFromBalances(item.balances)])),
   channelPicks: {},
   conflicts: [],
@@ -39,12 +42,14 @@ const initialState = (items: ProductInventoryItem[]): DrawerState => ({
 const samePush = (a: PushResult, b: PushResult) => a.inventoryItemId === b.inventoryItemId && a.channel === b.channel
 
 /**
- * All state and actions of the allocation drawer. `items` is a snapshot taken
- * when the drawer opens, so a background refetch never resets in-progress edits.
+ * All state and actions of the allocation drawer. `initialItems` is a snapshot taken
+ * when the drawer opens, so a background refetch never resets in-progress edits;
+ * products added in the drawer are snapshots too.
  */
-export function useAllocationDrawer(items: ProductInventoryItem[]) {
+export function useAllocationDrawer(initialItems: ProductInventoryItem[]) {
   const dispatch = useAppDispatch()
-  const [state, setState] = useState<DrawerState>(() => initialState(items))
+  const [state, setState] = useState<DrawerState>(() => initialState(initialItems))
+  const { items } = state
   const { data: targets = [], isLoading: targetsLoading } = useGetChannelTargetsQuery()
   const [saveAllocation, { isLoading: isSaving }] = useSaveAllocationMutation()
   const [pushStock, { isLoading: isRetrying }] = usePushStockMutation()
@@ -79,6 +84,27 @@ export function useAllocationDrawer(items: ProductInventoryItem[]) {
 
   const listingCount = items.reduce((sum, item) => sum + channelsFor(item.id).length, 0)
   const changedCount = items.filter((item) => isSplitChanged(item.balances, state.splits[item.id])).length
+  // Channels only receive FBM quantities, so with no FBM change there is nothing to push
+  const hasFbmChange = items.some((item) => state.splits[item.id].fbm !== splitFromBalances(item.balances).fbm)
+
+  // ── Products
+  const addItem = useCallback((item: ProductInventoryItem) => {
+    setState((prev) =>
+      prev.items.some((i) => i.id === item.id)
+        ? prev
+        : { ...prev, items: [...prev.items, item], splits: { ...prev.splits, [item.id]: splitFromBalances(item.balances) } }
+    )
+  }, [])
+
+  const removeItem = useCallback((itemId: string) => {
+    setState((prev) => {
+      const splits = { ...prev.splits }
+      const channelPicks = { ...prev.channelPicks }
+      delete splits[itemId]
+      delete channelPicks[itemId]
+      return { ...prev, items: prev.items.filter((i) => i.id !== itemId), splits, channelPicks }
+    })
+  }, [])
 
   // ── Split step
   const setSplitField = useCallback((itemId: string, field: keyof AllocationSplit, value: number) => {
@@ -142,17 +168,23 @@ export function useAllocationDrawer(items: ProductInventoryItem[]) {
   const goTo = useCallback((step: AllocationStep) => setState((prev) => ({ ...prev, step })), [])
 
   // ── Save and push
-  const save = useCallback(async () => {
-    try {
-      const result = await saveAllocation(
-        allocationInput.map((input, i) => ({ ...input, channels: channelsFor(items[i].id) }))
-      ).unwrap()
-      setState((prev) => ({ ...prev, step: 'result', result, conflicts: [] }))
-    } catch (err: any) {
-      setState((prev) => ({ ...prev, conflicts: err?.data?.conflicts ?? [] }))
-      dispatch(addNotification({ message: err?.data?.error ?? 'Couldn’t save the allocation. Try again.', type: 'error' }))
-    }
-  }, [allocationInput, channelsFor, items, saveAllocation, dispatch])
+  /** Saves the split and, unless `push` is false, pushes FBM to the picked channels. Resolves to whether it saved. */
+  const save = useCallback(
+    async ({ push = true }: { push?: boolean } = {}) => {
+      try {
+        const result = await saveAllocation(
+          allocationInput.map((input, i) => ({ ...input, channels: push ? channelsFor(items[i].id) : [] }))
+        ).unwrap()
+        setState((prev) => ({ ...prev, step: 'result', result, conflicts: [] }))
+        return true
+      } catch (err: any) {
+        setState((prev) => ({ ...prev, conflicts: err?.data?.conflicts ?? [] }))
+        dispatch(addNotification({ message: err?.data?.error ?? 'Couldn’t save the allocation. Try again.', type: 'error' }))
+        return false
+      }
+    },
+    [allocationInput, channelsFor, items, saveAllocation, dispatch]
+  )
 
   /** Re-pushes the given listings and swaps their results in place. */
   const retry = useCallback(
@@ -188,6 +220,7 @@ export function useAllocationDrawer(items: ProductInventoryItem[]) {
 
   return {
     state,
+    items,
     targets,
     targetsLoading,
     preview,
@@ -195,9 +228,12 @@ export function useAllocationDrawer(items: ProductInventoryItem[]) {
     hasErrors: Object.keys(errors).length > 0,
     listingCount,
     changedCount,
+    hasFbmChange,
     isSaving,
     isRetrying,
     channelsFor,
+    addItem,
+    removeItem,
     setSplitField,
     assign,
     assignPercent,

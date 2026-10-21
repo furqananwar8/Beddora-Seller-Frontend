@@ -21,6 +21,7 @@ import { ProductInventoryTable } from './ProductInventoryTable'
 import { formatCurrency, formatNumber } from '@/utils/format'
 import { MultiSelectInput } from '@/components/multi-select-input/MultiSelectInput'
 import { AllocationDrawer } from '@/components/allocation-drawer/AllocationDrawer'
+import { ConfirmDialog } from '@/components/confirm-dialog/ConfirmDialog'
 import { useInventoryBulkEdit } from './useInventoryBulkEdit'
 
 // ============================================
@@ -88,6 +89,8 @@ export const InventoryPlannerScreen: React.FC<{ initialSearch?: string }> = ({ i
   
   // ---- Allocation drawer: open with a snapshot of the selected rows ----
   const [allocation, setAllocation] = useState<{ items: ProductInventoryItem[] } | null>(null)
+  // Products of an FBA-only allocation, while asking whether to book them into a shipment now
+  const [bookFbaIds, setBookFbaIds] = useState<string[] | null>(null)
 
   // ---- Header 3-Dots Dropdown State ----
   const [isMenuOpen, setIsMenuOpen] = useState(false)
@@ -236,6 +239,10 @@ export const InventoryPlannerScreen: React.FC<{ initialSearch?: string }> = ({ i
     setAppliedFilters({ ...pendingFilters })
   }, [pendingFilters])
 
+  /** Opens New FBA shipment on the Shipments tab with these products picked. */
+  const openShipmentCreation = (productIds: string[]) =>
+    router.push(`/dashboard/inventory/shipments?create=1&productIds=${encodeURIComponent(productIds.join(','))}`)
+
   // ---- Create FBA shipment: only stock already allocated to FBA can go into one ----
   const handleCreateShipment = () => {
     const ready = selectedRows.filter((row) => row.balances.FBA_POOL > 0)
@@ -247,7 +254,7 @@ export const InventoryPlannerScreen: React.FC<{ initialSearch?: string }> = ({ i
     if (skipped.length > 0) {
       dispatch(addNotification({ message: `${skipped.length} selected product${skipped.length === 1 ? ' has' : 's have'} no FBA stock and ${skipped.length === 1 ? 'was' : 'were'} left out of the shipment.`, type: 'warning' }))
     }
-    router.push(`/dashboard/inventory/shipments?create=1&productIds=${encodeURIComponent(ready.map((row) => row.id).join(','))}`)
+    openShipmentCreation(ready.map((row) => row.id))
   }
 
   // ---- Trigger Multi-Channel Stock Push ----
@@ -702,10 +709,29 @@ export const InventoryPlannerScreen: React.FC<{ initialSearch?: string }> = ({ i
           onClose={() => setAllocation(null)}
           onCreateShipment={(itemIds) => {
             setAllocation(null)
-            router.push(`/dashboard/inventory/shipments?create=1&productIds=${encodeURIComponent(itemIds.join(','))}`)
+            openShipmentCreation(itemIds)
+          }}
+          onSavedWithoutChannels={(itemIds) => {
+            // Closed first: toasts sit underneath the drawer
+            setAllocation(null)
+            dispatch(addNotification({ message: 'Successfully allocated FBA, no FBM to be allocated.', type: 'success' }))
+            setBookFbaIds(itemIds)
           }}
         />
       )}
+
+      <ConfirmDialog
+        isOpen={bookFbaIds !== null}
+        title="Book the FBA units now?"
+        confirmLabel="Go to FBA shipments"
+        onConfirm={() => {
+          if (bookFbaIds) openShipmentCreation(bookFbaIds)
+          setBookFbaIds(null)
+        }}
+        onClose={() => setBookFbaIds(null)}
+      >
+        The new FBA units are in the FBA pool. Open the Shipments tab to book them into an FBA shipment, or do it later.
+      </ConfirmDialog>
     </Container>
   )
 }
