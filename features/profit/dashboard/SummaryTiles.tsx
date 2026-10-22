@@ -119,10 +119,10 @@ const SummaryTiles = ({
 
     return (
         <div className="space-y-3 flex-1 flex flex-col">
-            {/* Header: a slate band across the top of the card (the tile sits in p-4 card content) */}
-            <div className="-mx-4 -mt-4 px-4 py-3 bg-secondary-700">
+            {/* Header: a primary-coloured band across the top of the card (the tile sits in p-4 card content) */}
+            <div className="-mx-4 -mt-4 px-4 py-3 bg-primary-600">
                 <h3 className="text-base font-semibold text-text-inverse break-words">{period.label}</h3>
-                <p className="text-xs text-secondary-200 break-words">{period.dateRange}</p>
+                <p className="text-xs text-secondary-300 break-words">{period.dateRange}</p>
             </div>
 
             {/* Sales */}
