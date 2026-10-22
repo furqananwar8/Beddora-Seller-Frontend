@@ -16,10 +16,18 @@ import { SplitTable, ColumnDef, PaginationConfig } from '@/components/split-tabl
 import { useMinLoading } from '@/hooks/user-min-loading'
 import { useReportExport } from '@/hooks/useReportExport'
 import { RowActionsMenu } from '@/components/row-actions-menu/RowActionsMenu'
+import { MultiSelectInput } from '@/components/multi-select-input/MultiSelectInput'
 
 type SortColumn = 'product' | 'cogs' | 'salesVelocity'
 type SortDirection = 'asc' | 'desc'
 type CogsFilterValue = 'all' | 'set' | 'notSet'
+
+const COGS_FILTER_OPTIONS: { id: CogsFilterValue; name: string }[] = [
+  { id: 'all', name: 'Any COGS' },
+  { id: 'set', name: 'COGS set' },
+  { id: 'notSet', name: 'COGS not set' },
+]
+
 type MarketplaceCode = 'CA' | 'US' | 'MX'
 
 interface EditedCOGS {
@@ -480,20 +488,17 @@ export const ProductsScreen: React.FC = () => {
 
             {/* Filter Controls with Fixed Width Button */}
             <div className="flex items-center gap-3 shrink-0">
-              <select
-                value={cogsFilter.raw}
-                onChange={(e) =>
-                  setCogsFilter((prev) => ({
-                    ...prev,
-                    raw: e.target.value as CogsFilterValue,
-                  }))
-                }
-                className="h-9 w-40 px-3 text-sm border border-border rounded-md bg-surface text-text-primary focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary cursor-pointer shrink-0"
-              >
-                <option value="all">Any COGS</option>
-                <option value="set">COGS set</option>
-                <option value="notSet">COGS not set</option>
-              </select>
+              <div className="w-40 shrink-0">
+                <MultiSelectInput
+                  single
+                  title="COGS"
+                  options={COGS_FILTER_OPTIONS}
+                  value={[cogsFilter.raw]}
+                  onChange={(value) =>
+                    setCogsFilter((prev) => ({ ...prev, raw: value[0] as CogsFilterValue }))
+                  }
+                />
+              </div>
 
               <RowActionsMenu
                 label="products table"

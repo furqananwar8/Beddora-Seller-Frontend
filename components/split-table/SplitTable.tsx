@@ -233,6 +233,13 @@ export function SplitTable<T = any>(props: GenericProps<T> | SimpleProps): React
     return 'text-left'
   }
 
+  // A header's content sits in a flex row, where text-align has no effect: justify it to the column's alignment
+  const justifyClass = (col: ColumnDef) => {
+    if (col.align === 'center') return 'justify-center'
+    if (col.align === 'right') return 'justify-end'
+    return 'justify-start'
+  }
+
   const showInitialLoading = isLoading || (isFetching && data.length === 0)
   const isTableEmpty = showInitialLoading || data.length === 0
 
@@ -274,7 +281,7 @@ export function SplitTable<T = any>(props: GenericProps<T> | SimpleProps): React
                   )}
                   onClick={() => handleSortClick(col)}
                 >
-                  <div className="flex items-center h-full">
+                  <div className={cn('flex items-center h-full', justifyClass(col))}>
                     {col.header}
                     {sortIndicator(col)}
                   </div>

@@ -2,7 +2,7 @@
 
 import React from 'react'
 import { ApplyFiltersButton } from './ApplyFiltersButton'
-import { Select, Input } from '@/design-system/inputs'
+import { Input } from '@/design-system/inputs'
 import { MultiSelectInput } from '@/components/multi-select-input/MultiSelectInput'
 import DateRangePicker, {
   DateRangeValue,
@@ -67,8 +67,6 @@ interface ProfitDashboardHeaderProps {
   /** Let the filter row wrap onto several lines on narrow screens. */
   wrap?: boolean
   searchPlaceholder?: string
-  /** Render currency with the same dropdown as the marketplace filter instead of a native select. */
-  currencyAsDropdown?: boolean
   /** Padding around the filter row. */
   paddingClassName?: string
 }
@@ -131,7 +129,6 @@ export const ProfitDashboardHeader: React.FC<
   note,
   wrap = false,
   searchPlaceholder = 'Search',
-  currencyAsDropdown = false,
   paddingClassName = 'px-6 py-4',
 }) => {
   return (
@@ -269,37 +266,13 @@ export const ProfitDashboardHeader: React.FC<
                 <div
                   className={`${currencyWidth} shrink-0`}
                 >
-                  {currencyAsDropdown ? (
-                    <MultiSelectInput
-                      single
-                      title="Currency"
-                      options={currencyOptions.map(
-                        ({ value, label }) => ({
-                          id: value,
-                          name: label,
-                        })
-                      )}
-                      value={[currency]}
-                      onChange={(value) =>
-                        onCurrencyChange(
-                          value[0]
-                        )
-                      }
-                    />
-                  ) : (
-                    <Select
-                      value={currency}
-                      disabled={disabled}
-                      onChange={(e) =>
-                        onCurrencyChange(
-                          e.target.value
-                        )
-                      }
-                      options={
-                        currencyOptions
-                      }
-                    />
-                  )}
+                  <MultiSelectInput
+                    single
+                    title="Currency"
+                    options={currencyOptions.map(({ value, label }) => ({ id: value, name: label }))}
+                    value={[currency]}
+                    onChange={(value) => onCurrencyChange(value[0])}
+                  />
                 </div>
               )}
 

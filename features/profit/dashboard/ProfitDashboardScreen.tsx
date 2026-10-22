@@ -748,7 +748,6 @@ export const ProfitDashboardScreen: React.FC = () => {
               onFilter={handleApplyTileFilters}
               searchWidth="w-[55%]"
               datePickerKey={tileDatePickerKey}
-              currencyAsDropdown
             />
 
             {/* Period cards */}

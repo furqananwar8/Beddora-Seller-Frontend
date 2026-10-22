@@ -321,7 +321,6 @@ export const ChannelReport: React.FC = () => {
           currency={draftCurrency}
           onCurrencyChange={(value) => setDraftCurrency(value as CurrencyCode)}
           currencyOptions={CURRENCY_OPTIONS}
-          currencyAsDropdown
           paddingClassName="py-4"
           onFilter={applyFilters}
           filterPending={filterPending}

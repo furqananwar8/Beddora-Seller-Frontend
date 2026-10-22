@@ -720,7 +720,6 @@ export const ProfitSettlementReport: React.FC = () => {
               onFilter={handleApplyTileFilters}
               searchWidth="w-[55%]"
               datePickerKey={tileDatePickerKey}
-              currencyAsDropdown
             />
 
             {/* Period cards */}
