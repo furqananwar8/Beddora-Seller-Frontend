@@ -4,7 +4,13 @@ import React from 'react'
 import { formatCurrency, formatNumber, formatPercentage } from "@/utils"
 
 /** The grid the period tiles sit in: compact cards (220px and up) side by side, as many as fit in a row. */
-export const SUMMARY_TILE_GRID = 'grid gap-4 mb-6 grid-cols-[repeat(auto-fill,minmax(220px,1fr))]'
+/**
+ * Responsive tile row, from the left: each tile grows from 200px to at most 280px with the screen, as many per row as
+ * fit (five on a laptop, wrapping on narrow screens), a small fixed gap apart. Spare width stays on the right instead
+ * of stretching tiles.
+ */
+export const RESPONSIVE_TILE_COLUMNS = 'grid gap-4 grid-cols-[repeat(auto-fit,minmax(200px,280px))] justify-start'
+export const SUMMARY_TILE_GRID = `${RESPONSIVE_TILE_COLUMNS} mb-6`
 
 /** Optional cells of the tile's metric grid. */
 export type SummaryTileMetric = 'refunds' | 'secondary'

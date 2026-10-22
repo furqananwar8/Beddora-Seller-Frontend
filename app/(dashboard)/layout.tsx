@@ -129,6 +129,13 @@ export default function DashboardLayout({
                 href: '/dashboard/inventory/adjustments',
               },
               {
+                label: 'Channel Inventory (IP)',
+                // Shares the Planner permission until the backend seeds 'inventory:channel-inventory'.
+                subject: 'inventory:planner',
+                action: 'read',
+                href: '/dashboard/inventory/channel-inventory',
+              },
+              {
                 label: 'Seller Central',
                 // Shares the Planner permission until the backend seeds 'inventory:seller-central'.
                 subject: 'inventory:planner',

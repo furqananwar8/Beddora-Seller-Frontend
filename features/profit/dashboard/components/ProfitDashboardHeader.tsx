@@ -178,8 +178,9 @@ export const ProfitDashboardHeader: React.FC<
                   className="
                     w-full
                     pl-10
-                    pr-4
-                    py-2.5
+                    pr-10
+                    h-[42px]
+                    py-0
                     bg-surface
                     border
                     border-border
@@ -192,6 +193,21 @@ export const ProfitDashboardHeader: React.FC<
                     focus:border-primary-600
                   "
                 />
+
+                {/* Clears the whole search in one click */}
+                {searchTerm && !disabled && (
+                  <button
+                    type="button"
+                    aria-label="Clear search"
+                    title="Clear search"
+                    onClick={() => onSearchChange?.('')}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 text-text-muted hover:bg-surface-tertiary hover:text-text-primary"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
               </div>
             </div>
           )}
