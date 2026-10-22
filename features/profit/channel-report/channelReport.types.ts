@@ -88,6 +88,8 @@ export interface ChannelListing {
   /** ASIN / Walmart item ID / Shopify variant / Temu goods ID. */
   channelItemId: string
   title: string
+  /** Marketplace code (CA, US, MX) when the channel sells in several. */
+  marketplace?: string | null
   productId: string | null
   orders: number
   units: number
@@ -99,6 +101,11 @@ export interface MasterProduct {
   productId: string
   title: string
   sku: string
+  /** Catalog details a channel may know; products sharing a parent SKU / ASIN group under one parent row. */
+  asin?: string | null
+  imageUrl?: string | null
+  parentSku?: string | null
+  parentAsin?: string | null
 }
 
 export interface ChannelListingsResult {

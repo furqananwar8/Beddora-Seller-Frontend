@@ -38,7 +38,7 @@ import { SellerboardProductsTable } from './SellerboardProductsTable'
 import { OrderItemsTable } from './OrderItemsTable'
 import { TileDetailsModal } from './components/TileDetailsModal'
 
-import SummaryTiles from './SummaryTiles'
+import SummaryTiles, { SUMMARY_TILE_GRID } from './SummaryTiles'
 
 import { DateRangeValue } from '@/components/date-range-picker/DateRangePicker'
 
@@ -49,7 +49,6 @@ import {
   ALL_MARKETPLACES,
   PRESET_PROFIT_SETTLEMENT_REPORT_PRESET,
   tilePresets,
-  gridColsClass,
   nowInPST,
   toISODatePST,
   formatDateRangePST,
@@ -721,17 +720,12 @@ export const ProfitSettlementReport: React.FC = () => {
               onFilter={handleApplyTileFilters}
               searchWidth="w-[55%]"
               datePickerKey={tileDatePickerKey}
+              currencyAsDropdown
             />
 
             {/* Period cards */}
             <div
-              className={
-                appliedPresetId === 'custom'
-                  ? 'grid grid-cols-1 gap-4 mb-6 max-w-md'
-                  : `grid grid-cols-1 md:grid-cols-2 ${
-                      gridColsClass[Math.min(currentPreset.tiles.length, 5)]
-                    } gap-4 mb-6`
-              }
+              className={SUMMARY_TILE_GRID}
             >
               {periodCardsData.map((period) => {
                 if (period.isFetching) {
@@ -751,7 +745,7 @@ export const ProfitSettlementReport: React.FC = () => {
                   <Card
                     key={period.id}
                     className={`bg-surface border border-border cursor-pointer transition-shadow hover:shadow-md min-h-[400px] min-w-0 flex flex-col ${
-                      selectedTileId === period.id ? 'ring-2 ring-primary-200' : ''
+                      selectedTileId === period.id ? 'ring-2 ring-primary-600' : ''
                     }`}
                     onClick={() => setSelectedTileId(period.id)}
                   >

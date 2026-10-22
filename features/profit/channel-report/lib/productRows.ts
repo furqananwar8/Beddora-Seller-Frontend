@@ -15,12 +15,16 @@ import { LISTING_BUCKET_IDS } from '../config/buckets'
 import { getChannel } from '../config/channels'
 import { combinePeriod, marginOf, sumNullable, type CombinedPeriod } from './aggregate'
 
-/** A row of the Channel Report products table: a master product (grouped listings) or one listing. */
+/** A row of the Channel Report products table: a parent product, a master product (grouped listings) or one listing. */
 export interface ProductRow {
   key: string
-  kind: 'group' | 'listing'
+  kind: 'parent' | 'group' | 'listing'
   title: string
-  subtitle: string
+  /** Identity the product cell shows: SKU (a parent's SKU for a parent row), ASIN on Amazon, image, marketplace. */
+  sku: string
+  asin: string | null
+  imageUrl: string | null
+  marketplace: string | null
   channels: ChannelId[]
   /** Set on listing rows. */
   listing?: ChannelListing
@@ -40,8 +44,10 @@ export interface ProductRowFilter {
   channels: ChannelId[]
   onlyUnlinked: boolean
   search: string
-  /** Group listings of the same master product under one expandable row. */
+  /** Group rows: products under their parent and, with `groupListings`, listings under their master product. */
   group: boolean
+  /** Group listings of the same master product under one expandable row. */
+  groupListings?: boolean
 }
 
 const amountsOf = (buckets: ListingBuckets): ListingAmounts =>
@@ -59,23 +65,21 @@ const sumAmounts = (rows: { amounts: ListingAmounts }[]): ListingAmounts =>
     LISTING_BUCKET_IDS.map((id) => [id, sumNullable(rows.map((row) => row.amounts[id]))]),
   ) as ListingAmounts
 
-const itemLine = (listing: ChannelListing) =>
-  `${getChannel(listing.channel).itemIdLabel} ${listing.channelItemId}`
-
 const listingRow = (
   listing: ChannelListing,
   product: MasterProduct | undefined,
-  asChild: boolean,
 ): ProductRow => {
   const amounts = amountsOf(listing.buckets)
   const netProfit = netOf(listing.buckets)
   return {
     key: `listing:${listing.listingId}`,
     kind: 'listing',
-    title: asChild
-      ? `${getChannel(listing.channel).name} · ${listing.channelSku}`
-      : product?.title ?? listing.title,
-    subtitle: asChild ? itemLine(listing) : `${listing.channelSku} · ${itemLine(listing)}`,
+    title: product?.title ?? listing.title,
+    sku: listing.channelSku,
+    // Only an Amazon item ID is an ASIN (it links to the Amazon product page)
+    asin: getChannel(listing.channel).itemIdLabel === 'ASIN' ? listing.channelItemId || null : null,
+    imageUrl: product?.imageUrl ?? null,
+    marketplace: listing.marketplace ?? null,
     channels: [listing.channel],
     listing,
     listings: [listing],
@@ -89,14 +93,17 @@ const listingRow = (
 }
 
 const groupRow = (product: MasterProduct, listings: ChannelListing[]): ProductRow => {
-  const children = listings.map((listing) => listingRow(listing, product, true))
+  const children = listings.map((listing) => listingRow(listing, product))
   const amounts = sumAmounts(children)
   const netProfit = children.reduce((total, row) => total + row.netProfit, 0)
   return {
     key: `product:${product.productId}`,
     kind: 'group',
     title: product.title,
-    subtitle: `${product.sku} · ${listings.length} linked listings`,
+    sku: product.sku,
+    asin: product.asin ?? null,
+    imageUrl: product.imageUrl ?? null,
+    marketplace: null,
     channels: Array.from(new Set(listings.map((listing) => listing.channel))),
     listings,
     unlinked: false,
@@ -109,13 +116,67 @@ const groupRow = (product: MasterProduct, listings: ChannelListing[]): ProductRo
   }
 }
 
+/** An SKU or item ID (ASIN) must match exactly, so a partial one does not pull in other products; a title may match partly. */
 const matchesSearch = (listing: ChannelListing, product: MasterProduct | undefined, term: string) =>
   !term ||
-  [listing.channelSku, listing.channelItemId, listing.title, product?.title, product?.sku].some((value) =>
-    value?.toLowerCase().includes(term),
-  )
+  [listing.channelSku, listing.channelItemId, product?.sku, product?.asin].some((value) => value?.toLowerCase() === term) ||
+  [listing.title, product?.title].some((value) => value?.toLowerCase().includes(term))
 
-/** Filters listings and shapes them into table rows. Linked listings are grouped only when a product has 2+. */
+/** The parent (its SKU, else ASIN, and its ASIN) of the one master product a row stands for; `null` when it has none. */
+const parentOf = (row: ProductRow, productById: Map<string, MasterProduct>): { key: string; asin: string | null } | null => {
+  const productIds = new Set(row.listings.map((listing) => listing.productId))
+  if (productIds.size !== 1) return null
+  const product = productById.get(Array.from(productIds)[0] ?? '')
+  const asin = product?.parentAsin?.trim() || null
+  const key = product?.parentSku?.trim() || asin
+  return key ? { key, asin } : null
+}
+
+const parentRow = (parent: string, parentAsin: string | null, children: ProductRow[]): ProductRow => {
+  const amounts = sumAmounts(children)
+  const marketplace = children.every((row) => row.marketplace === children[0].marketplace) ? children[0].marketplace : null
+  const netProfit = children.reduce((total, row) => total + row.netProfit, 0)
+  return {
+    key: `parent:${parent.toLowerCase()}`,
+    kind: 'parent',
+    title: children[0].title,
+    sku: parent,
+    asin: parentAsin,
+    imageUrl: children.find((row) => row.imageUrl)?.imageUrl ?? null,
+    marketplace,
+    channels: Array.from(new Set(children.flatMap((row) => row.channels))),
+    listings: children.flatMap((row) => row.listings),
+    unlinked: false,
+    units: children.reduce((total, row) => total + row.units, 0),
+    refunds: children.reduce((total, row) => total + row.refunds, 0),
+    amounts,
+    netProfit,
+    margin: marginOf(netProfit, amounts.sales),
+    children,
+  }
+}
+
+/** Rows of products that share a parent go under one expandable parent row, as on the Settlement Report. */
+const groupByParent = (rows: ProductRow[], productById: Map<string, MasterProduct>): ProductRow[] => {
+  const byParent = new Map<string, { asin: string | null; children: ProductRow[] }>()
+  const result: ProductRow[] = []
+  rows.forEach((row) => {
+    const parent = parentOf(row, productById)
+    if (!parent) {
+      result.push(row)
+      return
+    }
+    if (!byParent.has(parent.key)) byParent.set(parent.key, { asin: parent.asin, children: [] })
+    byParent.get(parent.key)!.children.push(row)
+  })
+  byParent.forEach(({ asin, children }, parent) => result.unshift(parentRow(parent, asin, children)))
+  return result
+}
+
+/**
+ * Filters listings and shapes them into table rows. Linked listings are grouped only when a product has 2+; with
+ * `group`, products that share a parent also group under a parent row.
+ */
 export const buildProductRows = (
   { products, listings }: ChannelListingsResult,
   filter: ProductRowFilter,
@@ -134,7 +195,13 @@ export const buildProductRows = (
 
   if (!filter.group) {
     return visible.map((listing) =>
-      listingRow(listing, listing.productId ? productById.get(listing.productId) : undefined, false),
+      listingRow(listing, listing.productId ? productById.get(listing.productId) : undefined),
+    )
+  }
+  if (!filter.groupListings) {
+    return groupByParent(
+      visible.map((listing) => listingRow(listing, listing.productId ? productById.get(listing.productId) : undefined)),
+      productById,
     )
   }
 
@@ -151,15 +218,15 @@ export const buildProductRows = (
     if (product && group.length > 1) {
       rows.push(groupRow(product, group))
     } else {
-      group.forEach((listing) => rows.push(listingRow(listing, product, false)))
+      group.forEach((listing) => rows.push(listingRow(listing, product)))
     }
   })
 
   visible
     .filter((listing) => !listing.productId)
-    .forEach((listing) => rows.push(listingRow(listing, undefined, false)))
+    .forEach((listing) => rows.push(listingRow(listing, undefined)))
 
-  return rows
+  return groupByParent(rows, productById)
 }
 
 export const countUnlinked = (rows: ProductRow[]) => rows.filter((row) => row.unlinked).length

@@ -306,11 +306,11 @@ export const TileDetailsModal: React.FC<TileDetailsModalProps> = ({
     return (
       <Modal isOpen={isOpen} onClose={onClose}>
         <div className="px-6 py-4 border-b border-border sticky top-0 bg-surface z-20">
-          <div className="text-lg font-semibold">{periodLabel}</div>
+          <div className="text-lg font-semibold line-clamp-2 pr-8" title={periodLabel}>{periodLabel}</div>
           <div className="text-sm text-text-muted mt-1">{dateRange}</div>
           {headerExtra}
         </div>
-        <div className="px-6 py-4 max-h-[70vh] overflow-y-auto relative">{renderBody(data)}</div>
+        <div className="px-6 py-4 relative">{renderBody(data)}</div>
       </Modal>
     )
   }
@@ -454,12 +454,12 @@ export const TileDetailsModal: React.FC<TileDetailsModalProps> = ({
   return (
     <Modal isOpen={isOpen} onClose={onClose}>
       <div className="px-6 py-4 border-b border-border sticky top-0 bg-surface z-20">
-        <div className="text-lg font-semibold">{periodLabel}</div>
+        <div className="text-lg font-semibold line-clamp-2 pr-8" title={periodLabel}>{periodLabel}</div>
         <div className="text-sm text-text-muted mt-1">{dateRange}</div>
         {headerExtra}
       </div>
 
-      <div className="px-6 py-4 max-h-[70vh] overflow-y-auto relative">
+      <div className="px-6 py-4 relative">
         <div className="space-y-0">
           {metrics.map((metric) => (
             <React.Fragment key={metric.key}>

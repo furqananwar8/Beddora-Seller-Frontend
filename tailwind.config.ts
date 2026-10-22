@@ -7,6 +7,8 @@ const config: Config = {
     './app/**/*.{js,ts,jsx,tsx,mdx}',
     './design-system/**/*.{js,ts,jsx,tsx,mdx}',
     './features/**/*.{js,ts,jsx,tsx,mdx}',
+    // Shared utils may hold class names too
+    './utils/**/*.{js,ts,jsx,tsx}',
   ],
   animation: {
     fadeIn: 'fadeIn 0.4s ease-out forwards',

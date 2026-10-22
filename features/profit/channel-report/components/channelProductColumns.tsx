@@ -2,6 +2,7 @@
 
 import React from 'react'
 
+import { ProductIdentityCell } from '@/features/profit/dashboard/ProductIdentityCell'
 import type { ProductTableColumn } from '@/features/profit/dashboard/SellerboardProductsTable'
 import { cn } from '@/utils/cn'
 import { formatNumber } from '@/utils/format'
@@ -22,6 +23,7 @@ interface ColumnOptions {
   onShowDetails: (row: ProductRow) => void
 }
 
+/** The Settlement Report's product cell (flag, image, linked SKU / ASIN, title on hover), plus the unlinked badge. */
 const ProductCell: React.FC<{
   row: ProductRow
   isChild: boolean
@@ -29,44 +31,36 @@ const ProductCell: React.FC<{
   onToggle: () => void
   onLinkProduct: (row: ProductRow) => void
 }> = ({ row, isChild, isExpanded, onToggle, onLinkProduct }) => (
-  <div className={cn('flex items-center justify-center gap-2 min-w-[240px] max-w-[320px] mx-auto text-center', isChild && 'pl-8')}>
-    {row.kind === 'group' && (
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-expanded={isExpanded}
-        aria-label={isExpanded ? 'Collapse linked listings' : 'Expand linked listings'}
-        className="w-6 h-6 flex items-center justify-center flex-shrink-0 rounded border border-border text-text-muted hover:text-text-primary hover:bg-surface-secondary"
-      >
-        <svg
-          className={cn('w-3.5 h-3.5 transition-transform', isExpanded && 'rotate-90')}
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
+  <div>
+    <ProductIdentityCell
+      product={{
+        sku: row.sku,
+        asin: row.asin,
+        productTitle: row.title,
+        imageUrl: row.imageUrl,
+        marketplace: row.marketplace ?? undefined,
+        children: row.children,
+      }}
+      isChild={isChild}
+      isExpanded={isExpanded}
+      onToggle={row.children?.length ? onToggle : undefined}
+      titleInTooltip
+      showUnitStats={false}
+    />
+    {row.unlinked && (
+      <div className={cn('flex items-center gap-2 mt-1 pl-[60px]', isChild && 'pl-[88px]')}>
+        <span className="px-1.5 py-0.5 text-[11px] font-semibold rounded border border-warning-200 bg-warning-50 text-danger-700">
+          Not linked · COGS missing
+        </span>
+        <button
+          type="button"
+          onClick={() => onLinkProduct(row)}
+          className="text-xs text-primary-600 underline hover:text-primary-700"
         >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-        </svg>
-      </button>
+          Link to product
+        </button>
+      </div>
     )}
-
-    <div className="min-w-0">
-      <div className="text-sm font-medium text-text-primary truncate">{row.title}</div>
-      <div className="text-xs text-text-muted truncate">{row.subtitle}</div>
-      {row.unlinked && (
-        <div className="flex items-center justify-center gap-2 mt-1">
-          <span className="px-1.5 py-0.5 text-[11px] font-semibold rounded border border-warning-200 bg-warning-50 text-danger-700">
-            Not linked · COGS missing
-          </span>
-          <button
-            type="button"
-            onClick={() => onLinkProduct(row)}
-            className="text-xs text-primary-600 underline hover:text-primary-700"
-          >
-            Link to product
-          </button>
-        </div>
-      )}
-    </div>
   </div>
 )
 
@@ -92,8 +86,8 @@ export const buildChannelProductColumns = ({
   {
     id: 'name',
     header: 'Product / channel SKU',
-    align: 'center',
-    minWidth: 260,
+    align: 'left',
+    minWidth: 320,
     sortValue: (row) => row.title.toLowerCase(),
     render: (row, ctx) => (
       <ProductCell

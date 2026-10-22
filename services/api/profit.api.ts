@@ -147,6 +147,37 @@ export interface ProductProfitBreakdown {
   netMargin: number
 
   avgProfitPerUnit: number
+
+  marketplace?: string
+  /** Set on a group row other than a parent (brand, supplier, ...): the group's name. */
+  groupLabel?: string
+  /** `parent` / `child` / `standalone`, or the grouping of a group row (`brand`, `supplier`, ...). */
+  groupType?: string
+  children?: ProductProfitBreakdown[]
+}
+
+/** What the products table groups SKU rows by (`none` lists every SKU on its own). */
+export type ProductGrouping = 'none' | 'asin' | 'parent' | 'marketplace' | 'brand' | 'supplier' | 'channel' | 'coupon'
+
+/** A product's refunded units for one return reason and status. */
+export interface RefundReasonSlice {
+  reasonCode: string | null
+  label: string
+  status: string | null
+  units: number
+  comments: string[]
+}
+
+export interface RefundReasonBreakdown {
+  totalUnits: number
+  reasons: RefundReasonSlice[]
+}
+
+export interface RefundReasonFilters {
+  skus: string[]
+  startDate: string
+  endDate: string
+  marketplaces?: string[]
 }
 
 export interface MarketplaceProfitBreakdown {
@@ -414,6 +445,9 @@ export interface ProfitFilters {
   metric?: string
   page?: number
   limit?: number
+  /** Products table only. */
+  groupBy?: ProductGrouping
+  splitByMarketplace?: boolean
 }
 
 export interface CompareSalesSnapshot {
@@ -569,6 +603,20 @@ export const profitApi = baseApi.injectEndpoints({
         response: ProductBreakdownResponse
       ) => response.data,
 
+      providesTags: ['Profit'],
+      keepUnusedDataFor: 180,
+    }),
+
+    // ============================================================
+    // REFUND REASONS (one product's refunds by return reason)
+    // ============================================================
+
+    getRefundReasons: builder.query<RefundReasonBreakdown, RefundReasonFilters>({
+      query: ({ skus, ...filters }) => ({
+        url: '/profit/refund-reasons',
+        params: { ...filters, skus: skus.join(',') },
+      }),
+      transformResponse: (response: { data: RefundReasonBreakdown }) => response.data,
       providesTags: ['Profit'],
       keepUnusedDataFor: 180,
     }),
@@ -874,6 +922,7 @@ export const {
   useGetProfitSummaryQuery,
   useGetCompareSalesQuery,
   useGetProfitByProductQuery,
+  useGetRefundReasonsQuery,
   useGetProfitByMarketplaceQuery,
   useGetProfitTrendsQuery,
   useGetProfitByOrderItemsQuery,

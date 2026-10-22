@@ -31,18 +31,20 @@ import {
   useGetProfitByOrderItemsQuery,
   PeriodSummary,
   PeriodSummaryPeriod,
+  type ProductGrouping,
 } from '@/services/api/profit.api'
 
 import { SellerboardProductsTable } from './SellerboardProductsTable'
 import { RowActionsMenu } from '@/components/row-actions-menu/RowActionsMenu'
 import { TableSearchInput } from './components/TableSearchInput'
+import { GroupByMenu } from './components/GroupByMenu'
+import { ProfitOverviewBanner } from './components/ProfitOverviewBanner'
 import { useReportExport } from '@/hooks/useReportExport'
 import { OrderItemsTable } from './OrderItemsTable'
 import { TileDetailsModal } from './components/TileDetailsModal'
 
-import { formatCurrency } from '@/utils/format'
 
-import SummaryTiles from './SummaryTiles'
+import SummaryTiles, { SUMMARY_TILE_GRID } from './SummaryTiles'
 
 import { DateRangeValue } from '@/components/date-range-picker/DateRangePicker'
 
@@ -52,7 +54,6 @@ import {
   ALL_MARKETPLACES,
   PRESET_STORAGE_KEY,
   tilePresets,
-  gridColsClass,
   nowInPST,
   formatDateRangePST,
   getRollingDateRangePST,
@@ -136,6 +137,9 @@ export const ProfitDashboardScreen: React.FC = () => {
 
   const [searchTerm, setSearchTerm] = useState('')
   const debouncedSearchTerm = useDebounce(searchTerm, 300)
+
+  const [groupBy, setGroupBy] = useState<ProductGrouping>('parent')
+  const [splitByMarketplace, setSplitByMarketplace] = useState(false)
 
   // Synchronous restoration of preset ID from localStorage
   const [appliedPresetId, setAppliedPresetId] = useState<string>(() => {
@@ -524,6 +528,8 @@ export const ProfitDashboardScreen: React.FC = () => {
     endDate: activeRange.endDate,
     search: debouncedSearchTerm,
     sku: debouncedSearchTerm,
+    groupBy,
+    splitByMarketplace,
   }
 
   const { start: startProductExport, isExporting: productExporting } = useReportExport('profit-by-product')
@@ -710,43 +716,13 @@ export const ProfitDashboardScreen: React.FC = () => {
 
             {/* Overview banner */}
             {activeSummaryData?.summary && !isFetchingActive && (
-              <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl p-6 text-white mb-6">
-                <h2 className="text-lg font-semibold mb-4">
-                  Profit Overview ({currentPreset.label})
-                </h2>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div>
-                    <div className="text-3xl font-bold">
-                      {formatCurrency(activeSummaryData.summary.totalRevenue)}
-                    </div>
-                    <div className="text-blue-100 text-sm">Total Revenue</div>
-                  </div>
-                  <div>
-                    <div
-                      className={`text-3xl font-bold ${
-                        activeSummaryData.summary.totalProfit >= 0
-                          ? 'text-green-300'
-                          : 'text-red-300'
-                      }`}
-                    >
-                      {formatCurrency(activeSummaryData.summary.totalProfit)}
-                    </div>
-                    <div className="text-blue-100 text-sm">Total Net Profit</div>
-                  </div>
-                  <div>
-                    <div className="text-3xl font-bold">
-                      {activeSummaryData.summary.totalOrders}
-                    </div>
-                    <div className="text-blue-100 text-sm">Total Orders</div>
-                  </div>
-                  <div>
-                    <div className="text-3xl font-bold">
-                      {activeSummaryData.summary.totalUnits}
-                    </div>
-                    <div className="text-blue-100 text-sm">Total Units</div>
-                  </div>
-                </div>
-              </div>
+              <ProfitOverviewBanner
+                title={`Profit Overview (${currentPreset.label})`}
+                totalRevenue={activeSummaryData.summary.totalRevenue}
+                totalProfit={activeSummaryData.summary.totalProfit}
+                totalOrders={activeSummaryData.summary.totalOrders}
+                totalUnits={activeSummaryData.summary.totalUnits}
+              />
             )}
 
             {/* Tiles header */}
@@ -772,17 +748,12 @@ export const ProfitDashboardScreen: React.FC = () => {
               onFilter={handleApplyTileFilters}
               searchWidth="w-[55%]"
               datePickerKey={tileDatePickerKey}
+              currencyAsDropdown
             />
 
             {/* Period cards */}
             <div
-              className={
-                appliedPresetId === 'custom'
-                  ? 'grid grid-cols-1 gap-4 mb-6 max-w-md'
-                  : `grid grid-cols-1 md:grid-cols-2 ${
-                      gridColsClass[Math.min(currentPreset.tiles.length, 5)]
-                    } gap-4 mb-6`
-              }
+              className={SUMMARY_TILE_GRID}
             >
               {periodCardsData.map((period) => {
                 if (period.isFetching) {
@@ -802,7 +773,7 @@ export const ProfitDashboardScreen: React.FC = () => {
                   <Card
                     key={period.id}
                     className={`bg-surface border border-border cursor-pointer transition-shadow hover:shadow-md min-h-[400px] min-w-0 flex flex-col ${
-                      selectedTileId === period.id ? 'ring-2 ring-primary-200' : ''
+                      selectedTileId === period.id ? 'ring-2 ring-primary-600' : ''
                     }`}
                     onClick={() => setSelectedTileId(period.id)}
                   >
@@ -840,6 +811,14 @@ export const ProfitDashboardScreen: React.FC = () => {
                   </div>
 
                   <div className="flex items-center gap-3 flex-wrap">
+                  {tableView === 'products' && (
+                    <GroupByMenu
+                      value={groupBy}
+                      onChange={setGroupBy}
+                      splitByMarketplace={splitByMarketplace}
+                      onSplitByMarketplaceChange={setSplitByMarketplace}
+                    />
+                  )}
                   <RowActionsMenu
                     label="products table"
                     items={[
@@ -865,6 +844,7 @@ export const ProfitDashboardScreen: React.FC = () => {
                       isFetching={productFetching}
                       searchTerm={debouncedSearchTerm}
                       onSearchChange={setSearchTerm as any}
+                      refundReasonsScope={productQueryFilters}
                     />
                   ) : (
                     <OrderItemsTable
