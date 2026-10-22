@@ -352,7 +352,7 @@ export const ChannelReport: React.FC = () => {
               <Card
                 key={tile.id}
                 className={`bg-surface border border-border cursor-pointer transition-shadow hover:shadow-md min-w-0 flex flex-col ${
-                  period.selectedTile.id === tile.id ? 'ring-2 ring-primary-600 ring-offset-2' : ''
+                  period.selectedTile.id === tile.id ? 'ring-2 ring-primary-600' : ''
                 }`}
                 onClick={() => period.setSelectedTileId(tile.id)}
               >
