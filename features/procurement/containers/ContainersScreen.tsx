@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { FILL_TOGGLE, FilterBar, FilterItem } from '@/components/filter-bar/FilterBar'
 import { useStagedFilters } from '@/components/filter-bar/useStagedFilters'
 import { FormField } from '@/components/form-field/FormField'
+import { MarketplaceFlag } from '@/components/marketplace-flag/MarketPlaceFlag'
 import { Container } from '@/components/layout'
 import { PaginationFooter } from '@/components/pagination-footer/PaginationFooter'
 import { RowActionsMenu } from '@/components/row-actions-menu/RowActionsMenu'
@@ -21,7 +22,7 @@ import {
 import { cn } from '@/utils/cn'
 import { useDebounce } from '@/utils/debounce'
 import { formatCalendarDay } from '@/utils/format'
-import { CONTAINER_STATUS_META, CONTAINER_STATUSES, ContainerStatusBadge, DESTINATION_LABEL, supplierNames } from '../shared/poMeta'
+import { CONTAINER_STATUS_META, CONTAINER_STATUSES, ContainerStatusBadge, DESTINATION_LABEL, DESTINATION_ROW_TINT, supplierNames } from '../shared/poMeta'
 import { ContainerRowDetail } from './detail/ContainerOverview'
 import { containerHref, useContainerActions } from './useContainerActions'
 
@@ -82,9 +83,13 @@ export const ContainersScreen: React.FC = () => {
       className: 'min-w-[150px] text-left',
       render: (container) => (
         <div className="min-w-0">
-          <Link href={containerHref(container.id)} className="whitespace-nowrap font-mono text-sm font-semibold text-text-primary underline-offset-2 hover:underline">
-            {container.containerNumber ?? 'No number yet'}
-          </Link>
+          <div className="flex items-center gap-2">
+            <MarketplaceFlag marketplace={container.destination} className="shadow-sm" />
+            <span className="sr-only">{DESTINATION_LABEL[container.destination]}</span>
+            <Link href={containerHref(container.id)} className="whitespace-nowrap font-mono text-sm font-semibold text-text-primary underline-offset-2 hover:underline">
+              {container.containerNumber ?? 'No number yet'}
+            </Link>
+          </div>
           <p className="whitespace-nowrap font-mono text-[11px] text-text-muted">{container.containerNo}</p>
           <p className="whitespace-nowrap text-xs text-text-muted">{container.lines.length === 0 ? 'Empty' : `${container.lines.length} SKU${container.lines.length === 1 ? '' : 's'} · ${qty(container.totals.units)} units`}</p>
         </div>
@@ -203,6 +208,7 @@ export const ContainersScreen: React.FC = () => {
             rows={rows}
             getKey={(container) => container.id}
             getChildren={() => []}
+            getRowClassName={(container) => DESTINATION_ROW_TINT[container.destination]}
             renderDetail={(container) => <ContainerRowDetail containerId={container.id} canWrite={actions.canWrite} />}
             expandLabel="container details"
             isLoading={isLoading}

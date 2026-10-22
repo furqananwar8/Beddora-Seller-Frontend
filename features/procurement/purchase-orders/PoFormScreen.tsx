@@ -24,7 +24,7 @@ import {
 import { useAppSelector } from '@/store/hooks'
 import { applyServerIssues } from '@/utils/apiErrors'
 import { formatCalendarDay } from '@/utils/format'
-import { isApprovedPo, isPackable, newPackagingListHref, newPurchaseInvoiceHref, PaymentBadge, PoStatusBadge, poPackagingListsHref, poPaymentRequestsHref, poPurchaseInvoicesHref } from '../shared/poMeta'
+import { canRequestPayment, isApprovedPo, isPackable, newPackagingListHref, newPaymentRequestHref, newPurchaseInvoiceHref, PaymentBadge, PoStatusBadge, poPackagingListsHref, poPaymentRequestsHref, poPurchaseInvoicesHref } from '../shared/poMeta'
 import { ApprovalPanel } from './ApprovalPanel'
 import { emptyPoValues, fromDetail, fromRemaining, poFormSchema, toPoBody, type PoFormValues } from './poForm'
 import { PoOrderDetailsSection, PoSupplierSection } from './PoDetailsSections'
@@ -177,6 +177,11 @@ export const PoFormScreen: React.FC<PoFormScreenProps> = ({ purchaseOrderId }) =
               {po && isPackable(po) && ability.can('write', 'procurement:packaging-lists') && (
                 <Link href={newPackagingListHref(po.id)} className="text-sm font-medium text-primary-600 underline-offset-2 hover:underline">
                   + Create packaging list
+                </Link>
+              )}
+              {po && canRequestPayment(po) && ability.can('write', 'finance:payment-request') && (
+                <Link href={newPaymentRequestHref(po.id)} className="text-sm font-medium text-primary-600 underline-offset-2 hover:underline">
+                  + Create payment request
                 </Link>
               )}
               {po && isApprovedPo(po) && ability.can('write', 'procurement:purchase-invoices') && (

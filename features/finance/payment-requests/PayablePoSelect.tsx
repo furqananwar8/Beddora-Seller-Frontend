@@ -4,7 +4,7 @@ import React, { useState } from 'react'
 import { SearchableSelect } from '@/components/searchable-select/SearchableSelect'
 import { useGetPayablePurchaseOrdersQuery, type PayablePurchaseOrder, type PoRef } from '@/services/api/finance.api'
 import { useDebounce } from '@/utils/debounce'
-import { formatDay } from '../shared/format'
+import { formatCurrencyAmount, formatDay, formatMoney } from '../shared/format'
 
 interface PayablePoSelectProps {
   id?: string
@@ -18,7 +18,7 @@ interface PayablePoSelectProps {
 
 const DESTINATION: Record<PayablePurchaseOrder['destination'], string> = { US: 'USA', CA: 'Canada' }
 
-/** The purchase order a payment request pays: only approved, open POs of the chosen supplier. */
+/** The purchase order a payment request pays: approved, open POs of the chosen supplier that are not fully paid or requested. */
 export const PayablePoSelect: React.FC<PayablePoSelectProps> = ({ id, partnerId, value, onChange, error, disabled }) => {
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
@@ -39,7 +39,7 @@ export const PayablePoSelect: React.FC<PayablePoSelectProps> = ({ id, partnerId,
           <span className="flex items-center justify-between gap-2">
             <span className="font-medium">{payable.poNo}</span>
             <span className="shrink-0 text-xs text-text-muted">
-              {DESTINATION[payable.destination]} · {payable.currency} · {payable.units.toLocaleString('en-CA')} units · ETD {formatDay(payable.etd)}
+              {DESTINATION[payable.destination]} · {formatCurrencyAmount(payable.currency, payable.leftToRequest)} left of {formatMoney(payable.amount)} · ETD {formatDay(payable.etd)}
             </span>
           </span>
         )
@@ -50,7 +50,7 @@ export const PayablePoSelect: React.FC<PayablePoSelectProps> = ({ id, partnerId,
       loading={isFetching}
       placeholder={partnerId ? 'Select a purchase order' : 'Pick the supplier first'}
       searchPlaceholder="PO number, e.g. PO-1043"
-      emptyText="No approved, open purchase order for this supplier."
+      emptyText="No approved, open purchase order of this supplier has an amount left to pay."
       error={error}
       disabled={disabled || !partnerId}
     />

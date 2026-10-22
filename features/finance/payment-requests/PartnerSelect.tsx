@@ -16,6 +16,8 @@ interface PartnerSelectProps {
   addPartnerHref?: string
   /** Runs just before navigating to add a partner, e.g. to stash the form. */
   onAddPartner?: () => void
+  /** Locked, e.g. to the supplier of the purchase order being paid or invoiced. */
+  disabled?: boolean
 }
 
 const Chip: React.FC<{ children: React.ReactNode }> = ({ children }) => (
@@ -46,7 +48,7 @@ export const toPartnerOption = (partner: PartnerLike): PartnerOption => ({
 })
 
 /** Searchable partner dropdown that ends with a link to create a new partner. */
-export const PartnerSelect: React.FC<PartnerSelectProps> = ({ id, selected, error, onSelect, addPartnerHref, onAddPartner }) => {
+export const PartnerSelect: React.FC<PartnerSelectProps> = ({ id, selected, error, onSelect, addPartnerHref, onAddPartner, disabled }) => {
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
   const debounced = useDebounce(search, 250)
@@ -74,6 +76,7 @@ export const PartnerSelect: React.FC<PartnerSelectProps> = ({ id, selected, erro
       searchPlaceholder="Search partners..."
       emptyText="No partners found."
       error={error}
+      disabled={disabled}
       footer={
         <Link
           href={addPartnerHref ?? '/dashboard/finance/partner-profile/new'}

@@ -16,7 +16,7 @@ import { MarkPaidConfirm } from './MarkPaidConfirm'
 import { PaymentDetailModal } from './PaymentDetailModal'
 import { PaymentKpiRow } from './PaymentKpiRow'
 import { PaymentTable } from './PaymentTable'
-import { PopUploadDialog } from './PopUploadDialog'
+import { PopDialogMode, PopUploadDialog } from './PopUploadDialog'
 import type { RowAction } from './RowActions'
 
 const PAGE_SIZE = 10
@@ -32,7 +32,7 @@ export const PaymentProcessScreen: React.FC = () => {
   const [status, setStatus] = useState<DocStatus | null>(null)
 
   const [detailId, setDetailId] = useState<number | null>(null)
-  const [uploadRow, setUploadRow] = useState<PaymentDocumentListItem | null>(null)
+  const [uploadRow, setUploadRow] = useState<{ row: PaymentDocumentListItem; mode: PopDialogMode } | null>(null)
   const [markPaidRow, setMarkPaidRow] = useState<PaymentDocumentListItem | null>(null)
 
   // `?open=<docId>` (notification links) opens the detail modal.
@@ -56,7 +56,8 @@ export const PaymentProcessScreen: React.FC = () => {
   }
 
   const onAction = (row: PaymentDocumentListItem, action: RowAction) => {
-    if (action === 'upload') setUploadRow(row)
+    if (action === 'upload') setUploadRow({ row, mode: 'record' })
+    else if (action === 'proofs') setUploadRow({ row, mode: 'proofs' })
     else if (action === 'mark-paid') setMarkPaidRow(row)
     else setDetailId(row.id)
   }
@@ -106,7 +107,7 @@ export const PaymentProcessScreen: React.FC = () => {
       />
 
       <PaymentDetailModal docId={detailId} onClose={closeDetail} />
-      <PopUploadDialog row={uploadRow} onClose={() => setUploadRow(null)} />
+      <PopUploadDialog row={uploadRow?.row ?? null} mode={uploadRow?.mode} onClose={() => setUploadRow(null)} />
       <MarkPaidConfirm row={markPaidRow} onClose={() => setMarkPaidRow(null)} />
     </Container>
   )

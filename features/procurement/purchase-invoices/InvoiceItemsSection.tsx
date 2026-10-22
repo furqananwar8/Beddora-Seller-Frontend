@@ -1,8 +1,11 @@
 'use client'
 
-import React from 'react'
+import React, { useState } from 'react'
 import { Control, FieldErrors, UseFormRegister, useFieldArray, useWatch } from 'react-hook-form'
+import { Button } from '@/design-system/buttons'
 import { Input } from '@/design-system/inputs'
+import { Modal } from '@/design-system/modals'
+import { CostCenterField, type CostCenterSource } from '@/features/finance/shared/CostCenterSelect'
 import { FormSection as Section } from '@/features/finance/shared/FormSection'
 import { formatMoney } from '@/features/finance/shared/format'
 import { cn } from '@/utils/cn'
@@ -16,9 +19,12 @@ interface InvoiceItemsSectionProps {
   /** Shown on the right of the bars, like the PDF: the PO number and the supplier's invoice number. */
   poNo: string
   invoiceNo: string
+  /** Each item is booked to its own expense. */
+  costCenters: CostCenterSource
 }
 
-const COLS = 'grid grid-cols-[minmax(0,1fr)_90px_90px_110px] items-center gap-3'
+const PO_COLS = 'grid grid-cols-[minmax(0,1fr)_90px_90px_110px] items-center gap-3'
+const INVOICE_COLS = 'grid grid-cols-[minmax(0,1fr)_90px_90px_110px_minmax(180px,1fr)] items-start gap-3'
 const NUM = 'text-right tabular-nums'
 const qty = (value: number) => value.toLocaleString('en-CA')
 
@@ -30,12 +36,13 @@ const Bar: React.FC<{ title: string; reference?: string }> = ({ title, reference
   </div>
 )
 
-const Head: React.FC = () => (
-  <div className={cn(COLS, 'border-b border-border px-1 py-2 text-xs font-semibold uppercase tracking-wide text-text-muted')}>
+const Head: React.FC<{ cols: string; withExpense?: boolean }> = ({ cols, withExpense }) => (
+  <div className={cn(cols, 'border-b border-border px-1 py-2 text-xs font-semibold uppercase tracking-wide text-text-muted')}>
     <span>Item</span>
     <span className={NUM}>Qty</span>
     <span className={NUM}>Rate</span>
     <span className={NUM}>Amount</span>
+    {withExpense && <span>Expense</span>}
   </div>
 )
 
@@ -47,8 +54,8 @@ const ItemName: React.FC<{ line: Pick<InvoiceLineValues, 'ref' | 'label'> }> = (
 )
 
 /** The total under the Amount column, double-ruled as on the PDF. */
-const Total: React.FC<{ value: number; label: string }> = ({ value, label }) => (
-  <div className={cn(COLS, 'px-1 pt-2')}>
+const Total: React.FC<{ cols: string; value: number; label: string }> = ({ cols, value, label }) => (
+  <div className={cn(cols, 'px-1 pt-2')}>
     <span className="text-sm font-semibold text-text-primary">{label}</span>
     <span />
     <span />
@@ -56,57 +63,73 @@ const Total: React.FC<{ value: number; label: string }> = ({ value, label }) => 
   </div>
 )
 
+/** The purchase order as ordered (read only), shown on demand in a modal. */
+const PurchaseOrderTable: React.FC<{ lines: InvoiceLineValues[]; poNo: string; currency: string }> = ({ lines, poNo, currency }) => (
+  <div className="overflow-x-auto">
+    <div className="min-w-[480px]">
+      <Bar title="Purchase order" reference={poNo} />
+      <Head cols={PO_COLS} />
+      {lines.map((line) => (
+        <div key={line.productId} className={cn(PO_COLS, 'border-b border-border/60 px-1 py-2.5')}>
+          <ItemName line={line} />
+          <span className={cn(NUM, 'text-sm')}>{qty(line.poUnits)}</span>
+          <span className={cn(NUM, 'text-sm')}>{formatMoney(line.poUnitPrice)}</span>
+          <span className={cn(NUM, 'text-sm')}>{formatMoney(poLineAmount(line))}</span>
+        </div>
+      ))}
+      <Total cols={PO_COLS} value={invoiceTotals({ lines, expenses: [] }).po} label={`Total (${currency || '—'})`} />
+    </div>
+  </div>
+)
+
 /**
- * As on the PDF: the purchase order as ordered (read only), then the invoice as the supplier billed it, where the
- * quantity and rate start at the PO's and are changed when more or less arrived or the price moved.
+ * The invoice as the supplier billed it: quantity and rate start at the PO's and are changed when more or less
+ * arrived or the price moved; each item is booked to an expense. The PO as ordered opens in a modal.
  */
-export const InvoiceItemsSection: React.FC<InvoiceItemsSectionProps> = ({ control, register, errors, currency, poNo, invoiceNo }) => {
+export const InvoiceItemsSection: React.FC<InvoiceItemsSectionProps> = ({ control, register, errors, currency, poNo, invoiceNo, costCenters }) => {
+  const [showPo, setShowPo] = useState(false)
   const { fields } = useFieldArray({ control, name: 'lines', keyName: 'key' })
   const lines = useWatch({ control, name: 'lines' }) ?? []
   const totals = invoiceTotals({ lines, expenses: [] })
-  const rowError = (index: number) => errors.lines?.[index]?.units?.message ?? errors.lines?.[index]?.unitPrice?.message
+  const rowError = (index: number) => errors.lines?.[index]?.units?.message ?? errors.lines?.[index]?.unitPrice?.message ?? errors.lines?.[index]?.costCenterId?.message
 
   return (
     <Section title="Items" note="the purchase order's SKUs; enter what the supplier actually invoiced">
+      <div className="mb-3 flex justify-end">
+        <Button type="button" variant="outline" size="sm" onClick={() => setShowPo(true)}>
+          View purchase order
+        </Button>
+      </div>
       <div className="overflow-x-auto">
-        <div className="min-w-[560px] space-y-6">
-          <div>
-            <Bar title="Purchase order" reference={poNo} />
-            <Head />
-            {fields.map((field) => (
-              <div key={field.key} className={cn(COLS, 'border-b border-border/60 px-1 py-2.5')}>
-                <ItemName line={field} />
-                <span className={cn(NUM, 'text-sm')}>{qty(field.poUnits)}</span>
-                <span className={cn(NUM, 'text-sm')}>{formatMoney(field.poUnitPrice)}</span>
-                <span className={cn(NUM, 'text-sm')}>{formatMoney(poLineAmount(field))}</span>
-              </div>
-            ))}
-            <Total value={totals.po} label={`Total (${currency || '—'})`} />
-          </div>
-
-          <div>
-            <Bar title="Invoice" reference={invoiceNo.trim() || undefined} />
-            <Head />
-            {fields.map((field, index) => {
-              const line = lines[index] ?? field
-              const changed = line.units.trim() !== String(field.poUnits) || Number(line.unitPrice) !== field.poUnitPrice
-              return (
-                <div key={field.key} className={cn('border-b border-border/60 px-1 py-2', changed && 'bg-warning-50/60')}>
-                  <div className={COLS}>
+        <div className="min-w-[760px]">
+          <Bar title="Invoice" reference={invoiceNo.trim() || undefined} />
+          <Head cols={INVOICE_COLS} withExpense />
+          {fields.map((field, index) => {
+            const line = lines[index] ?? field
+            const changed = line.units.trim() !== String(field.poUnits) || Number(line.unitPrice) !== field.poUnitPrice
+            return (
+              <div key={field.key} className={cn('border-b border-border/60 px-1 py-2', changed && 'bg-warning-50/60')}>
+                <div className={INVOICE_COLS}>
+                  <span className="pt-2">
                     <ItemName line={field} />
-                    <Input aria-label={`Invoiced quantity of ${field.ref}`} inputMode="numeric" autoComplete="off" className="h-9 rounded-lg text-right" {...register(`lines.${index}.units`)} />
-                    <Input aria-label={`Invoiced rate of ${field.ref}`} inputMode="decimal" autoComplete="off" className="h-9 rounded-lg text-right" {...register(`lines.${index}.unitPrice`)} />
-                    <span className={cn(NUM, 'text-sm font-medium')}>{formatMoney(lineAmount(line))}</span>
-                  </div>
-                  {rowError(index) && <p className="mt-1 text-right text-xs text-danger-600">{rowError(index)}</p>}
+                  </span>
+                  <Input aria-label={`Invoiced quantity of ${field.ref}`} inputMode="numeric" autoComplete="off" className="h-9 rounded-lg text-right" {...register(`lines.${index}.units`)} />
+                  <Input aria-label={`Invoiced rate of ${field.ref}`} inputMode="decimal" autoComplete="off" className="h-9 rounded-lg text-right" {...register(`lines.${index}.unitPrice`)} />
+                  <span className={cn(NUM, 'pt-2 text-sm font-medium')}>{formatMoney(lineAmount(line))}</span>
+                  <CostCenterField control={control} name={`lines.${index}.costCenterId`} id={`lines.${index}.costCenterId`} {...costCenters} />
                 </div>
-              )
-            })}
-            <Total value={totals.invoice} label={`Total (${currency || '—'})`} />
-          </div>
+                {rowError(index) && <p className="mt-1 text-right text-xs text-danger-600">{rowError(index)}</p>}
+              </div>
+            )
+          })}
+          <Total cols={INVOICE_COLS} value={totals.invoice} label={`Total (${currency || '—'})`} />
         </div>
       </div>
       {typeof errors.lines?.message === 'string' && <p className="mt-2 text-sm text-danger-600">{errors.lines.message}</p>}
+
+      <Modal isOpen={showPo} onClose={() => setShowPo(false)} title={`Purchase order ${poNo}`} size="lg" closeOnEscape closeOnBackdropClick>
+        <PurchaseOrderTable lines={lines} poNo={poNo} currency={currency} />
+      </Modal>
     </Section>
   )
 }

@@ -125,6 +125,7 @@ interface ContainerFormModalProps {
 /**
  * "New container" / "Edit container". The packaging list is put in separately (from the list, or the container's
  * page). What can change depends on the status: everything while booked, only the ETA in transit, nothing delivered.
+ * The total cost is not asked when booking a container (it is unknown then); it is entered later by editing it.
  */
 export const ContainerFormModal: React.FC<ContainerFormModalProps> = ({ isOpen, onClose, container, preset, onSaved }) => {
   const { success, failure } = useApiFeedback()
@@ -135,6 +136,7 @@ export const ContainerFormModal: React.FC<ContainerFormModalProps> = ({ isOpen, 
   // A new container is fully editable; a saved one as far as its status allows
   const editable = new Set<ContainerField>(container?.permissions.editableFields ?? (Object.keys(SERVER_FIELDS) as ContainerField[]))
   const locked = (field: ContainerField) => !editable.has(field)
+  const askCost = Boolean(container)
   const statusOptions = container ? nextContainerStatuses(container.status) : CONTAINER_STATUSES.filter((status) => status !== 'DELIVERED')
 
   const {
@@ -287,16 +289,18 @@ export const ContainerFormModal: React.FC<ContainerFormModalProps> = ({ isOpen, 
               )}
             />
           </FormField>
-          <FormField label="Total cost" htmlFor="ct-cost" error={errors.totalCost?.message}>
-            <div className="flex gap-2">
-              <NumericInput decimal id="ct-cost" autoComplete="off" placeholder="0.00" className={fieldClass(errors.totalCost?.message)} disabled={locked('totalCost')} {...register('totalCost')} />
-              <Controller
-                control={control}
-                name="currency"
-                render={({ field }) => <SegmentedToggle<PoCurrency> ariaLabel="Currency" value={field.value} onChange={field.onChange} options={CURRENCIES} disabled={locked('currency')} />}
-              />
-            </div>
-          </FormField>
+          {askCost && (
+            <FormField label="Total cost" htmlFor="ct-cost" error={errors.totalCost?.message}>
+              <div className="flex gap-2">
+                <NumericInput decimal id="ct-cost" autoComplete="off" placeholder="0.00" className={fieldClass(errors.totalCost?.message)} disabled={locked('totalCost')} {...register('totalCost')} />
+                <Controller
+                  control={control}
+                  name="currency"
+                  render={({ field }) => <SegmentedToggle<PoCurrency> ariaLabel="Currency" value={field.value} onChange={field.onChange} options={CURRENCIES} disabled={locked('currency')} />}
+                />
+              </div>
+            </FormField>
+          )}
         </div>
 
         <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">

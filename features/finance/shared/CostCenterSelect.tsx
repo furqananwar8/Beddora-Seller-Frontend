@@ -2,6 +2,7 @@
 
 import React, { useMemo, useState } from 'react'
 import Link from 'next/link'
+import { Control, Controller, FieldPathByValue, FieldValues } from 'react-hook-form'
 import { SearchableSelect } from '@/components/searchable-select/SearchableSelect'
 import type { CostCenterOption } from '@/services/api/finance.api'
 
@@ -56,6 +57,33 @@ export const CostCenterSelect: React.FC<CostCenterSelectProps> = ({ id, options,
       emptyText={options && options.length === 0 ? 'No expenses yet. Create one below.' : 'Nothing matches.'}
       error={error}
       footer={addLink('block rounded-md px-2 pb-1 pt-2 text-sm font-medium text-primary-600 hover:underline', '+ Create new')}
+    />
+  )
+}
+
+/** Where a form's expense pickers get their options and where "+ Create new" leads; shared by every row. */
+export type CostCenterSource = Pick<CostCenterSelectProps, 'options' | 'loading' | 'addHref' | 'onAdd'>
+
+type CostCenterFieldProps<T extends FieldValues> = Omit<CostCenterSelectProps, 'value' | 'onChange' | 'error'> & {
+  control: Control<T>
+  /** A string field holding the cost center's id ('' when none). */
+  name: FieldPathByValue<T, string>
+}
+
+/** {@link CostCenterSelect} bound to a form field, so every row of a form books to its own expense the same way. */
+export function CostCenterField<T extends FieldValues>({ control, name, ...props }: CostCenterFieldProps<T>) {
+  return (
+    <Controller
+      control={control}
+      name={name}
+      render={({ field, fieldState }) => (
+        <CostCenterSelect
+          {...props}
+          value={field.value ? Number(field.value) : null}
+          onChange={(option) => field.onChange(String(option.id))}
+          error={fieldState.error?.message}
+        />
+      )}
     />
   )
 }

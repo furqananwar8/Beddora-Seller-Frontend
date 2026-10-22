@@ -21,10 +21,23 @@ interface PackingLinesTableProps {
 }
 
 const HEAD = 'px-3 py-2 text-center text-xs font-semibold uppercase tracking-wide text-text-muted'
-const CELL = 'px-3 py-2 text-center align-middle tabular-nums'
+/**
+ * Body cells align to the top and plain values sit in an input-high box ({@link Value}), so a message appearing under
+ * one input grows the row downwards instead of re-centering (and so moving) every input on it.
+ */
+const CELL = 'px-3 py-2 text-center align-top tabular-nums'
+const FOOT_CELL = 'px-3 py-2 text-center align-middle tabular-nums'
 const COLUMNS = 12
 const qty = (value: number) => value.toLocaleString('en-CA')
 const kg = (value: number) => `${value.toLocaleString('en-CA', { maximumFractionDigits: 1 })} kg`
+
+/** A read-only figure, vertically centred on the inputs of its row. */
+const Value: React.FC<{ className?: string; children: React.ReactNode }> = ({ className, children }) => (
+  <div className={cn('flex h-9 items-center justify-center', className)}>{children}</div>
+)
+
+const CellMessage: React.FC<{ error?: string; hint?: string }> = ({ error, hint }) =>
+  error ? <p className="mt-1 text-xs text-danger-600">{error}</p> : hint ? <p className="mt-1 text-xs text-text-muted">{hint}</p> : null
 
 const NumberCell: React.FC<{
   label: string
@@ -47,7 +60,7 @@ const NumberCell: React.FC<{
       readOnly={readOnly}
       className={cn(fieldClass(error), 'mx-auto h-9 w-24 py-1 text-right tabular-nums', readOnly && 'bg-secondary-50', className)}
     />
-    {error ? <p className="mt-1 text-xs text-danger-600">{error}</p> : hint ? <p className="mt-1 text-xs text-text-muted">{hint}</p> : null}
+    <CellMessage error={error} hint={hint} />
   </>
 )
 
@@ -72,7 +85,7 @@ export const PackingLinesTable: React.FC<PackingLinesTableProps> = ({ groups, va
             <th className={HEAD}>Cartons</th>
             <th className={cn(HEAD, 'min-w-[14rem]')}>Carton L × W × H (cm)</th>
             <th className={HEAD}>CBM</th>
-            <th className={HEAD}>Net wt</th>
+            <th className={HEAD}>Net wt (kg)</th>
             <th className={HEAD}>Gross wt (kg)</th>
           </tr>
         </thead>
@@ -92,22 +105,30 @@ export const PackingLinesTable: React.FC<PackingLinesTableProps> = ({ groups, va
                 // Validation is for typing; a saved list shown read-only is displayed as it was saved
                 const errors: typeof figures.errors = readOnly ? {} : figures.errors
                 const unitsError = errors.units ?? serverErrors?.get(key)
-                const rowError = unitsError || errors.cartons || errors.carton || errors.gross
+                const rowError = unitsError || errors.cartons || errors.carton || errors.net || errors.gross
                 const expanded = isOpen(key)
                 return (
                   <React.Fragment key={key}>
                     <tr className={cn('border-t border-border', rowError && 'bg-danger-50/40')}>
                       <td className={CELL}>
-                        <ExpandToggle expanded={expanded} onToggle={() => toggle(key)} />
+                        <Value>
+                          <ExpandToggle expanded={expanded} onToggle={() => toggle(key)} />
+                        </Value>
                       </td>
                       <td className={cn(CELL, 'text-left')}>
                         <p className="font-mono text-xs font-semibold text-text-primary">{line.product.ref}</p>
                         <p className="text-xs text-text-secondary">{productLabel(line.product)}</p>
                         {line.product.color && <p className="text-xs text-text-muted">{line.product.color}</p>}
                       </td>
-                      <td className={CELL}>{qty(line.poQty)}</td>
-                      <td className={cn(CELL, 'text-text-muted')}>{qty(line.allocated)}</td>
-                      <td className={CELL}>{qty(line.available)}</td>
+                      <td className={CELL}>
+                        <Value>{qty(line.poQty)}</Value>
+                      </td>
+                      <td className={cn(CELL, 'text-text-muted')}>
+                        <Value>{qty(line.allocated)}</Value>
+                      </td>
+                      <td className={CELL}>
+                        <Value>{qty(line.available)}</Value>
+                      </td>
                       <td className={CELL}>
                         <NumberCell
                           label={`Quantity of ${line.product.ref} to be shipped`}
@@ -118,7 +139,9 @@ export const PackingLinesTable: React.FC<PackingLinesTableProps> = ({ groups, va
                           hint={!readOnly && figures.units !== line.available ? `max ${qty(line.available)}` : undefined}
                         />
                       </td>
-                      <td className={cn(CELL, 'font-medium', figures.remaining < 0 ? 'text-danger-600' : figures.remaining > 0 ? 'text-warning-700' : 'text-success-700')}>{qty(figures.remaining)}</td>
+                      <td className={cn(CELL, 'font-medium', figures.remaining < 0 ? 'text-danger-600' : figures.remaining > 0 ? 'text-warning-700' : 'text-success-700')}>
+                        <Value>{qty(figures.remaining)}</Value>
+                      </td>
                       <td className={CELL}>
                         <NumberCell label={`Cartons of ${line.product.ref}`} value={value.cartons} onChange={(next) => onChange(key, 'cartons', next)} error={errors.cartons} readOnly={readOnly} />
                       </td>
@@ -144,10 +167,23 @@ export const PackingLinesTable: React.FC<PackingLinesTableProps> = ({ groups, va
                             </React.Fragment>
                           ))}
                         </div>
-                        {errors.carton && <p className="mt-1 text-xs text-danger-600">{errors.carton}</p>}
+                        <CellMessage error={errors.carton} />
                       </td>
-                      <td className={cn(CELL, 'font-mono text-xs')}>{figures.cbm.toFixed(2)}</td>
-                      <td className={cn(CELL, 'whitespace-nowrap')}>{kg(figures.net)}</td>
+                      <td className={cn(CELL, 'font-mono text-xs')}>
+                        <Value>{figures.cbm.toFixed(2)}</Value>
+                      </td>
+                      <td className={CELL}>
+                        <NumberCell
+                          decimal
+                          label={`Net weight of ${line.product.ref} in kg`}
+                          value={value.net}
+                          onChange={(next) => onChange(key, 'net', next)}
+                          error={errors.net}
+                          placeholder={String(figures.productNet)}
+                          readOnly={readOnly}
+                          hint={!readOnly && line.product.weightKg === null && !value.net.trim() ? 'No weight on product' : undefined}
+                        />
+                      </td>
                       <td className={CELL}>
                         <NumberCell
                           decimal
@@ -180,19 +216,19 @@ export const PackingLinesTable: React.FC<PackingLinesTableProps> = ({ groups, va
         <tfoot>
           <tr className="border-t border-border bg-secondary-50 font-semibold">
             <td />
-            <td className={cn(CELL, 'text-left')}>
+            <td className={cn(FOOT_CELL, 'text-left')}>
               Total · {groups.length} {groups.length === 1 ? 'PO' : 'POs'} · {all.length} {all.length === 1 ? 'SKU' : 'SKUs'}
             </td>
-            <td className={CELL}>{qty(total((row) => row.line.poQty))}</td>
-            <td className={CELL}>{qty(total((row) => row.line.allocated))}</td>
-            <td className={CELL}>{qty(total((row) => row.line.available))}</td>
-            <td className={CELL}>{qty(total((row) => row.figures.units))}</td>
-            <td className={CELL}>{qty(total((row) => row.figures.remaining))}</td>
-            <td className={CELL}>{qty(total((row) => row.figures.cartons))}</td>
+            <td className={FOOT_CELL}>{qty(total((row) => row.line.poQty))}</td>
+            <td className={FOOT_CELL}>{qty(total((row) => row.line.allocated))}</td>
+            <td className={FOOT_CELL}>{qty(total((row) => row.line.available))}</td>
+            <td className={FOOT_CELL}>{qty(total((row) => row.figures.units))}</td>
+            <td className={FOOT_CELL}>{qty(total((row) => row.figures.remaining))}</td>
+            <td className={FOOT_CELL}>{qty(total((row) => row.figures.cartons))}</td>
             <td />
-            <td className={cn(CELL, 'font-mono text-xs')}>{total((row) => row.figures.cbm).toFixed(2)}</td>
-            <td className={cn(CELL, 'whitespace-nowrap')}>{kg(total((row) => row.figures.net))}</td>
-            <td className={cn(CELL, 'whitespace-nowrap')}>{kg(total((row) => row.figures.gross))}</td>
+            <td className={cn(FOOT_CELL, 'font-mono text-xs')}>{total((row) => row.figures.cbm).toFixed(2)}</td>
+            <td className={cn(FOOT_CELL, 'whitespace-nowrap')}>{kg(total((row) => row.figures.net))}</td>
+            <td className={cn(FOOT_CELL, 'whitespace-nowrap')}>{kg(total((row) => row.figures.gross))}</td>
           </tr>
         </tfoot>
       </table>

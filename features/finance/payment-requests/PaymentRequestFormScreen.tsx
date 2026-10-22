@@ -11,7 +11,7 @@ import { SingleDatePicker } from '@/components/single-date-picker/SingleDatePick
 import { StatusBadge } from '@/components/status-badge/StatusBadge'
 import { SegmentedToggle } from '@/components/segmented-toggle/SegmentedToggle'
 import { Button } from '@/design-system/buttons'
-import { Input, Select, Textarea } from '@/design-system/inputs'
+import { Input, Select } from '@/design-system/inputs'
 import { SelectShell } from '../shared/SelectShell'
 import { Spinner } from '@/design-system/loaders'
 import {
@@ -23,9 +23,11 @@ import {
   useGetLeafCostCentersQuery,
   useGetFinanceMarketplacesQuery,
   useGetPartnerQuery,
+  useGetPayablePurchaseOrdersQuery,
   useGetPaymentRequestQuery,
   useLazyCheckDuplicateInvoiceQuery,
   useLazyCheckPurchaseInvoiceQuery,
+  type PayablePurchaseOrder,
   type PurchaseInvoiceForPayment,
   type DuplicateInvoice,
   type ReferenceType,
@@ -33,32 +35,39 @@ import {
   useSubmitPaymentRequestMutation,
   useUpdatePaymentRequestMutation,
 } from '@/services/api/finance.api'
+import { useGetProcurementPurchaseOrderQuery, type ContainerItem } from '@/services/api/procurement.api'
 import { FormField } from '../shared/FormField'
 import { FormSection as Section } from '../shared/FormSection'
-import { formatCurrencyAmount, formatMoney, formatRequestNo, toDateInputValue } from '../shared/format'
+import { currencyOptions } from '../shared/currency'
+import { formatCurrencyAmount, formatRequestNo, toDateInputValue } from '../shared/format'
 import { REQUEST_STATUS_META } from '../shared/statusMeta'
 import { useFinanceFeedback } from '../shared/useFinanceFeedback'
 import { DocumentChips } from '../shared/DocumentChips'
-import { CostCenterSelect } from '../shared/CostCenterSelect'
 import { PartnerChips, PartnerSelect, toPartnerOption } from './PartnerSelect'
 import { PayablePoSelect } from './PayablePoSelect'
 import { ContainerSelect, containerRefOf } from './ContainerSelect'
-import type { ContainerItem } from '@/services/api/procurement.api'
+import { RequestLinesSection } from './RequestLinesSection'
 import { clearRequestDraft, peekRequestDraft, saveRequestDraft, withQueryParam } from './requestDraftStore'
 import {
-  CURRENCIES,
   PaymentRequestFormValues,
+  PoLimit,
   REFERENCE_OPTIONS,
   emptyFormValues,
   filesFormData,
-  parseAmount,
-  paymentRequestSchema,
+  linesFromDetail,
+  makePaymentRequestSchema,
   toCreateFormData,
   toUpdateBody,
 } from './schema'
 
 const LIST_URL = '/dashboard/finance/payment-request'
 const NEW_URL = `${LIST_URL}/new`
+const PO_URL = '/dashboard/procurement/purchase-orders'
+
+const positiveParam = (value: string | null): number | null => {
+  const parsed = Number(value)
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null
+}
 
 const toFormValues = (detail: PaymentRequestDetail): PaymentRequestFormValues => ({
   partnerId: String(detail.partner.id),
@@ -69,19 +78,24 @@ const toFormValues = (detail: PaymentRequestDetail): PaymentRequestFormValues =>
   containerNo: detail.containerNo ?? '',
   marketplaceId: detail.marketplaceId ? String(detail.marketplaceId) : '',
   currency: detail.currency,
-  amount: formatMoney(detail.amount),
-  costCenterId: detail.costCenter ? String(detail.costCenter.id) : '',
+  lines: linesFromDetail(detail),
   remarks: detail.remarks ?? '',
 })
 
+const limitOf = (po: PayablePurchaseOrder): PoLimit => ({ currency: po.currency, amount: po.amount, leftToRequest: po.leftToRequest })
+
+/**
+ * Raise or edit a payment request (`?edit=`). Opened from a purchase order (`?purchaseOrderId=`), it starts as a
+ * request against that PO: its supplier, currency and destination, which then cannot change.
+ */
 export const PaymentRequestFormScreen: React.FC = () => {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const editParam = Number(searchParams.get('edit'))
-  const editId = Number.isInteger(editParam) && editParam > 0 ? editParam : null
+  const editId = positiveParam(searchParams.get('edit'))
   const { success, failure } = useFinanceFeedback()
-  const partnerParam = Number(searchParams.get('partnerId'))
-  const newPartnerId = Number.isInteger(partnerParam) && partnerParam > 0 ? partnerParam : null
+  const newPartnerId = positiveParam(searchParams.get('partnerId'))
+  /** Opened from a purchase order: prefill it, and "Back" returns there. */
+  const fromPoId = editId === null ? positiveParam(searchParams.get('purchaseOrderId')) : null
   const wantsRestore = newPartnerId !== null || searchParams.get('restore') === '1'
   // Peek (not take) so a dev double-mount cannot lose it; it is cleared once applied.
   const [draft] = useState(() => (wantsRestore ? peekRequestDraft() : null))
@@ -101,6 +115,10 @@ export const PaymentRequestFormScreen: React.FC = () => {
   const [removeDocument] = useRemoveRequestDocumentMutation()
   const [submitRequest] = useSubmitPaymentRequestMutation()
 
+  /** The picked purchase order with its open balance, which caps the request (resolved per submit). */
+  const [pickedPo, setPickedPo] = useState<PayablePurchaseOrder | null>(null)
+  const poLimit = pickedPo ? limitOf(pickedPo) : null
+
   const {
     register,
     control,
@@ -110,7 +128,10 @@ export const PaymentRequestFormScreen: React.FC = () => {
     getValues,
     watch,
     formState: { errors },
-  } = useForm<PaymentRequestFormValues>({ resolver: zodResolver(paymentRequestSchema), defaultValues: emptyFormValues })
+  } = useForm<PaymentRequestFormValues>({
+    resolver: (values, context, options) => zodResolver(makePaymentRequestSchema(poLimit))(values, context, options),
+    defaultValues: emptyFormValues,
+  })
 
   const [partner, setPartner] = useState<PartnerOption | null>(null)
   const [files, setFiles] = useState<File[]>([])
@@ -126,6 +147,15 @@ export const PaymentRequestFormScreen: React.FC = () => {
   const needsMethod = partner !== null && partner.paymentMethod === null
   const { data: partnerDetail } = useGetPartnerQuery(partner?.id ?? 0, { skip: !needsMethod })
   const shownPartner: PartnerOption | null = partner && needsMethod ? { ...partner, paymentMethod: partnerDetail?.paymentMethods[0]?.label ?? null } : partner
+
+  const currency = watch('currency')
+  const referenceType = watch('referenceType')
+  const purchaseOrder = watch('purchaseOrder')
+  const containerNo = watch('containerNo')
+  const byPurchaseOrder = referenceType === 'PURCHASE_ORDER'
+  /** A picked PO sets the currency and destination; they then follow it. */
+  const poLocked = byPurchaseOrder && purchaseOrder !== null
+  const existingDocuments: FinanceDocument[] = detail?.documents ?? []
 
   // Load an existing draft / rejected request into the form once.
   useEffect(() => {
@@ -157,28 +187,46 @@ export const PaymentRequestFormScreen: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [restored, newPartner, editId, detail])
 
+  // Opened from a purchase order: its supplier, then the PO itself with its open balance
+  const { data: fromPo } = useGetProcurementPurchaseOrderQuery(fromPoId ?? 0, { skip: fromPoId === null || draft !== null })
+  const { data: fromSupplier } = useGetPartnerQuery(fromPo?.supplier.id ?? 0, { skip: !fromPo })
+  // The PO being paid with its open balance: the one opened from, or a saved request's
+  const balancePoNo = fromPo?.poNo ?? (byPurchaseOrder && purchaseOrder && !pickedPo ? purchaseOrder.poNo : null)
+  const balancePartnerId = fromPo?.supplier.id ?? partner?.id ?? null
+  const { data: poMatches } = useGetPayablePurchaseOrdersQuery({ partnerId: balancePartnerId ?? 0, search: balancePoNo ?? '' }, { skip: !balancePoNo || !balancePartnerId })
+  /** Opened from a PO that takes no more requests (closed, fully paid or fully requested). */
+  const fromPoUnpayable = Boolean(fromPo && poMatches && !poMatches.some((po) => po.poNo === fromPo.poNo))
+  const appliedFromPo = useRef(false)
+  useEffect(() => {
+    if (!balancePoNo || !poMatches) return
+    const match = poMatches.find((po) => po.poNo === balancePoNo)
+    if (fromPo && fromSupplier && !appliedFromPo.current) {
+      appliedFromPo.current = true
+      pickPartner(toPartnerOption(fromSupplier))
+      switchReference('PURCHASE_ORDER')
+      if (match) pickPurchaseOrder(match)
+    } else if (match && !fromPo) {
+      setPickedPo(match)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [balancePoNo, poMatches, fromPo, fromSupplier])
+
   const returnHere = encodeURIComponent(editId ? withQueryParam(NEW_URL, 'edit', String(editId)) : NEW_URL)
   const addPartnerHref = `/dashboard/finance/partner-profile/new?returnTo=${returnHere}`
   const addCostCenterHref = `/dashboard/finance/cost-center/new?returnTo=${returnHere}`
   const stashDraft = () => saveRequestDraft({ values: getValues(), files, partner })
 
-  // Back from creating a cost center: pick the L4 that was just created (after the draft is restored)
-  const costCenterParam = Number(searchParams.get('costCenterId'))
+  // Back from creating a cost center: book the first line still without one (or the last) to the L4 just created
+  const costCenterParam = positiveParam(searchParams.get('costCenterId'))
   const appliedCostCenter = useRef(false)
   useEffect(() => {
-    if (!restored || appliedCostCenter.current || !Number.isInteger(costCenterParam) || costCenterParam <= 0) return
+    if (!restored || appliedCostCenter.current || costCenterParam === null) return
     if (editId && !hydrated.current) return
     appliedCostCenter.current = true
-    setValue('costCenterId', String(costCenterParam), { shouldValidate: true, shouldDirty: true })
-  }, [restored, costCenterParam, editId, detail, setValue])
-
-  const currency = watch('currency')
-  const referenceType = watch('referenceType')
-  const purchaseOrder = watch('purchaseOrder')
-  const containerNo = watch('containerNo')
-  const byPurchaseOrder = referenceType === 'PURCHASE_ORDER'
-  const currencyOptions = [...new Set([...CURRENCIES, ...(currency ? [currency] : [])])].map((code) => ({ value: code, label: code }))
-  const existingDocuments: FinanceDocument[] = detail?.documents ?? []
+    const lines = getValues('lines')
+    const open = lines.findIndex((line) => !line.costCenterId)
+    setValue(`lines.${open === -1 ? lines.length - 1 : open}.costCenterId`, String(costCenterParam), { shouldValidate: true, shouldDirty: true })
+  }, [restored, costCenterParam, editId, detail, getValues, setValue])
 
   const runDuplicateCheck = async (partnerId: string, invoiceNo: string) => {
     // Only invoices can be raised twice; a PO request has no invoice number
@@ -200,7 +248,10 @@ export const PaymentRequestFormScreen: React.FC = () => {
 
   const pickPartner = (option: PartnerOption) => {
     // A PO belongs to one supplier, so a different partner clears it
-    if (option.id !== partner?.id) setValue('purchaseOrder', null)
+    if (option.id !== partner?.id) {
+      setValue('purchaseOrder', null)
+      setPickedPo(null)
+    }
     setPartner(option)
     setValue('partnerId', String(option.id), { shouldValidate: true })
     setValue('currency', option.currency, { shouldValidate: true })
@@ -212,8 +263,9 @@ export const PaymentRequestFormScreen: React.FC = () => {
     if (next === 'PURCHASE_ORDER') {
       setDuplicate(null)
       setPurchaseInvoice(null)
-    }
-    else void runDuplicateCheck(getValues('partnerId'), getValues('invoiceNo'))
+      // A purchase-order request is booked to one expense
+      setValue('lines', getValues('lines').slice(0, 1), { shouldDirty: true })
+    } else void runDuplicateCheck(getValues('partnerId'), getValues('invoiceNo'))
   }
 
   const applyDestination = (code: 'US' | 'CA') => {
@@ -221,17 +273,24 @@ export const PaymentRequestFormScreen: React.FC = () => {
     if (destination) setValue('marketplaceId', String(destination.id), { shouldDirty: true })
   }
 
-  /** A picked PO brings its currency and destination; a picked container's destination wins over it. */
-  const pickPurchaseOrder = (po: { id: number; poNo: string; currency: string; destination: 'US' | 'CA' }) => {
+  /** A picked PO brings its currency and destination, which then stay locked to it. */
+  const pickPurchaseOrder = (po: PayablePurchaseOrder) => {
+    setPickedPo(po)
     setValue('purchaseOrder', { id: po.id, poNo: po.poNo }, { shouldValidate: true, shouldDirty: true })
     setValue('currency', po.currency, { shouldValidate: true })
-    if (!getValues('containerNo')) applyDestination(po.destination)
+    applyDestination(po.destination)
   }
 
-  /** The destination follows the container; without one it is picked by hand. */
+  // The PO's destination once the destination options have loaded (a prefilled PO may arrive first)
+  useEffect(() => {
+    if (poLocked && pickedPo && marketplaces) applyDestination(pickedPo.destination)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [poLocked, pickedPo, marketplaces])
+
+  /** Without a purchase order the destination follows the container; otherwise the PO's stays. */
   const pickContainer = (container: ContainerItem | null) => {
     setValue('containerNo', container ? containerRefOf(container) : '', { shouldValidate: true, shouldDirty: true })
-    if (container) applyDestination(container.destination)
+    if (container && !poLocked) applyDestination(container.destination)
   }
 
   const removeExisting = async (doc: FinanceDocument) => {
@@ -282,9 +341,10 @@ export const PaymentRequestFormScreen: React.FC = () => {
   const invalidFiles = () => setFileError(undefined)
   const busy = saving !== null
   /** Paying one of our purchase invoices that is not approved yet, or already fully paid: the server refuses it too. */
-  const invoiceBlocked = referenceType === 'INVOICE' && Boolean(purchaseInvoice?.blockedReason)
+  const invoiceBlocked = (referenceType === 'INVOICE' && Boolean(purchaseInvoice?.blockedReason)) || fromPoUnpayable
   const editBlocked = editId !== null && detail && !detail.can.edit
   const statusMeta = REQUEST_STATUS_META[detail?.status ?? 'DRAFT']
+  const backHref = fromPoId ? `${PO_URL}/${fromPoId}` : LIST_URL
 
   if (editId !== null && loadingDetail) {
     return (
@@ -320,18 +380,31 @@ export const PaymentRequestFormScreen: React.FC = () => {
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-xl font-bold text-text-primary sm:text-2xl">Payment Request Creation</h1>
           <StatusBadge label={requestId ? `${statusMeta.label} · ${formatRequestNo(requestId)}` : 'DRAFT'} tone={statusMeta.tone} />
+          {fromPo && (
+            <Link href={backHref} className="text-sm font-medium text-primary-600 underline-offset-2 hover:underline">
+              {fromPo.poNo}
+            </Link>
+          )}
         </div>
 
         <Section title="Partner" note="who is being paid">
-          <FormField label="Partner" htmlFor="partner" required error={errors.partnerId?.message}>
-            <PartnerSelect id="partner" selected={shownPartner} error={errors.partnerId?.message} onSelect={pickPartner} addPartnerHref={addPartnerHref} onAddPartner={stashDraft} />
+          <FormField label="Partner" htmlFor="partner" required error={errors.partnerId?.message} hint={poLocked ? 'The purchase order’s supplier' : undefined}>
+            <PartnerSelect
+              id="partner"
+              selected={shownPartner}
+              error={errors.partnerId?.message}
+              onSelect={pickPartner}
+              addPartnerHref={addPartnerHref}
+              onAddPartner={stashDraft}
+              disabled={fromPoId !== null}
+            />
           </FormField>
           {shownPartner && <PartnerChips partner={shownPartner} />}
         </Section>
 
         <Section title={byPurchaseOrder ? 'Purchase order & shipment' : 'Invoice & shipment'}>
-          <FormField label="Paying against" className="mb-4" hint={byPurchaseOrder ? 'Only approved, open purchase orders of this supplier can be paid' : undefined}>
-            <SegmentedToggle<ReferenceType> ariaLabel="Paying against" value={referenceType} onChange={switchReference} options={REFERENCE_OPTIONS} />
+          <FormField label="Paying against" className="mb-4" hint={byPurchaseOrder ? 'Only approved, open purchase orders of this supplier with an amount left to pay are offered' : undefined}>
+            <SegmentedToggle<ReferenceType> ariaLabel="Paying against" value={referenceType} onChange={switchReference} options={REFERENCE_OPTIONS} disabled={fromPoId !== null} />
           </FormField>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {byPurchaseOrder ? (
@@ -342,6 +415,7 @@ export const PaymentRequestFormScreen: React.FC = () => {
                   value={purchaseOrder}
                   onChange={pickPurchaseOrder}
                   error={errors.purchaseOrder?.message as string | undefined}
+                  disabled={fromPoId !== null}
                 />
               </FormField>
             ) : (
@@ -366,18 +440,27 @@ export const PaymentRequestFormScreen: React.FC = () => {
             <FormField label="Container #" htmlFor="containerNo" error={errors.containerNo?.message}>
               <ContainerSelect id="containerNo" value={containerNo} onChange={pickContainer} error={errors.containerNo?.message} />
             </FormField>
-            <FormField label="Destination (Marketplace)" htmlFor="marketplaceId" hint={containerNo ? 'Set by the container' : undefined}>
+            <FormField
+              label="Destination (Marketplace)"
+              htmlFor="marketplaceId"
+              hint={poLocked ? 'Set by the purchase order' : containerNo ? 'Set by the container' : undefined}
+            >
               <SelectShell>
               <Select
                 id="marketplaceId"
                 className="appearance-none rounded-lg pr-9"
-                disabled={Boolean(containerNo)}
+                disabled={poLocked || Boolean(containerNo)}
                 options={[{ value: '', label: 'Select destination' }, ...(marketplaces ?? []).map((m) => ({ value: String(m.id), label: m.name }))]}
                 {...register('marketplaceId')}
               />
               </SelectShell>
             </FormField>
           </div>
+          {fromPoUnpayable && fromPo && (
+            <p role="alert" className="mt-3 rounded-lg border border-danger-200 bg-danger-50 px-3 py-2 text-sm text-danger-700">
+              {fromPo.poNo} takes no more payment requests: it is closed, not approved yet, or already fully requested or paid.
+            </p>
+          )}
           {purchaseInvoice && !byPurchaseOrder && (
             <p
               role={purchaseInvoice.blockedReason ? 'alert' : undefined}
@@ -405,52 +488,19 @@ export const PaymentRequestFormScreen: React.FC = () => {
           )}
         </Section>
 
-        <Section title="Amount & category">
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-[1fr_2fr_2fr]">
-            <FormField label="Currency" htmlFor="currency" required error={errors.currency?.message}>
-              <SelectShell>
-              <Select id="currency" className="appearance-none rounded-lg pr-9" options={[{ value: '', label: 'Select' }, ...currencyOptions]} {...register('currency')} />
-              </SelectShell>
-            </FormField>
-            <FormField label="Amount" htmlFor="amount" required error={errors.amount?.message}>
-              <Controller
-                control={control}
-                name="amount"
-                render={({ field }) => (
-                  <Input
-                    id="amount"
-                    inputMode="decimal"
-                    placeholder="0.00"
-                    className="rounded-lg text-right"
-                    value={field.value}
-                    ref={field.ref}
-                    onChange={(e) => field.onChange(e.target.value)}
-                    onBlur={() => {
-                      const parsed = parseAmount(field.value)
-                      if (field.value.trim() && Number.isFinite(parsed)) field.onChange(formatMoney(parsed))
-                      field.onBlur()
-                    }}
-                  />
-                )}
-              />
-            </FormField>
-            <FormField label="Expense" htmlFor="costCenterId" required error={errors.costCenterId?.message}>
-              <CostCenterSelect
-                id="costCenterId"
-                options={costCenters}
-                loading={loadingCostCenters}
-                value={watch('costCenterId') ? Number(watch('costCenterId')) : null}
-                onChange={(option) => setValue('costCenterId', String(option.id), { shouldValidate: true, shouldDirty: true })}
-                error={errors.costCenterId?.message}
-                addHref={addCostCenterHref}
-                onAdd={stashDraft}
-              />
-            </FormField>
-          </div>
-          <FormField label="Remarks" htmlFor="remarks" className="mt-4" error={errors.remarks?.message}>
-            <Textarea id="remarks" rows={2} className="rounded-lg" placeholder="Ocean freight Shanghai to Vancouver, Sep batch." {...register('remarks')} />
-          </FormField>
-        </Section>
+        <RequestLinesSection
+          control={control}
+          register={register}
+          errors={errors}
+          currencyOptions={currencyOptions(currency)}
+          currencyLocked={poLocked}
+          allowMultiple={!byPurchaseOrder}
+          poLimit={byPurchaseOrder ? poLimit : null}
+          costCenters={costCenters}
+          loadingCostCenters={loadingCostCenters}
+          addCostCenterHref={addCostCenterHref}
+          onAddCostCenter={stashDraft}
+        />
 
         <Section title="Upload documents">
           {existingDocuments.length > 0 && (
@@ -471,8 +521,8 @@ export const PaymentRequestFormScreen: React.FC = () => {
         </Section>
 
         <div className="flex flex-wrap items-center justify-end gap-2 pb-4">
-          <Link href={LIST_URL} className="mr-auto px-2 text-sm font-medium text-text-secondary hover:underline sm:mr-2">
-            Cancel
+          <Link href={backHref} className="mr-auto px-2 text-sm font-medium text-text-secondary hover:underline sm:mr-2">
+            {fromPoId ? 'Back' : 'Cancel'}
           </Link>
           <Button
             type="button"

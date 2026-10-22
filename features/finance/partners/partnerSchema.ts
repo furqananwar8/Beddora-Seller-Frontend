@@ -2,8 +2,6 @@ import { z } from 'zod'
 import type { PartnerType } from '@/services/api/finance.api'
 import { bankAccountShape, emptyBankAccountValues, normalizeBankId, validateBankAccount } from '../shared/bankAccountSchema'
 
-export const CURRENCIES = ['CAD', 'USD', 'MXN', 'EUR', 'GBP', 'CNY', 'INR', 'AED'] as const
-
 export const PARTNER_TYPE_OPTIONS: Array<{ value: PartnerType; label: string }> = [
   { value: 'VENDOR', label: 'Vendor' },
   { value: 'SUPPLIER', label: 'Supplier' },

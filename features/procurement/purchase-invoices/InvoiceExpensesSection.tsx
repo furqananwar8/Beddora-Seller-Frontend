@@ -4,6 +4,7 @@ import React from 'react'
 import { Control, FieldErrors, UseFormRegister, useFieldArray, useWatch } from 'react-hook-form'
 import { Button } from '@/design-system/buttons'
 import { Input } from '@/design-system/inputs'
+import { CostCenterField, type CostCenterSource } from '@/features/finance/shared/CostCenterSelect'
 import { FormSection as Section } from '@/features/finance/shared/FormSection'
 import { formatMoney } from '@/features/finance/shared/format'
 import { MAX_EXPENSES, PurchaseInvoiceFormValues, emptyExpense, invoiceTotals } from './schema'
@@ -13,10 +14,14 @@ interface InvoiceExpensesSectionProps {
   register: UseFormRegister<PurchaseInvoiceFormValues>
   errors: FieldErrors<PurchaseInvoiceFormValues>
   currency: string
+  /** Each expense is booked to its own expense category. */
+  costCenters: CostCenterSource
 }
 
-/** Charges on top of the goods (poly bags, labels...): Add appends a row of name, remarks and price, up to MAX_EXPENSES. */
-export const InvoiceExpensesSection: React.FC<InvoiceExpensesSectionProps> = ({ control, register, errors, currency }) => {
+const COLS = 'sm:grid-cols-[2fr_2fr_1fr_2fr_auto]'
+
+/** Charges on top of the goods (poly bags, labels...): Add appends a row of name, remarks, price and expense, up to MAX_EXPENSES. */
+export const InvoiceExpensesSection: React.FC<InvoiceExpensesSectionProps> = ({ control, register, errors, currency, costCenters }) => {
   const { fields, append, remove } = useFieldArray({ control, name: 'expenses', keyName: 'key' })
   const lines = useWatch({ control, name: 'lines' }) ?? []
   const expenses = useWatch({ control, name: 'expenses' }) ?? []
@@ -27,16 +32,17 @@ export const InvoiceExpensesSection: React.FC<InvoiceExpensesSectionProps> = ({ 
     <Section title="Additional expenses" note={`optional, up to ${MAX_EXPENSES}`}>
       {fields.length > 0 && (
         <div className="mb-3 space-y-2">
-          <div className="hidden grid-cols-[2fr_3fr_1fr_auto] gap-2 px-1 text-xs font-medium text-text-muted sm:grid">
+          <div className={`hidden gap-2 px-1 text-xs font-medium text-text-muted sm:grid ${COLS}`}>
             <span>Name</span>
             <span>Remarks</span>
             <span className="text-right">Price</span>
+            <span>Expense</span>
             <span className="w-8" />
           </div>
           {fields.map((field, index) => {
             const rowErrors = errors.expenses?.[index]
             return (
-              <div key={field.key} className="grid gap-2 sm:grid-cols-[2fr_3fr_1fr_auto] sm:items-start">
+              <div key={field.key} className={`grid gap-2 sm:items-start ${COLS}`}>
                 <div>
                   <Input aria-label="Expense name" placeholder="Poly bags" className="rounded-lg" {...register(`expenses.${index}.name`)} />
                   {rowErrors?.name && <p className="mt-1 text-xs text-danger-600">{rowErrors.name.message}</p>}
@@ -48,6 +54,10 @@ export const InvoiceExpensesSection: React.FC<InvoiceExpensesSectionProps> = ({ 
                 <div>
                   <Input aria-label="Expense price" inputMode="decimal" placeholder="0.00" className="rounded-lg text-right" {...register(`expenses.${index}.amount`)} />
                   {rowErrors?.amount && <p className="mt-1 text-xs text-danger-600">{rowErrors.amount.message}</p>}
+                </div>
+                <div>
+                  <CostCenterField control={control} name={`expenses.${index}.costCenterId`} id={`expenses.${index}.costCenterId`} {...costCenters} />
+                  {rowErrors?.costCenterId && <p className="mt-1 text-xs text-danger-600">{rowErrors.costCenterId.message}</p>}
                 </div>
                 <button
                   type="button"
