@@ -31,7 +31,7 @@ interface ProductIdentityCellProps {
   onToggle?: () => void
   /** Shows the product description (its title) on hover of the product instead of in the row. */
   titleInTooltip?: boolean
-  /** Shows price per unit, COGS and promo under the identity. Defaults to on. */
+  /** Shows price per unit, COGS and promo under the identity. Defaults to on; never on a parent row (it has children). */
   showUnitStats?: boolean
 }
 
@@ -107,6 +107,9 @@ const ProductThumbnail: React.FC<{ src: string; alt: string }> = ({ src, alt }) 
  * Shared by the built-in Amazon columns and by pages that build their own columns on SellerboardProductsTable.
  */
 export function ProductIdentityCell({ product, isChild = false, isExpanded = false, onToggle, titleInTooltip = false, showUnitStats = true }: ProductIdentityCellProps) {
+  // A parent's per-unit figures blend its children (often 0 when costs sit on the children): each child shows its own
+  const isParentRow = !isChild && (product.children?.length ?? 0) > 0
+  const unitStatsShown = showUnitStats && !isParentRow
   const details = product.groupLabel ? (
     <div className="min-w-0 flex-1 max-w-[220px]">
       <div className="font-medium text-text-primary text-sm mb-1 truncate">{product.groupLabel}</div>
@@ -132,7 +135,7 @@ export function ProductIdentityCell({ product, isChild = false, isExpanded = fal
         </div>
       )}
 
-      {showUnitStats && (
+      {unitStatsShown && (
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
         <div>
           <span className="text-text-primary font-medium">
