@@ -753,11 +753,7 @@ export const ProfitDashboardScreen: React.FC = () => {
 
             {/* Period cards */}
             <div
-              className={
-                appliedPresetId === 'custom'
-                  ? 'grid grid-cols-1 gap-4 mb-6 max-w-md'
-                  : SUMMARY_TILE_GRID
-              }
+              className={SUMMARY_TILE_GRID}
             >
               {periodCardsData.map((period) => {
                 if (period.isFetching) {

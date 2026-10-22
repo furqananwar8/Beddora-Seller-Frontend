@@ -88,6 +88,8 @@ export interface ChannelListing {
   /** ASIN / Walmart item ID / Shopify variant / Temu goods ID. */
   channelItemId: string
   title: string
+  /** Marketplace code (CA, US, MX) when the channel sells in several. */
+  marketplace?: string | null
   productId: string | null
   orders: number
   units: number

@@ -875,9 +875,10 @@ export const SellerboardProductsTable: React.FC<
           anchorRect={productStat?.anchorRect || null}
         />
 
-        {/* Scroll Container: the only scroller (the table's own wrapper does not scroll), so its scrollbars sit on its edges */}
+        {/* Scroll Container: the only scroller (the table's own wrapper does not scroll), so its scrollbars sit on its edges.
+            The vertical track starts under the sticky header row (h-12), so the bar never runs beside the header. */}
         <div className="relative">
-        <div className="w-full h-[500px] max-h-[calc(100vh-280px)] min-h-[400px] overflow-y-auto overflow-x-auto border border-border rounded-lg shadow-sm flex flex-col">
+        <div className="w-full h-[500px] max-h-[calc(100vh-280px)] min-h-[400px] overflow-y-auto overflow-x-auto border border-border rounded-lg shadow-sm flex flex-col [&::-webkit-scrollbar-track:vertical]:mt-12">
           <Table wrapperClassName="overflow-visible" className="min-w-full border-separate border-spacing-0">
             <TableHeader className="sticky top-0 z-20 bg-surface shadow-sm">
               {columns ? (

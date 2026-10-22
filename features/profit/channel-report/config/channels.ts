@@ -2,7 +2,8 @@ import type { ChannelId } from '../channelReport.types'
 
 /**
  * Presentation config per sales channel. Adding a channel = one entry here (plus its backend adapter).
- * Colour is always shown together with the channel name, never on its own.
+ * Colour is always shown together with the channel name, never on its own. Colours stay clear of the app's near-black
+ * primary, which the report's banner and tile headers use.
  */
 export interface ChannelDefinition {
   id: ChannelId
@@ -15,14 +16,14 @@ export interface ChannelDefinition {
 }
 
 const CHANNELS: ChannelDefinition[] = [
-  { id: 'amazon', name: 'Amazon', color: '#232F3E', itemIdLabel: 'ASIN' },
+  { id: 'amazon', name: 'Amazon', color: '#FF9900', itemIdLabel: 'ASIN' },
   { id: 'walmart', name: 'Walmart', color: '#2563EB', itemIdLabel: 'Item ID' },
   { id: 'shopify', name: 'Shopify', color: '#5E8E3E', itemIdLabel: 'Variant' },
   { id: 'wayfair', name: 'Wayfair', color: '#7B189F', itemIdLabel: 'Wayfair SKU' },
   {
     id: 'temu',
     name: 'Temu',
-    color: '#F97316',
+    color: '#E11D48',
     itemIdLabel: 'Goods ID',
     settlementNote: 'Temu settles weekly, so its last few days may be incomplete.',
   },

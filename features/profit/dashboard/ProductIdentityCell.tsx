@@ -1,6 +1,7 @@
 'use client'
 
-import React from 'react'
+import React, { useState } from 'react'
+import { createPortal } from 'react-dom'
 import { MarketplaceFlag } from '@/components/marketplace-flag/MarketPlaceFlag'
 import { Tooltip } from '@/design-system/tooltips'
 import { formatCurrency } from '@/utils/format'
@@ -30,6 +31,8 @@ interface ProductIdentityCellProps {
   onToggle?: () => void
   /** Shows the product description (its title) on hover of the product instead of in the row. */
   titleInTooltip?: boolean
+  /** Shows price per unit, COGS and promo under the identity. Defaults to on. */
+  showUnitStats?: boolean
 }
 
 /** Opens the product's Amazon page in a new tab; plain text when there is no ASIN to link to. */
@@ -48,11 +51,62 @@ const AmazonLink: React.FC<{ asin?: string | null; marketplace?: string; childre
     <>{children}</>
   )
 
+const PREVIEW_SIZE = 220
+const PREVIEW_GAP = 8
+
+/** The full-size version of an Amazon image: drops a size suffix such as `._SL75_` (other URLs stay as they are). */
+const fullSizeImageUrl = (url: string) => url.replace(/\._[A-Z]{2}[^./]*_(?=\.[a-z]+$)/i, '')
+
+/**
+ * A product thumbnail that shows a larger preview to its top-right on hover. The preview is fixed to the viewport
+ * (in a portal), so a scrolling table does not clip it; it flips to the left when there is no room on the right.
+ */
+const ProductThumbnail: React.FC<{ src: string; alt: string }> = ({ src, alt }) => {
+  const [anchor, setAnchor] = useState<DOMRect | null>(null)
+
+  const left = anchor
+    ? anchor.right + PREVIEW_GAP + PREVIEW_SIZE <= window.innerWidth - 8
+      ? anchor.right + PREVIEW_GAP
+      : Math.max(8, anchor.left - PREVIEW_GAP - PREVIEW_SIZE)
+    : 0
+  const top = anchor ? Math.min(Math.max(8, anchor.top - PREVIEW_SIZE + anchor.height), window.innerHeight - PREVIEW_SIZE - 8) : 0
+
+  return (
+    <>
+      {/* Multiply blend: the photo's white background takes the row's colour (e.g. a status tint) instead of a white box */}
+      <img
+        src={src}
+        alt={alt}
+        onMouseEnter={(event) => setAnchor(event.currentTarget.getBoundingClientRect())}
+        onMouseLeave={() => setAnchor(null)}
+        className="w-full h-full object-contain mix-blend-multiply dark:mix-blend-normal"
+      />
+      {anchor &&
+        createPortal(
+          <div
+            className="pointer-events-none fixed z-[60] rounded-lg border border-border bg-white p-2 shadow-xl"
+            style={{ left, top, width: PREVIEW_SIZE, height: PREVIEW_SIZE }}
+          >
+            <img
+              src={fullSizeImageUrl(src)}
+              alt=""
+              onError={(event) => {
+                if (event.currentTarget.src !== src) event.currentTarget.src = src
+              }}
+              className="h-full w-full object-contain"
+            />
+          </div>,
+          document.body
+        )}
+    </>
+  )
+}
+
 /**
  * The products table's product cell: image, marketplace and SKU, ASIN, title, then price per unit, COGS and promo.
  * Shared by the built-in Amazon columns and by pages that build their own columns on SellerboardProductsTable.
  */
-export function ProductIdentityCell({ product, isChild = false, isExpanded = false, onToggle, titleInTooltip = false }: ProductIdentityCellProps) {
+export function ProductIdentityCell({ product, isChild = false, isExpanded = false, onToggle, titleInTooltip = false, showUnitStats = true }: ProductIdentityCellProps) {
   const details = product.groupLabel ? (
     <div className="min-w-0 flex-1 max-w-[220px]">
       <div className="font-medium text-text-primary text-sm mb-1 truncate">{product.groupLabel}</div>
@@ -78,6 +132,7 @@ export function ProductIdentityCell({ product, isChild = false, isExpanded = fal
         </div>
       )}
 
+      {showUnitStats && (
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
         <div>
           <span className="text-text-primary font-medium">
@@ -114,6 +169,7 @@ export function ProductIdentityCell({ product, isChild = false, isExpanded = fal
           </svg>
         </div>
       </div>
+      )}
     </div>
   )
 
@@ -125,12 +181,7 @@ export function ProductIdentityCell({ product, isChild = false, isExpanded = fal
         }`}
       >
         {product.imageUrl ? (
-          // Multiply blend: the photo's white background takes the row's colour (e.g. a status tint) instead of a white box
-          <img
-            src={product.imageUrl}
-            alt={product.productTitle || product.sku || 'Product'}
-            className="w-full h-full object-contain mix-blend-multiply dark:mix-blend-normal"
-          />
+          <ProductThumbnail src={product.imageUrl} alt={product.productTitle || product.sku || 'Product'} />
         ) : (
           <svg
             className="w-6 h-6 text-text-muted"
@@ -159,7 +210,8 @@ export function ProductIdentityCell({ product, isChild = false, isExpanded = fal
         ${isChild ? 'pl-7' : ''}
       `}
     >
-      {!isChild && onToggle && (
+      {/* A child row expands too when it has rows of its own (e.g. a product's listings under a parent) */}
+      {onToggle && (!isChild || !!product.children?.length) && (
         <button
           type="button"
           onClick={onToggle}

@@ -329,11 +329,7 @@ export const ChannelReport: React.FC = () => {
 
         {/* Period tiles */}
         <div
-          className={
-            period.isCustom
-              ? 'grid grid-cols-1 gap-4 mb-6 max-w-md'
-              : SUMMARY_TILE_GRID
-          }
+          className={SUMMARY_TILE_GRID}
         >
           {tiles.map(({ tile, dateRange, data }) => {
             if (summaryFetching) {
