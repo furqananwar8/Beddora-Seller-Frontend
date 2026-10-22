@@ -19,9 +19,7 @@ interface RequestLinesSectionProps {
   currencyOptions: Array<{ value: string; label: string }>
   /** Set by the picked purchase order, so it cannot be changed here. */
   currencyLocked: boolean
-  /** Invoice requests may split across several expenses; a purchase-order request has one amount. */
-  allowMultiple: boolean
-  /** The picked PO's open balance, shown and enforced on a purchase-order request. */
+  /** The picked PO's open balance, shown and enforced on the total of a purchase-order request. */
   poLimit: PoLimit | null
   costCenters: CostCenterOption[] | undefined
   loadingCostCenters: boolean
@@ -36,7 +34,6 @@ export const RequestLinesSection: React.FC<RequestLinesSectionProps> = ({
   errors,
   currencyOptions,
   currencyLocked,
-  allowMultiple,
   poLimit,
   costCenters,
   loadingCostCenters,
@@ -48,9 +45,11 @@ export const RequestLinesSection: React.FC<RequestLinesSectionProps> = ({
   const currency = useWatch({ control, name: 'currency' })
   const full = fields.length >= MAX_REQUEST_LINES
   const several = fields.length > 1
+  // A rule on the whole list (the PO cap) lands on `root` of a field array
+  const linesError = errors.lines?.message ?? errors.lines?.root?.message
 
   return (
-    <Section title="Amount & category" note={allowMultiple ? `split across up to ${MAX_REQUEST_LINES} expenses` : undefined}>
+    <Section title="Amount & category" note={`split across up to ${MAX_REQUEST_LINES} expenses`}>
       <FormField
         label="Currency"
         htmlFor="currency"
@@ -118,19 +117,19 @@ export const RequestLinesSection: React.FC<RequestLinesSectionProps> = ({
           )
         })}
       </div>
-      {typeof errors.lines?.message === 'string' && <p className="mt-2 text-sm text-danger-600">{errors.lines.message}</p>}
+      {linesError ? (
+        <p className="mt-2 text-sm text-danger-600">{linesError}</p>
+      ) : (
+        poLimit && <p className="mt-2 text-xs text-text-muted">{poLimitMessage(poLimit)}</p>
+      )}
 
       <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-        {allowMultiple ? (
-          <span>
-            <Button type="button" variant="outline" size="sm" disabled={full} onClick={() => append(emptyLine)}>
-              + Add amount
-            </Button>
-            {full && <span className="ml-2 text-xs text-text-muted">Limit of {MAX_REQUEST_LINES} reached</span>}
-          </span>
-        ) : (
-          <span className="text-xs text-text-muted">{poLimit ? poLimitMessage(poLimit) : null}</span>
-        )}
+        <span>
+          <Button type="button" variant="outline" size="sm" disabled={full} onClick={() => append(emptyLine)}>
+            + Add amount
+          </Button>
+          {full && <span className="ml-2 text-xs text-text-muted">Limit of {MAX_REQUEST_LINES} reached</span>}
+        </span>
         {(several || poLimit) && (
           <span className="text-sm font-semibold text-text-primary">
             Total {formatCurrencyAmount(currency || '—', requestTotal(lines))}

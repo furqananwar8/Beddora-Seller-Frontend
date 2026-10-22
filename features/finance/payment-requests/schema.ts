@@ -41,7 +41,7 @@ const baseSchema = z.object({
   containerNo: z.string().trim().max(60, 'Keep it under 60 characters'),
   marketplaceId: z.string(),
   currency: z.string().min(1, 'Choose a currency'),
-  /** Several on an invoice request, exactly one on a purchase-order request. */
+  /** One or more amounts; on a purchase-order request their total is capped at what the PO has left. */
   lines: z.array(lineSchema).min(1, 'Add an amount').max(MAX_REQUEST_LINES, `Up to ${MAX_REQUEST_LINES} amounts`),
   remarks: z.string().trim().max(1000, 'Keep it under 1000 characters'),
 })
@@ -65,9 +65,8 @@ export const makePaymentRequestSchema = (poLimit: PoLimit | null) =>
     const isPo = values.referenceType === 'PURCHASE_ORDER'
     if (!isPo && !values.invoiceNo.trim()) ctx.addIssue({ code: 'custom', path: ['invoiceNo'], message: 'Invoice number is required' })
     if (isPo && !values.purchaseOrder) ctx.addIssue({ code: 'custom', path: ['purchaseOrder'], message: 'Pick the purchase order being paid' })
-    if (isPo && values.lines.length > 1) ctx.addIssue({ code: 'custom', path: ['lines'], message: 'A purchase-order request takes a single amount' })
     if (isPo && poLimit && requestTotal(values.lines) > poLimit.leftToRequest) {
-      ctx.addIssue({ code: 'custom', path: ['lines', 0, 'amount'], message: poLimitMessage(poLimit) })
+      ctx.addIssue({ code: 'custom', path: ['lines'], message: poLimitMessage(poLimit) })
     }
   })
 
