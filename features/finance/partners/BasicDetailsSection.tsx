@@ -8,7 +8,8 @@ import { AddressFields, type AddressValue } from '@/components/address-fields/Ad
 import type { PartnerType } from '@/services/api/finance.api'
 import { FormField, fieldClass, selectClass } from '../shared/FormField'
 import { SelectShell } from '../shared/SelectShell'
-import { CURRENCIES, PARTNER_TYPE_OPTIONS, type PartnerFormValues } from './partnerSchema'
+import { PARTNER_TYPE_OPTIONS, type PartnerFormValues } from './partnerSchema'
+import { CURRENCIES } from '../shared/currency'
 
 interface BasicDetailsSectionProps {
   register: UseFormRegister<PartnerFormValues>

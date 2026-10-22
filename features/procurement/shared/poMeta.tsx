@@ -10,7 +10,20 @@ export const formatPoNo = (id: number): string => `PO-${1000 + id}`
 /** Payment Requests narrowed to one PO. */
 export const poPaymentRequestsHref = (id: number): string => `/dashboard/finance/payment-request?purchaseOrderId=${id}`
 
+/** New payment request against one PO: its supplier, currency and destination are preset and locked. */
+export const newPaymentRequestHref = (id: number): string => `/dashboard/finance/payment-request/new?purchaseOrderId=${id}`
+
+/** A PO takes a new payment request while in progress, open and not yet paid in full. */
+export const canRequestPayment = (po: { status: PoStatus; isOpen: boolean; payment: PoPayment }): boolean =>
+  po.status === 'IN_PROGRESS' && po.isOpen && po.payment.status !== 'PAID'
+
 export const DESTINATION_LABEL: Record<PoDestination, string> = { US: 'USA', CA: 'CANADA' }
+
+/** A light tint per destination country, so USA and Canada rows tell apart at a glance (blue for USA, red for Canada). */
+export const DESTINATION_ROW_TINT: Record<PoDestination, string> = {
+  US: 'bg-sky-50 hover:bg-sky-100/70',
+  CA: 'bg-red-50 hover:bg-red-100/70',
+}
 
 export const PO_STATUS_META: Record<PoStatus, { label: string; tone: StatusTone }> = {
   DRAFT: { label: 'DRAFT', tone: 'neutral' },

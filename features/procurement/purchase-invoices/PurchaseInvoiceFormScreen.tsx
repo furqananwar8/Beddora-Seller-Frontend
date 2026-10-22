@@ -16,12 +16,12 @@ import { DocumentChips } from '@/features/finance/shared/DocumentChips'
 import { FormField } from '@/features/finance/shared/FormField'
 import { FormSection as Section } from '@/features/finance/shared/FormSection'
 import { SelectShell } from '@/features/finance/shared/SelectShell'
-import { formatMoney, toDateInputValue } from '@/features/finance/shared/format'
+import { toDateInputValue } from '@/features/finance/shared/format'
 import { PartnerChips, PartnerSelect, toPartnerOption } from '@/features/finance/payment-requests/PartnerSelect'
-import { CURRENCIES, filesFormData } from '@/features/finance/payment-requests/schema'
+import { filesFormData } from '@/features/finance/payment-requests/schema'
 import { useApiFeedback } from '@/hooks/useApiFeedback'
 import { FinanceDocument, PartnerOption, useGetPartnerQuery } from '@/services/api/finance.api'
-import { CostCenterSelect } from '@/features/finance/shared/CostCenterSelect'
+import type { CostCenterSource } from '@/features/finance/shared/CostCenterSelect'
 import { withQueryParam } from '@/features/finance/payment-requests/requestDraftStore'
 import { invoiceDraft } from './invoiceDraftStore'
 import {
@@ -42,6 +42,7 @@ import { financeDocumentPath } from '@/features/finance/shared/downloadDocument'
 import { PURCHASE_INVOICES_URL, PURCHASE_INVOICE_STATUS_META, formatPoNo } from '../shared/poMeta'
 import { InvoiceExpensesSection } from './InvoiceExpensesSection'
 import { InvoiceItemsSection } from './InvoiceItemsSection'
+import { PoPaymentsPanel } from './PoPaymentsPanel'
 import {
   PurchaseInvoiceFormValues,
   emptyFormValues,
@@ -67,14 +68,14 @@ const toFormValues = (detail: PurchaseInvoiceDetail): PurchaseInvoiceFormValues 
   currency: detail.currency,
   lines: linesFromInvoice(detail),
   expenses: expensesFromInvoice(detail),
-  costCenterId: detail.costCenter ? String(detail.costCenter.id) : '',
   remarks: detail.remarks ?? '',
 })
 
 /**
  * Raise a purchase invoice from a purchase order (`?purchaseOrderId=`), or edit a draft / rejected one (`?edit=`).
- * A new invoice starts from the PO: its supplier, destination, currency and total, and the documents of its
- * payment requests. Every save renders the invoice PDF in the background; its creator is notified once it is ready.
+ * A new invoice starts from the PO: its supplier, destination and currency (which stay locked to it), its items,
+ * and the documents of its payment requests. Each item and additional expense is booked to its own expense.
+ * Every save renders the invoice PDF in the background; its creator is notified once it is ready.
  */
 export const PurchaseInvoiceFormScreen: React.FC = () => {
   const router = useRouter()
@@ -88,7 +89,8 @@ export const PurchaseInvoiceFormScreen: React.FC = () => {
   const purchaseOrderId = detail?.purchaseOrder.id ?? positiveParam(searchParams.get('purchaseOrderId'))
   const isNew = editId === null
 
-  const { data: po, isError: poError } = useGetProcurementPurchaseOrderQuery(purchaseOrderId ?? 0, { skip: !isNew || purchaseOrderId === null })
+  // Also read when editing: its payments are shown beside the invoice
+  const { data: po, isError: poError } = useGetProcurementPurchaseOrderQuery(purchaseOrderId ?? 0, { skip: purchaseOrderId === null })
   const { data: poDocuments } = useGetPurchaseOrderInvoiceDocumentsQuery(purchaseOrderId ?? 0, { skip: !isNew || purchaseOrderId === null })
   const { data: supplierProfile, isError: supplierError } = useGetPartnerQuery(po?.supplier.id ?? 0, { skip: !po })
   // Without access to partner profiles the PO's own supplier record still names the partner
@@ -149,23 +151,28 @@ export const PurchaseInvoiceFormScreen: React.FC = () => {
     setPartner(toPartnerOption(supplier))
   }, [isNew, po, supplier, reset])
 
-  // New: the PO's destination, as soon as the destination options have loaded (never overrides a choice)
+  // The destination is the PO's, as soon as the destination options have loaded; it cannot be changed here
   useEffect(() => {
-    if (!isNew || !po || !marketplaces || !hydrated.current || getValues('marketplaceId')) return
+    if (!po || !marketplaces || !hydrated.current) return
     const destination = marketplaces.find((marketplace) => marketplace.code === po.destination)
-    if (destination) setValue('marketplaceId', String(destination.id))
+    if (destination && getValues('marketplaceId') !== String(destination.id)) setValue('marketplaceId', String(destination.id), { shouldDirty: true })
     // `partner` is set by the hydration above, so this re-runs once the form holds the PO
-  }, [isNew, po, marketplaces, getValues, setValue, partner])
+  }, [po, marketplaces, getValues, setValue, partner])
 
-  // Back from creating a cost center: pick the L4 that was just created, once the form holds its values
-  const costCenterParam = Number(searchParams.get('costCenterId'))
+  // Back from creating a cost center: book the first item (then expense) still without one to the L4 just created
+  const costCenterParam = positiveParam(searchParams.get('costCenterId'))
   const appliedCostCenter = useRef(false)
   useEffect(() => {
-    if (!hydrated.current || appliedCostCenter.current || !Number.isInteger(costCenterParam) || costCenterParam <= 0) return
+    if (!hydrated.current || appliedCostCenter.current || costCenterParam === null) return
     appliedCostCenter.current = true
-    setValue('costCenterId', String(costCenterParam), { shouldValidate: true, shouldDirty: true })
+    const value = String(costCenterParam)
+    const options = { shouldValidate: true, shouldDirty: true }
+    const line = getValues('lines').findIndex((row) => !row.costCenterId)
+    const expense = getValues('expenses').findIndex((row) => !row.costCenterId)
+    if (line !== -1) setValue(`lines.${line}.costCenterId`, value, options)
+    else if (expense !== -1) setValue(`expenses.${expense}.costCenterId`, value, options)
     // `partner` is set by the hydration above, so this runs right after it
-  }, [costCenterParam, partner, setValue])
+  }, [costCenterParam, partner, getValues, setValue])
 
   // New: every document of the PO's payment requests is carried over until removed.
   useEffect(() => {
@@ -176,14 +183,8 @@ export const PurchaseInvoiceFormScreen: React.FC = () => {
   const lines = useWatch({ control, name: 'lines' }) ?? []
   const expenses = useWatch({ control, name: 'expenses' }) ?? []
   const totals = invoiceTotals({ lines, expenses })
-  const currencyOptions = [...new Set([...CURRENCIES, ...(currency ? [currency] : [])])].map((code) => ({ value: code, label: code }))
   const savedDocuments: FinanceDocument[] = detail?.documents ?? []
   const shownDocuments = isNew && !savedId ? (carried ?? []) : savedDocuments
-
-  const pickPartner = (option: PartnerOption) => {
-    setPartner(option)
-    setValue('partnerId', String(option.id), { shouldValidate: true, shouldDirty: true })
-  }
 
   /** Before the first save a carried document is just dropped; afterwards the server unlinks (carried) or deletes (uploaded) it. */
   const removeShown = async (doc: FinanceDocument) => {
@@ -227,6 +228,12 @@ export const PurchaseInvoiceFormScreen: React.FC = () => {
   const busy = saving !== null
   /** This form's own address, to come back to from the cost center screen. */
   const returnHere = editId ? withQueryParam(`${PURCHASE_INVOICES_URL}/new`, 'edit', String(editId)) : withQueryParam(`${PURCHASE_INVOICES_URL}/new`, 'purchaseOrderId', String(purchaseOrderId ?? ''))
+  const costCenterSource: CostCenterSource = {
+    options: costCenters,
+    loading: loadingCostCenters,
+    addHref: `/dashboard/finance/cost-center/new?returnTo=${encodeURIComponent(returnHere)}`,
+    onAdd: () => invoiceDraft.save({ values: getValues(), files, partner, carried }),
+  }
   const statusMeta = PURCHASE_INVOICE_STATUS_META[detail?.status ?? 'DRAFT']
   const loadFailed = isNew ? purchaseOrderId === null || poError : detailError || (detail && !detail.can.edit)
 
@@ -268,16 +275,16 @@ export const PurchaseInvoiceFormScreen: React.FC = () => {
           )}
         </div>
 
-        <Section title="Partner" note="prefilled from the purchase order">
+        <Section title="Partner" note="the purchase order's supplier">
           <FormField label="Partner" htmlFor="partner" required error={errors.partnerId?.message}>
-            <PartnerSelect id="partner" selected={partner} error={errors.partnerId?.message} onSelect={pickPartner} />
+            <PartnerSelect id="partner" selected={partner} error={errors.partnerId?.message} onSelect={() => undefined} disabled />
           </FormField>
           {partner && <PartnerChips partner={partner} />}
         </Section>
 
         <Section title="Invoice & shipment">
-          <div className="grid gap-4 sm:grid-cols-3">
-            <FormField label="Invoice No" htmlFor="invoiceNo" required error={errors.invoiceNo?.message}>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <FormField label="Reference No" htmlFor="invoiceNo" required error={errors.invoiceNo?.message}>
               <Input id="invoiceNo" autoComplete="off" className="rounded-lg" placeholder="INV-10442" {...register('invoiceNo')} />
             </FormField>
             <FormField label="Invoice Date" htmlFor="invoiceDate" required error={errors.invoiceDate?.message}>
@@ -287,50 +294,39 @@ export const PurchaseInvoiceFormScreen: React.FC = () => {
                 render={({ field }) => <SingleDatePicker id="invoiceDate" value={field.value} onChange={field.onChange} error={errors.invoiceDate?.message} />}
               />
             </FormField>
-            <FormField label="Destination (Marketplace)" htmlFor="marketplaceId">
+            <FormField label="Destination (Marketplace)" htmlFor="marketplaceId" hint="Set by the purchase order">
               <SelectShell>
                 <Select
                   id="marketplaceId"
                   className="appearance-none rounded-lg pr-9"
+                  disabled
                   options={[{ value: '', label: 'Select destination' }, ...(marketplaces ?? []).map((m) => ({ value: String(m.id), label: m.name }))]}
                   {...register('marketplaceId')}
                 />
               </SelectShell>
             </FormField>
-          </div>
-        </Section>
-
-        <InvoiceItemsSection control={control} register={register} errors={errors} currency={currency} poNo={purchaseOrderId ? formatPoNo(purchaseOrderId) : ''} invoiceNo={watch('invoiceNo')} />
-
-        <InvoiceExpensesSection control={control} register={register} errors={errors} currency={currency} />
-
-        <Section title="Amount & category" note="prefilled from the purchase order">
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-[1fr_2fr_2fr]">
-            <FormField label="Currency" htmlFor="currency" required error={errors.currency?.message}>
-              <SelectShell>
-                <Select id="currency" className="appearance-none rounded-lg pr-9" options={[{ value: '', label: 'Select' }, ...currencyOptions]} {...register('currency')} />
-              </SelectShell>
-            </FormField>
-            <FormField label="Amount" htmlFor="amount" hint="Invoiced items + additional expenses">
-              <Input id="amount" readOnly tabIndex={-1} className="rounded-lg bg-secondary-50 text-right font-semibold" value={formatMoney(totals.amount)} />
-            </FormField>
-            <FormField label="Expense" htmlFor="costCenterId" required error={errors.costCenterId?.message}>
-              <CostCenterSelect
-                id="costCenterId"
-                options={costCenters}
-                loading={loadingCostCenters}
-                value={watch('costCenterId') ? Number(watch('costCenterId')) : null}
-                onChange={(option) => setValue('costCenterId', String(option.id), { shouldValidate: true, shouldDirty: true })}
-                error={errors.costCenterId?.message}
-                addHref={`/dashboard/finance/cost-center/new?returnTo=${encodeURIComponent(returnHere)}`}
-                onAdd={() => invoiceDraft.save({ values: getValues(), files, partner, carried })}
-              />
+            <FormField label="Currency" htmlFor="currency" hint="Set by the purchase order">
+              <Input id="currency" readOnly tabIndex={-1} className="rounded-lg bg-secondary-50" value={currency} />
             </FormField>
           </div>
           <FormField label="Remarks" htmlFor="remarks" className="mt-4" error={errors.remarks?.message}>
             <Textarea id="remarks" rows={2} className="rounded-lg" placeholder="Goods invoice for the September batch." {...register('remarks')} />
           </FormField>
         </Section>
+
+        <InvoiceItemsSection
+          control={control}
+          register={register}
+          errors={errors}
+          currency={currency}
+          poNo={purchaseOrderId ? formatPoNo(purchaseOrderId) : ''}
+          invoiceNo={watch('invoiceNo')}
+          costCenters={costCenterSource}
+        />
+
+        <InvoiceExpensesSection control={control} register={register} errors={errors} currency={currency} costCenters={costCenterSource} />
+
+        {po && <PoPaymentsPanel purchaseOrderId={po.id} poNo={po.poNo} currency={po.currency} payment={po.payment} invoiceTotal={totals.amount} />}
 
         <Section title="Upload documents" note="documents of the purchase order's payment requests are carried over">
           {shownDocuments.length > 0 && (

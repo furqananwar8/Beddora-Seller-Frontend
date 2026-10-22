@@ -28,7 +28,7 @@ import {
 } from '@/services/api/procurement.api'
 import { cn } from '@/utils/cn'
 import { useDebounce } from '@/utils/debounce'
-import { DESTINATION_LABEL, PAYMENT_META, PO_STATUS_META, newPackagingListHref, newPurchaseInvoiceHref, poPackagingListsHref, poPaymentRequestsHref } from '../shared/poMeta'
+import { DESTINATION_LABEL, PAYMENT_META, PO_STATUS_META, newPackagingListHref, newPaymentRequestHref, newPurchaseInvoiceHref, poPackagingListsHref, poPaymentRequestsHref } from '../shared/poMeta'
 import { PoLegend } from './PoLegend'
 import { PurchaseOrdersTable } from './PurchaseOrdersTable'
 import { usePoActions } from './usePoActions'
@@ -69,7 +69,7 @@ const ALERTS: FilterOption<AlertFilter>[] = [
   { value: 'OK', label: '> 10 days' },
 ]
 const OPEN_OPTIONS: Array<{ value: OpenFilter; label: string }> = [
-  { value: 'ALL', label: 'Any' },
+  { value: 'ALL', label: 'ALL (OPEN/CLOSED)' },
   { value: 'OPEN', label: 'Open' },
   { value: 'CLOSED', label: 'Closed' },
 ]
@@ -84,6 +84,7 @@ export const PurchaseOrdersScreen: React.FC = () => {
   const canViewPayments = ability.can('read', 'finance:payment-request')
   const canPack = ability.can('write', 'procurement:packaging-lists')
   const canInvoice = ability.can('write', 'procurement:purchase-invoices')
+  const canRequestPayments = ability.can('write', 'finance:payment-request')
   const decisions = usePoActions()
   const [approving, setApproving] = useState<PurchaseOrderListItem | null>(null)
   const [rejecting, setRejecting] = useState<PurchaseOrderListItem | null>(null)
@@ -224,6 +225,8 @@ export const PurchaseOrdersScreen: React.FC = () => {
             canViewPayments={canViewPayments}
             canPack={canPack}
             canInvoice={canInvoice}
+            canRequestPayments={canRequestPayments}
+            onCreatePaymentRequest={(row) => router.push(newPaymentRequestHref(row.id))}
             onCreatePurchaseInvoice={(row) => router.push(newPurchaseInvoiceHref(row.id))}
             onCreatePackagingList={(row) => router.push(newPackagingListHref(row.id))}
             onViewPackagingLists={(row) => router.push(poPackagingListsHref(row.id))}

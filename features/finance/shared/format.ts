@@ -12,7 +12,7 @@ export const todayInputValue = (): string => new Date().toISOString().slice(0, 1
 
 /** Reference numbers start at 10001 so they always read as five digits. Keep in step with the backend's finance reference formatter. */
 const REFERENCE_OFFSET = 10000
-export const formatRequestNo = (id: number): string => `PPC#${REFERENCE_OFFSET + id}`
+export const formatRequestNo = (id: number): string => `PR#${REFERENCE_OFFSET + id}`
 export const formatDocNo = (id: number): string => `PP#${REFERENCE_OFFSET + id}`
 export const formatPartnerNo = (id: number): string => `#${id}`
 

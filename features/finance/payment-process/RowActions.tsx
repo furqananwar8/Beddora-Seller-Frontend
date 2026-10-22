@@ -6,7 +6,7 @@ import type { PaymentDocumentListItem } from '@/services/api/finance.api'
 import { formatDocNo } from '../shared/format'
 import { useFinanceCapabilities } from '../shared/useFinanceCapabilities'
 
-export type RowAction = 'mark-paid' | 'upload' | 'view'
+export type RowAction = 'mark-paid' | 'upload' | 'proofs' | 'view'
 
 interface RowActionsProps {
   row: PaymentDocumentListItem
@@ -26,6 +26,8 @@ export const RowActions: React.FC<RowActionsProps> = ({ row, onSelect }) => {
         ...(canProcessPayments && row.status !== 'PAID'
           ? [{ key: 'mark-paid', label: 'Mark paid', onSelect: () => onSelect('mark-paid'), disabled: !row.canMarkPaid, disabledReason: 'Record a payment first.' }]
           : []),
+        // Proofs stay correctable once a payment is recorded, even after it is marked paid
+        ...(canProcessPayments && row.paidAmount > 0 ? [{ key: 'proofs', label: 'Update proof of payment', onSelect: () => onSelect('proofs') }] : []),
         ...(showView ? [{ key: 'view', label: 'View', onSelect: () => onSelect('view') }] : []),
         ...(!showView ? [{ key: 'details', label: 'View details', onSelect: () => onSelect('view') }] : []),
       ]}

@@ -330,6 +330,8 @@ export interface PurchaseInvoiceLine {
   units: number
   unitPrice: number
   amount: number
+  /** The expense (L4 cost center) the item is booked to; null on invoices raised before per-item booking. */
+  costCenter: CostCenterOption | null
 }
 
 export interface PurchaseInvoiceExpense {
@@ -337,6 +339,7 @@ export interface PurchaseInvoiceExpense {
   name: string
   remarks: string | null
   amount: number
+  costCenter: CostCenterOption | null
 }
 
 export interface PurchaseInvoiceDetail extends Omit<PurchaseInvoiceListItem, 'partner' | 'can'> {
@@ -363,12 +366,11 @@ export interface PurchaseInvoiceBody {
   invoiceNo: string
   invoiceDate: string
   marketplaceId: number | null
-  costCenterId: number
   currency: string
   remarks: string | null
-  /** The invoice amount is worked out from these on the server. */
-  lines: Array<{ productId: number; units: number; unitPrice: number }>
-  expenses: Array<{ name: string; remarks: string | null; amount: number }>
+  /** The invoice amount is worked out from these on the server; each row is booked to its own expense. */
+  lines: Array<{ productId: number; units: number; unitPrice: number; costCenterId: number }>
+  expenses: Array<{ name: string; remarks: string | null; amount: number; costCenterId: number }>
   carriedDocumentIds: string[]
 }
 
@@ -468,6 +470,8 @@ export interface PackagingLineBody {
   cartonWidth: number | null
   cartonHeight: number | null
   cartonUnit: LengthUnit
+  /** Typed net weight; null takes the product's weight x units. */
+  netWeightKg: number | null
   grossWeightKg: number
 }
 

@@ -41,8 +41,16 @@ const Summary: React.FC<{ detail: PaymentRequestDetail }> = ({ detail }) => (
     </Row>
     {detail.referenceType !== 'PURCHASE_ORDER' && <Row label="Container #">{detail.containerNo || '-'}</Row>}
     <Row label="Destination">{detail.marketplace ? countryLabel(detail.marketplace.code) || detail.marketplace.name : '-'}</Row>
-    <Row label="Expense">{detail.expenseType.name}</Row>
-    <Row label="Amount">
+    {detail.lines.length > 1 ? (
+      detail.lines.map((line, index) => (
+        <Row key={line.id} label={`Expense ${index + 1}`}>
+          {line.costCenter?.name ?? '-'} · {formatCurrencyAmount(detail.currency, line.amount)}
+        </Row>
+      ))
+    ) : (
+      <Row label="Expense">{detail.expenseType.name}</Row>
+    )}
+    <Row label={detail.lines.length > 1 ? 'Total' : 'Amount'}>
       <span className="text-base">{formatCurrencyAmount(detail.currency, detail.amount)}</span>
     </Row>
     {detail.paymentDocument && (

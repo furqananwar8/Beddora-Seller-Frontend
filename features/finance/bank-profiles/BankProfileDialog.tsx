@@ -8,7 +8,7 @@ import { Select } from '@/design-system/inputs'
 import { Modal } from '@/design-system/modals/Modal'
 import { FileDropzone } from '@/components/file-dropzone/FileDropzone'
 import type { BankProfile } from '@/services/api/finance.api'
-import { CURRENCIES } from '../partners/partnerSchema'
+import { currencyOptions as supportedCurrencies } from '../shared/currency'
 import { BankAccountFields } from '../shared/BankAccountFields'
 import { DocumentChips } from '../shared/DocumentChips'
 import { FormField, fieldClass } from '../shared/FormField'
@@ -46,7 +46,7 @@ const DialogForm: React.FC<BankProfileDialogProps> = ({ profile, onClose, onSave
     handleSubmit,
     formState: { errors, isSubmitting },
   } = form
-  const currencyOptions = [...new Set([...CURRENCIES, form.getValues('currency')])].map((code) => ({ value: code, label: code }))
+  const currencyOptions = supportedCurrencies(form.getValues('currency'))
 
   const submit = handleSubmit(async (values) => {
     const saved = await save(values, files)

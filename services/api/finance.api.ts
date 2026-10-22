@@ -174,6 +174,9 @@ export interface PayablePurchaseOrder extends PoRef {
   destination: 'US' | 'CA'
   etd: string
   units: number
+  /** The PO's price and what further requests may still ask for, in its currency. */
+  amount: number
+  leftToRequest: number
 }
 
 export interface PaymentRequestListItem {
@@ -201,8 +204,12 @@ export interface PaymentRequestListItem {
   canEdit: boolean
 }
 
+/** Approved requests split by whether finance has marked their payment paid. */
+export type RequestPaymentFilter = 'PAID' | 'UNPAID'
+
 export interface PaymentRequestListParams extends PageParams {
   status?: RequestStatus
+  payment?: RequestPaymentFilter
   /** Only requests paying this purchase order. */
   purchaseOrderId?: number
   costCenterId?: number
@@ -213,6 +220,7 @@ export interface PaymentRequestListParams extends PageParams {
 
 export interface PaymentRequestSummary {
   byStatus: Record<RequestStatus, number>
+  byPayment: Record<RequestPaymentFilter, number>
   all: number
   pendingTotals: Array<{ currency: string; amount: number }>
 }
@@ -234,7 +242,10 @@ export interface PaymentRequestDetail {
   invoiceDate: string
   containerNo: string | null
   currency: string
+  /** The total of `lines`. */
   amount: number
+  /** Amounts and the L4 cost centers they are booked to; an invoice request may have several. */
+  lines: PaymentRequestLine[]
   remarks: string | null
   decisionNote: string | null
   submittedAt: string | null
@@ -251,6 +262,12 @@ export interface PaymentRequestDetail {
   events: TimelineEvent[]
   paymentDocument: { id: number; status: DocStatus; currency: string; amount: number; paidAmount: number; balance: number } | null
   can: { edit: boolean; submit: boolean; withdraw: boolean; decide: boolean }
+}
+
+export interface PaymentRequestLine {
+  id: number
+  amount: number
+  costCenter: CostCenterOption | null
 }
 
 export interface ExpenseType {
@@ -604,6 +621,16 @@ export const financeApi = baseApi.injectEndpoints({
       transformResponse: unwrap,
       invalidatesTags: ['FinanceProcess', 'FinanceRequests'],
     }),
+    /** Proof documents stay correctable after a payment is marked paid. */
+    addPopDocuments: b.mutation<FinanceDocument[], { id: number; popId: number; body: FormData }>({
+      query: ({ id, popId, body }) => ({ url: `/finance/payment-documents/${id}/pops/${popId}/documents`, method: 'POST', body }),
+      transformResponse: unwrap,
+      invalidatesTags: ['FinanceProcess'],
+    }),
+    removePopDocument: b.mutation<void, { id: number; popId: number; documentId: string }>({
+      query: ({ id, popId, documentId }) => ({ url: `/finance/payment-documents/${id}/pops/${popId}/documents/${documentId}`, method: 'DELETE' }),
+      invalidatesTags: ['FinanceProcess'],
+    }),
     markPaid: b.mutation<PaymentDocumentDetail, number>({
       query: (id) => ({ url: `/finance/payment-documents/${id}/mark-paid`, method: 'POST' }),
       transformResponse: unwrap,
@@ -647,6 +674,8 @@ export const {
   useLazyCheckPurchaseInvoiceQuery,
   useGetLeafCostCentersQuery,
   useGetPayablePurchaseOrdersQuery,
+  useAddPopDocumentsMutation,
+  useRemovePopDocumentMutation,
   useCreatePaymentRequestMutation,
   useUpdatePaymentRequestMutation,
   useAddRequestDocumentsMutation,

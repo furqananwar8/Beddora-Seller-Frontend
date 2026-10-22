@@ -83,6 +83,8 @@ export const Modal: React.FC<ModalProps> = ({
           className
         )}
         onClick={(e) => e.stopPropagation()}
+        // A form inside the modal must not also submit a form the modal is rendered within (e.g. "+ Add bank" opened from the payment form)
+        onSubmit={(e) => e.stopPropagation()}
         style={{ zIndex: 10000 }}
       >
         {title && (
@@ -92,6 +94,7 @@ export const Modal: React.FC<ModalProps> = ({
         )}
         <div className="ds-modal-content">{children}</div>
         <button
+          type="button"
           onClick={onClose}
           className="ds-modal-close"
           aria-label="Close modal"

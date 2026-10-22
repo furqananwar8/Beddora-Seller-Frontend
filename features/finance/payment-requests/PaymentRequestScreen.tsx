@@ -12,6 +12,7 @@ import { Select } from '@/design-system/inputs'
 import { Tabs } from '@/design-system/tabs'
 import {
   PaymentRequestListParams,
+  RequestPaymentFilter,
   RequestStatus,
   useGetApproverStatusQuery,
   useGetLeafCostCentersQuery,
@@ -32,7 +33,17 @@ import { useRequestActions } from './useRequestActions'
 
 const PAGE_SIZE = 10
 
-type TabId = RequestStatus | 'ALL'
+/** A status, or approved requests split by whether their payment is marked paid. */
+type TabId = RequestStatus | RequestPaymentFilter | 'ALL'
+
+const PAYMENT_TABS: ReadonlySet<TabId> = new Set<RequestPaymentFilter>(['PAID', 'UNPAID'])
+
+/** The list filters a tab stands for. */
+const tabFilters = (tab: TabId): Pick<PaymentRequestListParams, 'status' | 'payment' | 'scope'> => {
+  if (tab === 'ALL') return {}
+  if (PAYMENT_TABS.has(tab)) return { payment: tab as RequestPaymentFilter }
+  return { status: tab as RequestStatus, scope: tab === 'DRAFT' ? 'mine' : undefined }
+}
 
 const FILTER_PRESETS: DateRangePreset[] = [
   {
@@ -114,8 +125,7 @@ export const PaymentRequestScreen: React.FC = () => {
     ...filters,
     page,
     limit: PAGE_SIZE,
-    status: tab === 'ALL' ? undefined : tab,
-    scope: tab === 'DRAFT' ? 'mine' : undefined,
+    ...tabFilters(tab),
   }
 
   const { data, isLoading, isFetching, isError } = useGetPaymentRequestsQuery(listParams)
@@ -126,6 +136,8 @@ export const PaymentRequestScreen: React.FC = () => {
   const tabs = [
     { id: 'PENDING_APPROVAL', label: `PENDING FOR APPROVAL${count(summary?.byStatus.PENDING_APPROVAL)}` },
     { id: 'APPROVED', label: `APPROVED${count(summary?.byStatus.APPROVED)}` },
+    { id: 'PAID', label: `PAID${count(summary?.byPayment.PAID)}` },
+    { id: 'UNPAID', label: `UNPAID${count(summary?.byPayment.UNPAID)}` },
     { id: 'REJECTED', label: `REJECTED${count(summary?.byStatus.REJECTED)}` },
     { id: 'ALL', label: `ALL${count(summary?.all)}` },
     { id: 'DRAFT', label: `DRAFT${count(summary?.byStatus.DRAFT)}` },

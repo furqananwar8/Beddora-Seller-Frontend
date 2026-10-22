@@ -27,6 +27,8 @@ interface TreeTableProps<T> {
    * arrow even without children; it is only rendered while the row is open, so it can load its own data then.
    */
   renderDetail?: (row: T) => React.ReactNode
+  /** Extra classes for a top-level row, e.g. a tint that tells rows apart at a glance. */
+  getRowClassName?: (row: T) => string | undefined
   /** What the arrow opens, for its label: "Show variations" by default. */
   expandLabel?: string
   isLoading?: boolean
@@ -79,6 +81,7 @@ export function TreeTable<T>({
   autoExpand,
   renderChildFooter,
   renderDetail,
+  getRowClassName,
   expandLabel = 'variations',
   isLoading,
   isError,
@@ -127,7 +130,7 @@ export function TreeTable<T>({
             const open = expandable && isOpen(row)
             return (
               <React.Fragment key={getKey(row)}>
-                <TableRow className="hover:bg-secondary-50">
+                <TableRow className={cn('hover:bg-secondary-50', getRowClassName?.(row))}>
                   <TableCell className="w-10 align-middle">
                     {expandable && (
                       <button

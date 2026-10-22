@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import type { PurchaseOrderListItem } from '@/services/api/procurement.api'
 import { cn } from '@/utils/cn'
 import { formatCalendarDay, formatCurrency } from '@/utils/format'
-import { DESTINATION_LABEL, EtdBadge, OpenBadge, PaymentBadge, PoStatusBadge, isApprovedPo, isPackable } from '../shared/poMeta'
+import { DESTINATION_LABEL, EtdBadge, OpenBadge, PaymentBadge, PoStatusBadge, canRequestPayment, isApprovedPo, isPackable } from '../shared/poMeta'
 
 const CELL = 'text-center align-middle'
 const COLUMNS = 13
@@ -22,6 +22,9 @@ export interface PoRowActions {
   canPack: boolean
   /** May raise purchase invoices. */
   canInvoice: boolean
+  /** May raise payment requests. */
+  canRequestPayments: boolean
+  onCreatePaymentRequest: (row: PurchaseOrderListItem) => void
   onCreatePurchaseInvoice: (row: PurchaseOrderListItem) => void
   onCreatePackagingList: (row: PurchaseOrderListItem) => void
   onViewPackagingLists: (row: PurchaseOrderListItem) => void
@@ -49,6 +52,7 @@ function actionsFor(row: PurchaseOrderListItem, actions: PoRowActions): RowActio
   if (actions.canPack && isPackable(row)) items.push({ key: 'pack', label: 'Create packaging list', onSelect: () => actions.onCreatePackagingList(row) })
   if (approved) items.push({ key: 'lists', label: 'View packaging lists', onSelect: () => actions.onViewPackagingLists(row) })
   if (actions.canInvoice && approved) items.push({ key: 'invoice', label: 'Create purchase invoice', onSelect: () => actions.onCreatePurchaseInvoice(row) })
+  if (actions.canRequestPayments && canRequestPayment(row)) items.push({ key: 'pay', label: 'Create payment request', onSelect: () => actions.onCreatePaymentRequest(row) })
   if (actions.canViewPayments) {
     items.push({ key: 'payments', label: `View payment requests (${row.payment.requestCount})`, onSelect: () => actions.onViewPayments(row) })
   }

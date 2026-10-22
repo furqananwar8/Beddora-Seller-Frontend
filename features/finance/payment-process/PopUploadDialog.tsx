@@ -11,7 +11,7 @@ import { SegmentedToggle } from '@/components/segmented-toggle/SegmentedToggle'
 import { FileDropzone } from '@/components/file-dropzone/FileDropzone'
 import { SingleDatePicker } from '@/components/single-date-picker/SingleDatePicker'
 import { BankProfile, PaymentDocumentListItem, useAddPopMutation, useGetFxTodayQuery, useGetPaymentDocumentQuery } from '@/services/api/finance.api'
-import { CURRENCIES } from '../payment-requests/schema'
+import { currencyOptions as supportedCurrencies } from '../shared/currency'
 import { FormField, fieldClass } from '../shared/FormField'
 import { formatCurrencyAmount, formatDay, formatDocNo, formatMoney, todayInputValue } from '../shared/format'
 import { SelectShell } from '../shared/SelectShell'
@@ -20,16 +20,21 @@ import { convertedAmount, parseNumber, remainingAfter, round2, withinBalance } f
 import { PopFormValues, makePopSchema } from './popSchema'
 import { BankProfileSelect } from '../bank-profiles/BankProfileSelect'
 import { RequestInfo } from './RequestInfo'
+import { PopProofsForm } from './PopProofsForm'
+
+/** `record` a new payment, or correct the `proofs` of payments already recorded (also once marked paid). */
+export type PopDialogMode = 'record' | 'proofs'
 
 interface PopUploadDialogProps {
   row: PaymentDocumentListItem | null
+  mode?: PopDialogMode
   onClose: () => void
 }
 
-/** The request behind a payment, and the form that records a payment against it. */
-export const PopUploadDialog: React.FC<PopUploadDialogProps> = ({ row, onClose }) => (
-  <Modal isOpen={!!row} onClose={onClose} title="View Request" size="lg">
-    {row && <PopForm key={row.id} row={row} onClose={onClose} />}
+/** The request behind a payment, and the form that records a payment against it (or updates its proofs). */
+export const PopUploadDialog: React.FC<PopUploadDialogProps> = ({ row, mode = 'record', onClose }) => (
+  <Modal isOpen={!!row} onClose={onClose} title={mode === 'proofs' ? 'Update proof of payment' : 'View Request'} size="lg">
+    {row && (mode === 'proofs' ? <PopProofsForm key={row.id} row={row} onClose={onClose} /> : <PopForm key={row.id} row={row} onClose={onClose} />)}
   </Modal>
 )
 
@@ -42,7 +47,7 @@ const PopForm: React.FC<{ row: PaymentDocumentListItem; onClose: () => void }> =
   // The currency can be corrected until the first payment is recorded; after that earlier payments depend on it.
   const currencyLocked = row.paidAmount > 0
   const [currency, setCurrency] = useState(row.currency)
-  const currencyOptions = [...new Set([...CURRENCIES, row.currency])].map((code) => ({ value: code, label: code }))
+  const currencyOptions = supportedCurrencies(row.currency)
 
   const {
     register,
@@ -113,7 +118,7 @@ const PopForm: React.FC<{ row: PaymentDocumentListItem; onClose: () => void }> =
     if (values.currency !== row.currency) body.append('currency', values.currency)
     if (needsFx) body.append('fxRate', String(parseNumber(values.fxRate)))
     if (values.reference.trim()) body.append('reference', values.reference.trim())
-    if (values.files[0]) body.append('document', values.files[0])
+    values.files.forEach((file) => body.append('documents', file))
     try {
       const result = await addPop({ id: row.id, body }).unwrap()
       feedback.success(`Payment recorded. Balance ${formatCurrencyAmount(values.currency, result.balance)}.`)
@@ -150,7 +155,7 @@ const PopForm: React.FC<{ row: PaymentDocumentListItem; onClose: () => void }> =
           control={control}
           name="files"
           render={({ field }) => (
-            <FileDropzone files={field.value} onChange={field.onChange} title="Upload proof of payment" hint="Optional · bank confirmation / wire receipt · PDF or image" />
+            <FileDropzone multiple files={field.value} onChange={field.onChange} title="Upload proof of payment" hint="Optional · bank confirmation / wire receipt · PDF or image" />
           )}
         />
       </FormField>

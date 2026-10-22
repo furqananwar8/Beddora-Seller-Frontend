@@ -5,6 +5,9 @@ import type { PurchaseInvoiceBody, PurchaseInvoiceDetail, PurchaseOrderDetail } 
 /** Same cap as the server. */
 export const MAX_EXPENSES = 20
 
+/** The expense (L4 cost center) a row is booked to. */
+const costCenterId = z.string().min(1, 'Choose an expense')
+
 const isMoney = (value: string) => value.trim() !== '' && Number.isFinite(parseAmount(value)) && parseAmount(value) >= 0
 
 /** One PO SKU: the PO's quantity and rate are shown for reference, the invoiced ones are typed. */
@@ -16,6 +19,7 @@ const lineSchema = z.object({
   poUnitPrice: z.number(),
   units: z.string().refine((value) => /^\d+$/.test(value.trim()), 'Whole number'),
   unitPrice: z.string().refine(isMoney, 'Enter a rate'),
+  costCenterId,
 })
 
 const expenseSchema = z.object({
@@ -25,6 +29,7 @@ const expenseSchema = z.object({
     .string()
     .refine(isMoney, 'Enter a price')
     .refine((value) => parseAmount(value) > 0, 'Must be greater than zero'),
+  costCenterId,
 })
 
 export type InvoiceLineValues = z.infer<typeof lineSchema>
@@ -33,12 +38,11 @@ export type InvoiceExpenseValues = z.infer<typeof expenseSchema>
 export const purchaseInvoiceSchema = z
   .object({
     partnerId: z.string().min(1, 'Choose a partner'),
-    invoiceNo: z.string().trim().min(1, 'Invoice number is required').max(80, 'Keep it under 80 characters'),
+    invoiceNo: z.string().trim().min(1, 'Reference number is required').max(80, 'Keep it under 80 characters'),
     invoiceDate: z.string().min(1, 'Invoice date is required'),
     marketplaceId: z.string(),
+    /** The purchase order's currency. */
     currency: z.string().min(1, 'Choose a currency'),
-    /** The L4 cost center the expense is booked to. */
-  costCenterId: z.string().min(1, 'Choose an expense'),
     remarks: z.string().trim().max(1000, 'Keep it under 1000 characters'),
     lines: z.array(lineSchema).min(1, 'The purchase order has no items'),
     expenses: z.array(expenseSchema).max(MAX_EXPENSES, `Up to ${MAX_EXPENSES} additional expenses`),
@@ -47,7 +51,7 @@ export const purchaseInvoiceSchema = z
 
 export type PurchaseInvoiceFormValues = z.infer<typeof purchaseInvoiceSchema>
 
-export const emptyExpense: InvoiceExpenseValues = { name: '', remarks: '', amount: '' }
+export const emptyExpense: InvoiceExpenseValues = { name: '', remarks: '', amount: '', costCenterId: '' }
 
 export const emptyFormValues: PurchaseInvoiceFormValues = {
   partnerId: '',
@@ -55,7 +59,6 @@ export const emptyFormValues: PurchaseInvoiceFormValues = {
   invoiceDate: '',
   marketplaceId: '',
   currency: '',
-  costCenterId: '',
   remarks: '',
   lines: [],
   expenses: [],
@@ -86,7 +89,10 @@ export const linesFromPurchaseOrder = (po: PurchaseOrderDetail): InvoiceLineValu
     poUnitPrice: line.unitPrice ?? 0,
     units: String(line.unitsOrdered),
     unitPrice: line.unitPrice !== null ? String(line.unitPrice) : '',
+    costCenterId: '',
   }))
+
+const costCenterOf = (row: { costCenter: { id: number } | null }, fallback: { id: number } | null): string => String(row.costCenter?.id ?? fallback?.id ?? '')
 
 export const linesFromInvoice = (detail: PurchaseInvoiceDetail): InvoiceLineValues[] =>
   detail.lines.map((line) => ({
@@ -97,10 +103,12 @@ export const linesFromInvoice = (detail: PurchaseInvoiceDetail): InvoiceLineValu
     poUnitPrice: line.po.unitPrice,
     units: String(line.units),
     unitPrice: String(line.unitPrice),
+    // Invoices raised before per-item booking: the invoice's own expense
+    costCenterId: costCenterOf(line, detail.costCenter),
   }))
 
 export const expensesFromInvoice = (detail: PurchaseInvoiceDetail): InvoiceExpenseValues[] =>
-  detail.expenses.map((expense) => ({ name: expense.name, remarks: expense.remarks ?? '', amount: String(expense.amount) }))
+  detail.expenses.map((expense) => ({ name: expense.name, remarks: expense.remarks ?? '', amount: String(expense.amount), costCenterId: costCenterOf(expense, detail.costCenter) }))
 
 /** JSON body for PATCH (and, as form fields, for POST). */
 export function toUpdateBody(values: PurchaseInvoiceFormValues): Omit<PurchaseInvoiceBody, 'carriedDocumentIds'> {
@@ -109,11 +117,15 @@ export function toUpdateBody(values: PurchaseInvoiceFormValues): Omit<PurchaseIn
     invoiceNo: values.invoiceNo.trim(),
     invoiceDate: values.invoiceDate,
     marketplaceId: values.marketplaceId ? Number(values.marketplaceId) : null,
-    costCenterId: Number(values.costCenterId),
     currency: values.currency,
     remarks: values.remarks.trim() || null,
-    lines: values.lines.map((line) => ({ productId: line.productId, units: Number(line.units), unitPrice: parseAmount(line.unitPrice) })),
-    expenses: values.expenses.map((expense) => ({ name: expense.name.trim(), remarks: expense.remarks.trim() || null, amount: parseAmount(expense.amount) })),
+    lines: values.lines.map((line) => ({ productId: line.productId, units: Number(line.units), unitPrice: parseAmount(line.unitPrice), costCenterId: Number(line.costCenterId) })),
+    expenses: values.expenses.map((expense) => ({
+      name: expense.name.trim(),
+      remarks: expense.remarks.trim() || null,
+      amount: parseAmount(expense.amount),
+      costCenterId: Number(expense.costCenterId),
+    })),
   }
 }
 
