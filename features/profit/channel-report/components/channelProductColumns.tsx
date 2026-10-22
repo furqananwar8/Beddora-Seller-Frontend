@@ -30,12 +30,12 @@ const ProductCell: React.FC<{
   onLinkProduct: (row: ProductRow) => void
 }> = ({ row, isChild, isExpanded, onToggle, onLinkProduct }) => (
   <div className={cn('flex items-center justify-center gap-2 min-w-[240px] max-w-[320px] mx-auto text-center', isChild && 'pl-8')}>
-    {row.kind === 'group' && (
+    {!!row.children?.length && (
       <button
         type="button"
         onClick={onToggle}
         aria-expanded={isExpanded}
-        aria-label={isExpanded ? 'Collapse linked listings' : 'Expand linked listings'}
+        aria-label={`${isExpanded ? 'Collapse' : 'Expand'} ${row.kind === 'parent' ? 'products' : 'linked listings'}`}
         className="w-6 h-6 flex items-center justify-center flex-shrink-0 rounded border border-border text-text-muted hover:text-text-primary hover:bg-surface-secondary"
       >
         <svg

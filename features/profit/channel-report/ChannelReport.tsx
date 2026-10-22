@@ -16,7 +16,7 @@ import { ProfitOverviewBanner } from '@/features/profit/dashboard/components/Pro
 import { TileDetailsModal } from '@/features/profit/dashboard/components/TileDetailsModal'
 import { useTilePeriodFilters } from '@/features/profit/dashboard/hooks/useTilePeriodFilters'
 import { SellerboardProductsTable } from '@/features/profit/dashboard/SellerboardProductsTable'
-import SummaryTiles, { type SummaryTileMetric } from '@/features/profit/dashboard/SummaryTiles'
+import SummaryTiles, { SUMMARY_TILE_GRID, type SummaryTileMetric } from '@/features/profit/dashboard/SummaryTiles'
 import { useDebounce } from '@/utils/debounce'
 import { formatNumber } from '@/utils/format'
 import { formatDateRangePST, nowInPST, type CurrencyCode } from '@/utils/profitDashboard.util'
@@ -192,7 +192,8 @@ export const ChannelReport: React.FC = () => {
       channels,
       onlyUnlinked,
       search: debouncedSearch,
-      group: groupListings && multiChannel,
+      group: true,
+      groupListings: groupListings && multiChannel,
     })
     if (!debouncedTableSearch.trim()) return byPageSearch
     const tableIds = new Set(
@@ -200,10 +201,9 @@ export const ChannelReport: React.FC = () => {
         (row) => row.key,
       ),
     )
-    // Keep a row when it, or one of its linked listings, matches the table search
-    return byPageSearch.filter(
-      (row) => tableIds.has(row.key) || row.children?.some((child) => tableIds.has(child.key)),
-    )
+    // Keep a row when it, or one of the rows under it (products of a parent, linked listings), matches the table search
+    const matches = (row: ProductRow): boolean => tableIds.has(row.key) || Boolean(row.children?.some(matches))
+    return byPageSearch.filter(matches)
   }, [listings, tableChannels, appliedChannels, onlyUnlinked, debouncedSearch, debouncedTableSearch, groupListings, multiChannel])
 
   const unlinkedCount = countUnlinked(rows)
@@ -332,7 +332,7 @@ export const ChannelReport: React.FC = () => {
           className={
             period.isCustom
               ? 'grid grid-cols-1 gap-4 mb-6 max-w-md'
-              : 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-6'
+              : SUMMARY_TILE_GRID
           }
         >
           {tiles.map(({ tile, dateRange, data }) => {
@@ -352,7 +352,7 @@ export const ChannelReport: React.FC = () => {
               <Card
                 key={tile.id}
                 className={`bg-surface border border-border cursor-pointer transition-shadow hover:shadow-md min-w-0 flex flex-col ${
-                  period.selectedTile.id === tile.id ? 'ring-2 ring-primary-200' : ''
+                  period.selectedTile.id === tile.id ? 'ring-2 ring-primary-600 ring-offset-2' : ''
                 }`}
                 onClick={() => period.setSelectedTileId(tile.id)}
               >

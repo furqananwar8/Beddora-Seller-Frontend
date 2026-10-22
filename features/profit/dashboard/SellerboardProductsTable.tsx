@@ -28,6 +28,7 @@ import {
   formatPercentage,
 } from '@/utils/format'
 import { ProductIdentityCell } from './ProductIdentityCell'
+import { RefundReasonsPopover, type RefundReasonsScope } from './components/RefundReasonsPopover'
 import { cn } from '@/utils/cn'
 
 /* ──────────────────────────────────────────────────────
@@ -77,6 +78,8 @@ export interface SellerboardProductsTableProps {
   footerContent?: React.ReactNode | ((range: { from: number; to: number; total: number }) => React.ReactNode)
   /** Message when no rows match. */
   emptyMessage?: string
+  /** What the rows cover; when set, a refund count opens that product's refunds by reason. */
+  refundReasonsScope?: RefundReasonsScope
 }
 
 type SortColumn = string
@@ -243,6 +246,7 @@ const buildProductStatData = (
 
   return {
     title: p.productTitle || p.sku || 'Product',
+    unitCount: p.unitsSold,
 
     sections: [
       {
@@ -450,6 +454,7 @@ export const SellerboardProductsTable: React.FC<
     pageSize = 20,
     footerContent,
     emptyMessage = 'No products found matching your search criteria.',
+    refundReasonsScope,
   }) => {
     const [sortColumn, setSortColumn] = useState<SortColumn>(defaultSortColumn)
     const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
@@ -513,6 +518,9 @@ export const SellerboardProductsTable: React.FC<
       anchorRect: DOMRect
       currency: string
     } | null>(null)
+
+    const [refundTarget, setRefundTarget] = useState<{ product: ProductProfitBreakdown; anchorRect: DOMRect } | null>(null)
+    const closeRefunds = useCallback(() => setRefundTarget(null), [])
 
     const toggleRow = useCallback((sku: string) => {
       setExpandedRows((previous) => {
@@ -706,6 +714,7 @@ export const SellerboardProductsTable: React.FC<
                 isChild={isChild}
                 isExpanded={isExpanded}
                 onToggle={() => toggleRow(product.sku)}
+                titleInTooltip
               />
             </TableCell>
 
@@ -716,7 +725,18 @@ export const SellerboardProductsTable: React.FC<
 
             {/* Refunds */}
             <TableCell className="text-right whitespace-nowrap px-4 py-3">
-              {formatNumber(refundCount, 0)}
+              {refundCount > 0 && refundReasonsScope ? (
+                <button
+                  type="button"
+                  onClick={(e) => setRefundTarget({ product, anchorRect: e.currentTarget.getBoundingClientRect() })}
+                  className="text-primary-600 hover:text-primary-700 hover:underline"
+                  aria-label={`Refunds by reason for ${product.sku}`}
+                >
+                  {formatNumber(refundCount, 0)}
+                </button>
+              ) : (
+                formatNumber(refundCount, 0)
+              )}
             </TableCell>
 
             {/* Sales */}
@@ -836,6 +856,15 @@ export const SellerboardProductsTable: React.FC<
               </span>
             </div>
           </div>
+        )}
+
+        {refundTarget && refundReasonsScope && (
+          <RefundReasonsPopover
+            product={refundTarget.product}
+            scope={refundReasonsScope}
+            anchorRect={refundTarget.anchorRect}
+            onClose={closeRefunds}
+          />
         )}
 
         <StatModal

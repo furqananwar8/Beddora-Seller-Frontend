@@ -31,6 +31,8 @@ export interface StatModalData {
   flag?: string
   sections: StatSection[]
   summaryRows?: StatDetailItem[]
+  /** Units the amounts cover: when above 0, each amount also shows per unit, next to its total. */
+  unitCount?: number
 }
 
 interface Props {
@@ -324,7 +326,9 @@ export const StatModal: React.FC<Props> = ({
     return null
   }
 
-  const MODAL_WIDTH = 420
+  const unitCount = Number(data.unitCount || 0)
+  const showPerUnit = unitCount > 0
+  const MODAL_WIDTH = showPerUnit ? 520 : 420
   const GAP = 12
   const viewportH = window.innerHeight
   const approxModalHeight = 560
@@ -374,6 +378,19 @@ export const StatModal: React.FC<Props> = ({
     return formatNumber(value)
   }
 
+  // Total, and per unit for amounts when the modal knows the units
+  const amounts = (formatted: string, value: number, isCurrency?: boolean) =>
+    showPerUnit ? (
+      <span className="inline-flex justify-end">
+        <span className="w-28 text-right">{formatted}</span>
+        <span className="w-24 text-right text-text-muted font-normal">
+          {isCurrency ? formatCurrency(value / unitCount, currency) : ''}
+        </span>
+      </span>
+    ) : (
+      formatted
+    )
+
   // ==========================================================
   // RENDER
   // ==========================================================
@@ -381,8 +398,9 @@ export const StatModal: React.FC<Props> = ({
   return (
     <div
       ref={panelRef}
-      className="fixed z-50 w-[420px] max-h-[80vh] overflow-y-auto bg-surface border border-border rounded-lg shadow-2xl"
+      className="fixed z-50 max-h-[80vh] overflow-y-auto bg-surface border border-border rounded-lg shadow-2xl"
       style={{
+        width: `${MODAL_WIDTH}px`,
         left: `${left}px`,
         top: `${top}px`,
       }}
@@ -419,16 +437,25 @@ export const StatModal: React.FC<Props> = ({
       {/* BODY */}
 
       <div className="px-3 py-2">
+        {showPerUnit && (
+          <div className="flex justify-end pt-1 text-[11px] font-semibold uppercase tracking-wider text-text-muted">
+            <span className="w-28 text-right">Total</span>
+            <span className="w-24 text-right">Per unit</span>
+          </div>
+        )}
+
         {data.sections.map((section) => (
           <Section
             key={section.title}
             title={section.title}
             tooltipKey={section.tooltipKey || section.title}
-            value={
+            value={amounts(
               section.currency
                 ? formatCurrency(Number(section.value || 0), currency)
-                : formatNumber(Number(section.value || 0))
-            }
+                : formatNumber(Number(section.value || 0)),
+              Number(section.value || 0),
+              section.currency
+            )}
             defaultOpen={section.defaultOpen}
           >
             {section.children?.map((child) => (
@@ -436,7 +463,7 @@ export const StatModal: React.FC<Props> = ({
                 key={child.label}
                 label={child.label}
                 tooltipKey={child.tooltipKey || child.label}
-                value={fmt(child)}
+                value={amounts(fmt(child), Number(child.value || 0), child.currency)}
               />
             ))}
           </Section>
@@ -451,7 +478,7 @@ export const StatModal: React.FC<Props> = ({
                 key={row.label}
                 label={row.label}
                 tooltipKey={row.tooltipKey || row.label}
-                value={fmt(row)}
+                value={amounts(fmt(row), Number(row.value || 0), row.currency)}
                 className={cn(
                   row.label === 'Net profit' &&
                     'font-semibold text-primary-600',

@@ -500,7 +500,7 @@ export const tilePresets: TilePreset[] = [
 
       {
         id: 'this-month-forecast',
-        label: 'This month',
+        label: 'This month (forecast)',
         apiPeriod:
           'THIS_MONTH_FORECAST',
 
@@ -1068,21 +1068,6 @@ export const tilePresets: TilePreset[] = [
     ],
   },
 ]
-
-// ============================================
-// TILE GRID
-// ============================================
-
-export const gridColsClass: Record<
-  number,
-  string
-> = {
-  1: 'lg:grid-cols-1',
-  2: 'lg:grid-cols-2',
-  3: 'lg:grid-cols-3',
-  4: 'xl:grid-cols-4 lg:grid-cols-3',
-  5: 'xl:grid-cols-5 lg:grid-cols-3',
-}
 
 export type DashboardTab =
   | 'tiles'

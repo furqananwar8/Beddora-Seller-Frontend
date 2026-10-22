@@ -99,6 +99,11 @@ export interface MasterProduct {
   productId: string
   title: string
   sku: string
+  /** Catalog details a channel may know; products sharing a parent SKU / ASIN group under one parent row. */
+  asin?: string | null
+  imageUrl?: string | null
+  parentSku?: string | null
+  parentAsin?: string | null
 }
 
 export interface ChannelListingsResult {

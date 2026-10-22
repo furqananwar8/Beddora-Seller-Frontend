@@ -3,6 +3,9 @@
 import React from 'react'
 import { formatCurrency, formatNumber, formatPercentage } from "@/utils"
 
+/** The grid the period tiles sit in: compact cards (220px and up) side by side, as many as fit in a row. */
+export const SUMMARY_TILE_GRID = 'grid gap-4 mb-6 grid-cols-[repeat(auto-fill,minmax(220px,1fr))]'
+
 /** Optional cells of the tile's metric grid. */
 export type SummaryTileMetric = 'refunds' | 'secondary'
 
@@ -116,10 +119,10 @@ const SummaryTiles = ({
 
     return (
         <div className="space-y-3 flex-1 flex flex-col">
-            {/* Header */}
-            <div>
-                <h3 className="text-lg font-semibold text-text-primary break-words">{period.label}</h3>
-                <p className="text-xs text-text-muted break-words">{period.dateRange}</p>
+            {/* Header: a slate band across the top of the card (the tile sits in p-4 card content) */}
+            <div className="-mx-4 -mt-4 px-4 py-3 bg-secondary-700">
+                <h3 className="text-base font-semibold text-text-inverse break-words">{period.label}</h3>
+                <p className="text-xs text-secondary-200 break-words">{period.dateRange}</p>
             </div>
 
             {/* Sales */}
