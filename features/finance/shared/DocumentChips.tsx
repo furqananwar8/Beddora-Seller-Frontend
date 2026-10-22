@@ -13,6 +13,9 @@ interface DocumentChipsProps {
   pendingNames?: string[]
   /** Renders a remove control on each chip (edit mode). */
   onRemove?: (doc: FinanceDocument) => void
+  /** With `onRemove`: which documents may be removed (default all); the others show `lockedLabel` instead. */
+  canRemove?: (doc: FinanceDocument) => boolean
+  lockedLabel?: string
   removingId?: string | null
   /** Text when nothing is attached; pass null to render nothing. */
   emptyText?: string | null
@@ -26,6 +29,8 @@ export const DocumentChips: React.FC<DocumentChipsProps> = ({
   documents,
   pendingNames = [],
   onRemove,
+  canRemove = () => true,
+  lockedLabel = 'Locked',
   removingId,
   emptyText = 'No documents attached',
   className,
@@ -54,7 +59,12 @@ export const DocumentChips: React.FC<DocumentChipsProps> = ({
               <span className="rounded bg-danger-600 px-1.5 py-0.5 text-[10px] font-bold text-text-inverse">{kind(doc)}</span>
               <span className="max-w-[180px] truncate text-text-primary">{doc.originalName}</span>
             </button>
-            {onRemove && (
+            {onRemove && !canRemove(doc) && (
+              <span title={`${lockedLabel}: cannot be removed`} className="ml-1 text-[10px] font-semibold uppercase text-text-subtle">
+                {lockedLabel}
+              </span>
+            )}
+            {onRemove && canRemove(doc) && (
               <button
                 type="button"
                 aria-label={`Remove ${doc.originalName}`}

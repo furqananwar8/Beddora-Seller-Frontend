@@ -263,8 +263,6 @@ export const PaymentRequestFormScreen: React.FC = () => {
     if (next === 'PURCHASE_ORDER') {
       setDuplicate(null)
       setPurchaseInvoice(null)
-      // A purchase-order request is booked to one expense
-      setValue('lines', getValues('lines').slice(0, 1), { shouldDirty: true })
     } else void runDuplicateCheck(getValues('partnerId'), getValues('invoiceNo'))
   }
 
@@ -494,7 +492,6 @@ export const PaymentRequestFormScreen: React.FC = () => {
           errors={errors}
           currencyOptions={currencyOptions(currency)}
           currencyLocked={poLocked}
-          allowMultiple={!byPurchaseOrder}
           poLimit={byPurchaseOrder ? poLimit : null}
           costCenters={costCenters}
           loadingCostCenters={loadingCostCenters}

@@ -338,7 +338,10 @@ export interface Pop {
   /** The bank the payment left from; `baseCurrency` is its currency. Null on payments recorded before banks were picked. */
   bankProfile: { id: number; name: string; currency: string } | null
   processedBy: UserRef
+  /** Oldest first. */
   documents: FinanceDocument[]
+  /** The first proof recorded on the payment: it stays on record and cannot be removed. */
+  initialDocumentId: string | null
 }
 
 export interface PaymentDocumentDetail {
@@ -631,6 +634,12 @@ export const financeApi = baseApi.injectEndpoints({
       query: ({ id, popId, documentId }) => ({ url: `/finance/payment-documents/${id}/pops/${popId}/documents/${documentId}`, method: 'DELETE' }),
       invalidatesTags: ['FinanceProcess'],
     }),
+    /** The reference also stays correctable after a payment is marked paid; `null` clears it. */
+    updatePopReference: b.mutation<Pick<Pop, 'id' | 'reference'>, { id: number; popId: number; reference: string | null }>({
+      query: ({ id, popId, reference }) => ({ url: `/finance/payment-documents/${id}/pops/${popId}`, method: 'PATCH', body: { reference } }),
+      transformResponse: unwrap,
+      invalidatesTags: ['FinanceProcess'],
+    }),
     markPaid: b.mutation<PaymentDocumentDetail, number>({
       query: (id) => ({ url: `/finance/payment-documents/${id}/mark-paid`, method: 'POST' }),
       transformResponse: unwrap,
@@ -676,6 +685,7 @@ export const {
   useGetPayablePurchaseOrdersQuery,
   useAddPopDocumentsMutation,
   useRemovePopDocumentMutation,
+  useUpdatePopReferenceMutation,
   useCreatePaymentRequestMutation,
   useUpdatePaymentRequestMutation,
   useAddRequestDocumentsMutation,
