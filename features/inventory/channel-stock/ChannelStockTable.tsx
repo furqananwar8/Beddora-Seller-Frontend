@@ -78,7 +78,7 @@ export const ChannelStockTable: React.FC<ChannelStockTableProps> = ({ rows, fulf
                           <div className="min-w-0 cursor-default">
                             <div className="truncate font-mono text-sm font-medium text-text-primary">{row.sku}</div>
                             {row.reference && (
-                              <div className="truncate text-xs text-text-muted">
+                              <div className="truncate text-xs text-text-primary">
                                 {referenceLabel && <span className="font-medium">{referenceLabel}: </span>}
                                 <span className="font-mono">{row.reference}</span>
                               </div>
