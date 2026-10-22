@@ -10,7 +10,10 @@ interface ApplyFiltersButtonProps {
   disabled?: boolean
 }
 
-/** The "Apply Filters" button of the profit screens' filter bars: filters take effect only when it is pressed. */
+/**
+ * The "Apply Filters" button of the profit screens' filter bars: filters take effect only when it is pressed.
+ * 42px tall, the height of the bar's dropdowns (MultiSelectInput) and search box, so the row lines up.
+ */
 export function ApplyFiltersButton({ onClick, pending = false, disabled = false }: ApplyFiltersButtonProps) {
   return (
     <Button
@@ -19,6 +22,7 @@ export function ApplyFiltersButton({ onClick, pending = false, disabled = false 
       disabled={disabled}
       className={`
         min-w-[140px]
+        h-[42px]
         shrink-0
         whitespace-nowrap
         flex
