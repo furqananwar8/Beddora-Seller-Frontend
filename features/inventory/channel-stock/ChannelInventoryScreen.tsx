@@ -7,6 +7,7 @@ import { useStagedFilters } from '@/components/filter-bar/useStagedFilters'
 import { KpiCard } from '@/design-system/kpi'
 import { useGetChannelStockOptionsQuery, useGetChannelStockQuery } from '@/services/api/channelStock.api'
 import { cn } from '@/utils/cn'
+import { RESPONSIVE_TILE_COLUMNS } from '@/features/profit/dashboard/SummaryTiles'
 import { ChannelStockFilters, DEFAULT_CHANNEL_STOCK_FILTERS } from './ChannelStockFilters'
 import { ChannelStockTable } from './ChannelStockTable'
 
@@ -31,7 +32,7 @@ export const ChannelInventoryScreen: React.FC = () => {
     page,
     limit: PAGE_SIZE,
   })
-  const fulfillments = channels.find((channel) => channel.id === applied.channel)?.fulfillments ?? []
+  const appliedChannel = channels.find((channel) => channel.id === applied.channel)
   const summary = data?.summary
 
   return (
@@ -50,7 +51,9 @@ export const ChannelInventoryScreen: React.FC = () => {
         disabled={channels.length === 0}
       />
 
-      <div className="mb-4 grid grid-cols-2 gap-4 lg:grid-cols-4">
+      {/* Same responsive tile row as the profit screens; `h-auto` lets the row stretch every card to the tallest
+          (KpiCard's own h-full would stop that). */}
+      <div className={cn(RESPONSIVE_TILE_COLUMNS, 'mb-4 [&>*]:h-auto')}>
         <KpiCard title="SKUs" value={n(summary?.skus)} />
         <KpiCard title="Available" value={n(summary?.available)} />
         <KpiCard title="Inbound" value={n(summary?.inbound)} subtitle={summary && summary.inbound === null ? 'Not reported by this channel' : undefined} />
@@ -59,7 +62,13 @@ export const ChannelInventoryScreen: React.FC = () => {
 
       <div className={cn('overflow-hidden rounded-lg border border-border shadow-sm', isFetching && 'opacity-70 transition-opacity')}>
         <div className="max-h-[calc(100vh-420px)] overflow-auto">
-          <ChannelStockTable rows={data?.data ?? []} fulfillments={fulfillments} isLoading={isLoading} isError={isError} />
+          <ChannelStockTable
+            rows={data?.data ?? []}
+            fulfillments={appliedChannel?.fulfillments ?? []}
+            referenceLabel={appliedChannel?.referenceLabel}
+            isLoading={isLoading}
+            isError={isError}
+          />
         </div>
         {data && (
           <>

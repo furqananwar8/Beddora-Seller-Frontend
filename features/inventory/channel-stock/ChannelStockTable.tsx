@@ -1,9 +1,11 @@
 'use client'
 
 import React from 'react'
+import { MarketplaceFlag } from '@/components/marketplace-flag/MarketPlaceFlag'
 import { Badge, type BadgeProps } from '@/design-system/badges'
 import { Spinner } from '@/design-system/loaders'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/design-system/tables'
+import { Tooltip } from '@/design-system/tooltips'
 import { cn } from '@/utils/cn'
 import type { ChannelStockOption, ChannelStockRow } from '@/services/api/channelStock.api'
 
@@ -21,11 +23,13 @@ const Figure: React.FC<{ value: number | null }> = ({ value }) =>
 interface ChannelStockTableProps {
   rows: ChannelStockRow[]
   fulfillments: ChannelStockOption[]
+  /** Label of the row's reference, e.g. `ASIN`. */
+  referenceLabel?: string
   isLoading: boolean
   isError: boolean
 }
 
-export const ChannelStockTable: React.FC<ChannelStockTableProps> = ({ rows, fulfillments, isLoading, isError }) => {
+export const ChannelStockTable: React.FC<ChannelStockTableProps> = ({ rows, fulfillments, referenceLabel, isLoading, isError }) => {
   const fulfillmentName = (id: string) => fulfillments.find((option) => option.id === id)?.name ?? id
 
   const message = (content: React.ReactNode) => (
@@ -38,7 +42,7 @@ export const ChannelStockTable: React.FC<ChannelStockTableProps> = ({ rows, fulf
     <Table className="min-w-full">
       <TableHeader className="sticky top-0 z-10 bg-surface shadow-sm">
         <TableRow>
-          <TableHead className={cn(HEAD, 'min-w-[320px] text-left')}>Product</TableHead>
+          <TableHead className={cn(HEAD, 'min-w-[260px] text-left')}>Product</TableHead>
           <TableHead className={HEAD}>Fulfillment</TableHead>
           <TableHead className={HEAD}>Available</TableHead>
           <TableHead className={HEAD}>Reserved</TableHead>
@@ -66,16 +70,25 @@ export const ChannelStockTable: React.FC<ChannelStockTableProps> = ({ rows, fulf
               : rows.map((row) => (
                   <TableRow key={row.id}>
                     <TableCell className="align-middle">
-                      <div className="max-w-[420px] truncate font-medium text-text-primary" title={row.productName ?? row.sku}>
-                        {row.productName ?? row.sku}
-                      </div>
-                      <div className="font-mono text-xs text-text-muted">
-                        {row.sku}
-                        {row.reference && ` · ${row.reference}`} · {row.marketplace}
+                      <div className="flex items-center gap-3">
+                        <span title={row.marketplace}>
+                          <MarketplaceFlag marketplace={row.marketplace} />
+                        </span>
+                        <Tooltip content={row.productName ?? 'No product name synced yet'} side="bottom" align="start" multiline className="min-w-0">
+                          <div className="min-w-0 cursor-default">
+                            <div className="truncate font-mono text-sm font-medium text-text-primary">{row.sku}</div>
+                            {row.reference && (
+                              <div className="truncate text-xs text-text-muted">
+                                {referenceLabel && <span className="font-medium">{referenceLabel}: </span>}
+                                <span className="font-mono">{row.reference}</span>
+                              </div>
+                            )}
+                          </div>
+                        </Tooltip>
                       </div>
                     </TableCell>
                     <TableCell className={CELL}>
-                      <Badge size="sm" variant={FULFILLMENT_VARIANT[row.fulfillment] ?? 'secondary'}>
+                      <Badge size="sm" variant={FULFILLMENT_VARIANT[row.fulfillment] ?? 'secondary'} className="uppercase">
                         {fulfillmentName(row.fulfillment)}
                       </Badge>
                     </TableCell>

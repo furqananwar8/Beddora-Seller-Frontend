@@ -10,6 +10,8 @@ export interface ChannelStockOption {
 export interface ChannelStockChannel extends ChannelStockOption {
   marketplaces: ChannelStockOption[]
   fulfillments: ChannelStockOption[]
+  /** What a row's `reference` is, e.g. `ASIN`. */
+  referenceLabel: string
 }
 
 export interface ChannelStockRow {
