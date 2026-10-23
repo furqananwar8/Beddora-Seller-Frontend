@@ -136,6 +136,12 @@ export default function DashboardLayout({
                 href: '/dashboard/inventory/channel-inventory',
               },
               {
+                label: 'SKU Mapping',
+                subject: 'inventory:sku-mapping',
+                action: 'read',
+                href: '/dashboard/inventory/sku-mapping',
+              },
+              {
                 label: 'Seller Central',
                 // Shares the Planner permission until the backend seeds 'inventory:seller-central'.
                 subject: 'inventory:planner',
