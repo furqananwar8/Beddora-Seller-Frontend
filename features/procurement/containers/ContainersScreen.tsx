@@ -1,49 +1,20 @@
 'use client'
 
-import React, { useState } from 'react'
-import Link from 'next/link'
-import { FILL_TOGGLE, FilterBar, FilterItem } from '@/components/filter-bar/FilterBar'
-import { useStagedFilters } from '@/components/filter-bar/useStagedFilters'
-import { FormField } from '@/components/form-field/FormField'
-import { MarketplaceFlag } from '@/components/marketplace-flag/MarketPlaceFlag'
+import React from 'react'
 import { Container } from '@/components/layout'
 import { PaginationFooter } from '@/components/pagination-footer/PaginationFooter'
 import { RowActionsMenu } from '@/components/row-actions-menu/RowActionsMenu'
-import { SegmentedToggle } from '@/components/segmented-toggle/SegmentedToggle'
 import { TreeTable, type TreeColumn } from '@/components/tree-table/TreeTable'
 import { Button } from '@/design-system/buttons'
-import {
-  useGetContainersQuery,
-  useGetContainerSummaryQuery,
-  type ContainerItem,
-  type ContainerStatus,
-  type PoDestination,
-} from '@/services/api/procurement.api'
+import { useGetContainersQuery, useGetContainerSummaryQuery, type ContainerItem } from '@/services/api/procurement.api'
 import { cn } from '@/utils/cn'
-import { useDebounce } from '@/utils/debounce'
 import { formatCalendarDay } from '@/utils/format'
-import { CONTAINER_STATUS_META, CONTAINER_STATUSES, ContainerStatusBadge, DESTINATION_LABEL, DESTINATION_ROW_TINT, supplierNames } from '../shared/poMeta'
+import { ContainerStatusBadge, DESTINATION_LABEL, DESTINATION_ROW_TINT, supplierNames } from '../shared/poMeta'
 import { ContainerRowDetail } from './detail/ContainerOverview'
-import { containerHref, useContainerActions } from './useContainerActions'
-
-const PAGE_SIZE = 20
-
-type StatusFilter = 'ALL' | ContainerStatus
-type CountryFilter = 'ALL' | PoDestination
-
-interface Filters extends Record<string, unknown> {
-  status: StatusFilter
-  destination: CountryFilter
-}
-
-const DEFAULT_FILTERS: Filters = { status: 'ALL', destination: 'ALL' }
-
-const STATUS_OPTIONS: Array<{ value: StatusFilter; label: string }> = [{ value: 'ALL', label: 'All' }, ...CONTAINER_STATUSES.map((value) => ({ value, label: CONTAINER_STATUS_META[value].label }))]
-const COUNTRY_OPTIONS: Array<{ value: CountryFilter; label: string }> = [
-  { value: 'ALL', label: 'All' },
-  { value: 'US', label: DESTINATION_LABEL.US },
-  { value: 'CA', label: DESTINATION_LABEL.CA },
-]
+import { ContainerCell, skuSummary } from './list/ContainerCell'
+import { ContainerFilterBar } from './list/ContainerFilterBar'
+import { useContainerListState } from './list/useContainerListState'
+import { useContainerActions } from './useContainerActions'
 
 const qty = (value: number) => value.toLocaleString('en-CA')
 const kg = (value: number) => `${value.toLocaleString('en-CA', { maximumFractionDigits: 1 })} kg`
@@ -61,19 +32,8 @@ const Stack: React.FC<{ top: React.ReactNode; bottom?: React.ReactNode; classNam
 export const ContainersScreen: React.FC = () => {
   const actions = useContainerActions()
 
-  const [search, setSearch] = useState('')
-  const debouncedSearch = useDebounce(search.trim(), 300)
-  const [page, setPage] = useState(1)
-  const filters = useStagedFilters(DEFAULT_FILTERS, () => setPage(1))
-  const { applied, draft, setDraft, changed } = filters
-
-  const { data, isLoading, isFetching, isError } = useGetContainersQuery({
-    page,
-    limit: PAGE_SIZE,
-    search: debouncedSearch,
-    status: applied.status === 'ALL' ? undefined : applied.status,
-    destination: applied.destination === 'ALL' ? undefined : applied.destination,
-  })
+  const list = useContainerListState()
+  const { data, isLoading, isFetching, isError } = useGetContainersQuery(list.params)
   const { data: summary } = useGetContainerSummaryQuery()
 
   const columns: TreeColumn<ContainerItem>[] = [
@@ -81,19 +41,7 @@ export const ContainersScreen: React.FC = () => {
       key: 'container',
       header: 'Container',
       className: 'min-w-[150px] text-left',
-      render: (container) => (
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <MarketplaceFlag marketplace={container.destination} className="shadow-sm" />
-            <span className="sr-only">{DESTINATION_LABEL[container.destination]}</span>
-            <Link href={containerHref(container.id)} className="whitespace-nowrap font-mono text-sm font-semibold text-text-primary underline-offset-2 hover:underline">
-              {container.containerNumber ?? 'No number yet'}
-            </Link>
-          </div>
-          <p className="whitespace-nowrap font-mono text-[11px] text-text-muted">{container.containerNo}</p>
-          <p className="whitespace-nowrap text-xs text-text-muted">{container.lines.length === 0 ? 'Empty' : `${container.lines.length} SKU${container.lines.length === 1 ? '' : 's'} · ${qty(container.totals.units)} units`}</p>
-        </div>
-      ),
+      render: (container) => <ContainerCell container={container} detail={skuSummary(container.lines.length, container.totals.units)} />,
     },
     {
       key: 'list',
@@ -150,7 +98,6 @@ export const ContainersScreen: React.FC = () => {
   ]
 
   const rows = data?.data ?? []
-  const filtered = Boolean(debouncedSearch) || filters.appliedCount > 0
 
   return (
     <Container size="full" className="py-4 sm:py-8">
@@ -170,35 +117,7 @@ export const ContainersScreen: React.FC = () => {
         )}
       </div>
 
-      <div className="mb-4 rounded-lg border border-border bg-surface p-3 shadow-sm sm:p-4">
-        <FilterBar pendingCount={changed.size} activeCount={filters.activeCount} onApply={filters.apply} onReset={filters.reset}>
-          <FilterItem wide>
-            <FormField label="Search" htmlFor="ct-search">
-              <input
-                id="ct-search"
-                type="search"
-                value={search}
-                onChange={(event) => {
-                  setSearch(event.target.value)
-                  setPage(1)
-                }}
-                placeholder="Container #, CID, BOL, PL # or PO #"
-                className="ds-input ds-input-default rounded-lg"
-              />
-            </FormField>
-          </FilterItem>
-          <FilterItem wide>
-            <FormField label="Status">
-              <SegmentedToggle<StatusFilter> ariaLabel="Status" value={draft.status} onChange={(v) => setDraft('status', v)} options={STATUS_OPTIONS} className={cn(FILL_TOGGLE, changed.has('status') && 'ring-1 ring-primary-500')} />
-            </FormField>
-          </FilterItem>
-          <FilterItem>
-            <FormField label="Country">
-              <SegmentedToggle<CountryFilter> ariaLabel="Country" value={draft.destination} onChange={(v) => setDraft('destination', v)} options={COUNTRY_OPTIONS} className={cn(FILL_TOGGLE, changed.has('destination') && 'ring-1 ring-primary-500')} />
-            </FormField>
-          </FilterItem>
-        </FilterBar>
-      </div>
+      <ContainerFilterBar state={list} idPrefix="ct" />
 
       <div className={cn('overflow-hidden rounded-lg border border-border bg-surface shadow-sm', isFetching && 'opacity-70 transition-opacity')}>
         <div className="max-h-[calc(100vh-380px)] overflow-auto">
@@ -213,11 +132,11 @@ export const ContainersScreen: React.FC = () => {
             expandLabel="container details"
             isLoading={isLoading}
             isError={isError}
-            emptyText={filtered ? 'No container matches.' : 'No containers yet.'}
+            emptyText={list.filtered ? 'No container matches.' : 'No containers yet.'}
             errorText="Could not load containers."
           />
         </div>
-        {data && <PaginationFooter page={data.page} pageSize={data.limit} totalItems={data.totalRecords} totalPages={data.totalPages} onPageChange={setPage} itemLabel="containers" />}
+        {data && <PaginationFooter page={data.page} pageSize={data.limit} totalItems={data.totalRecords} totalPages={data.totalPages} onPageChange={list.setPage} itemLabel="containers" />}
       </div>
 
       {actions.dialogs}

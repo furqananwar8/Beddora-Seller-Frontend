@@ -1,13 +1,7 @@
-import { Metadata } from 'next'
-import { notFound } from 'next/navigation'
-import { ContainerDetailScreen } from '@/features/procurement/containers'
+import { redirect } from 'next/navigation'
+import { CONTAINER_ROUTES } from '@/features/procurement/containers/routes'
 
-export const metadata: Metadata = {
-  title: 'Container | Beddora',
-}
-
-export default function ContainerPage({ params }: { params: { id: string } }) {
-  const id = Number(params.id)
-  if (!Number.isInteger(id) || id <= 0) notFound()
-  return <ContainerDetailScreen containerId={id} />
+/** Containers moved to their own section; old links land there. */
+export default function LegacyContainerPage({ params }: { params: { id: string } }) {
+  redirect(CONTAINER_ROUTES.detail(params.id))
 }

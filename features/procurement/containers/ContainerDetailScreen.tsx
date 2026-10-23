@@ -13,9 +13,10 @@ import { formatCalendarDay } from '@/utils/format'
 import { ContainerStatusBadge, DESTINATION_LABEL, containerLabel } from '../shared/poMeta'
 import { ContainerOverview } from './detail/ContainerOverview'
 import { Fact } from './detail/Panel'
+import { CONTAINER_ROUTES } from './routes'
 import { useContainerActions } from './useContainerActions'
 
-const LIST = '/dashboard/procurement/containers'
+const LIST = CONTAINER_ROUTES.list
 const date = (value: string | null) => (value ? formatCalendarDay(value) : '—')
 
 /** One container: its details, then PO > packaging list > payments, and payment requests | documents | packed products side by side. */

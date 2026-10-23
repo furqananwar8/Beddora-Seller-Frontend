@@ -21,6 +21,7 @@ import { cn } from '@/utils/cn'
 import { useDebounce } from '@/utils/debounce'
 import { downloadApiFile } from '@/utils/downloadFile'
 import { AssignContainerModal } from '../containers'
+import { CONTAINER_ROUTES } from '../containers/routes'
 import { ContainerStatusBadge, containerLabel, formatPoNo, newPackagingListHref, supplierNames } from '../shared/poMeta'
 
 const BASE = '/dashboard/procurement/packaging-lists'
@@ -210,7 +211,7 @@ export const PackagingListsScreen: React.FC = () => {
                     <TableCell className={CELL}>
                       {row.container ? (
                         <div className="flex flex-col items-center gap-0.5">
-                          <Link href={`/dashboard/procurement/containers/${row.container.id}`} className="font-mono text-sm font-semibold text-primary-600 underline-offset-2 hover:underline">
+                          <Link href={CONTAINER_ROUTES.detail(row.container.id)} className="font-mono text-sm font-semibold text-primary-600 underline-offset-2 hover:underline">
                             {containerLabel(row.container)}
                           </Link>
                           <ContainerStatusBadge status={row.container.status} />

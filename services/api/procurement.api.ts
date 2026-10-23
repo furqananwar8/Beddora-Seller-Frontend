@@ -605,6 +605,93 @@ export interface ContainerParams extends PageParams {
   destination?: PoDestination
 }
 
+/** The container expenses spread over SKUs, as the server names them (see the server's cost-buckets). */
+export type CostBucketKey = 'oceanFreight' | 'trucking' | 'customsDuties' | 'customsBrokerage' | 'penalties'
+export type CostBuckets = Record<CostBucketKey, number>
+
+export interface CostTotals {
+  units: number
+  cbm: number
+  goods: number
+  additionalExpense: number
+  costs: CostBuckets
+  total: number
+}
+
+export interface ContainerExpense {
+  key: CostBucketKey
+  label: string
+  /** How it is split: by the SKU's CBM, or by its value (units x FOB + additional expense). */
+  basis: 'cbm' | 'value'
+  /** Approved payment requests. */
+  paid: number
+  /** Drafts and requests awaiting approval: not in the figures yet. */
+  pending: number
+  /** Paid but with nothing to split it by, so missing from the SKU rows. */
+  unallocated: number
+  /** False until the column is mapped to an L4 cost center. */
+  mapped: boolean
+}
+
+export interface CostCenterChoice {
+  id: number
+  code: string
+  name: string
+  /** `Expense › Freight › Ocean › Sea freight`, L1 first. */
+  path: string
+}
+
+export interface CostMapping {
+  columns: Array<{ key: CostBucketKey; label: string; basis: 'cbm' | 'value'; costCenter: CostCenterChoice | null }>
+  /** Active L4 cost centers that can be picked. */
+  options: CostCenterChoice[]
+}
+
+export interface ContainerCostItem {
+  id: number
+  containerNo: string
+  containerNumber: string | null
+  status: ContainerStatus
+  destination: PoDestination
+  etd: string | null
+  eta: string | null
+  currency: PoCurrency
+  /** More than one means amounts in different currencies were added up as they are. */
+  currencies: string[]
+  packagingList: { id: number; plNo: string; suppliers: string[] } | null
+  skuCount: number
+  totals: CostTotals
+  expenses: ContainerExpense[]
+  otherExpenses: { approved: number; pending: number }
+}
+
+export interface SkuCostRow {
+  purchaseOrderId: number
+  productId: number
+  sku: string
+  name: string
+  color: string | null
+  units: number
+  cartons: number
+  carton: { lengthCm: number | null; widthCm: number | null; heightCm: number | null }
+  cbm: number
+  netWeightKg: number
+  grossWeightKg: number
+  cost: { fobPrice: number; goods: number; additionalExpense: number; costs: CostBuckets; total: number }
+}
+
+export interface ContainerCostDetail extends ContainerCostItem {
+  purchaseOrders: Array<{
+    id: number
+    poNo: string
+    supplier: { id: number; name: string } | null
+    currency: string
+    invoices: Array<{ id: number; invoiceNo: string; status: string }>
+    skus: SkuCostRow[]
+    totals: CostTotals
+  }>
+}
+
 export interface ContainerBody {
   containerNumber: string | null
   billOfLading: string | null
@@ -969,6 +1056,25 @@ export const procurementApi = baseApi.injectEndpoints({
       query: ({ search, ...params }) => ({ url: '/procurement/containers', params: { ...params, search: search || undefined } }),
       providesTags: ['ProcurementContainers'],
     }),
+    getContainerCosts: b.query<Page<ContainerCostItem>, ContainerParams>({
+      query: ({ search, ...params }) => ({ url: '/procurement/containers/cost-analysis', params: { ...params, search: search || undefined } }),
+      providesTags: ['ProcurementContainers', 'FinanceRequests'],
+    }),
+    getContainerCostDetail: b.query<ContainerCostDetail, number>({
+      query: (id) => `/procurement/containers/${id}/cost-analysis`,
+      transformResponse: unwrap,
+      providesTags: ['ProcurementContainers', 'FinanceRequests'],
+    }),
+    getContainerCostMapping: b.query<CostMapping, void>({
+      query: () => '/procurement/containers/cost-analysis/mapping',
+      transformResponse: unwrap,
+      providesTags: ['ProcurementContainers'],
+    }),
+    saveContainerCostMapping: b.mutation<CostMapping, Array<{ bucket: CostBucketKey; costCenterId: number | null }>>({
+      query: (mappings) => ({ url: '/procurement/containers/cost-analysis/mapping', method: 'PUT', body: { mappings } }),
+      transformResponse: unwrap,
+      invalidatesTags: ['ProcurementContainers'],
+    }),
     getContainerSummary: b.query<{ all: number; empty: number }, void>({
       query: () => '/procurement/containers/summary',
       transformResponse: unwrap,
@@ -1123,6 +1229,10 @@ export const {
   useDeletePackagingListMutation,
   useGetContainersQuery,
   useGetContainerSummaryQuery,
+  useGetContainerCostsQuery,
+  useGetContainerCostDetailQuery,
+  useGetContainerCostMappingQuery,
+  useSaveContainerCostMappingMutation,
   useGetContainerQuery,
   useGetContainerDetailQuery,
   useUploadContainerDocumentsMutation,
