@@ -48,12 +48,9 @@ const PACKING_COLUMNS: CostColumn[] = [
   { key: 'additional', header: 'Additional exp', source: 'Invoice', cell: (row) => formatMoney(row.cost.additionalExpense), footer: (totals) => formatMoney(totals.additionalExpense) },
 ]
 
-const BASIS_SOURCE: Record<ContainerExpense['basis'], string> = { cbm: 'By CBM', value: 'By value' }
-
 const expenseColumn = (expense: ContainerExpense): CostColumn => ({
   key: expense.key,
   header: expense.label,
-  source: BASIS_SOURCE[expense.basis],
   cell: (row) => formatMoney(row.cost.costs[expense.key]),
   footer: (totals) => formatMoney(totals.costs[expense.key]),
 })

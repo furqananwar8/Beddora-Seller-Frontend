@@ -633,18 +633,10 @@ export interface ContainerExpense {
   mapped: boolean
 }
 
-export interface CostCenterChoice {
-  id: number
-  code: string
-  name: string
-  /** `Expense › Freight › Ocean › Sea freight`, L1 first. */
-  path: string
-}
-
 export interface CostMapping {
-  columns: Array<{ key: CostBucketKey; label: string; basis: 'cbm' | 'value'; costCenter: CostCenterChoice | null }>
+  columns: Array<{ key: CostBucketKey; label: string; basis: 'cbm' | 'value'; costCenter: CostCenterOption | null }>
   /** Active L4 cost centers that can be picked. */
-  options: CostCenterChoice[]
+  options: CostCenterOption[]
 }
 
 export interface ContainerCostItem {

@@ -69,7 +69,7 @@ const ALERTS: FilterOption<AlertFilter>[] = [
   { value: 'OK', label: '> 10 days' },
 ]
 const OPEN_OPTIONS: Array<{ value: OpenFilter; label: string }> = [
-  { value: 'ALL', label: 'ALL (OPEN/CLOSED)' },
+  { value: 'ALL', label: 'All' },
   { value: 'OPEN', label: 'Open' },
   { value: 'CLOSED', label: 'Closed' },
 ]
