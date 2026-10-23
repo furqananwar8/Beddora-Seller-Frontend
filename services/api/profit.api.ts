@@ -124,6 +124,10 @@ export interface ProductProfitBreakdown {
 
   // Amazon fees
   totalFees: number
+  /** Long-term storage surcharge: shown beside the profit, not part of totalFees. */
+  longTermStorageFee?: number
+  /** Storage estimate of months not billed yet: shown beside the profit, not part of totalFees. */
+  estimatedStorageFee?: number
   fbaFees: number
   fbaFulfillmentFee: number
   salesTaxServiceFees: number

@@ -75,7 +75,17 @@ const TILE_TOOLTIPS = {
         formula: 'Sales Revenue - Promo - Ads - Amazon Fees - COGS - Refund Cost',
         note: 'Final profit remaining after all direct, indirect, and operational costs.',
     },
+    estStorage: {
+        title: 'Estimated Storage Cost',
+        formula: 'Sum(Estimated Storage Cost Next Month / 30) per day',
+        note: 'Estimate for days Amazon has not billed yet. Not deducted from Net profit; the billed charge replaces it once posted.',
+    },
 }
+
+/** Amounts shown under Net profit for awareness only: none of them is taken off the profit. */
+const INFO_LINES: Array<{ field: string; label: string; tooltip: keyof typeof TILE_TOOLTIPS }> = [
+    { field: 'estimatedStorageFee', label: 'Est. storage cost', tooltip: 'estStorage' },
+]
 
 /* ──────────────────────────────────────────────────────
  * Tooltip UI Component
@@ -199,6 +209,17 @@ const SummaryTiles = ({
                 <Tooltip fieldKey="netProfit" />
             </div>
             )}
+
+            {/* Informational amounts, never part of Net profit */}
+            {INFO_LINES.filter(({ field }) => Number(period[field] ?? 0) > 0).map(({ field, label, tooltip }) => (
+            <div key={field} className="flex items-center justify-between text-xs min-w-0 group relative cursor-pointer">
+                <div className="text-text-muted break-words">{label}</div>
+                <div className="font-semibold text-warning-600 break-words">
+                    {formatAmount(period[field])}
+                </div>
+                <Tooltip fieldKey={tooltip} />
+            </div>
+            ))}
 
             {/* Spacer pushes "More" to bottom */}
             <div className="flex-1" />
