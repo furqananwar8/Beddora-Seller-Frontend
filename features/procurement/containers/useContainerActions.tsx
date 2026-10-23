@@ -11,8 +11,9 @@ import { downloadApiFile } from '@/utils/downloadFile'
 import { containerLabel } from '../shared/poMeta'
 import { ChangeListModal } from './ChangeListModal'
 import { ContainerFormModal } from './ContainerFormModal'
+import { CONTAINER_ROUTES } from './routes'
 
-export const containerHref = (id: number) => `/dashboard/procurement/containers/${id}`
+export const containerHref = CONTAINER_ROUTES.detail
 
 /**
  * What can be done to a container, for its row menu and its own page alike: what each action needs (permission and

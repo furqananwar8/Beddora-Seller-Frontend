@@ -1,16 +1,7 @@
-import { Suspense } from 'react'
-import { Metadata } from 'next'
-import { ContainersScreen } from '@/features/procurement/containers'
+import { redirect } from 'next/navigation'
+import { CONTAINER_ROUTES } from '@/features/procurement/containers/routes'
 
-export const metadata: Metadata = {
-  title: 'Containers | Beddora',
-  description: 'Shipping containers, one packaging list each',
-}
-
-export default function ContainersPage() {
-  return (
-    <Suspense fallback={null}>
-      <ContainersScreen />
-    </Suspense>
-  )
+/** Containers moved to their own section; old links land there. */
+export default function LegacyContainersPage() {
+  redirect(CONTAINER_ROUTES.list)
 }
