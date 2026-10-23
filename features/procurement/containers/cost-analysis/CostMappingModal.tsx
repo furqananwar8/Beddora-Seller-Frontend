@@ -1,16 +1,18 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
-import { SearchableSelect } from '@/components/searchable-select/SearchableSelect'
 import { Button } from '@/design-system/buttons'
 import { Modal } from '@/design-system/modals'
 import { Spinner } from '@/design-system/loaders'
+import { CostCenterSelect } from '@/features/finance/shared/CostCenterSelect'
 import { useApiFeedback } from '@/hooks/useApiFeedback'
-import { useGetContainerCostMappingQuery, useSaveContainerCostMappingMutation, type CostBucketKey, type CostCenterChoice } from '@/services/api/procurement.api'
+import type { CostCenterOption } from '@/services/api/finance.api'
+import { useGetContainerCostMappingQuery, useSaveContainerCostMappingMutation, type CostBucketKey } from '@/services/api/procurement.api'
 
-type Draft = Partial<Record<CostBucketKey, CostCenterChoice | null>>
+type Draft = Partial<Record<CostBucketKey, CostCenterOption | null>>
 
-const BASIS_HINT = { cbm: 'Split by CBM', value: 'Split by value' } as const
+/** Where "+ Create new" in the picker leads: the cost center screen. */
+const COST_CENTERS_HREF = '/dashboard/finance/cost-center'
 
 /** "Map expenses": for each cost analysis column, the one L4 cost center whose payments it takes. */
 export const CostMappingModal: React.FC<{ open: boolean; onClose: () => void }> = ({ open, onClose }) => {
@@ -48,28 +50,22 @@ export const CostMappingModal: React.FC<{ open: boolean; onClose: () => void }> 
           <div className="flex flex-col divide-y divide-border rounded-lg border border-border">
             {data.columns.map((column) => (
               <div key={column.key} className="grid items-center gap-2 px-4 py-3 sm:grid-cols-[180px_1fr]">
-                <div>
-                  <p className="text-sm font-semibold text-text-primary">{column.label}</p>
-                  <p className="text-xs text-text-muted">{BASIS_HINT[column.basis]}</p>
-                </div>
+                <p className="text-sm font-semibold text-text-primary">{column.label}</p>
                 <div className="flex items-center gap-2">
-                  <SearchableSelect<CostCenterChoice>
-                    id={`map-${column.key}`}
-                    ariaLabel={`${column.label} cost center`}
-                    value={draft[column.key] ?? null}
-                    onChange={(choice) => setDraft((current) => ({ ...current, [column.key]: choice }))}
-                    options={data.options}
-                    getKey={(choice) => choice.id}
-                    getLabel={(choice) => choice.path}
-                    disabledReason={(choice) => {
-                      const owner = pickedBy.get(choice.id)
-                      return owner && owner !== column.key ? `Mapped to ${labelOf.get(owner as CostBucketKey)}` : false
-                    }}
-                    placeholder="Pick an L4 cost center"
-                    searchPlaceholder="Cost center name or path"
-                    emptyText="No active L4 cost center."
-                    className="flex-1"
-                  />
+                  <div className="min-w-0 flex-1">
+                    <CostCenterSelect
+                      id={`map-${column.key}`}
+                      value={draft[column.key]?.id ?? null}
+                      onChange={(choice) => setDraft((current) => ({ ...current, [column.key]: choice }))}
+                      options={data.options}
+                      addHref={COST_CENTERS_HREF}
+                      disabledReason={(choice) => {
+                        const owner = pickedBy.get(choice.id)
+                        return owner && owner !== column.key ? `Mapped to ${labelOf.get(owner as CostBucketKey)}` : false
+                      }}
+                      placeholder="Pick an L4 expense"
+                    />
+                  </div>
                   {draft[column.key] && (
                     <Button type="button" variant="outline" size="sm" onClick={() => setDraft((current) => ({ ...current, [column.key]: null }))} disabled={saving}>
                       Clear

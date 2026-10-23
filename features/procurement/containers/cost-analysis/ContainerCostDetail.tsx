@@ -4,47 +4,54 @@ import React from 'react'
 import { Spinner } from '@/design-system/loaders'
 import { formatCurrencyAmount, formatMoney } from '@/features/finance/shared/format'
 import { useGetContainerCostDetailQuery, type ContainerCostItem } from '@/services/api/procurement.api'
-import { cn } from '@/utils/cn'
 import { costColumns } from './costColumns'
 import { PoCostTable } from './PoCostTable'
 
-const Chip: React.FC<{ tone?: 'neutral' | 'warning'; children: React.ReactNode }> = ({ tone = 'neutral', children }) => (
-  <span className={cn('rounded-full border px-2.5 py-1 text-xs', tone === 'warning' ? 'border-warning-200 bg-warning-50 text-warning-700' : 'border-border bg-surface text-text-secondary')}>{children}</span>
+/** A red square on a chip's corner: hovering it (or reading it with a screen reader) gives why the figure needs a look. */
+const Alert: React.FC<{ reasons: string[] }> = ({ reasons }) =>
+  reasons.length === 0 ? null : (
+    <span
+      title={reasons.join('\n')}
+      aria-label={reasons.join('. ')}
+      role="img"
+      className="absolute -right-1.5 -top-1.5 flex h-4 w-4 cursor-help items-center justify-center rounded-sm bg-danger-600 text-[10px] font-bold leading-none text-white shadow-sm"
+    >
+      !
+    </span>
+  )
+
+const Chip: React.FC<{ reasons?: string[]; children: React.ReactNode }> = ({ reasons = [], children }) => (
+  <span className="relative rounded-full border border-border bg-surface px-2.5 py-1 text-xs text-text-secondary">
+    {children}
+    <Alert reasons={reasons} />
+  </span>
 )
 
-/** What was paid per expense, and anything that is not in the figures yet (pending, unsplit, other currencies). */
+/** Why one expense's figure is incomplete: not mapped, awaiting approval, or paid with nothing to split it by. */
+function reasonsOf(expense: ContainerCostItem['expenses'][number]): string[] {
+  return [
+    !expense.mapped && 'Not mapped to an L4 expense yet: use "Map expense columns"',
+    expense.pending > 0 && `${formatMoney(expense.pending)} awaiting approval, not in the figures yet`,
+    expense.unallocated > 0 && `${formatMoney(expense.unallocated)} not split: no ${expense.basis === 'cbm' ? 'CBM' : 'value'} on the packaging list`,
+  ].filter((reason): reason is string => Boolean(reason))
+}
+
+/** What was paid per expense; anything not in the figures yet is flagged on the chip it concerns. */
 const ExpenseChips: React.FC<{ container: ContainerCostItem }> = ({ container }) => {
   const { expenses, otherExpenses, currencies } = container
+  const other = otherExpenses.approved + otherExpenses.pending
+  const notes = [
+    other > 0 && `${formatMoney(other)} paid against this container is booked to an L4 not mapped to any column`,
+    currencies.length > 1 && `Mixed currencies (${currencies.join(', ')}) are added as they are`,
+  ].filter((note): note is string => Boolean(note))
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="flex flex-wrap gap-2.5 pt-1.5">
       {expenses.map((expense) => (
-        <Chip key={expense.key}>
+        <Chip key={expense.key} reasons={reasonsOf(expense)}>
           {expense.label} <span className="font-semibold tabular-nums text-text-primary">{formatMoney(expense.paid)}</span>
         </Chip>
       ))}
-      {expenses
-        .filter((expense) => !expense.mapped)
-        .map((expense) => (
-          <Chip key={`${expense.key}-unmapped`} tone="warning">
-            {expense.label}: not mapped to an L4 cost center
-          </Chip>
-        ))}
-      {expenses
-        .filter((expense) => expense.pending > 0)
-        .map((expense) => (
-          <Chip key={`${expense.key}-pending`} tone="warning">
-            {expense.label}: {formatMoney(expense.pending)} awaiting approval
-          </Chip>
-        ))}
-      {expenses
-        .filter((expense) => expense.unallocated > 0)
-        .map((expense) => (
-          <Chip key={`${expense.key}-unallocated`} tone="warning">
-            {expense.label}: {formatMoney(expense.unallocated)} not split (no {expense.basis === 'cbm' ? 'CBM' : 'value'} on the packaging list)
-          </Chip>
-        ))}
-      {otherExpenses.approved + otherExpenses.pending > 0 && <Chip tone="warning">Other payments not in the analysis: {formatMoney(otherExpenses.approved + otherExpenses.pending)}</Chip>}
-      {currencies.length > 1 && <Chip tone="warning">Mixed currencies ({currencies.join(', ')}) added as they are</Chip>}
+      {notes.length > 0 && <Chip reasons={notes}>Notes</Chip>}
     </div>
   )
 }

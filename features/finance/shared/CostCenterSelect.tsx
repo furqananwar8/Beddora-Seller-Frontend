@@ -18,10 +18,13 @@ interface CostCenterSelectProps {
   addHref: string
   /** Runs just before leaving to add one, e.g. to keep what was typed. */
   onAdd?: () => void
+  /** Why an option cannot be picked here (e.g. already used elsewhere); falsy keeps it pickable. */
+  disabledReason?: (option: CostCenterOption) => string | false | null | undefined
+  placeholder?: string
 }
 
 /** The expense (an L4 cost center) to book to: a searchable dropdown ending with a link to create one, as on the partner picker. */
-export const CostCenterSelect: React.FC<CostCenterSelectProps> = ({ id, options, loading, value, onChange, error, addHref, onAdd }) => {
+export const CostCenterSelect: React.FC<CostCenterSelectProps> = ({ id, options, loading, value, onChange, error, addHref, onAdd, disabledReason, placeholder = 'Select an expense' }) => {
   const [search, setSearch] = useState('')
   const term = search.trim().toLowerCase()
   const shown = useMemo(
@@ -52,7 +55,8 @@ export const CostCenterSelect: React.FC<CostCenterSelectProps> = ({ id, options,
       search={search}
       onSearchChange={setSearch}
       loading={loading}
-      placeholder="Select an expense"
+      disabledReason={disabledReason}
+      placeholder={placeholder}
       searchPlaceholder="Search by name or code..."
       emptyText={options && options.length === 0 ? 'No expenses yet. Create one below.' : 'Nothing matches.'}
       error={error}
