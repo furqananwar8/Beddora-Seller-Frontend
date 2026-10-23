@@ -1,10 +1,12 @@
 'use client'
 
-import React from 'react'
+import React, { useState } from 'react'
 import { Container } from '@/components/layout'
 import { PaginationFooter } from '@/components/pagination-footer/PaginationFooter'
 import { TreeTable, type TreeColumn } from '@/components/tree-table/TreeTable'
+import { Button } from '@/design-system/buttons'
 import { formatCurrencyAmount } from '@/features/finance/shared/format'
+import { useAppAbility } from '@/hooks/useAppAbility'
 import { useGetContainerCostsQuery, type ContainerCostItem } from '@/services/api/procurement.api'
 import { cn } from '@/utils/cn'
 import { ContainerStatusBadge, DESTINATION_ROW_TINT } from '../../shared/poMeta'
@@ -12,6 +14,7 @@ import { ContainerCell, skuSummary } from '../list/ContainerCell'
 import { ContainerFilterBar } from '../list/ContainerFilterBar'
 import { useContainerListState } from '../list/useContainerListState'
 import { ContainerCostDetail } from './ContainerCostDetail'
+import { CostMappingModal } from './CostMappingModal'
 
 const money = (container: ContainerCostItem, value: number) => <span className="whitespace-nowrap tabular-nums">{formatCurrencyAmount(container.currency, value)}</span>
 const expensesOf = (container: ContainerCostItem) => container.totals.additionalExpense + Object.values(container.totals.costs).reduce((sum, value) => sum + value, 0)
@@ -48,12 +51,21 @@ const COLUMNS: TreeColumn<ContainerCostItem>[] = [
 export const CostAnalysisScreen: React.FC = () => {
   const list = useContainerListState()
   const { data, isLoading, isFetching, isError } = useGetContainerCostsQuery(list.params)
+  const canMap = useAppAbility().can('write', 'procurement:containers')
+  const [mapping, setMapping] = useState(false)
 
   return (
     <Container size="full" className="py-4 sm:py-8">
-      <div className="mb-4">
-        <h1 className="text-xl font-bold text-text-primary sm:text-2xl">Cost Analysis</h1>
-        <p className="text-sm text-text-muted">Landed cost per SKU: invoice price and expenses, plus freight, trucking and penalties by CBM, duties and brokerage by value</p>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-bold text-text-primary sm:text-2xl">Cost Analysis</h1>
+          <p className="text-sm text-text-muted">Landed cost per SKU: invoice price and expenses, plus freight, trucking and penalties by CBM, duties and brokerage by value</p>
+        </div>
+        {canMap && (
+          <Button type="button" size="sm" variant="outline" onClick={() => setMapping(true)}>
+            Map expense columns
+          </Button>
+        )}
       </div>
 
       <ContainerFilterBar state={list} idPrefix="ca" />
@@ -76,6 +88,8 @@ export const CostAnalysisScreen: React.FC = () => {
         </div>
         {data && <PaginationFooter page={data.page} pageSize={data.limit} totalItems={data.totalRecords} totalPages={data.totalPages} onPageChange={list.setPage} itemLabel="containers" />}
       </div>
+
+      <CostMappingModal open={mapping} onClose={() => setMapping(false)} />
     </Container>
   )
 }

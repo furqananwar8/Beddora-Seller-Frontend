@@ -629,6 +629,22 @@ export interface ContainerExpense {
   pending: number
   /** Paid but with nothing to split it by, so missing from the SKU rows. */
   unallocated: number
+  /** False until the column is mapped to an L4 cost center. */
+  mapped: boolean
+}
+
+export interface CostCenterChoice {
+  id: number
+  code: string
+  name: string
+  /** `Expense › Freight › Ocean › Sea freight`, L1 first. */
+  path: string
+}
+
+export interface CostMapping {
+  columns: Array<{ key: CostBucketKey; label: string; basis: 'cbm' | 'value'; costCenter: CostCenterChoice | null }>
+  /** Active L4 cost centers that can be picked. */
+  options: CostCenterChoice[]
 }
 
 export interface ContainerCostItem {
@@ -1049,6 +1065,16 @@ export const procurementApi = baseApi.injectEndpoints({
       transformResponse: unwrap,
       providesTags: ['ProcurementContainers', 'FinanceRequests'],
     }),
+    getContainerCostMapping: b.query<CostMapping, void>({
+      query: () => '/procurement/containers/cost-analysis/mapping',
+      transformResponse: unwrap,
+      providesTags: ['ProcurementContainers'],
+    }),
+    saveContainerCostMapping: b.mutation<CostMapping, Array<{ bucket: CostBucketKey; costCenterId: number | null }>>({
+      query: (mappings) => ({ url: '/procurement/containers/cost-analysis/mapping', method: 'PUT', body: { mappings } }),
+      transformResponse: unwrap,
+      invalidatesTags: ['ProcurementContainers'],
+    }),
     getContainerSummary: b.query<{ all: number; empty: number }, void>({
       query: () => '/procurement/containers/summary',
       transformResponse: unwrap,
@@ -1205,6 +1231,8 @@ export const {
   useGetContainerSummaryQuery,
   useGetContainerCostsQuery,
   useGetContainerCostDetailQuery,
+  useGetContainerCostMappingQuery,
+  useSaveContainerCostMappingMutation,
   useGetContainerQuery,
   useGetContainerDetailQuery,
   useUploadContainerDocumentsMutation,

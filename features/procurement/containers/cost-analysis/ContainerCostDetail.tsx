@@ -23,6 +23,13 @@ const ExpenseChips: React.FC<{ container: ContainerCostItem }> = ({ container })
         </Chip>
       ))}
       {expenses
+        .filter((expense) => !expense.mapped)
+        .map((expense) => (
+          <Chip key={`${expense.key}-unmapped`} tone="warning">
+            {expense.label}: not mapped to an L4 cost center
+          </Chip>
+        ))}
+      {expenses
         .filter((expense) => expense.pending > 0)
         .map((expense) => (
           <Chip key={`${expense.key}-pending`} tone="warning">
