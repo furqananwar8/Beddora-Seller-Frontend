@@ -407,6 +407,11 @@ const buildProductStatData = (
         value: p.netProfit,
         currency: true,
       },
+      // Shown for awareness, not deducted from Net profit
+      ...[
+        { label: 'Est. storage cost', value: Number(p.estimatedStorageFee || 0), currency: true },
+        { label: 'Long-term storage', value: Number(p.longTermStorageFee || 0), currency: true },
+      ].filter((item) => item.value > 0),
       {
         label: 'Real ACOS',
         value: p.realACOS,

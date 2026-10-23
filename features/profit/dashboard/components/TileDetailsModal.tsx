@@ -345,6 +345,8 @@ export const TileDetailsModal: React.FC<TileDetailsModalProps> = ({
   const realACOS = Number(data.realACOS ?? 0)
   const roi = Number(data.roi ?? 0)
   const refundPercentage = Number(data.refundPercentage ?? 0)
+  const estimatedStorageFee = Number(data.estimatedStorageFee ?? 0)
+  const longTermStorageFee = Number(data.longTermStorageFee ?? 0)
 
   const metrics = [
     {
@@ -419,6 +421,13 @@ export const TileDetailsModal: React.FC<TileDetailsModalProps> = ({
       expandable: false,
       bold: true,
     },
+    // Shown for awareness, not deducted from Net profit
+    ...[
+      { key: 'estimated-storage', label: 'Est. storage cost', amount: estimatedStorageFee },
+      { key: 'long-term-storage', label: 'Long-term storage', amount: longTermStorageFee },
+    ]
+      .filter(({ amount }) => amount > 0)
+      .map(({ key, label, amount }) => ({ key, label, value: formatCurrency(amount, displayCurrency), expandable: false })),
     {
       key: 'estimated-payout',
       label: 'Estimated payout',
