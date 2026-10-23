@@ -86,7 +86,8 @@ export const tagTypes = [
   'ProcurementPackagingLists',
   'ProcurementContainers',
   'ProcurementPriceAnalysis',
-  'Notifications'
+  'Notifications',
+  'SkuMapping'
 ] as const
 
 export type TagType = typeof tagTypes[number]

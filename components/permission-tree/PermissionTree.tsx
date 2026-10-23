@@ -19,7 +19,14 @@ interface Props {
 }
 
 /** The row's name: the page, or the last part of a subpage (`price-analysis.approval` → "approval"). */
-const labelOf = (node: PermissionNode) => (node.subpage ? (node.subpage.split('.').pop() ?? node.subpage) : node.page).replace(/-/g, ' ')
+/** Words shown in capitals instead of title case, e.g. `sku-mapping` → "SKU Mapping". */
+const ACRONYMS = new Set(['sku', 'po', 'ppc', 'ip'])
+
+const labelOf = (node: PermissionNode) =>
+  (node.subpage ? (node.subpage.split('.').pop() ?? node.subpage) : node.page)
+    .split('-')
+    .map((word) => (ACRONYMS.has(word) ? word.toUpperCase() : word))
+    .join(' ')
 
 interface RowProps {
   node: PermissionNode
