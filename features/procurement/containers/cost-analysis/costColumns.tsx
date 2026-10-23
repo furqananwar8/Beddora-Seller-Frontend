@@ -7,12 +7,12 @@ import type { ContainerExpense, CostTotals, SkuCostRow } from '@/services/api/pr
  * how to read it off a SKU row, and what its footer adds up; the expense columns are built from the expenses the
  * server reports, so a new expense shows up here without touching this file.
  */
-export interface CostColumn {
+export interface CostColumn<Row = SkuCostRow> {
   key: string
   header: string
   source?: string
   align?: 'left' | 'right'
-  cell: (row: SkuCostRow) => React.ReactNode
+  cell: (row: Row) => React.ReactNode
   footer?: (totals: CostTotals) => React.ReactNode
 }
 
