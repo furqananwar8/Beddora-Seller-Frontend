@@ -199,13 +199,13 @@ export default function DashboardLayout({
           },
           {
             label: 'Containers',
-            subject: 'procurement:containers',
+            subject: 'containers',
             action: 'read',
             href: '/dashboard/containers',
             icon: NavIcons.containers,
             children: [
-              { label: 'Containers', subject: 'procurement:containers', action: 'read', href: '/dashboard/containers' },
-              { label: 'Cost Analysis', subject: 'procurement:containers', action: 'read', href: '/dashboard/containers/cost-analysis' },
+              { label: 'Containers', subject: 'containers:containers', action: 'read', href: '/dashboard/containers' },
+              { label: 'Cost Analysis', subject: 'containers:cost-analysis', action: 'read', href: '/dashboard/containers/cost-analysis' },
             ],
           },
           {

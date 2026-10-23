@@ -39,12 +39,12 @@ export const ROUTE_PERMISSIONS: RoutePermission[] = [
   { pattern: '/dashboard/procurement/purchase-orders', subject: 'procurement:purchase-orders' },
   { pattern: '/dashboard/procurement/purchase-invoices', subject: 'procurement:purchase-invoices' },
   { pattern: '/dashboard/procurement/packaging-lists', subject: 'procurement:packaging-lists' },
-  { pattern: '/dashboard/procurement/containers', subject: 'procurement:containers' },
   { pattern: '/dashboard/procurement/price-analysis', subject: 'procurement:price-analysis' },
   { pattern: '/dashboard/procurement', subject: 'procurement' },
 
   // Containers
-  { pattern: '/dashboard/containers', subject: 'procurement:containers' },
+  { pattern: '/dashboard/containers/cost-analysis', subject: 'containers:cost-analysis' },
+  { pattern: '/dashboard/containers', subject: 'containers:containers' },
 
   // Breakeven
   { pattern: '/breakeven-analysis', subject: 'breakeven-analysis' },
