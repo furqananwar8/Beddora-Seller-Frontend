@@ -22,7 +22,7 @@ export const containerHref = CONTAINER_ROUTES.detail
 export function useContainerActions() {
   const router = useRouter()
   const ability = useAppAbility()
-  const canWrite = ability.can('write', 'procurement:containers')
+  const canWrite = ability.can('write', 'containers:containers')
   const canAssign = canWrite || ability.can('write', 'procurement:packaging-lists')
   const { success, failure } = useApiFeedback()
 

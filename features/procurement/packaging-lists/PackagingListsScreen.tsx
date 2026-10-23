@@ -50,7 +50,7 @@ export const PackagingListsScreen: React.FC = () => {
   const params = useSearchParams()
   const ability = useAppAbility()
   const canWrite = ability.can('write', 'procurement:packaging-lists')
-  const canAssign = canWrite || ability.can('write', 'procurement:containers')
+  const canAssign = canWrite || ability.can('write', 'containers:containers')
   const { success, failure } = useApiFeedback()
 
   // "View packaging lists" on a purchase order narrows this list to that PO
