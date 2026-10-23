@@ -8,27 +8,13 @@ import { Container } from '@/components/layout'
 import { StatusBadge } from '@/components/status-badge/StatusBadge'
 import { Button } from '@/design-system/buttons'
 import { Spinner } from '@/design-system/loaders'
+import { useReportExport } from '@/hooks/useReportExport'
 import { useGetBindingHistoryQuery, useGetSkuMappingOptionsQuery, type BindingVersion } from '@/services/api/skuMapping.api'
 import { marketplaceName, SKU_MAPPING_ROUTES } from './constants'
 
 const day = (iso: string) => format(new Date(iso), 'MMM d, yyyy HH:mm')
 const recipe = (version: BindingVersion) =>
   version.components.length === 0 ? 'No components (unmapped)' : version.components.map((component) => `${component.sku} ×${component.quantity}`).join(' + ')
-
-/** Every version as CSV, one line per component (an unmapped version gets one empty line). */
-function exportCsv(sku: string, versions: BindingVersion[]) {
-  const cell = (value: string | number | null) => `"${String(value ?? '').replace(/"/g, '""')}"`
-  const header = ['Version', 'Effective from', 'Effective to', 'By', 'Reason', 'Internal SKU', 'Units per sale']
-  const lines = versions.flatMap((version) => {
-    const base = [version.version, version.effectiveFrom, version.effectiveTo ?? 'current', version.by, version.reason]
-    return version.components.length === 0 ? [[...base, '', '']] : version.components.map((component) => [...base, component.sku, component.quantity])
-  })
-  const blob = new Blob([[header, ...lines].map((line) => line.map(cell).join(',')).join('\n')], { type: 'text/csv;charset=utf-8' })
-  const url = URL.createObjectURL(blob)
-  const link = Object.assign(document.createElement('a'), { href: url, download: `binding-history_${sku}.csv` })
-  link.click()
-  URL.revokeObjectURL(url)
-}
 
 /** Binding history of one channel SKU: each version with its effective range, author, reason and components. */
 export const BindingHistoryScreen: React.FC = () => {
@@ -39,11 +25,13 @@ export const BindingHistoryScreen: React.FC = () => {
   const { data: channels = [] } = useGetSkuMappingOptionsQuery()
   const { data: versions = [], isLoading, isError } = useGetBindingHistoryQuery({ channel: channelId, marketplace, sku }, { skip: !marketplace || !sku })
   const channelName = channels.find((channel) => channel.id === channelId)?.name ?? channelId
+  // Built by the export worker; the file downloads by itself when the server announces it over SSE
+  const { start: startExport, isExporting } = useReportExport('sku-binding-history')
 
   return (
     <Container size="full" className="py-4 sm:py-8">
-      <Link href={SKU_MAPPING_ROUTES.mapper} className="text-sm font-medium text-primary-600 hover:underline">
-        ← Back to SKU Mapping
+      <Link href={SKU_MAPPING_ROUTES.mapper} className="ds-button ds-button-outline ds-button-sm">
+        Back
       </Link>
 
       <div className="mb-4 mt-3 flex flex-wrap items-end justify-between gap-3">
@@ -53,8 +41,8 @@ export const BindingHistoryScreen: React.FC = () => {
           </p>
           <h1 className="font-mono text-xl font-bold text-text-primary sm:text-2xl">{sku || '—'}</h1>
         </div>
-        <Button type="button" variant="outline" size="sm" className="h-10" disabled={versions.length === 0} onClick={() => exportCsv(sku, versions)}>
-          Export audit CSV
+        <Button type="button" variant="outline" size="sm" className="h-10" disabled={versions.length === 0 || isExporting} onClick={() => void startExport('csv', { channel: channelId, marketplace, sku })}>
+          {isExporting ? 'Exporting…' : 'Export audit CSV'}
         </Button>
       </div>
 
