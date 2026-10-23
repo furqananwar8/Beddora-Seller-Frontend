@@ -10,7 +10,7 @@ import { Spinner } from '@/design-system/loaders'
 import { formatCurrencyAmount } from '@/features/finance/shared/format'
 import { useGetContainerDetailQuery } from '@/services/api/procurement.api'
 import { formatCalendarDay } from '@/utils/format'
-import { ContainerStatusBadge, DESTINATION_LABEL, containerLabel } from '../shared/poMeta'
+import { CONTAINER_STATUS_META, ContainerStatusBadge, DESTINATION_LABEL, containerLabel, isShipping } from '../shared/poMeta'
 import { ContainerOverview } from './detail/ContainerOverview'
 import { Fact } from './detail/Panel'
 import { CONTAINER_ROUTES } from './routes'
@@ -45,8 +45,8 @@ export const ContainerDetailScreen: React.FC<{ containerId: number }> = ({ conta
   const notice =
     container.status === 'DELIVERED'
       ? `Delivered${container.deliveredAt ? ` on ${formatCalendarDay(container.deliveredAt)}` : ''}: nothing on this container can change any more; documents can still be added.`
-      : container.status === 'IN_TRANSIT'
-        ? 'In transit: only the ETA can change until it is delivered. Documents can still be added.'
+      : isShipping(container.status)
+        ? `${CONTAINER_STATUS_META[container.status].label}: only the ETA and the shipping status can change until it is delivered. Documents can still be added.`
         : null
 
   return (

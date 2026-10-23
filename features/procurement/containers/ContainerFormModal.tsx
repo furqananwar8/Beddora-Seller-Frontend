@@ -26,7 +26,7 @@ import {
   type PoDestination,
 } from '@/services/api/procurement.api'
 import { applyServerIssues } from '@/utils/apiErrors'
-import { CONTAINER_STATUS_META, CONTAINER_STATUSES, DESTINATION_LABEL, containerLabel, nextContainerStatuses } from '../shared/poMeta'
+import { CONTAINER_STATUS_META, CONTAINER_STATUSES, DESTINATION_LABEL, containerLabel, isShipping } from '../shared/poMeta'
 
 const DESTINATIONS = (['US', 'CA'] as const).map((value) => ({ value, label: DESTINATION_LABEL[value] }))
 const CURRENCIES: Array<{ value: PoCurrency; label: string }> = [
@@ -45,7 +45,7 @@ const schema = z
       .refine((value) => value === '' || /^[A-Za-z0-9\s-]+$/.test(value), 'Use letters and digits only'),
     billOfLading: text(40, 'Bill of lading'),
     masterBillOfLading: text(40, 'Master bill of lading'),
-    status: z.enum(['BOOKED', 'IN_TRANSIT', 'DELIVERED']),
+    status: z.enum(CONTAINER_STATUSES as [ContainerStatus, ...ContainerStatus[]]),
     etd: z.string(),
     eta: z.string(),
     destination: z.enum(['US', 'CA']),
@@ -137,7 +137,8 @@ export const ContainerFormModal: React.FC<ContainerFormModalProps> = ({ isOpen, 
   const editable = new Set<ContainerField>(container?.permissions.editableFields ?? (Object.keys(SERVER_FIELDS) as ContainerField[]))
   const locked = (field: ContainerField) => !editable.has(field)
   const askCost = Boolean(container)
-  const statusOptions = container ? nextContainerStatuses(container.status) : CONTAINER_STATUSES.filter((status) => status !== 'DELIVERED')
+  // A new container is booked; a saved one moves as far as the server allows (never to delivered: that is "Mark as delivered")
+  const statusOptions: ContainerStatus[] = container ? container.permissions.statuses : ['BOOKED']
 
   const {
     register,
@@ -199,8 +200,10 @@ export const ContainerFormModal: React.FC<ContainerFormModalProps> = ({ isOpen, 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={container ? `Edit ${containerLabel(container)}` : 'New container'} size="xl" closeOnEscape={!busy} className="sm:overflow-visible">
       <form onSubmit={submit} noValidate className="flex flex-col gap-4">
-        {container?.status === 'IN_TRANSIT' && (
-          <p className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-800">In transit: only the ETA and the status can change until it is delivered.</p>
+        {container && isShipping(container.status) && (
+          <p className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-800">
+            {CONTAINER_STATUS_META[container.status].label}: only the ETA and the shipping status can change until it is marked as delivered.
+          </p>
         )}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <FormField label="Container number" htmlFor="ct-number" error={errors.containerNumber?.message} hint="The shipping line's number, e.g. MSKU1234567. Payment requests with this container number show on the container.">
@@ -208,7 +211,7 @@ export const ContainerFormModal: React.FC<ContainerFormModalProps> = ({ isOpen, 
           </FormField>
           <FormField label="Status" htmlFor="ct-status" error={errors.status?.message} hint={container ? undefined : 'New containers start as booked'}>
             <div className="relative">
-              <select id="ct-status" className={selectClass(errors.status?.message)} disabled={Boolean(container) && !container!.permissions.canChangeStatus} {...register('status')}>
+              <select id="ct-status" className={selectClass(errors.status?.message)} disabled={!container?.permissions.canChangeStatus} {...register('status')}>
                 {statusOptions.map((status: ContainerStatus) => (
                   <option key={status} value={status}>
                     {CONTAINER_STATUS_META[status].label}

@@ -26,20 +26,6 @@ const COLUMNS: TreeColumn<ContainerCostItem>[] = [
     className: 'min-w-[150px] text-left',
     render: (container) => <ContainerCell container={container} detail={skuSummary(container.skuCount, container.totals.units)} />,
   },
-  {
-    key: 'list',
-    header: 'Packaging list',
-    className: 'min-w-[180px] text-left',
-    render: ({ packagingList }) =>
-      packagingList ? (
-        <div className="min-w-0">
-          <p className="font-mono text-sm font-semibold text-text-primary">{packagingList.plNo}</p>
-          <p className="truncate text-xs text-text-muted">{packagingList.suppliers.join(', ')}</p>
-        </div>
-      ) : (
-        <span className="text-text-muted">—</span>
-      ),
-  },
   { key: 'cbm', header: 'CBM', render: (container) => <span className="font-mono text-xs">{container.totals.cbm.toFixed(2)}</span> },
   { key: 'goods', header: 'Goods (FOB)', render: (container) => money(container, container.totals.goods) },
   { key: 'expenses', header: 'Expenses', render: (container) => money(container, expensesOf(container)) },

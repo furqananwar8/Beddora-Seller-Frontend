@@ -95,17 +95,23 @@ export const isApprovedPo = (po: { status: PoStatus }): boolean => po.status ===
 
 export const isPackable = (po: { status: PoStatus; isOpen: boolean }): boolean => isApprovedPo(po) && po.isOpen
 
-/** In lifecycle order: a container only moves forward through these. */
-export const CONTAINER_STATUS_META: Record<ContainerStatus, { label: string; tone: StatusTone }> = {
-  BOOKED: { label: 'BOOKED', tone: 'neutral' },
-  IN_TRANSIT: { label: 'IN TRANSIT', tone: 'info' },
-  DELIVERED: { label: 'DELIVERED', tone: 'success' },
+/** Where a container is in its life: booked, on one of its shipping legs, or delivered. Mirrors the server's policy. */
+export type ContainerStage = 'booked' | 'shipping' | 'delivered'
+
+/** In lifecycle order. Which statuses the form may set comes from the server (`permissions.statuses`). */
+export const CONTAINER_STATUS_META: Record<ContainerStatus, { label: string; tone: StatusTone; stage: ContainerStage }> = {
+  BOOKED: { label: 'BOOKED', tone: 'neutral', stage: 'booked' },
+  IN_TRANSIT: { label: 'IN TRANSIT', tone: 'info', stage: 'shipping' },
+  ON_RAIL: { label: 'ON RAIL', tone: 'info', stage: 'shipping' },
+  ON_BOARD: { label: 'ON BOARD', tone: 'info', stage: 'shipping' },
+  ARRIVED_AT_PORT: { label: 'ARRIVAL AT PORT', tone: 'info', stage: 'shipping' },
+  DELIVERED: { label: 'DELIVERED', tone: 'success', stage: 'delivered' },
 }
 
 export const CONTAINER_STATUSES = Object.keys(CONTAINER_STATUS_META) as ContainerStatus[]
 
-/** The statuses a container can move to from `current` (itself and later ones). */
-export const nextContainerStatuses = (current: ContainerStatus): ContainerStatus[] => CONTAINER_STATUSES.slice(CONTAINER_STATUSES.indexOf(current))
+/** Whether a container has left and is not delivered yet (only its ETA can change). */
+export const isShipping = (status: ContainerStatus): boolean => CONTAINER_STATUS_META[status].stage === 'shipping'
 
 /** How a container is called on screen: its shipping-line number when known, else our CID reference. */
 export const containerLabel = (container: { containerNo: string; containerNumber: string | null }): string => container.containerNumber ?? container.containerNo

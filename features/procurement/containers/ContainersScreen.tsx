@@ -9,7 +9,7 @@ import { Button } from '@/design-system/buttons'
 import { useGetContainersQuery, useGetContainerSummaryQuery, type ContainerItem } from '@/services/api/procurement.api'
 import { cn } from '@/utils/cn'
 import { formatCalendarDay } from '@/utils/format'
-import { ContainerStatusBadge, DESTINATION_LABEL, DESTINATION_ROW_TINT, supplierNames } from '../shared/poMeta'
+import { ContainerStatusBadge, DESTINATION_LABEL, DESTINATION_ROW_TINT } from '../shared/poMeta'
 import { ContainerRowDetail } from './detail/ContainerOverview'
 import { ContainerCell, skuSummary } from './list/ContainerCell'
 import { ContainerFilterBar } from './list/ContainerFilterBar'
@@ -20,7 +20,6 @@ const qty = (value: number) => value.toLocaleString('en-CA')
 const kg = (value: number) => `${value.toLocaleString('en-CA', { maximumFractionDigits: 1 })} kg`
 const money = (value: number, currency: string) => `${currency} ${value.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 const date = (value: string | null) => (value ? formatCalendarDay(value) : '—')
-const muted = <span className="text-text-muted">—</span>
 
 const Stack: React.FC<{ top: React.ReactNode; bottom?: React.ReactNode; className?: string }> = ({ top, bottom, className }) => (
   <div className={cn('flex flex-col items-center whitespace-nowrap', className)}>
@@ -42,31 +41,6 @@ export const ContainersScreen: React.FC = () => {
       header: 'Container',
       className: 'min-w-[150px] text-left',
       render: (container) => <ContainerCell container={container} detail={skuSummary(container.lines.length, container.totals.units)} />,
-    },
-    {
-      key: 'list',
-      header: 'Packaging list',
-      className: 'min-w-[220px] text-left',
-      render: (container) => {
-        const list = container.packagingList
-        if (!list) {
-          return actions.canAssign && container.permissions.canChangeList ? (
-            <Button type="button" variant="outline" size="sm" className="border-dashed" onClick={() => actions.changeList(container)}>
-              + Assign packaging list
-            </Button>
-          ) : (
-            muted
-          )
-        }
-        return (
-          <div className="min-w-0">
-            <p className="font-mono text-sm font-semibold text-text-primary">{list.plNo}</p>
-            <p className="truncate text-xs text-text-muted">
-              {supplierNames(list.suppliers)} · {list.purchaseOrders.map((po) => po.poNo).join(', ')}
-            </p>
-          </div>
-        )
-      },
     },
     { key: 'cbm', header: 'Total CBM', render: (container) => <span className="font-mono text-xs">{container.totals.cbm.toFixed(2)}</span> },
     { key: 'cartons', header: 'Cartons', render: (container) => <span className="tabular-nums">{qty(container.totals.cartons)}</span> },

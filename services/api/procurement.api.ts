@@ -484,8 +484,8 @@ export interface PackagingListBody {
 
 /* ─────────────── Containers ─────────────── */
 
-/** BOOKED: fully editable · IN_TRANSIT: only the ETA can change · DELIVERED: nothing can change. */
-export type ContainerStatus = 'BOOKED' | 'IN_TRANSIT' | 'DELIVERED'
+/** BOOKED: fully editable · IN_TRANSIT, ON_RAIL, ON_BOARD, ARRIVED_AT_PORT: only the ETA can change · DELIVERED ("Mark as delivered" only): nothing can change. */
+export type ContainerStatus = 'BOOKED' | 'IN_TRANSIT' | 'ON_RAIL' | 'ON_BOARD' | 'ARRIVED_AT_PORT' | 'DELIVERED'
 
 /** Container form fields a status may lock. */
 export type ContainerField =
@@ -506,6 +506,8 @@ export interface ContainerPermissions {
   editableFields: ContainerField[]
   canChangeList: boolean
   canUpload: boolean
+  /** The statuses the form may set, its current one included; the server decides them. */
+  statuses: ContainerStatus[]
   canChangeStatus: boolean
 }
 
