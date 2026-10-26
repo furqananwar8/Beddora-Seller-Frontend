@@ -306,7 +306,7 @@ export interface UserCandidate {
 
 /* ─────────────── Payment process ─────────────── */
 
-export type DocStatus = 'PAYMENT_PENDING' | 'PARTIALLY_PAID' | 'POP_UPLOADED' | 'PAID'
+export type DocStatus = 'PAYMENT_PENDING' | 'PARTIALLY_PAID' | 'POP_UPLOADED' | 'PAID' | 'AMOUNT_SETTLED'
 
 export interface PaymentDocumentListItem {
   id: number
@@ -362,6 +362,8 @@ export interface PaymentDocumentDetail {
   canMarkPaid: boolean
   markedPaidBy: UserRef | null
   markedPaidAt: string | null
+  /** Why it was closed with a balance outstanding (AMOUNT_SETTLED). */
+  settledReason: string | null
   pops: Pop[]
   paymentMethod: { id: number; type: 'BANK' | 'CARD_LINK'; ibanLast4: string | null; accountNumberLast4: string | null; paymentLink: string | null } | null
   request: {
@@ -651,8 +653,9 @@ export const financeApi = baseApi.injectEndpoints({
       transformResponse: unwrap,
       invalidatesTags: ['FinanceProcess'],
     }),
-    markPaid: b.mutation<PaymentDocumentDetail, number>({
-      query: (id) => ({ url: `/finance/payment-documents/${id}/mark-paid`, method: 'POST' }),
+    /** With a balance still outstanding it settles the amount, which needs `reason`. */
+    markPaid: b.mutation<PaymentDocumentDetail, { id: number; reason?: string }>({
+      query: ({ id, reason }) => ({ url: `/finance/payment-documents/${id}/mark-paid`, method: 'POST', body: reason ? { reason } : {} }),
       transformResponse: unwrap,
       invalidatesTags: ['FinanceProcess', 'FinanceRequests'],
     }),

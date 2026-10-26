@@ -173,6 +173,9 @@ export const PaymentRequestFormScreen: React.FC = () => {
     hydrated.current = true
     reset(toFormValues(detail))
     setPartner(toPartnerOption(detail.partner))
+    // A saved request paying one of our invoices opens locked to it, as when the invoice was picked
+    void runDuplicateCheck(String(detail.partner.id), detail.invoiceNo ?? '')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editId, detail, reset])
 
   // Bring back what was typed before the detour to create a partner (after any edit hydration).
