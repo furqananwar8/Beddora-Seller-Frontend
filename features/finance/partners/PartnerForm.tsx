@@ -83,6 +83,7 @@ export const PartnerForm: React.FC<PartnerFormProps> = ({ partner }) => {
           email: partner.email ?? '',
           address: partner.address ?? '',
           currency: partner.currency,
+          paymentTermDays: partner.paymentTermDays ? String(partner.paymentTermDays) : '',
         }
       : { ...emptyPartnerValues, ...(presetType && { type: presetType }) },
   })
@@ -177,7 +178,7 @@ export const PartnerForm: React.FC<PartnerFormProps> = ({ partner }) => {
       </div>
 
       <form onSubmit={submit} noValidate className="flex flex-col gap-4">
-        <BasicDetailsSection register={register} control={control} errors={errors} similarNames={similarNames} />
+        <BasicDetailsSection register={register} control={control} errors={errors} similarNames={similarNames} editing={editing} />
         <PaymentDetailsSection
           saved={partner?.paymentMethods ?? []}
           staged={staged}

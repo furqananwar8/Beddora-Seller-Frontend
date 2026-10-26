@@ -187,6 +187,13 @@ export default function DashboardLayout({
                 action: 'read',
                 href: '/dashboard/finance/payment-process',
               },
+              {
+                // Read from the payments being processed, so it shares their permission
+                label: 'Partner Aging Report',
+                subject: 'finance:payment-process',
+                action: 'read',
+                href: '/dashboard/finance/partner-aging',
+              },
             ],
           },
           {

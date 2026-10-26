@@ -1,0 +1,1 @@
+export { PartnerAgingScreen } from './PartnerAgingScreen'

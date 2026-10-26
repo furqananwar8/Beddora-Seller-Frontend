@@ -69,7 +69,11 @@ export interface PartnerOption {
   contactName: string | null
   country: string | null
   currency: string
+  /** Days after the invoice date the partner is paid; a request's due date starts from it. */
+  paymentTermDays: number | null
   paymentMethod: string | null
+  /** The method requests are paid to (the latest one), shown once the partner is picked. */
+  paymentDetails: Omit<PaymentMethod, 'documents'> | null
 }
 
 export interface PaymentMethod {
@@ -111,11 +115,60 @@ export interface PartnerDetail {
   /** Street line. */
   address: string | null
   currency: string
+  paymentTermDays: number | null
   createdAt: string
   createdBy: UserRef
   updatedBy: UserRef | null
   paymentMethods: PaymentMethod[]
   documents: FinanceDocument[]
+}
+
+/* ─────────────── Partner aging ─────────────── */
+
+export type AgingGroup = 'upcoming' | 'overdue'
+
+export interface AgingBucket {
+  key: string
+  label: string
+  group: AgingGroup
+}
+
+export interface AgingCell {
+  amount: number
+  count: number
+}
+
+export interface AgingEntry {
+  id: number
+  requestNo: string
+  reference: string
+  status: RequestStatus
+  invoiceDate: string
+  dueDate: string
+  /** 0 is due today, negative is overdue. */
+  daysToDue: number
+  bucket: string
+  amount: number
+  paid: number
+  outstanding: number
+}
+
+export interface AgingRow {
+  partner: { id: number; name: string; type: PartnerType }
+  currency: string
+  cells: Record<string, AgingCell>
+  total: number
+  entries: AgingEntry[]
+}
+
+/** Open payments per partner and currency, by how far they are from (or past) their due date. */
+export interface PartnerAgingReport {
+  asOf: string
+  /** The columns in display order, as the server buckets them. */
+  buckets: AgingBucket[]
+  rows: AgingRow[]
+  /** Column totals, one line per currency. */
+  totals: Array<{ currency: string; cells: Record<string, AgingCell>; total: number }>
 }
 
 /* ─────────────── Payment requests ─────────────── */
@@ -187,6 +240,8 @@ export interface PaymentRequestListItem {
   invoiceNo: string | null
   purchaseOrder: PoRef | null
   invoiceDate: string
+  /** This request's own due date (defaulted from the partner's payment term). */
+  dueDate: string | null
   containerNo: string | null
   currency: string
   amount: number
@@ -242,6 +297,7 @@ export interface PaymentRequestDetail {
   invoiceNo: string | null
   purchaseOrder: PoRef | null
   invoiceDate: string
+  dueDate: string | null
   containerNo: string | null
   currency: string
   /** The total of `lines`. */
@@ -257,7 +313,7 @@ export interface PaymentRequestDetail {
   decisionNote: string | null
   submittedAt: string | null
   decidedAt: string | null
-  partner: { id: number; name: string; type: PartnerType; country: string | null; currency: string }
+  partner: { id: number; name: string; type: PartnerType; country: string | null; currency: string; paymentTermDays: number | null }
   /** Display name of what it is booked to: the L4 cost center's path (or, on older records, the expense type). */
   expenseType: { id: number; name: string }
   costCenter: CostCenterOption | null
@@ -629,6 +685,14 @@ export const financeApi = baseApi.injectEndpoints({
       invalidatesTags: ['FinanceRequests'],
     }),
 
+    /* partner aging */
+    getPartnerAging: b.query<PartnerAgingReport, void>({
+      query: () => '/finance/partner-aging',
+      transformResponse: unwrap,
+      // Moves whenever a request is raised, approved or paid
+      providesTags: ['FinanceRequests', 'FinanceProcess'],
+    }),
+
     /* payment process */
     getPaymentDocuments: b.query<Page<PaymentDocumentListItem>, PageParams & { status?: DocStatus }>({
       query: ({ search, ...params }) => ({ url: '/finance/payment-documents', params: { ...params, search: search || undefined } }),
@@ -734,4 +798,5 @@ export const {
   useAddPopMutation,
   useMarkPaidMutation,
   useRevealBankDetailsMutation,
+  useGetPartnerAgingQuery,
 } = financeApi

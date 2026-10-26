@@ -29,6 +29,16 @@ export const TableHeader: React.FC<React.HTMLAttributes<HTMLTableSectionElement>
   )
 }
 
+/** Totals pinned under the rows while the body scrolls. */
+export const TableFooter: React.FC<React.HTMLAttributes<HTMLTableSectionElement>> = ({
+  className,
+  ...props
+}) => {
+  return (
+    <tfoot className={cn('sticky bottom-0 z-20 bg-surface font-semibold', className)} {...props} />
+  )
+}
+
 export const TableBody: React.FC<React.HTMLAttributes<HTMLTableSectionElement>> = ({
   className,
   ...props

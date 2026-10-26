@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import type { PartnerType } from '@/services/api/finance.api'
+import { PAYMENT_TERM_DAYS } from '../shared/paymentTerm'
 import { bankAccountShape, emptyBankAccountValues, normalizeBankId, validateBankAccount } from '../shared/bankAccountSchema'
 
 export const PARTNER_TYPE_OPTIONS: Array<{ value: PartnerType; label: string }> = [
@@ -29,12 +30,14 @@ export const partnerSchema = z.object({
     .refine((value) => value === '' || z.string().email().safeParse(value).success, 'Enter a valid email address'),
   address: z.string().trim().max(500, 'Street address is too long'),
   currency: z.string().min(1, 'Currency is required'),
+  /** Days as a select value; empty means no term. */
+  paymentTermDays: z.string().refine((value) => value === '' || (PAYMENT_TERM_DAYS as readonly number[]).includes(Number(value)), 'Pick a payment term'),
 })
 
 export type PartnerFormValues = z.infer<typeof partnerSchema>
 
 /** Fields the server may flag in its `issues`, so its messages land on the right input. */
-export const PARTNER_FIELDS = ['name', 'type', 'contactName', 'email', 'country', 'province', 'city', 'postalCode', 'address', 'currency'] as const
+export const PARTNER_FIELDS = ['name', 'type', 'contactName', 'email', 'country', 'province', 'city', 'postalCode', 'address', 'currency', 'paymentTermDays'] as const
 
 export const emptyPartnerValues: PartnerFormValues = {
   name: '',
@@ -47,6 +50,7 @@ export const emptyPartnerValues: PartnerFormValues = {
   email: '',
   address: '',
   currency: 'CAD',
+  paymentTermDays: '',
 }
 
 /* ─────────────── Payment method ─────────────── */

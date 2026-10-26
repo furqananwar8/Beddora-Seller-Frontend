@@ -43,7 +43,8 @@ import { formatCurrencyAmount, formatRequestNo, toDateInputValue } from '../shar
 import { REQUEST_STATUS_META } from '../shared/statusMeta'
 import { useFinanceFeedback } from '../shared/useFinanceFeedback'
 import { DocumentChips } from '../shared/DocumentChips'
-import { PartnerChips, PartnerSelect, toPartnerOption } from './PartnerSelect'
+import { PartnerChips, PartnerSelect, toPartnerOption, withPartnerDetail } from './PartnerSelect'
+import { PartnerPaymentInfo } from './PartnerPaymentInfo'
 import { PayablePoSelect } from './PayablePoSelect'
 import { PayableInvoiceSelect } from './PayableInvoiceSelect'
 import { FxConversionNote } from '../shared/FxConversionNote'
@@ -78,6 +79,7 @@ const toFormValues = (detail: PaymentRequestDetail): PaymentRequestFormValues =>
   invoiceNo: detail.invoiceNo ?? '',
   purchaseOrder: detail.purchaseOrder,
   invoiceDate: toDateInputValue(detail.invoiceDate),
+  dueDate: detail.dueDate ? toDateInputValue(detail.dueDate) : '',
   containerNo: detail.containerNo ?? '',
   marketplaceId: detail.marketplaceId ? String(detail.marketplaceId) : '',
   currency: detail.currency,
@@ -148,9 +150,10 @@ export const PaymentRequestFormScreen: React.FC = () => {
   const uploadedCount = useRef(0)
   const hydrated = useRef(false)
 
-  const needsMethod = partner !== null && partner.paymentMethod === null
-  const { data: partnerDetail } = useGetPartnerQuery(partner?.id ?? 0, { skip: !needsMethod })
-  const shownPartner: PartnerOption | null = partner && needsMethod ? { ...partner, paymentMethod: partnerDetail?.paymentMethods[0]?.label ?? null } : partner
+  // A partner set from another record (a PO, a saved request) lacks its payment details until its full record loads
+  const needsDetail = partner !== null && !partner.paymentDetails
+  const { data: partnerDetail } = useGetPartnerQuery(partner?.id ?? 0, { skip: !needsDetail })
+  const shownPartner: PartnerOption | null = partner && needsDetail ? withPartnerDetail(partner, partnerDetail) : partner
 
   const currency = watch('currency')
   const referenceType = watch('referenceType')
@@ -422,7 +425,12 @@ export const PaymentRequestFormScreen: React.FC = () => {
               disabled={fromPoId !== null}
             />
           </FormField>
-          {shownPartner && <PartnerChips partner={shownPartner} />}
+          {shownPartner && (
+            <>
+              <PartnerChips partner={shownPartner} />
+              <PartnerPaymentInfo partner={shownPartner} />
+            </>
+          )}
         </Section>
 
         <Section title={byPurchaseOrder ? 'Purchase order & shipment' : 'Invoice & shipment'}>
@@ -520,6 +528,7 @@ export const PaymentRequestFormScreen: React.FC = () => {
           currencyOptions={currencyOptions(currency)}
           currencyLockedBy={termsLockedBy}
           poLimit={byPurchaseOrder ? poLimit : null}
+          termDays={shownPartner?.paymentTermDays ?? null}
           costCenters={costCenters}
           loadingCostCenters={loadingCostCenters}
           addCostCenterHref={addCostCenterHref}

@@ -10,13 +10,18 @@ import { FormField, fieldClass, selectClass } from '../shared/FormField'
 import { SelectShell } from '../shared/SelectShell'
 import { PARTNER_TYPE_OPTIONS, type PartnerFormValues } from './partnerSchema'
 import { CURRENCIES } from '../shared/currency'
+import { PAYMENT_TERM_OPTIONS } from '../shared/paymentTerm'
 
 interface BasicDetailsSectionProps {
   register: UseFormRegister<PartnerFormValues>
   control: Control<PartnerFormValues>
   errors: FieldErrors<PartnerFormValues>
   similarNames: string[]
+  /** Editing a saved partner: its type and currency are shown but fixed. */
+  editing?: boolean
 }
+
+const LOCKED_HINT = 'Fixed once the partner is created'
 
 /** Binds the four address parts of the partner form to the shared cascading address fields. */
 const PartnerAddress: React.FC<{ control: Control<PartnerFormValues>; errors: FieldErrors<PartnerFormValues> }> = ({ control, errors }) => {
@@ -43,7 +48,7 @@ const PartnerAddress: React.FC<{ control: Control<PartnerFormValues>; errors: Fi
   )
 }
 
-export const BasicDetailsSection: React.FC<BasicDetailsSectionProps> = ({ register, control, errors, similarNames }) => (
+export const BasicDetailsSection: React.FC<BasicDetailsSectionProps> = ({ register, control, errors, similarNames, editing = false }) => (
   <Card>
     <CardHeader>
       <CardTitle>Basic details</CardTitle>
@@ -63,12 +68,12 @@ export const BasicDetailsSection: React.FC<BasicDetailsSectionProps> = ({ regist
         <input id="partner-name" autoComplete="off" className={fieldClass(errors.name?.message)} {...register('name')} />
       </FormField>
 
-      <FormField label="Type" required error={errors.type?.message} hint="Vendor = services (brokers, terminals) · Supplier = goods & freight">
+      <FormField label="Type" required error={errors.type?.message} hint={editing ? LOCKED_HINT : 'Vendor = services (brokers, terminals) · Supplier = goods & freight'}>
         <Controller
           control={control}
           name="type"
           render={({ field }) => (
-            <SegmentedToggle<PartnerType> ariaLabel="Partner type" value={field.value} onChange={field.onChange} options={PARTNER_TYPE_OPTIONS} />
+            <SegmentedToggle<PartnerType> ariaLabel="Partner type" value={field.value} onChange={field.onChange} options={PARTNER_TYPE_OPTIONS} disabled={editing} />
           )}
         />
       </FormField>
@@ -87,12 +92,25 @@ export const BasicDetailsSection: React.FC<BasicDetailsSectionProps> = ({ regist
         <input id="partner-address" autoComplete="off" className={fieldClass(errors.address?.message)} {...register('address')} />
       </FormField>
 
-      <FormField label="Currency" htmlFor="partner-currency" required error={errors.currency?.message}>
+      <FormField label="Currency" htmlFor="partner-currency" required error={errors.currency?.message} hint={editing ? LOCKED_HINT : undefined}>
         <SelectShell>
-          <select id="partner-currency" className={selectClass(errors.currency?.message)} {...register('currency')}>
+          <select id="partner-currency" disabled={editing} className={selectClass(errors.currency?.message)} {...register('currency')}>
             {CURRENCIES.map((currency) => (
               <option key={currency} value={currency}>
                 {currency}
+              </option>
+            ))}
+          </select>
+        </SelectShell>
+      </FormField>
+
+      <FormField label="Payment term" htmlFor="partner-payment-term" error={errors.paymentTermDays?.message} hint="Sets a payment request's due date from its invoice date">
+        <SelectShell>
+          <select id="partner-payment-term" className={selectClass(errors.paymentTermDays?.message)} {...register('paymentTermDays')}>
+            <option value="">No payment term</option>
+            {PAYMENT_TERM_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
               </option>
             ))}
           </select>

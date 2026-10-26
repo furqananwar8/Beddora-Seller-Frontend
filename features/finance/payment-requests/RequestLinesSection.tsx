@@ -10,6 +10,7 @@ import { FormField } from '../shared/FormField'
 import { FormSection as Section } from '../shared/FormSection'
 import { formatCurrencyAmount, formatMoney } from '../shared/format'
 import { SelectShell } from '../shared/SelectShell'
+import { DueDateField } from './DueDateField'
 import { MAX_REQUEST_LINES, PaymentRequestFormValues, PoLimit, emptyLine, parseAmount, poLimitMessage, requestTotal } from './schema'
 
 interface RequestLinesSectionProps {
@@ -21,13 +22,15 @@ interface RequestLinesSectionProps {
   currencyLockedBy: string | null
   /** The picked PO's open balance, shown and enforced on the total of a purchase-order request. */
   poLimit: PoLimit | null
+  /** The partner's payment term, which sets the due date. */
+  termDays: number | null
   costCenters: CostCenterOption[] | undefined
   loadingCostCenters: boolean
   addCostCenterHref: string
   onAddCostCenter: () => void
 }
 
-/** Currency, then one or more amounts each booked to an expense (L4 cost center), their total, and remarks. */
+/** Currency and due date, then one or more amounts each booked to an expense (L4 cost center), their total, and remarks. */
 export const RequestLinesSection: React.FC<RequestLinesSectionProps> = ({
   control,
   register,
@@ -35,6 +38,7 @@ export const RequestLinesSection: React.FC<RequestLinesSectionProps> = ({
   currencyOptions,
   currencyLockedBy,
   poLimit,
+  termDays,
   costCenters,
   loadingCostCenters,
   addCostCenterHref,
@@ -50,18 +54,14 @@ export const RequestLinesSection: React.FC<RequestLinesSectionProps> = ({
 
   return (
     <Section title="Amount & category" note={`split across up to ${MAX_REQUEST_LINES} expenses`}>
-      <FormField
-        label="Currency"
-        htmlFor="currency"
-        required
-        className="mb-4 max-w-[12rem]"
-        error={errors.currency?.message}
-        hint={currencyLockedBy ?? undefined}
-      >
-        <SelectShell>
-          <Select id="currency" className="appearance-none rounded-lg pr-9" disabled={currencyLockedBy !== null} options={[{ value: '', label: 'Select' }, ...currencyOptions]} {...register('currency')} />
-        </SelectShell>
-      </FormField>
+      <div className="mb-4 grid gap-4 sm:grid-cols-[12rem_minmax(0,16rem)]">
+        <FormField label="Currency" htmlFor="currency" required error={errors.currency?.message} hint={currencyLockedBy ?? undefined}>
+          <SelectShell>
+            <Select id="currency" className="appearance-none rounded-lg pr-9" disabled={currencyLockedBy !== null} options={[{ value: '', label: 'Select' }, ...currencyOptions]} {...register('currency')} />
+          </SelectShell>
+        </FormField>
+        <DueDateField control={control} termDays={termDays} />
+      </div>
 
       <div className="space-y-3">
         {fields.map((field, index) => {

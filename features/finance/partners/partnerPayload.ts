@@ -18,18 +18,18 @@ export function buildPartnerCreateBody(values: PartnerFormValues, staged: Staged
       city: values.city,
       postalCode: values.postalCode,
       address: values.address,
+      paymentTermDays: values.paymentTermDays,
     }),
     paymentMethods: staged.map((item) => paymentMethodFields(item.values)),
   }
 }
 
-/** JSON body for PATCH /finance/partners/:id; cleared optional fields go back as null. */
+/** JSON body for PATCH /finance/partners/:id; cleared optional fields go back as null. Type and currency are fixed after creation. */
 export function buildPartnerPatch(values: PartnerFormValues): Record<string, unknown> {
   const orNull = (value: string) => (value.trim() === '' ? null : value.trim())
   return {
     name: values.name.trim(),
-    type: values.type,
-    currency: values.currency,
+    paymentTermDays: values.paymentTermDays ? Number(values.paymentTermDays) : null,
     contactName: orNull(values.contactName),
     email: orNull(values.email),
     country: orNull(values.country),

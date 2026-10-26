@@ -37,6 +37,8 @@ const baseSchema = z.object({
   invoiceNo: z.string().trim().max(80, 'Keep it under 80 characters'),
   purchaseOrder: z.custom<PoRef | null>(),
   invoiceDate: z.string().min(1, 'Invoice date is required'),
+  /** yyyy-MM-dd; starts as the invoice date plus the partner's payment term, and may be changed for this request alone. */
+  dueDate: z.string(),
   /** Picked from the container listing; it then sets the destination (unless a PO already did). */
   containerNo: z.string().trim().max(60, 'Keep it under 60 characters'),
   marketplaceId: z.string(),
@@ -63,6 +65,8 @@ export interface PoLimit {
 export const makePaymentRequestSchema = (poLimit: PoLimit | null) =>
   baseSchema.superRefine((values, ctx) => {
     const isPo = values.referenceType === 'PURCHASE_ORDER'
+    // Both are yyyy-MM-dd, so they compare as text
+    if (values.dueDate && values.invoiceDate && values.dueDate < values.invoiceDate) ctx.addIssue({ code: 'custom', path: ['dueDate'], message: 'Due date cannot be before the invoice date' })
     if (!isPo && !values.invoiceNo.trim()) ctx.addIssue({ code: 'custom', path: ['invoiceNo'], message: 'Invoice number is required' })
     if (isPo && !values.purchaseOrder) ctx.addIssue({ code: 'custom', path: ['purchaseOrder'], message: 'Pick the purchase order being paid' })
     if (isPo && poLimit && requestTotal(values.lines) > poLimit.leftToRequest) {
@@ -79,6 +83,7 @@ export const emptyFormValues: PaymentRequestFormValues = {
   invoiceNo: '',
   purchaseOrder: null,
   invoiceDate: '',
+  dueDate: '',
   containerNo: '',
   marketplaceId: '',
   currency: '',
@@ -104,6 +109,7 @@ export function toUpdateBody(values: PaymentRequestFormValues) {
     invoiceNo: isPo(values) ? null : values.invoiceNo.trim(),
     purchaseOrderId: isPo(values) ? (values.purchaseOrder?.id ?? null) : null,
     invoiceDate: values.invoiceDate,
+    dueDate: values.dueDate || null,
     containerNo: values.containerNo.trim() || null,
     marketplaceId: values.marketplaceId ? Number(values.marketplaceId) : null,
     currency: values.currency,
@@ -123,6 +129,8 @@ export function toCreateFormData(values: PaymentRequestFormValues, files: File[]
   }
   if (values.containerNo.trim()) body.append('containerNo', values.containerNo.trim())
   body.append('invoiceDate', values.invoiceDate)
+  // Left out, the server uses the invoice date plus the partner's payment term
+  if (values.dueDate) body.append('dueDate', values.dueDate)
   if (values.marketplaceId) body.append('marketplaceId', values.marketplaceId)
   body.append('currency', values.currency)
   body.append('lines', JSON.stringify(linesBody(values)))

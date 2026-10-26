@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react'
 import Link from 'next/link'
-import { PartnerOption, useGetPartnerOptionsQuery } from '@/services/api/finance.api'
+import { PartnerDetail, PartnerOption, PaymentMethod, useGetPartnerOptionsQuery } from '@/services/api/finance.api'
 import { useDebounce } from '@/utils/debounce'
 import { countryLabel } from '../shared/countryLabel'
 import { SearchableSelect } from '@/components/searchable-select/SearchableSelect'
@@ -34,7 +34,7 @@ export const PartnerChips: React.FC<{ partner: PartnerOption }> = ({ partner }) 
   </div>
 )
 
-type PartnerLike = Pick<PartnerOption, 'id' | 'name' | 'type' | 'country' | 'currency'> & { contactName?: string | null }
+type PartnerLike = Pick<PartnerOption, 'id' | 'name' | 'type' | 'country' | 'currency'> & { contactName?: string | null; paymentTermDays?: number | null }
 
 /** The dropdown's option shape from any partner record the screen already holds. */
 export const toPartnerOption = (partner: PartnerLike): PartnerOption => ({
@@ -44,8 +44,24 @@ export const toPartnerOption = (partner: PartnerLike): PartnerOption => ({
   contactName: partner.contactName ?? null,
   country: partner.country,
   currency: partner.currency,
+  paymentTermDays: partner.paymentTermDays ?? null,
   paymentMethod: null,
+  paymentDetails: null,
 })
+
+const withoutDocuments = ({ documents: _documents, ...details }: PaymentMethod) => details
+
+/** An option built from another record lacks the payment details; the partner's full record fills them in. */
+export const withPartnerDetail = (option: PartnerOption, detail: PartnerDetail | undefined): PartnerOption => {
+  if (!detail) return option
+  const [method] = detail.paymentMethods
+  return {
+    ...option,
+    paymentTermDays: detail.paymentTermDays,
+    paymentMethod: method?.label ?? null,
+    paymentDetails: method ? withoutDocuments(method) : null,
+  }
+}
 
 /** Searchable partner dropdown that ends with a link to create a new partner. */
 export const PartnerSelect: React.FC<PartnerSelectProps> = ({ id, selected, error, onSelect, addPartnerHref, onAddPartner, disabled }) => {
