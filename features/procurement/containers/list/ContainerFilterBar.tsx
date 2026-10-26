@@ -1,19 +1,43 @@
 'use client'
 
 import React from 'react'
-import { FILL_TOGGLE, FilterBar, FilterItem } from '@/components/filter-bar/FilterBar'
+import { FilterBar, FilterItem } from '@/components/filter-bar/FilterBar'
 import { FormField } from '@/components/form-field/FormField'
-import { SegmentedToggle } from '@/components/segmented-toggle/SegmentedToggle'
-import { cn } from '@/utils/cn'
+import { SearchableSelect } from '@/components/searchable-select/SearchableSelect'
 import { CONTAINER_STATUS_META, CONTAINER_STATUSES, DESTINATION_LABEL } from '../../shared/poMeta'
 import type { ContainerListState, CountryFilter, StatusFilter } from './useContainerListState'
 
-const STATUS_OPTIONS: Array<{ value: StatusFilter; label: string }> = [{ value: 'ALL', label: 'All' }, ...CONTAINER_STATUSES.map((value) => ({ value, label: CONTAINER_STATUS_META[value].label }))]
-const COUNTRY_OPTIONS: Array<{ value: CountryFilter; label: string }> = [
-  { value: 'ALL', label: 'All' },
+type Option<T> = { value: T; label: string }
+
+const STATUS_OPTIONS: Array<Option<StatusFilter>> = [{ value: 'ALL', label: 'All statuses' }, ...CONTAINER_STATUSES.map((value) => ({ value, label: CONTAINER_STATUS_META[value].label }))]
+const COUNTRY_OPTIONS: Array<Option<CountryFilter>> = [
+  { value: 'ALL', label: 'All countries' },
   { value: 'US', label: DESTINATION_LABEL.US },
   { value: 'CA', label: DESTINATION_LABEL.CA },
 ]
+
+interface FilterSelectProps<T extends string> {
+  id: string
+  options: Array<Option<T>>
+  value: T
+  onChange: (value: T) => void
+  highlighted: boolean
+}
+
+/** One-of-a-fixed-list filter on the shared select. */
+function FilterSelect<T extends string>({ id, options, value, onChange, highlighted }: FilterSelectProps<T>) {
+  return (
+    <SearchableSelect<Option<T>>
+      id={id}
+      value={options.find((option) => option.value === value) ?? options[0]}
+      onChange={(option) => onChange(option.value)}
+      options={options}
+      getKey={(option) => option.value}
+      getLabel={(option) => option.label}
+      highlighted={highlighted}
+    />
+  )
+}
 
 /** Search, status and country over a containers listing. */
 export const ContainerFilterBar: React.FC<{ state: ContainerListState; idPrefix: string }> = ({ state, idPrefix }) => {
@@ -34,14 +58,14 @@ export const ContainerFilterBar: React.FC<{ state: ContainerListState; idPrefix:
             />
           </FormField>
         </FilterItem>
-        <FilterItem wide>
-          <FormField label="Status">
-            <SegmentedToggle<StatusFilter> ariaLabel="Status" value={draft.status} onChange={(v) => setDraft('status', v)} options={STATUS_OPTIONS} className={cn(FILL_TOGGLE, changed.has('status') && 'ring-1 ring-primary-500')} />
+        <FilterItem>
+          <FormField label="Status" htmlFor={`${idPrefix}-status`}>
+            <FilterSelect id={`${idPrefix}-status`} options={STATUS_OPTIONS} value={draft.status} onChange={(v) => setDraft('status', v)} highlighted={changed.has('status')} />
           </FormField>
         </FilterItem>
         <FilterItem>
-          <FormField label="Country">
-            <SegmentedToggle<CountryFilter> ariaLabel="Country" value={draft.destination} onChange={(v) => setDraft('destination', v)} options={COUNTRY_OPTIONS} className={cn(FILL_TOGGLE, changed.has('destination') && 'ring-1 ring-primary-500')} />
+          <FormField label="Country" htmlFor={`${idPrefix}-country`}>
+            <FilterSelect id={`${idPrefix}-country`} options={COUNTRY_OPTIONS} value={draft.destination} onChange={(v) => setDraft('destination', v)} highlighted={changed.has('destination')} />
           </FormField>
         </FilterItem>
       </FilterBar>

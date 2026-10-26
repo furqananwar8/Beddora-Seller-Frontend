@@ -92,12 +92,23 @@ export const ChannelSkuPicker: React.FC<ChannelSkuPickerProps> = ({ scope, summa
           <MappingStatusBadge status={row.status} />
         </span>
       )}
+      // The footer carries its own Done so tabs and actions get the menu's full width instead of sharing a row with it
+      doneLabel={false}
       footer={(close) => (
         <div className="space-y-2 p-1">
-          <SegmentedToggle<Tab> ariaLabel="Mapping status" value={tab} onChange={setTab} options={tabs} className="flex w-full [&>button]:flex-auto [&>button]:px-2" />
-          <div className="flex items-center justify-between gap-2">
+          <SegmentedToggle<Tab>
+            ariaLabel="Mapping status"
+            value={tab}
+            onChange={setTab}
+            options={tabs}
+            className="grid w-full grid-cols-4 [&>button]:min-w-0 [&>button]:truncate [&>button]:px-1 [&>button]:text-xs"
+          />
+          <div className="flex items-center gap-2">
             <Button type="button" variant="outline" size="sm" onClick={onClear} disabled={onGraph.length === 0}>
               Clear graph
+            </Button>
+            <Button type="button" variant="outline" size="sm" className="ml-auto" onClick={close}>
+              Done
             </Button>
             <Button
               type="button"
