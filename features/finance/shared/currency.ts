@@ -9,3 +9,6 @@ export type Currency = (typeof CURRENCIES)[number]
  */
 export const currencyOptions = (current?: string | null): Array<{ value: string; label: string }> =>
   [...new Set<string>([...CURRENCIES, ...(current ? [current] : [])])].map((code) => ({ value: code, label: code }))
+
+/** The currency finance reports in (static). Keep in step with the backend's `reportingCurrency` setting. */
+export const REPORTING_CURRENCY: Currency = 'CAD'

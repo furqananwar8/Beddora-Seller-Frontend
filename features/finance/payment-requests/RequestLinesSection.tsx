@@ -17,8 +17,8 @@ interface RequestLinesSectionProps {
   register: UseFormRegister<PaymentRequestFormValues>
   errors: FieldErrors<PaymentRequestFormValues>
   currencyOptions: Array<{ value: string; label: string }>
-  /** Set by the picked purchase order, so it cannot be changed here. */
-  currencyLocked: boolean
+  /** What set the currency (the picked purchase order or invoice), so it cannot be changed here; null when free. */
+  currencyLockedBy: string | null
   /** The picked PO's open balance, shown and enforced on the total of a purchase-order request. */
   poLimit: PoLimit | null
   costCenters: CostCenterOption[] | undefined
@@ -33,7 +33,7 @@ export const RequestLinesSection: React.FC<RequestLinesSectionProps> = ({
   register,
   errors,
   currencyOptions,
-  currencyLocked,
+  currencyLockedBy,
   poLimit,
   costCenters,
   loadingCostCenters,
@@ -56,10 +56,10 @@ export const RequestLinesSection: React.FC<RequestLinesSectionProps> = ({
         required
         className="mb-4 max-w-[12rem]"
         error={errors.currency?.message}
-        hint={currencyLocked ? 'Set by the purchase order' : undefined}
+        hint={currencyLockedBy ?? undefined}
       >
         <SelectShell>
-          <Select id="currency" className="appearance-none rounded-lg pr-9" disabled={currencyLocked} options={[{ value: '', label: 'Select' }, ...currencyOptions]} {...register('currency')} />
+          <Select id="currency" className="appearance-none rounded-lg pr-9" disabled={currencyLockedBy !== null} options={[{ value: '', label: 'Select' }, ...currencyOptions]} {...register('currency')} />
         </SelectShell>
       </FormField>
 

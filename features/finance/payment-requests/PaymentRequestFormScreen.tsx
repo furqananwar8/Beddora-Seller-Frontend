@@ -11,7 +11,7 @@ import { SingleDatePicker } from '@/components/single-date-picker/SingleDatePick
 import { StatusBadge } from '@/components/status-badge/StatusBadge'
 import { SegmentedToggle } from '@/components/segmented-toggle/SegmentedToggle'
 import { Button } from '@/design-system/buttons'
-import { Input, Select } from '@/design-system/inputs'
+import { Select } from '@/design-system/inputs'
 import { SelectShell } from '../shared/SelectShell'
 import { Spinner } from '@/design-system/loaders'
 import {
@@ -45,6 +45,8 @@ import { useFinanceFeedback } from '../shared/useFinanceFeedback'
 import { DocumentChips } from '../shared/DocumentChips'
 import { PartnerChips, PartnerSelect, toPartnerOption } from './PartnerSelect'
 import { PayablePoSelect } from './PayablePoSelect'
+import { PayableInvoiceSelect } from './PayableInvoiceSelect'
+import { FxConversionNote } from '../shared/FxConversionNote'
 import { ContainerSelect, containerRefOf } from './ContainerSelect'
 import { RequestLinesSection } from './RequestLinesSection'
 import { clearRequestDraft, peekRequestDraft, saveRequestDraft, withQueryParam } from './requestDraftStore'
@@ -56,6 +58,7 @@ import {
   filesFormData,
   linesFromDetail,
   makePaymentRequestSchema,
+  requestTotal,
   toCreateFormData,
   toUpdateBody,
 } from './schema'
@@ -86,7 +89,8 @@ const limitOf = (po: PayablePurchaseOrder): PoLimit => ({ currency: po.currency,
 
 /**
  * Raise or edit a payment request (`?edit=`). Opened from a purchase order (`?purchaseOrderId=`), it starts as a
- * request against that PO: its supplier, currency and destination, which then cannot change.
+ * request against that PO: its supplier, currency and destination, which then cannot change. Paying one of our
+ * purchase invoices locks them the same way, to the invoice's.
  */
 export const PaymentRequestFormScreen: React.FC = () => {
   const router = useRouter()
@@ -155,6 +159,12 @@ export const PaymentRequestFormScreen: React.FC = () => {
   const byPurchaseOrder = referenceType === 'PURCHASE_ORDER'
   /** A picked PO sets the currency and destination; they then follow it. */
   const poLocked = byPurchaseOrder && purchaseOrder !== null
+  /** So does one of our purchase invoices that can be paid (the server applies its terms too). */
+  const invoiceLocked = !byPurchaseOrder && purchaseInvoice !== null && !purchaseInvoice.blockedReason
+  const termsLockedBy = poLocked ? 'Set by the purchase order' : invoiceLocked ? 'Set by the invoice' : null
+  const invoiceNo = watch('invoiceNo')
+  const lines = watch('lines')
+  const total = requestTotal(lines)
   const existingDocuments: FinanceDocument[] = detail?.documents ?? []
 
   // Load an existing draft / rejected request into the form once.
@@ -279,16 +289,28 @@ export const PaymentRequestFormScreen: React.FC = () => {
     applyDestination(po.destination)
   }
 
+  // The invoice's currency and destination, once it is known to be one of ours that can be paid
+  useEffect(() => {
+    if (!invoiceLocked || !purchaseInvoice) return
+    setValue('currency', purchaseInvoice.currency, { shouldValidate: true })
+    setValue('marketplaceId', purchaseInvoice.marketplaceId ? String(purchaseInvoice.marketplaceId) : '', { shouldDirty: true })
+  }, [invoiceLocked, purchaseInvoice, setValue])
+
+  const pickInvoiceNo = (next: string) => {
+    setValue('invoiceNo', next, { shouldValidate: true, shouldDirty: true })
+    void runDuplicateCheck(getValues('partnerId'), next)
+  }
+
   // The PO's destination once the destination options have loaded (a prefilled PO may arrive first)
   useEffect(() => {
     if (poLocked && pickedPo && marketplaces) applyDestination(pickedPo.destination)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [poLocked, pickedPo, marketplaces])
 
-  /** Without a purchase order the destination follows the container; otherwise the PO's stays. */
+  /** Without a purchase order or invoice the destination follows the container; otherwise theirs stays. */
   const pickContainer = (container: ContainerItem | null) => {
     setValue('containerNo', container ? containerRefOf(container) : '', { shouldValidate: true, shouldDirty: true })
-    if (container && !poLocked) applyDestination(container.destination)
+    if (container && termsLockedBy === null) applyDestination(container.destination)
   }
 
   const removeExisting = async (doc: FinanceDocument) => {
@@ -418,11 +440,13 @@ export const PaymentRequestFormScreen: React.FC = () => {
               </FormField>
             ) : (
               <FormField label="Invoice No" htmlFor="invoiceNo" required error={errors.invoiceNo?.message}>
-                <Input
+                <PayableInvoiceSelect
                   id="invoiceNo"
-                  className="rounded-lg"
-                  placeholder="INV-10442"
-                  {...register('invoiceNo', { onBlur: (e) => runDuplicateCheck(getValues('partnerId'), e.target.value) })}
+                  partnerId={partner?.id ?? null}
+                  value={invoiceNo}
+                  onPick={(invoice) => pickInvoiceNo(invoice.invoiceNo)}
+                  onOther={pickInvoiceNo}
+                  error={errors.invoiceNo?.message}
                 />
               </FormField>
             )}
@@ -441,13 +465,13 @@ export const PaymentRequestFormScreen: React.FC = () => {
             <FormField
               label="Destination (Marketplace)"
               htmlFor="marketplaceId"
-              hint={poLocked ? 'Set by the purchase order' : containerNo ? 'Set by the container' : undefined}
+              hint={termsLockedBy ?? (containerNo ? 'Set by the container' : undefined)}
             >
               <SelectShell>
               <Select
                 id="marketplaceId"
                 className="appearance-none rounded-lg pr-9"
-                disabled={poLocked || Boolean(containerNo)}
+                disabled={termsLockedBy !== null || Boolean(containerNo)}
                 options={[{ value: '', label: 'Select destination' }, ...(marketplaces ?? []).map((m) => ({ value: String(m.id), label: m.name }))]}
                 {...register('marketplaceId')}
               />
@@ -491,13 +515,14 @@ export const PaymentRequestFormScreen: React.FC = () => {
           register={register}
           errors={errors}
           currencyOptions={currencyOptions(currency)}
-          currencyLocked={poLocked}
+          currencyLockedBy={termsLockedBy}
           poLimit={byPurchaseOrder ? poLimit : null}
           costCenters={costCenters}
           loadingCostCenters={loadingCostCenters}
           addCostCenterHref={addCostCenterHref}
           onAddCostCenter={stashDraft}
         />
+        <FxConversionNote currency={currency} amount={total} stored={detail && detail.currency === currency ? detail : null} />
 
         <Section title="Upload documents">
           {existingDocuments.length > 0 && (

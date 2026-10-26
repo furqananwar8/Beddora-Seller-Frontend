@@ -53,6 +53,17 @@ const Summary: React.FC<{ detail: PaymentRequestDetail }> = ({ detail }) => (
     <Row label={detail.lines.length > 1 ? 'Total' : 'Amount'}>
       <span className="text-base">{formatCurrencyAmount(detail.currency, detail.amount)}</span>
     </Row>
+    {detail.baseCurrency && detail.baseCurrency !== detail.currency && (
+      <Row label={`In ${detail.baseCurrency}`}>
+        {detail.baseAmount != null ? formatCurrencyAmount(detail.baseCurrency, detail.baseAmount) : '-'}
+        {detail.fxRate != null && (
+          <span className="block text-xs font-normal text-text-muted">
+            Rate {detail.fxRate} {detail.currency}→{detail.baseCurrency}
+            {detail.fxRateAsOf ? ` as of ${formatDay(detail.fxRateAsOf)}` : ''}
+          </span>
+        )}
+      </Row>
+    )}
     {detail.paymentDocument && (
       <>
         <Row label="Payment">

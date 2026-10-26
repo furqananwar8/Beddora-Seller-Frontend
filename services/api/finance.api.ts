@@ -131,6 +131,8 @@ export interface PurchaseInvoiceForPayment {
   status: string
   currency: string
   amount: number
+  /** The invoice's destination; a request paying it ships there too. */
+  marketplaceId: number | null
   /** Not yet asked for by pending or approved requests: the most this request may ask for. */
   leftToRequest: number
   /** Why a payment request cannot pay it now; null when it can. */
@@ -244,6 +246,11 @@ export interface PaymentRequestDetail {
   currency: string
   /** The total of `lines`. */
   amount: number
+  /** Snapshot taken when the request was created: the reporting currency, that day's rate and the amount in it. */
+  baseCurrency: string | null
+  fxRate: number | null
+  fxRateAsOf: string | null
+  baseAmount: number | null
   /** Amounts and the L4 cost centers they are booked to; an invoice request may have several. */
   lines: PaymentRequestLine[]
   remarks: string | null
@@ -545,6 +552,10 @@ export const financeApi = baseApi.injectEndpoints({
       transformResponse: unwrap,
       providesTags: ['ProcurementPurchaseOrders'],
     }),
+    getPayableInvoices: b.query<PurchaseInvoiceForPayment[], { partnerId: number }>({
+      query: (params) => ({ url: '/finance/payment-requests/payable-invoices', params }),
+      transformResponse: unwrap,
+    }),
     checkDuplicateInvoice: b.query<DuplicateInvoice | null, { partnerId: number; invoiceNo: string; excludeId?: number }>({
       query: (params) => ({ url: '/finance/payment-requests/duplicate-check', params }),
       transformResponse: unwrap,
@@ -681,6 +692,7 @@ export const {
   useGetPaymentRequestQuery,
   useLazyCheckDuplicateInvoiceQuery,
   useLazyCheckPurchaseInvoiceQuery,
+  useGetPayableInvoicesQuery,
   useGetLeafCostCentersQuery,
   useGetPayablePurchaseOrdersQuery,
   useAddPopDocumentsMutation,
