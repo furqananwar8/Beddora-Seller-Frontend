@@ -33,6 +33,9 @@ interface ProductIdentityCellProps {
   titleInTooltip?: boolean
   /** Shows price per unit, COGS and promo under the identity. Defaults to on; never on a parent row (it has children). */
   showUnitStats?: boolean
+  /** The row's FBA stock; when given with `onFbaStockClick`, an "FBA stock: N" link opens its details. */
+  fbaStock?: { fbaStock: number; regions: number } | null
+  onFbaStockClick?: (anchorRect: DOMRect) => void
 }
 
 /** Opens the product's Amazon page in a new tab; plain text when there is no ASIN to link to. */
@@ -106,7 +109,7 @@ const ProductThumbnail: React.FC<{ src: string; alt: string }> = ({ src, alt }) 
  * The products table's product cell: image, marketplace and SKU, ASIN, title, then price per unit, COGS and promo.
  * Shared by the built-in Amazon columns and by pages that build their own columns on SellerboardProductsTable.
  */
-export function ProductIdentityCell({ product, isChild = false, isExpanded = false, onToggle, titleInTooltip = false, showUnitStats = true }: ProductIdentityCellProps) {
+export function ProductIdentityCell({ product, isChild = false, isExpanded = false, onToggle, titleInTooltip = false, showUnitStats = true, fbaStock, onFbaStockClick }: ProductIdentityCellProps) {
   // A parent's per-unit figures blend its children (often 0 when costs sit on the children): each child shows its own
   const isParentRow = !isChild && (product.children?.length ?? 0) > 0
   const unitStatsShown = showUnitStats && !isParentRow
@@ -172,6 +175,20 @@ export function ProductIdentityCell({ product, isChild = false, isExpanded = fal
           </svg>
         </div>
       </div>
+      )}
+
+      {fbaStock && onFbaStockClick && (
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation()
+            onFbaStockClick(event.currentTarget.getBoundingClientRect())
+          }}
+          className="mt-1 text-xs text-primary-600 hover:text-primary-700 hover:underline"
+          aria-label={`FBA stock details for ${product.sku}`}
+        >
+          FBA stock{fbaStock.regions > 1 ? ` (${fbaStock.regions} regions)` : ''}: {fbaStock.fbaStock.toLocaleString('en-CA')}
+        </button>
       )}
     </div>
   )

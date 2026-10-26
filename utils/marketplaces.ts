@@ -13,3 +13,7 @@ export function amazonProductUrl(asin: string, marketplace?: string | null): str
   const match = MARKETPLACES.find((item) => [item.id, item.name, item.code, item.domain].some((value) => value.toLowerCase() === key))
   return `https://www.${match?.domain ?? 'amazon.com'}/dp/${encodeURIComponent(asin)}`
 }
+
+/** The country code (CA, US...) when exactly one marketplace is picked; undefined for none or several. */
+export const singleMarketplaceCode = (marketplaceIds: string[]): string | undefined =>
+  marketplaceIds.length === 1 ? MARKETPLACES.find((marketplace) => marketplace.id === marketplaceIds[0])?.code : undefined

@@ -157,8 +157,32 @@ export interface PushStockItem {
   channels: string[]
 }
 
+/** A seller SKU's FBA stock picture (GET /inventory/fba-stock), for the report rows' "FBA stock" popover. */
+export interface FbaStockSummary {
+  sku: string
+  /** Sellable units at Amazon. */
+  fbaStock: number
+  reserved: number
+  /** Inbound to FBA. */
+  sentToFba: number
+  /** Marketplaces the stock was summed over. */
+  regions: number
+  /** FBA units sold per day. */
+  salesVelocity: number
+  daysOfStockLeft: number | null
+  daysUntilNextOrder: number | null
+  /** Units still on open purchase orders. */
+  ordered: number
+}
+
 export const inventoryPlannerApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
+    /** One call for every SKU on a page; without `marketplace` stock is summed over every marketplace. */
+    getFbaStock: builder.query<FbaStockSummary[], { skus: string[]; marketplace?: string }>({
+      query: ({ skus, marketplace }) => ({ url: '/inventory/fba-stock', params: { skus: skus.join(','), ...(marketplace && { marketplace }) } }),
+      providesTags: ['Inventory'],
+    }),
+
     getInventorySummary: builder.query<InventorySummary[], InventoryPlannerFilters>({
       query: (filters) => ({
         url: '/inventory/planner/summary',
@@ -272,6 +296,7 @@ export const inventoryPlannerApi = baseApi.injectEndpoints({
 })
 
 export const {
+  useGetFbaStockQuery,
   useGetInventorySummaryQuery,
   useGetProductInventoryQuery,
   useUpdateInventoryItemsMutation,
