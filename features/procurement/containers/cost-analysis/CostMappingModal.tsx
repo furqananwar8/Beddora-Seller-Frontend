@@ -67,7 +67,7 @@ export const CostMappingModal: React.FC<{ open: boolean; onClose: () => void }> 
                     />
                   </div>
                   {(draft[column.key] ?? []).length > 0 && (
-                    <Button type="button" variant="outline" size="sm" onClick={() => setDraft((current) => ({ ...current, [column.key]: [] }))} disabled={saving}>
+                    <Button type="button" variant="outline" size="field" onClick={() => setDraft((current) => ({ ...current, [column.key]: [] }))} disabled={saving}>
                       Clear
                     </Button>
                   )}

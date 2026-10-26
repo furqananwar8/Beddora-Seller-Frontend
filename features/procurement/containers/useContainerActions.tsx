@@ -9,7 +9,7 @@ import { useAppAbility } from '@/hooks/useAppAbility'
 import { useMarkContainerDeliveredMutation, type ContainerItem } from '@/services/api/procurement.api'
 import { downloadApiFile } from '@/utils/downloadFile'
 import { containerLabel } from '../shared/poMeta'
-import { ChangeListModal } from './ChangeListModal'
+import { PackagingListsModal } from './PackagingListsModal'
 import { ContainerFormModal } from './ContainerFormModal'
 import { CONTAINER_ROUTES } from './routes'
 
@@ -43,9 +43,7 @@ export function useContainerActions() {
     }
   }
 
-  const downloadList = async (container: ContainerItem) => {
-    const list = container.packagingList
-    if (!list) return
+  const downloadList = async (list: { id: number; plNo: string }) => {
     try {
       await downloadApiFile(`/procurement/packaging-lists/${list.id}/pdf`, `${list.plNo.replace('#', '')}.pdf`)
     } catch (error) {
@@ -55,7 +53,7 @@ export function useContainerActions() {
 
   const actionsFor = (container: ContainerItem, { onPage = false } = {}): RowActionItem[] => {
     const { permissions } = container
-    const noList = container.packagingList === null
+    const lists = container.packagingLists
     const delivered = container.status === 'DELIVERED'
     return [
       ...(onPage ? [] : [{ key: 'view', label: 'View container', onSelect: () => router.push(containerHref(container.id)) }]),
@@ -64,14 +62,16 @@ export function useContainerActions() {
         ? [
             {
               key: 'list',
-              label: noList ? 'Assign packaging list' : 'Change packaging list',
+              label: lists.length ? `Packaging lists (${lists.length})` : 'Add packaging list',
               onSelect: () => setChangingList(container),
               disabled: !permissions.canChangeList,
-              disabledReason: 'Only while the container is booked',
+              disabledReason: 'Lists can be added or removed only while the container is booked',
             },
           ]
         : []),
-      { key: 'pdf', label: 'Download packaging list PDF', onSelect: () => void downloadList(container), disabled: noList, disabledReason: 'No packaging list yet' },
+      ...(lists.length
+        ? lists.map((list) => ({ key: `pdf-${list.id}`, label: lists.length > 1 ? `Download ${list.plNo} PDF` : 'Download packaging list PDF', onSelect: () => void downloadList(list) }))
+        : [{ key: 'pdf', label: 'Download packaging list PDF', onSelect: () => undefined, disabled: true, disabledReason: 'No packaging list yet' }]),
       ...(canWrite && !delivered ? [{ key: 'delivered', label: 'Mark delivered', onSelect: () => setDelivering(container) }] : []),
     ]
   }
@@ -79,7 +79,7 @@ export function useContainerActions() {
   const dialogs = (
     <>
       <ContainerFormModal isOpen={creating || editing !== null} container={editing} onClose={() => (setCreating(false), setEditing(null))} />
-      <ChangeListModal container={changingList} onClose={() => setChangingList(null)} />
+      <PackagingListsModal container={changingList} onClose={() => setChangingList(null)} />
       <ConfirmDialog
         isOpen={delivering !== null}
         title={`Mark ${delivering ? containerLabel(delivering) : 'container'} delivered`}

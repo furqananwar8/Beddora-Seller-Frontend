@@ -12,10 +12,9 @@ const qty = (value: number) => value.toLocaleString('en-CA')
 
 /** PO > packaging list > payments: each purchase order in the container with its price and what has been paid on it. */
 export const PurchaseOrdersPanel: React.FC<{ container: ContainerDetail }> = ({ container }) => {
-  const list = container.packagingList
   return (
     <Panel title="Purchase orders" count={container.purchaseOrders.length}>
-      {!list ? (
+      {container.packagingLists.length === 0 ? (
         <PanelEmpty>No packaging list in this container yet.</PanelEmpty>
       ) : (
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -34,9 +33,16 @@ export const PurchaseOrdersPanel: React.FC<{ container: ContainerDetail }> = ({ 
                     </Link>
                     <p className="truncate text-xs text-text-muted">
                       {po.supplier?.name ?? '—'} · in{' '}
-                      <Link href={`/dashboard/procurement/packaging-lists/${list.id}`} className="underline-offset-2 hover:underline">
-                        {list.plNo}
-                      </Link>
+                      {container.packagingLists
+                        .filter((list) => container.lines.some((line) => line.purchaseOrderId === po.id && line.plNo === list.plNo))
+                        .map((list, index) => (
+                          <React.Fragment key={list.id}>
+                            {index > 0 && ', '}
+                            <Link href={`/dashboard/procurement/packaging-lists/${list.id}`} className="underline-offset-2 hover:underline">
+                              {list.plNo}
+                            </Link>
+                          </React.Fragment>
+                        ))}
                     </p>
                   </div>
                   <PaymentBadge payment={po.payment} />

@@ -6,7 +6,7 @@ import { SearchableSelect } from '@/components/searchable-select/SearchableSelec
 import { Button } from '@/design-system/buttons'
 import { Modal } from '@/design-system/modals'
 import { useApiFeedback } from '@/hooks/useApiFeedback'
-import { useGetAssignableContainersQuery, useSetContainerPackagingListMutation, type AssignableContainer, type PackagingListItem } from '@/services/api/procurement.api'
+import { useGetAssignableContainersQuery, useAddContainerPackagingListMutation, type AssignableContainer, type PackagingListItem } from '@/services/api/procurement.api'
 import { formatCalendarDay } from '@/utils/format'
 import { DESTINATION_LABEL, containerLabel, supplierNames } from '../shared/poMeta'
 import { ContainerFormModal } from './ContainerFormModal'
@@ -25,7 +25,7 @@ export const AssignContainerModal: React.FC<AssignContainerModalProps> = ({ list
   const { success, failure } = useApiFeedback()
   const [picked, setPicked] = useState<AssignableContainer | null>(null)
   const [creating, setCreating] = useState(false)
-  const [assign, { isLoading: assigning }] = useSetContainerPackagingListMutation()
+  const [assign, { isLoading: assigning }] = useAddContainerPackagingListMutation()
 
   const { data: containers = [], isFetching } = useGetAssignableContainersQuery({ destination: list?.destination ?? 'US' }, { skip: !list })
 
