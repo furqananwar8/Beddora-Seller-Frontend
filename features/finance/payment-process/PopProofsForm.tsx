@@ -49,7 +49,7 @@ const PopReference: React.FC<{ docId: number; pop: Pop; id: string }> = ({ docId
       <div className="flex gap-2">
         <input id={id} placeholder="Optional" maxLength={100} value={value} onChange={(event) => setValue(event.target.value)} className={fieldClass()} />
         {changed && (
-          <Button type="button" size="sm" isLoading={saving} onClick={() => void save()}>
+          <Button type="button" size="field" isLoading={saving} onClick={() => void save()}>
             Save
           </Button>
         )}

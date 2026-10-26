@@ -49,7 +49,7 @@ export const LevelRow: React.FC<LevelRowProps> = ({ level, state, onSelect, onAd
           placeholder={addable ? `${levelLabel(level)} - Select` : `Select ${levelLabel(level - 1)} first`}
           emptyText={parent ? `Nothing under ${nameOf(state, parent)} yet. Add one.` : 'No cost center yet. Add one.'}
         />
-        <Button type="button" variant="outline" size="sm" className="col-start-2 justify-self-start sm:col-start-auto" disabled={!addable} onClick={() => onAdd(takenNames)}>
+        <Button type="button" variant="outline" size="field" className="col-start-2 justify-self-start sm:col-start-auto" disabled={!addable} onClick={() => onAdd(takenNames)}>
           + Add
         </Button>
       </div>
