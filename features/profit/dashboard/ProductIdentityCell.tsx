@@ -2,9 +2,11 @@
 
 import React, { useState } from 'react'
 import { createPortal } from 'react-dom'
+import { TrendingUp } from 'lucide-react'
+import { isReorderSoon } from './components/FbaStockPopover'
 import { MarketplaceFlag } from '@/components/marketplace-flag/MarketPlaceFlag'
 import { Tooltip } from '@/design-system/tooltips'
-import { formatCurrency } from '@/utils/format'
+import { formatCurrency, formatMoneyIn } from '@/utils/format'
 import { amazonProductUrl } from '@/utils/marketplaces'
 
 /** The product fields the cell shows (a ProductProfitBreakdown row has them all). */
@@ -33,6 +35,11 @@ interface ProductIdentityCellProps {
   titleInTooltip?: boolean
   /** Shows price per unit, COGS and promo under the identity. Defaults to on; never on a parent row (it has children). */
   showUnitStats?: boolean
+  /** The row's FBA stock; when given with `onFbaStockClick`, an "FBA stock: N" link opens its details. */
+  fbaStock?: { fbaStock: number; regions: number; daysUntilNextOrder?: number | null } | null
+  onFbaStockClick?: (anchorRect: DOMRect) => void
+  /** The report's currency (CAD, USD...): price and COGS show its symbol, e.g. C$. */
+  currency?: string
 }
 
 /** Opens the product's Amazon page in a new tab; plain text when there is no ASIN to link to. */
@@ -106,17 +113,32 @@ const ProductThumbnail: React.FC<{ src: string; alt: string }> = ({ src, alt }) 
  * The products table's product cell: image, marketplace and SKU, ASIN, title, then price per unit, COGS and promo.
  * Shared by the built-in Amazon columns and by pages that build their own columns on SellerboardProductsTable.
  */
-export function ProductIdentityCell({ product, isChild = false, isExpanded = false, onToggle, titleInTooltip = false, showUnitStats = true }: ProductIdentityCellProps) {
+export function ProductIdentityCell({ product, isChild = false, isExpanded = false, onToggle, titleInTooltip = false, showUnitStats = true, fbaStock, onFbaStockClick, currency }: ProductIdentityCellProps) {
   // A parent's per-unit figures blend its children (often 0 when costs sit on the children): each child shows its own
   const isParentRow = !isChild && (product.children?.length ?? 0) > 0
   const unitStatsShown = showUnitStats && !isParentRow
+  const fbaStockLink =
+    fbaStock && onFbaStockClick ? (
+      <button
+        type="button"
+        onClick={(event) => {
+          event.stopPropagation()
+          onFbaStockClick(event.currentTarget.getBoundingClientRect())
+        }}
+        className={`inline-flex items-center gap-1 hover:text-primary-600 hover:underline ${isReorderSoon(fbaStock) ? 'text-warning-600' : ''}`}
+        aria-label={`FBA stock details for ${product.sku}`}
+      >
+        <TrendingUp className="h-3 w-3 shrink-0" aria-hidden />
+        FBA stock{fbaStock.regions > 1 ? ` (${fbaStock.regions} regions)` : ''}: {fbaStock.fbaStock.toLocaleString('en-CA')}
+      </button>
+    ) : null
   const details = product.groupLabel ? (
     <div className="min-w-0 flex-1 max-w-[220px]">
       <div className="font-medium text-text-primary text-sm mb-1 truncate">{product.groupLabel}</div>
       <div className="text-xs text-text-muted">{product.children?.length ?? 0} products</div>
     </div>
   ) : (
-    <div className="min-w-0 flex-1 max-w-[220px]">
+    <div className={`min-w-0 flex-1 ${fbaStockLink ? 'max-w-[280px]' : 'max-w-[220px]'}`}>
       <div className="text-xs text-text-muted mb-1 truncate flex items-center gap-1.5">
         <MarketplaceFlag marketplace={product.marketplace} />
         <AmazonLink asin={product.asin} marketplace={product.marketplace}>{product.sku}</AmazonLink>
@@ -135,13 +157,28 @@ export function ProductIdentityCell({ product, isChild = false, isExpanded = fal
         </div>
       )}
 
-      {unitStatsShown && (
+      {unitStatsShown && onFbaStockClick && (
+        <div className="flex flex-nowrap items-center gap-1.5 whitespace-nowrap text-xs text-text-muted">
+          <span>{formatMoneyIn((product.salesRevenue || 0) / Math.max(product.unitsSold || 1, 1), currency)}</span>
+          <span aria-hidden>·</span>
+          <span>COGS: {formatMoneyIn(product.cogsRate || 0, currency)}</span>
+          {fbaStockLink && (
+            <>
+              <span aria-hidden>·</span>
+              {fbaStockLink}
+            </>
+          )}
+        </div>
+      )}
+
+      {unitStatsShown && !onFbaStockClick && (
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
         <div>
           <span className="text-text-primary font-medium">
-            {formatCurrency(
+            {formatMoneyIn(
               (product.salesRevenue || 0) /
-                Math.max(product.unitsSold || 1, 1)
+                Math.max(product.unitsSold || 1, 1),
+              currency
             )}
           </span>
         </div>
@@ -149,7 +186,7 @@ export function ProductIdentityCell({ product, isChild = false, isExpanded = fal
         <div>
           <span className="text-text-muted">COGS </span>
           <span className="text-text-primary font-medium">
-            {formatCurrency(product.cogsRate || 0)}
+            {formatMoneyIn(product.cogsRate || 0, currency)}
           </span>
         </div>
 
@@ -173,6 +210,9 @@ export function ProductIdentityCell({ product, isChild = false, isExpanded = fal
         </div>
       </div>
       )}
+
+      {/* Without the price line (unit stats off) the link still shows, on a line of its own */}
+      {!unitStatsShown && fbaStockLink && <div className="mt-1">{fbaStockLink}</div>}
     </div>
   )
 

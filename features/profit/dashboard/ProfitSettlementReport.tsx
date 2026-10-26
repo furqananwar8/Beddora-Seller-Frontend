@@ -1,5 +1,6 @@
 'use client'
 
+import { singleMarketplaceCode } from '@/utils/marketplaces'
 import React, {
   useCallback,
   useEffect,
@@ -92,6 +93,11 @@ export const ProfitSettlementReport: React.FC = () => {
   // ──────────────────────────────
 
   const [appliedMarketplaces, setAppliedMarketplaces] = useState<string[]>(['Amazon.ca'])
+  // One marketplace picked: its FBA stock only; otherwise summed over every marketplace
+  const fbaStockScope = useMemo(
+    () => ({ marketplace: singleMarketplaceCode(appliedMarketplaces) }),
+    [appliedMarketplaces]
+  )
   const [appliedCurrency, setAppliedCurrency] = useState<CurrencyCode>('CAD')
 
   // ──────────────────────────────
@@ -792,6 +798,8 @@ export const ProfitSettlementReport: React.FC = () => {
                       isLoading={productFetching}
                       isFetching={productFetching}
                       searchTerm={debouncedSearchTerm}
+                      fbaStockScope={fbaStockScope}
+                      currency={appliedCurrency}
                     />
                   ) : (
                     <OrderItemsTable

@@ -24,7 +24,8 @@ import {
 import { useAppSelector } from '@/store/hooks'
 import { applyServerIssues } from '@/utils/apiErrors'
 import { formatCalendarDay } from '@/utils/format'
-import { canRequestPayment, isApprovedPo, isPackable, newPackagingListHref, newPaymentRequestHref, newPurchaseInvoiceHref, PaymentBadge, PoStatusBadge, poPackagingListsHref, poPaymentRequestsHref, poPurchaseInvoicesHref } from '../shared/poMeta'
+import { canRequestPayment, isApprovedPo, isPackable, newPackagingListHref, newPaymentRequestHref, newPurchaseInvoiceHref, PaymentBadge, PoStatusBadge, poPackagingListsHref, poPurchaseInvoicesHref } from '../shared/poMeta'
+import { ViewPoPaymentRequests } from '../shared/PoPaymentRequests'
 import { ApprovalPanel } from './ApprovalPanel'
 import { emptyPoValues, fromDetail, fromRemaining, poFormSchema, toPoBody, type PoFormValues } from './poForm'
 import { PoOrderDetailsSection, PoSupplierSection } from './PoDetailsSections'
@@ -195,9 +196,7 @@ export const PoFormScreen: React.FC<PoFormScreenProps> = ({ purchaseOrderId }) =
                 </Link>
               )}
               {po && ability.can('read', 'finance:payment-request') && (
-                <Link href={poPaymentRequestsHref(po.id)} className="text-sm font-medium text-primary-600 underline-offset-2 hover:underline">
-                  View payment requests ({po.payment.requestCount})
-                </Link>
+                <ViewPoPaymentRequests purchaseOrder={{ id: po.id, poNo: po.poNo }} count={po.payment.requestCount} />
               )}
             </div>
             {fromSource && (

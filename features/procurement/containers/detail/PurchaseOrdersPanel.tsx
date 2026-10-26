@@ -4,17 +4,17 @@ import React from 'react'
 import Link from 'next/link'
 import type { ContainerDetail } from '@/services/api/procurement.api'
 import { formatCurrencyAmount } from '@/features/finance/shared/format'
-import { PaymentBadge, poPaymentRequestsHref } from '../../shared/poMeta'
+import { PaymentBadge } from '../../shared/poMeta'
+import { ViewPoPaymentRequests } from '../../shared/PoPaymentRequests'
 import { Fact, Panel, PanelEmpty } from './Panel'
 
 const qty = (value: number) => value.toLocaleString('en-CA')
 
 /** PO > packaging list > payments: each purchase order in the container with its price and what has been paid on it. */
 export const PurchaseOrdersPanel: React.FC<{ container: ContainerDetail }> = ({ container }) => {
-  const list = container.packagingList
   return (
     <Panel title="Purchase orders" count={container.purchaseOrders.length}>
-      {!list ? (
+      {container.packagingLists.length === 0 ? (
         <PanelEmpty>No packaging list in this container yet.</PanelEmpty>
       ) : (
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -33,9 +33,16 @@ export const PurchaseOrdersPanel: React.FC<{ container: ContainerDetail }> = ({ 
                     </Link>
                     <p className="truncate text-xs text-text-muted">
                       {po.supplier?.name ?? '—'} · in{' '}
-                      <Link href={`/dashboard/procurement/packaging-lists/${list.id}`} className="underline-offset-2 hover:underline">
-                        {list.plNo}
-                      </Link>
+                      {container.packagingLists
+                        .filter((list) => container.lines.some((line) => line.purchaseOrderId === po.id && line.plNo === list.plNo))
+                        .map((list, index) => (
+                          <React.Fragment key={list.id}>
+                            {index > 0 && ', '}
+                            <Link href={`/dashboard/procurement/packaging-lists/${list.id}`} className="underline-offset-2 hover:underline">
+                              {list.plNo}
+                            </Link>
+                          </React.Fragment>
+                        ))}
                     </p>
                   </div>
                   <PaymentBadge payment={po.payment} />
@@ -54,9 +61,11 @@ export const PurchaseOrdersPanel: React.FC<{ container: ContainerDetail }> = ({ 
                   </div>
                   <div className="mt-1 flex justify-between text-xs text-text-muted">
                     <span>{percent}% of the PO price paid</span>
-                    <Link href={poPaymentRequestsHref(po.id)} className="font-medium text-primary-600 underline-offset-2 hover:underline">
-                      {po.payment.requestCount} payment request{po.payment.requestCount === 1 ? '' : 's'}
-                    </Link>
+                    <ViewPoPaymentRequests
+                      purchaseOrder={{ id: po.id, poNo: po.poNo }}
+                      label={`${po.payment.requestCount} payment request${po.payment.requestCount === 1 ? '' : 's'}`}
+                      className="font-medium text-primary-600 underline-offset-2 hover:underline"
+                    />
                   </div>
                 </div>
               </article>

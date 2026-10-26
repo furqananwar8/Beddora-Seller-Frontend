@@ -1,12 +1,13 @@
 'use client'
 
-import React, { useEffect, useRef } from 'react'
+import React, { useRef } from 'react'
 
 import { PieChart } from '@/design-system/charts/PieChart'
 import { ChartPalette } from '@/design-system/charts/ChartPalette'
 import { Spinner } from '@/design-system/loaders'
 import { ProductProfitBreakdown, useGetRefundReasonsQuery } from '@/services/api/profit.api'
 import { formatNumber } from '@/utils/format'
+import { useDismiss } from '@/hooks/useDismiss'
 
 /** The date range and marketplaces the products table shows: the refunds counted in it. */
 export interface RefundReasonsScope {
@@ -43,20 +44,7 @@ export function RefundReasonsPopover({ product, scope, anchorRect, onClose }: Re
     { skip: !scope.startDate || !scope.endDate },
   )
 
-  useEffect(() => {
-    const handleClick = (event: MouseEvent) => {
-      if (panelRef.current && !panelRef.current.contains(event.target as Node)) onClose()
-    }
-    const handleKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose()
-    }
-    document.addEventListener('mousedown', handleClick)
-    document.addEventListener('keydown', handleKey)
-    return () => {
-      document.removeEventListener('mousedown', handleClick)
-      document.removeEventListener('keydown', handleKey)
-    }
-  }, [onClose])
+  useDismiss(panelRef, onClose)
 
   const left = Math.min(Math.max(8, anchorRect.left + anchorRect.width / 2 - WIDTH / 2), window.innerWidth - WIDTH - 8)
   const top = Math.min(anchorRect.bottom + GAP, window.innerHeight - 440)

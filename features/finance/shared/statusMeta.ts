@@ -13,4 +13,8 @@ export const DOC_STATUS_META: Record<DocStatus, { label: string; tone: StatusTon
   PARTIALLY_PAID: { label: 'PARTIALLY PAID', tone: 'warning' },
   POP_UPLOADED: { label: 'PAYMENT RECORDED', tone: 'success' },
   PAID: { label: 'PAID', tone: 'neutral' },
+  AMOUNT_SETTLED: { label: 'AMOUNT SETTLED', tone: 'neutral' },
 }
+
+/** Closed by finance: paid in full, or settled with a balance outstanding. Nothing more is paid on it. */
+export const isClosedDoc = (status: DocStatus): boolean => status === 'PAID' || status === 'AMOUNT_SETTLED'

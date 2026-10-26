@@ -10,22 +10,26 @@ import { Fact, Panel, PanelEmpty } from './Panel'
 const qty = (value: number) => value.toLocaleString('en-CA')
 const kg = (value: number) => `${value.toLocaleString('en-CA', { maximumFractionDigits: 1 })} kg`
 
-/** The packaging list's products, one card per SKU with what is packed and how (cartons, carton size, CBM, weight). */
+/** The packaging lists' products, one card per SKU with what is packed and how (cartons, carton size, CBM, weight). */
 export const PackedProductsPanel: React.FC<{ container: ContainerDetail }> = ({ container }) => {
-  const list = container.packagingList
+  const lists = container.packagingLists
   return (
     <Panel
-      title="Packaging list"
+      title={lists.length > 1 ? 'Packaging lists' : 'Packaging list'}
       count={container.lines.length}
       action={
-        list ? (
-          <Link href={`/dashboard/procurement/packaging-lists/${list.id}`} className="font-mono text-xs font-semibold text-primary-600 underline-offset-2 hover:underline">
-            {list.plNo}
-          </Link>
+        lists.length ? (
+          <span className="flex flex-wrap gap-2">
+            {lists.map((list) => (
+              <Link key={list.id} href={`/dashboard/procurement/packaging-lists/${list.id}`} className="font-mono text-xs font-semibold text-primary-600 underline-offset-2 hover:underline">
+                {list.plNo}
+              </Link>
+            ))}
+          </span>
         ) : null
       }
     >
-      {!list ? (
+      {lists.length === 0 ? (
         <PanelEmpty>No packaging list yet.</PanelEmpty>
       ) : (
         <>
@@ -34,7 +38,7 @@ export const PackedProductsPanel: React.FC<{ container: ContainerDetail }> = ({ 
             <Fact label="Cartons">{qty(container.totals.cartons)}</Fact>
             <Fact label="CBM">{container.totals.cbm.toFixed(2)}</Fact>
           </div>
-          <p className="text-xs text-text-muted">{supplierNames(list.suppliers)}</p>
+          <p className="text-xs text-text-muted">{supplierNames([...new Map(lists.flatMap((list) => list.suppliers).map((supplier) => [supplier.id, supplier])).values()])}</p>
           <ul className="flex flex-col gap-2">
             {container.lines.map((line) => (
               <li key={`${line.purchaseOrderId}:${line.sku}`} className="rounded-lg border border-border p-3">

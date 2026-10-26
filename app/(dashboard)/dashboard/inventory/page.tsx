@@ -144,7 +144,7 @@ export default function InventoryDashboardPage() {
 
   return (
     <Container>
-      <PageHeader title="Inventory" description="Track real-time stock levels by SKU and marketplace." />
+      <PageHeader title="Inventory Management" description="Track real-time stock levels by SKU and marketplace." />
 
       <div className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

@@ -48,7 +48,6 @@ export const PaymentDetailsSection: React.FC<PaymentDetailsSectionProps> = ({ sa
               routingNo: item.values.routingNo,
               accountHolder: item.values.accountHolder,
               paymentLink: item.values.paymentLink,
-              pendingFiles: item.files.map((file) => file.name),
             }}
             onRemove={() => onRemoveStaged(item.key)}
           />

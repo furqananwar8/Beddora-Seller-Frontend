@@ -7,8 +7,6 @@ import { formatCalendarDay } from '@/utils/format'
 /** Display numbers mirror the backend's: `PO-1042` is row 42. */
 export const formatPoNo = (id: number): string => `PO-${1000 + id}`
 
-/** Payment Requests narrowed to one PO. */
-export const poPaymentRequestsHref = (id: number): string => `/dashboard/finance/payment-request?purchaseOrderId=${id}`
 
 /** New payment request against one PO: its supplier, currency and destination are preset and locked. */
 export const newPaymentRequestHref = (id: number): string => `/dashboard/finance/payment-request/new?purchaseOrderId=${id}`

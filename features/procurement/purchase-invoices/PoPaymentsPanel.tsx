@@ -1,11 +1,11 @@
 'use client'
 
 import React from 'react'
-import Link from 'next/link'
 import { FormSection as Section } from '@/features/finance/shared/FormSection'
 import { formatCurrencyAmount } from '@/features/finance/shared/format'
 import type { PoPayment } from '@/services/api/procurement.api'
-import { PaymentBadge, poPaymentRequestsHref } from '../shared/poMeta'
+import { PaymentBadge } from '../shared/poMeta'
+import { ViewPoPaymentRequests } from '../shared/PoPaymentRequests'
 
 interface PoPaymentsPanelProps {
   purchaseOrderId: number
@@ -38,9 +38,7 @@ export const PoPaymentsPanel: React.FC<PoPaymentsPanelProps> = ({ purchaseOrderI
       <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
         <PaymentBadge payment={payment} withPercent />
         {payment.requestCount > 0 && (
-          <Link href={poPaymentRequestsHref(purchaseOrderId)} className="font-medium text-primary-600 underline-offset-2 hover:underline">
-            View payment requests ({payment.requestCount})
-          </Link>
+          <ViewPoPaymentRequests purchaseOrder={{ id: purchaseOrderId, poNo }} count={payment.requestCount} className="font-medium text-primary-600 underline-offset-2 hover:underline" />
         )}
       </div>
     </Section>

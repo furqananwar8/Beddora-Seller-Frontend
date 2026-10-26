@@ -34,7 +34,7 @@ export const DeductionsPanel: React.FC<DeductionsPanelProps> = ({ channel, row, 
       </div>
       {components.length === 0 ? (
         <p className="mt-2 rounded-md border border-dashed border-border px-4 py-3 text-sm text-text-muted">
-          No components yet. {readOnly ? '' : 'Click an internal node on the graph or use “+ Add internal SKU”.'}
+          No components yet. {readOnly ? '' : 'Drag from the channel SKU to an internal SKU on the graph, or use “+ Add internal SKU”.'}
         </p>
       ) : (
         <>

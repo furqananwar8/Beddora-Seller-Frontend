@@ -11,7 +11,6 @@ import { SegmentedToggle } from '@/components/segmented-toggle/SegmentedToggle'
 import { FileDropzone } from '@/components/file-dropzone/FileDropzone'
 import { SingleDatePicker } from '@/components/single-date-picker/SingleDatePicker'
 import { BankProfile, PaymentDocumentListItem, useAddPopMutation, useGetFxTodayQuery, useGetPaymentDocumentQuery } from '@/services/api/finance.api'
-import { currencyOptions as supportedCurrencies } from '../shared/currency'
 import { FormField, fieldClass } from '../shared/FormField'
 import { formatCurrencyAmount, formatDay, formatDocNo, formatMoney, todayInputValue } from '../shared/format'
 import { SelectShell } from '../shared/SelectShell'
@@ -44,10 +43,8 @@ const PopForm: React.FC<{ row: PaymentDocumentListItem; onClose: () => void }> =
   const [serverError, setServerError] = useState<string | null>(null)
   const detail = useGetPaymentDocumentQuery(row.id)
 
-  // The currency can be corrected until the first payment is recorded; after that earlier payments depend on it.
-  const currencyLocked = row.paidAmount > 0
-  const [currency, setCurrency] = useState(row.currency)
-  const currencyOptions = supportedCurrencies(row.currency)
+  // The invoice's currency: every payment is recorded in it, so it cannot change here
+  const currency = row.currency
 
   const {
     register,
@@ -92,12 +89,6 @@ const PopForm: React.FC<{ row: PaymentDocumentListItem; onClose: () => void }> =
   // A rate belongs to one currency pair; clear it (and its dirty flag) whenever either side changes.
   const resetRate = () => resetField('fxRate', { defaultValue: '' })
 
-  const onCurrencyChange = (next: string) => {
-    setCurrency(next)
-    setValue('currency', next, { shouldValidate: true })
-    resetRate()
-  }
-
   const onBankChange = (next: BankProfile) => {
     setValue('bank', next, { shouldValidate: true })
     resetRate()
@@ -115,7 +106,6 @@ const PopForm: React.FC<{ row: PaymentDocumentListItem; onClose: () => void }> =
     body.append('type', values.type)
     body.append('amount', String(parseNumber(values.amount)))
     body.append('paymentDate', values.paymentDate)
-    if (values.currency !== row.currency) body.append('currency', values.currency)
     if (needsFx) body.append('fxRate', String(parseNumber(values.fxRate)))
     if (values.reference.trim()) body.append('reference', values.reference.trim())
     values.files.forEach((file) => body.append('documents', file))
@@ -214,18 +204,9 @@ const PopForm: React.FC<{ row: PaymentDocumentListItem; onClose: () => void }> =
           label="Currency"
           htmlFor="pop-currency"
           error={errors.currency?.message}
-          hint={currencyLocked ? 'Locked: a payment was already recorded' : 'Change it if the request has the wrong currency'}
+          hint="Locked to the invoice currency"
         >
-          <SelectShell>
-            <Select
-              id="pop-currency"
-              className="appearance-none rounded-lg pr-9"
-              value={currency}
-              disabled={currencyLocked}
-              onChange={(event) => onCurrencyChange(event.target.value)}
-              options={currencyOptions}
-            />
-          </SelectShell>
+          <input id="pop-currency" readOnly disabled value={currency} className={fieldClass()} />
         </FormField>
 
         <FormField label="Payment Date" htmlFor="pop-date" required error={errors.paymentDate?.message}>

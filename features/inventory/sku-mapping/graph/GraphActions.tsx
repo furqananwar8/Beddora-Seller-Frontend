@@ -6,7 +6,8 @@ import type { ChannelSku } from '@/services/api/skuMapping.api'
 /** What the graph's nodes and edges can ask the screen to do (kept out of node data so layout stays pure). */
 export interface GraphActions {
   select: (key: string) => void
-  bindToSelected: (productId: number) => void
+  /** Links an internal SKU to a channel SKU: the line drawn from the channel SKU's handle to it. */
+  connect: (rowKey: string, productId: number) => void
   setQuantity: (row: ChannelSku, productId: number, quantity: number) => void
   readOnly: boolean
 }

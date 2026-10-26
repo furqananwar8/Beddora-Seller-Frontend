@@ -13,6 +13,7 @@ import { useDebounce } from '@/utils/debounce'
 import { ScreenSearch } from '../shared/ScreenSearch'
 import { DOC_STATUS_META } from '../shared/statusMeta'
 import { MarkPaidConfirm } from './MarkPaidConfirm'
+import { EditContainerModal } from './EditContainerModal'
 import { PaymentDetailModal } from './PaymentDetailModal'
 import { PaymentKpiRow } from './PaymentKpiRow'
 import { PaymentTable } from './PaymentTable'
@@ -34,6 +35,7 @@ export const PaymentProcessScreen: React.FC = () => {
   const [detailId, setDetailId] = useState<number | null>(null)
   const [uploadRow, setUploadRow] = useState<{ row: PaymentDocumentListItem; mode: PopDialogMode } | null>(null)
   const [markPaidRow, setMarkPaidRow] = useState<PaymentDocumentListItem | null>(null)
+  const [containerNo, setContainerNo] = useState<string | null>(null)
 
   // `?open=<docId>` (notification links) opens the detail modal.
   const openParam = searchParams.get('open')
@@ -59,6 +61,7 @@ export const PaymentProcessScreen: React.FC = () => {
     if (action === 'upload') setUploadRow({ row, mode: 'record' })
     else if (action === 'proofs') setUploadRow({ row, mode: 'proofs' })
     else if (action === 'mark-paid') setMarkPaidRow(row)
+    else if (action === 'edit-container') setContainerNo(row.containerNo)
     else setDetailId(row.id)
   }
 
@@ -109,6 +112,7 @@ export const PaymentProcessScreen: React.FC = () => {
       <PaymentDetailModal docId={detailId} onClose={closeDetail} />
       <PopUploadDialog row={uploadRow?.row ?? null} mode={uploadRow?.mode} onClose={() => setUploadRow(null)} />
       <MarkPaidConfirm row={markPaidRow} onClose={() => setMarkPaidRow(null)} />
+      <EditContainerModal containerNo={containerNo} onClose={() => setContainerNo(null)} />
     </Container>
   )
 }

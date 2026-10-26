@@ -29,6 +29,8 @@ import {
 } from '@/utils/format'
 import { ProductIdentityCell } from './ProductIdentityCell'
 import { RefundReasonsPopover, type RefundReasonsScope } from './components/RefundReasonsPopover'
+import { FbaStockPopover } from './components/FbaStockPopover'
+import { useGetFbaStockQuery, type FbaStockSummary } from '@/services/api/inventoryPlanner.api'
 import { cn } from '@/utils/cn'
 
 /* ──────────────────────────────────────────────────────
@@ -80,6 +82,10 @@ export interface SellerboardProductsTableProps {
   emptyMessage?: string
   /** What the rows cover; when set, a refund count opens that product's refunds by reason. */
   refundReasonsScope?: RefundReasonsScope
+  /** When set, each product shows "FBA stock: N" opening its stock details; `marketplace` (CA, US...) narrows it to one marketplace. */
+  fbaStockScope?: { marketplace?: string }
+  /** The report's currency; the product cell's price and COGS show its symbol (C$...). */
+  currency?: string
 }
 
 type SortColumn = string
@@ -460,6 +466,8 @@ export const SellerboardProductsTable: React.FC<
     footerContent,
     emptyMessage = 'No products found matching your search criteria.',
     refundReasonsScope,
+    fbaStockScope,
+    currency,
   }) => {
     const [sortColumn, setSortColumn] = useState<SortColumn>(defaultSortColumn)
     const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
@@ -647,6 +655,16 @@ export const SellerboardProductsTable: React.FC<
 
     const totalPages = Math.ceil(sortedProducts.length / itemsPerPage)
 
+    // One stock lookup for every product on the page, children included (they show when expanded)
+    const pageSkus = useMemo(
+      () => (fbaStockScope ? [...new Set(paginatedProducts.flatMap((product) => [product.sku, ...(product.children ?? []).map((child) => child.sku)]))] : []),
+      [fbaStockScope, paginatedProducts]
+    )
+    const { data: fbaStock } = useGetFbaStockQuery({ skus: pageSkus, marketplace: fbaStockScope?.marketplace }, { skip: pageSkus.length === 0 })
+    const fbaStockBySku = useMemo(() => new Map((fbaStock ?? []).map((row) => [row.sku, row])), [fbaStock])
+    const [fbaTarget, setFbaTarget] = useState<{ stock: FbaStockSummary; cogsRate: number | null; anchorRect: DOMRect } | null>(null)
+    const closeFbaStock = useCallback(() => setFbaTarget(null), [])
+
     const SortIcon: React.FC<{ column: SortColumn }> = ({ column }) => (
       <span className="ml-1 inline-block text-xs">
         {sortColumn === column ? (
@@ -720,6 +738,17 @@ export const SellerboardProductsTable: React.FC<
                 isExpanded={isExpanded}
                 onToggle={() => toggleRow(product.sku)}
                 titleInTooltip
+                currency={currency}
+                // Every product row shows its FBA stock, 0 included, once the lookup has answered; parent rows never do
+                fbaStock={(product.children?.length ?? 0) === 0 ? (fbaStockBySku.get(product.sku) ?? null) : null}
+                onFbaStockClick={
+                  fbaStockScope
+                    ? (anchorRect) => {
+                        const stock = fbaStockBySku.get(product.sku)
+                        if (stock) setFbaTarget({ stock, cogsRate: product.cogsRate ?? null, anchorRect })
+                      }
+                    : undefined
+                }
               />
             </TableCell>
 
@@ -862,6 +891,8 @@ export const SellerboardProductsTable: React.FC<
             </div>
           </div>
         )}
+
+        {fbaTarget && <FbaStockPopover stock={fbaTarget.stock} cogsRate={fbaTarget.cogsRate} anchorRect={fbaTarget.anchorRect} onClose={closeFbaStock} />}
 
         {refundTarget && refundReasonsScope && (
           <RefundReasonsPopover

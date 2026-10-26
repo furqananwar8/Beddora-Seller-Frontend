@@ -131,6 +131,8 @@ export interface PurchaseInvoiceForPayment {
   status: string
   currency: string
   amount: number
+  /** The invoice's destination; a request paying it ships there too. */
+  marketplaceId: number | null
   /** Not yet asked for by pending or approved requests: the most this request may ask for. */
   leftToRequest: number
   /** Why a payment request cannot pay it now; null when it can. */
@@ -244,6 +246,11 @@ export interface PaymentRequestDetail {
   currency: string
   /** The total of `lines`. */
   amount: number
+  /** Snapshot taken when the request was created: the reporting currency, that day's rate and the amount in it. */
+  baseCurrency: string | null
+  fxRate: number | null
+  fxRateAsOf: string | null
+  baseAmount: number | null
   /** Amounts and the L4 cost centers they are booked to; an invoice request may have several. */
   lines: PaymentRequestLine[]
   remarks: string | null
@@ -299,7 +306,7 @@ export interface UserCandidate {
 
 /* ─────────────── Payment process ─────────────── */
 
-export type DocStatus = 'PAYMENT_PENDING' | 'PARTIALLY_PAID' | 'POP_UPLOADED' | 'PAID'
+export type DocStatus = 'PAYMENT_PENDING' | 'PARTIALLY_PAID' | 'POP_UPLOADED' | 'PAID' | 'AMOUNT_SETTLED'
 
 export interface PaymentDocumentListItem {
   id: number
@@ -355,6 +362,8 @@ export interface PaymentDocumentDetail {
   canMarkPaid: boolean
   markedPaidBy: UserRef | null
   markedPaidAt: string | null
+  /** Why it was closed with a balance outstanding (AMOUNT_SETTLED). */
+  settledReason: string | null
   pops: Pop[]
   paymentMethod: { id: number; type: 'BANK' | 'CARD_LINK'; ibanLast4: string | null; accountNumberLast4: string | null; paymentLink: string | null } | null
   request: {
@@ -396,6 +405,11 @@ export interface PopResult {
   balance: number
 }
 
+export interface PartnerRemoval {
+  removed: number[]
+  skipped: Array<{ id: number; name: string; reason: string }>
+}
+
 /* ─────────────── Endpoints ─────────────── */
 
 export const financeApi = baseApi.injectEndpoints({
@@ -419,13 +433,24 @@ export const financeApi = baseApi.injectEndpoints({
       query: (name) => ({ url: '/finance/partners/name-check', params: { name } }),
       transformResponse: unwrap,
     }),
-    createPartner: b.mutation<PartnerDetail, FormData>({
+    /** The partner with the payment methods added on the form, in one transaction (no documents). */
+    createPartner: b.mutation<PartnerDetail, Record<string, unknown>>({
       query: (body) => ({ url: '/finance/partners', method: 'POST', body }),
       transformResponse: unwrap,
       invalidatesTags: ['FinancePartners'],
     }),
     updatePartner: b.mutation<PartnerDetail, { id: number; body: Record<string, unknown> }>({
       query: ({ id, body }) => ({ url: `/finance/partners/${id}`, method: 'PATCH', body }),
+      transformResponse: unwrap,
+      invalidatesTags: ['FinancePartners'],
+    }),
+    deletePartner: b.mutation<void, number>({
+      query: (id) => ({ url: `/finance/partners/${id}`, method: 'DELETE' }),
+      invalidatesTags: ['FinancePartners'],
+    }),
+    /** Deletes those nothing refers to; `skipped` says why each other one was kept. */
+    deletePartners: b.mutation<PartnerRemoval, number[]>({
+      query: (ids) => ({ url: '/finance/partners/bulk-delete', method: 'POST', body: { ids } }),
       transformResponse: unwrap,
       invalidatesTags: ['FinancePartners'],
     }),
@@ -545,6 +570,10 @@ export const financeApi = baseApi.injectEndpoints({
       transformResponse: unwrap,
       providesTags: ['ProcurementPurchaseOrders'],
     }),
+    getPayableInvoices: b.query<PurchaseInvoiceForPayment[], { partnerId: number }>({
+      query: (params) => ({ url: '/finance/payment-requests/payable-invoices', params }),
+      transformResponse: unwrap,
+    }),
     checkDuplicateInvoice: b.query<DuplicateInvoice | null, { partnerId: number; invoiceNo: string; excludeId?: number }>({
       query: (params) => ({ url: '/finance/payment-requests/duplicate-check', params }),
       transformResponse: unwrap,
@@ -640,8 +669,9 @@ export const financeApi = baseApi.injectEndpoints({
       transformResponse: unwrap,
       invalidatesTags: ['FinanceProcess'],
     }),
-    markPaid: b.mutation<PaymentDocumentDetail, number>({
-      query: (id) => ({ url: `/finance/payment-documents/${id}/mark-paid`, method: 'POST' }),
+    /** With a balance still outstanding it settles the amount, which needs `reason`. */
+    markPaid: b.mutation<PaymentDocumentDetail, { id: number; reason?: string }>({
+      query: ({ id, reason }) => ({ url: `/finance/payment-documents/${id}/mark-paid`, method: 'POST', body: reason ? { reason } : {} }),
       transformResponse: unwrap,
       invalidatesTags: ['FinanceProcess', 'FinanceRequests'],
     }),
@@ -659,6 +689,8 @@ export const {
   useLazyCheckPartnerNameQuery,
   useCreatePartnerMutation,
   useUpdatePartnerMutation,
+  useDeletePartnerMutation,
+  useDeletePartnersMutation,
   useAddPaymentMethodMutation,
   useRemovePaymentMethodMutation,
   useGetBankProfilesQuery,
@@ -681,6 +713,7 @@ export const {
   useGetPaymentRequestQuery,
   useLazyCheckDuplicateInvoiceQuery,
   useLazyCheckPurchaseInvoiceQuery,
+  useGetPayableInvoicesQuery,
   useGetLeafCostCentersQuery,
   useGetPayablePurchaseOrdersQuery,
   useAddPopDocumentsMutation,

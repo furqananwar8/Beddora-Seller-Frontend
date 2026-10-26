@@ -14,7 +14,8 @@ import { cn } from '@/utils/cn'
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger'
-  size?: 'sm' | 'md' | 'lg'
+  /** `field`: the height of a form field, for a button that sits beside one. */
+  size?: 'sm' | 'md' | 'lg' | 'field'
   isLoading?: boolean
   children: React.ReactNode
 }
@@ -42,6 +43,7 @@ export const Button: React.FC<ButtonProps> = ({
     sm: 'ds-button-sm',
     md: 'ds-button-md',
     lg: 'ds-button-lg',
+    field: 'ds-button-field',
   }
 
   return (

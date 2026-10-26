@@ -165,9 +165,11 @@ export function useSkuMapper() {
     clearGraph,
     loadUnmapped,
     bindInternal,
-    bindToSelected: (productId: number) => {
+    /** A line drawn from a channel SKU to an internal SKU binds exactly that pair (×1), whichever SKU is selected. */
+    connect: (rowKey: string, productId: number) => {
+      const row = rows.find((item) => item.key === rowKey)
       const internal = internalById.get(productId)
-      if (internal) bindInternal(internal)
+      if (row && internal) dispatch({ type: 'bind', row, internal })
     },
     setQuantity: (row: ChannelSku, productId: number, quantity: number) => dispatch({ type: 'quantity', row, productId, quantity }),
     unbind: (productId: number) => selectedRow && dispatch({ type: 'unbind', row: selectedRow, productId }),

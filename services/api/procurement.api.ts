@@ -51,6 +51,8 @@ export interface PoProduct {
   heightCm: number | null
   dimensionUnit: LengthUnit
   cbm: number | null
+  /** Variations only: the stock level (units) at which to reorder. */
+  reorderPoint: number | null
   inheritsMaster: boolean
   hasPhoto: boolean
   updatedAt: string
@@ -105,6 +107,8 @@ export interface VariationBody extends VariantInput, WeightInput, DimensionInput
   /** Blank falls back to `Name-Color-Size`. */
   variantName: string | null
   sku: string | null
+  /** Optional stock level (units) at which to reorder. */
+  reorderPoint: number | null
   color: string
   /** "Same weight as master". */
   inheritsMaster: boolean
@@ -519,6 +523,8 @@ export interface ContainerRef {
 }
 
 export interface ContainerLine {
+  /** The packaging list it is packed on. */
+  plNo: string
   purchaseOrderId: number
   poNo: string
   sku: string
@@ -556,7 +562,10 @@ export interface ContainerItem {
   deliveredAt: string | null
   updatedAt: string
   permissions: ContainerPermissions
-  packagingList: { id: number; plNo: string; suppliers: Array<{ id: number; name: string }>; purchaseOrders: Array<{ id: number; poNo: string }> } | null
+  /** The packaging lists it carries (several; each list in one container only). */
+  packagingLists: Array<{ id: number; plNo: string; suppliers: Array<{ id: number; name: string }>; units: number; cbm: number }>
+  /** Every PO packed into it, across its lists. */
+  purchaseOrders: Array<{ id: number; poNo: string }>
   totals: { units: number; cartons: number; cbm: number; netWeightKg: number; grossWeightKg: number }
   lines: ContainerLine[]
 }
@@ -636,7 +645,8 @@ export interface ContainerExpense {
 }
 
 export interface CostMapping {
-  columns: Array<{ key: CostBucketKey; label: string; basis: 'cbm' | 'value'; costCenter: CostCenterOption | null }>
+  /** Each column with the L4 cost centers it takes payments from (an L4 feeds one column only). */
+  columns: Array<{ key: CostBucketKey; label: string; basis: 'cbm' | 'value'; costCenters: CostCenterOption[] }>
   /** Active L4 cost centers that can be picked. */
   options: CostCenterOption[]
 }
@@ -652,7 +662,7 @@ export interface ContainerCostItem {
   currency: PoCurrency
   /** More than one means amounts in different currencies were added up as they are. */
   currencies: string[]
-  packagingList: { id: number; plNo: string; suppliers: string[] } | null
+  packagingLists: Array<{ id: number; plNo: string; suppliers: string[] }>
   skuCount: number
   totals: CostTotals
   expenses: ContainerExpense[]
@@ -1064,7 +1074,7 @@ export const procurementApi = baseApi.injectEndpoints({
       transformResponse: unwrap,
       providesTags: ['ProcurementContainers'],
     }),
-    saveContainerCostMapping: b.mutation<CostMapping, Array<{ bucket: CostBucketKey; costCenterId: number | null }>>({
+    saveContainerCostMapping: b.mutation<CostMapping, Array<{ bucket: CostBucketKey; costCenterIds: number[] }>>({
       query: (mappings) => ({ url: '/procurement/containers/cost-analysis/mapping', method: 'PUT', body: { mappings } }),
       transformResponse: unwrap,
       invalidatesTags: ['ProcurementContainers'],
@@ -1112,8 +1122,15 @@ export const procurementApi = baseApi.injectEndpoints({
       transformResponse: unwrap,
       invalidatesTags: ['ProcurementContainers', 'ProcurementPackagingLists', 'ProcurementPurchaseOrders'],
     }),
-    setContainerPackagingList: b.mutation<ContainerItem, { id: number; packagingListId: number | null }>({
-      query: ({ id, packagingListId }) => ({ url: `/procurement/containers/${id}/packaging-list`, method: 'PUT', body: { packagingListId } }),
+    /** Puts one more packaging list in a booked container. */
+    addContainerPackagingList: b.mutation<ContainerItem, { id: number; packagingListId: number }>({
+      query: ({ id, packagingListId }) => ({ url: `/procurement/containers/${id}/packaging-lists`, method: 'POST', body: { packagingListId } }),
+      transformResponse: unwrap,
+      invalidatesTags: ['ProcurementContainers', 'ProcurementPackagingLists', 'ProcurementPurchaseOrders'],
+    }),
+    /** Takes one packaging list out of a booked container. */
+    removeContainerPackagingList: b.mutation<ContainerItem, { id: number; packagingListId: number }>({
+      query: ({ id, packagingListId }) => ({ url: `/procurement/containers/${id}/packaging-lists/${packagingListId}`, method: 'DELETE' }),
       transformResponse: unwrap,
       invalidatesTags: ['ProcurementContainers', 'ProcurementPackagingLists', 'ProcurementPurchaseOrders'],
     }),
@@ -1234,7 +1251,8 @@ export const {
   useGetAssignableContainersQuery,
   useCreateContainerMutation,
   useUpdateContainerMutation,
-  useSetContainerPackagingListMutation,
+  useAddContainerPackagingListMutation,
+  useRemoveContainerPackagingListMutation,
   useMarkContainerDeliveredMutation,
   useGetPriceAnalysesQuery,
   useApprovePriceAnalysisMutation,

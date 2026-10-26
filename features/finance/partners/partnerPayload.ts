@@ -1,20 +1,26 @@
-import { appendBankAccount, appendIf } from '../shared/bankAccountPayload'
-import type { PartnerFormValues, PaymentMethodFormValues } from './partnerSchema'
+import { bankAccountFields, presentFields } from '../shared/bankAccountPayload'
+import type { PartnerFormValues, PaymentMethodFormValues, StagedPaymentMethod } from './partnerSchema'
 
-/** Multipart body for POST /finance/partners. */
-export function buildPartnerFormData(values: PartnerFormValues): FormData {
-  const body = new FormData()
-  body.append('name', values.name.trim())
-  body.append('type', values.type)
-  body.append('currency', values.currency)
-  appendIf(body, 'contactName', values.contactName)
-  appendIf(body, 'email', values.email)
-  appendIf(body, 'country', values.country)
-  appendIf(body, 'province', values.province)
-  appendIf(body, 'city', values.city)
-  appendIf(body, 'postalCode', values.postalCode)
-  appendIf(body, 'address', values.address)
-  return body
+/**
+ * JSON body for POST /finance/partners: the partner and the payment methods added on the form, saved together
+ * (all or nothing). Documents are not sent; they are added once the partner exists, when editing it.
+ */
+export function buildPartnerCreateBody(values: PartnerFormValues, staged: StagedPaymentMethod[]): Record<string, unknown> {
+  return {
+    ...presentFields({
+      name: values.name,
+      type: values.type,
+      currency: values.currency,
+      contactName: values.contactName,
+      email: values.email,
+      country: values.country,
+      province: values.province,
+      city: values.city,
+      postalCode: values.postalCode,
+      address: values.address,
+    }),
+    paymentMethods: staged.map((item) => paymentMethodFields(item.values)),
+  }
 }
 
 /** JSON body for PATCH /finance/partners/:id; cleared optional fields go back as null. */
@@ -34,15 +40,14 @@ export function buildPartnerPatch(values: PartnerFormValues): Record<string, unk
   }
 }
 
+/** A payment method's fields: bank details, or the card payment link. */
+const paymentMethodFields = (values: PaymentMethodFormValues): Record<string, string> =>
+  values.type === 'BANK' ? { type: values.type, ...bankAccountFields(values) } : { type: values.type, paymentLink: values.paymentLink.trim() }
+
 /** Multipart body for POST /finance/partners/:id/payment-methods. */
 export function buildPaymentMethodFormData(values: PaymentMethodFormValues, files: File[]): FormData {
   const body = new FormData()
-  body.append('type', values.type)
-  if (values.type === 'BANK') {
-    appendBankAccount(body, values)
-  } else {
-    body.append('paymentLink', values.paymentLink.trim())
-  }
+  Object.entries(paymentMethodFields(values)).forEach(([key, value]) => body.append(key, value))
   files.forEach((file) => body.append('documents', file))
   return body
 }
