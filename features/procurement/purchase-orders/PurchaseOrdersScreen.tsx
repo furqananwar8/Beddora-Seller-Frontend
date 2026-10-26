@@ -28,7 +28,8 @@ import {
 } from '@/services/api/procurement.api'
 import { cn } from '@/utils/cn'
 import { useDebounce } from '@/utils/debounce'
-import { DESTINATION_LABEL, PAYMENT_META, PO_STATUS_META, newPackagingListHref, newPaymentRequestHref, newPurchaseInvoiceHref, poPackagingListsHref, poPaymentRequestsHref } from '../shared/poMeta'
+import { DESTINATION_LABEL, PAYMENT_META, PO_STATUS_META, newPackagingListHref, newPaymentRequestHref, newPurchaseInvoiceHref, poPackagingListsHref } from '../shared/poMeta'
+import { PoPaymentRequestsModal } from '../shared/PoPaymentRequests'
 import { PoLegend } from './PoLegend'
 import { PurchaseOrdersTable } from './PurchaseOrdersTable'
 import { usePoActions } from './usePoActions'
@@ -88,6 +89,7 @@ export const PurchaseOrdersScreen: React.FC = () => {
   const decisions = usePoActions()
   const [approving, setApproving] = useState<PurchaseOrderListItem | null>(null)
   const [rejecting, setRejecting] = useState<PurchaseOrderListItem | null>(null)
+  const [paymentsOf, setPaymentsOf] = useState<{ id: number; poNo: string } | null>(null)
   const [deleting, setDeleting] = useState<PurchaseOrderListItem | null>(null)
   const { success, failure } = useApiFeedback()
 
@@ -230,7 +232,7 @@ export const PurchaseOrdersScreen: React.FC = () => {
             onCreatePurchaseInvoice={(row) => router.push(newPurchaseInvoiceHref(row.id))}
             onCreatePackagingList={(row) => router.push(newPackagingListHref(row.id))}
             onViewPackagingLists={(row) => router.push(poPackagingListsHref(row.id))}
-            onViewPayments={(row) => router.push(poPaymentRequestsHref(row.id))}
+            onViewPayments={(row) => setPaymentsOf({ id: row.id, poNo: row.poNo })}
             onOpen={(row) => router.push(`${BASE}/${row.id}`)}
             onApprove={setApproving}
             onReject={setRejecting}
@@ -298,6 +300,7 @@ export const PurchaseOrdersScreen: React.FC = () => {
       >
         <p>A closed PO takes no new packaging lists or payments and stops ETD reminders. Units not packed yet can move to a new PO with “Create PO from remaining”.</p>
       </ConfirmDialog>
+      <PoPaymentRequestsModal purchaseOrder={paymentsOf} onClose={() => setPaymentsOf(null)} />
     </Container>
   )
 }

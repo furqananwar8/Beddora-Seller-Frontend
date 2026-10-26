@@ -4,7 +4,8 @@ import React from 'react'
 import Link from 'next/link'
 import type { ContainerDetail } from '@/services/api/procurement.api'
 import { formatCurrencyAmount } from '@/features/finance/shared/format'
-import { PaymentBadge, poPaymentRequestsHref } from '../../shared/poMeta'
+import { PaymentBadge } from '../../shared/poMeta'
+import { ViewPoPaymentRequests } from '../../shared/PoPaymentRequests'
 import { Fact, Panel, PanelEmpty } from './Panel'
 
 const qty = (value: number) => value.toLocaleString('en-CA')
@@ -54,9 +55,11 @@ export const PurchaseOrdersPanel: React.FC<{ container: ContainerDetail }> = ({ 
                   </div>
                   <div className="mt-1 flex justify-between text-xs text-text-muted">
                     <span>{percent}% of the PO price paid</span>
-                    <Link href={poPaymentRequestsHref(po.id)} className="font-medium text-primary-600 underline-offset-2 hover:underline">
-                      {po.payment.requestCount} payment request{po.payment.requestCount === 1 ? '' : 's'}
-                    </Link>
+                    <ViewPoPaymentRequests
+                      purchaseOrder={{ id: po.id, poNo: po.poNo }}
+                      label={`${po.payment.requestCount} payment request${po.payment.requestCount === 1 ? '' : 's'}`}
+                      className="font-medium text-primary-600 underline-offset-2 hover:underline"
+                    />
                   </div>
                 </div>
               </article>

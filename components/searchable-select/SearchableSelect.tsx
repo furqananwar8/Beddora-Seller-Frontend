@@ -54,6 +54,8 @@ interface SingleProps<T> extends BaseProps<T> {
 
 interface MultiProps<T> extends BaseProps<T> {
   multiple: true
+  /** Label of the button that closes the menu once the picks are made (multiple stays open while ticking); false hides it. */
+  doneLabel?: string | false
   value: T[]
   onChange: (value: T[]) => void
   /** Trigger text for the current selection; defaults to the joined labels. */
@@ -127,6 +129,8 @@ export function SearchableSelect<T>(props: SearchableSelectProps<T>) {
     triggerClassName,
     ariaLabel,
   } = props
+  // Ticking several keeps the menu open, so it gets a way to close other than clicking outside
+  const doneLabel = props.multiple ? (props.doneLabel ?? 'Done') : false
 
   const [open, setOpen] = useState(false)
   const [localSearch, setLocalSearch] = useState('')
@@ -289,7 +293,16 @@ export function SearchableSelect<T>(props: SearchableSelectProps<T>) {
             {!loading && visible.length === 0 && <li className="px-2 py-3 text-center text-sm text-text-muted">{emptyText}</li>}
             {loading && <li className="px-2 py-3 text-center text-sm text-text-muted">Searching...</li>}
           </ul>
-          {footer && <div className="mt-1 border-t border-border pt-1">{typeof footer === 'function' ? footer(() => changeOpen(false)) : footer}</div>}
+          {(footer || doneLabel) && (
+            <div className="mt-1 flex items-center gap-2 border-t border-border pt-1">
+              <div className="min-w-0 flex-1">{typeof footer === 'function' ? footer(() => changeOpen(false)) : footer}</div>
+              {doneLabel && (
+                <button type="button" onClick={() => changeOpen(false)} className="shrink-0 rounded-md bg-primary-600 px-3 py-1 text-sm font-medium text-white hover:bg-primary-700">
+                  {doneLabel}
+                </button>
+              )}
+            </div>
+          )}
         </div>,
         document.body
       )}

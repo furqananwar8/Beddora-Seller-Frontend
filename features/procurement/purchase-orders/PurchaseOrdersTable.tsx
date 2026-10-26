@@ -10,7 +10,7 @@ import { formatCalendarDay, formatCurrency } from '@/utils/format'
 import { DESTINATION_LABEL, EtdBadge, OpenBadge, PaymentBadge, PoStatusBadge, canRequestPayment, isApprovedPo, isPackable } from '../shared/poMeta'
 
 const CELL = 'text-center align-middle'
-const COLUMNS = 13
+const COLUMNS = 14
 
 export interface PoRowActions {
   canWrite: boolean
@@ -123,6 +123,7 @@ export const PurchaseOrdersTable: React.FC<PurchaseOrdersTableProps> = ({ rows, 
         <TableHead className={CELL}>Packed</TableHead>
         <TableHead className={CELL}>Status</TableHead>
         <TableHead className={CELL}>Payment</TableHead>
+        <TableHead className={CELL}>Payment requests</TableHead>
         <TableHead className={CELL}>Open</TableHead>
         <TableHead className={CELL}>Actions</TableHead>
       </TableRow>
@@ -170,6 +171,15 @@ export const PurchaseOrdersTable: React.FC<PurchaseOrdersTableProps> = ({ rows, 
             </TableCell>
             <TableCell className={CELL}>
               <PaymentBadge payment={row.payment} withPercent />
+            </TableCell>
+            <TableCell className={cn(CELL, 'tabular-nums')}>
+              {actions.canViewPayments && row.payment.requestCount > 0 ? (
+                <button type="button" onClick={() => actions.onViewPayments(row)} className="font-medium text-primary-600 underline-offset-2 hover:underline">
+                  {row.payment.requestCount}
+                </button>
+              ) : (
+                row.payment.requestCount
+              )}
             </TableCell>
             <TableCell className={CELL}>
               <OpenBadge isOpen={row.isOpen} />
