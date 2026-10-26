@@ -851,6 +851,7 @@ export const ProfitDashboardScreen: React.FC = () => {
                       onSearchChange={setSearchTerm as any}
                       refundReasonsScope={productQueryFilters}
                       fbaStockScope={fbaStockScope}
+                      currency={appliedCurrency}
                     />
                   ) : (
                     <OrderItemsTable

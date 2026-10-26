@@ -799,6 +799,7 @@ export const ProfitSettlementReport: React.FC = () => {
                       isFetching={productFetching}
                       searchTerm={debouncedSearchTerm}
                       fbaStockScope={fbaStockScope}
+                      currency={appliedCurrency}
                     />
                   ) : (
                     <OrderItemsTable

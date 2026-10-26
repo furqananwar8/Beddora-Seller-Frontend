@@ -84,6 +84,8 @@ export interface SellerboardProductsTableProps {
   refundReasonsScope?: RefundReasonsScope
   /** When set, each product shows "FBA stock: N" opening its stock details; `marketplace` (CA, US...) narrows it to one marketplace. */
   fbaStockScope?: { marketplace?: string }
+  /** The report's currency; the product cell's price and COGS show its symbol (C$...). */
+  currency?: string
 }
 
 type SortColumn = string
@@ -465,6 +467,7 @@ export const SellerboardProductsTable: React.FC<
     emptyMessage = 'No products found matching your search criteria.',
     refundReasonsScope,
     fbaStockScope,
+    currency,
   }) => {
     const [sortColumn, setSortColumn] = useState<SortColumn>(defaultSortColumn)
     const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
@@ -735,11 +738,16 @@ export const SellerboardProductsTable: React.FC<
                 isExpanded={isExpanded}
                 onToggle={() => toggleRow(product.sku)}
                 titleInTooltip
+                currency={currency}
                 fbaStock={(product.children?.length ?? 0) === 0 ? fbaStockBySku.get(product.sku)?.regions ? fbaStockBySku.get(product.sku) : null : null}
-                onFbaStockClick={(anchorRect) => {
-                  const stock = fbaStockBySku.get(product.sku)
-                  if (stock) setFbaTarget({ stock, cogsRate: product.cogsRate ?? null, anchorRect })
-                }}
+                onFbaStockClick={
+                  fbaStockScope
+                    ? (anchorRect) => {
+                        const stock = fbaStockBySku.get(product.sku)
+                        if (stock) setFbaTarget({ stock, cogsRate: product.cogsRate ?? null, anchorRect })
+                      }
+                    : undefined
+                }
               />
             </TableCell>
 
