@@ -55,6 +55,11 @@ export const variationSchema = z.object({
   packaging: z.string().trim().max(120, 'Too long'),
   sizeName: z.string().trim().max(60, 'Too long'),
   description: z.string().trim().max(2000, 'Description is too long'),
+  /** Optional stock level (units) at which to reorder; whole number. */
+  reorderPoint: z
+    .string()
+    .trim()
+    .refine((value) => value === '' || (/^\d+$/.test(value) && Number(value) <= 10_000_000), 'Enter a whole number of units'),
   /** "Same weight as master"; dimensions are always the variation's own. */
   inheritsMaster: z.boolean(),
   ...weightShape,
@@ -128,6 +133,7 @@ export function newVariation(master: Pick<ProductFormValues, 'material' | 'packa
     packaging: master.packaging,
     sizeName: '',
     description: '',
+    reorderPoint: '',
     inheritsMaster: true,
     weight: '',
     weightUnit: master.weightUnit,
@@ -179,6 +185,7 @@ export function toProductBody(values: ProductFormValues, expectedUpdatedAt?: str
     packaging: text(variation.packaging),
     sizeName: text(variation.sizeName),
     description: text(variation.description),
+    reorderPoint: num(variation.reorderPoint),
     inheritsMaster: variation.inheritsMaster,
     // Inheriting: the master's weight and unit are copied on save
     weight: variation.inheritsMaster ? null : num(variation.weight),
@@ -246,6 +253,7 @@ export function fromFamily(family: PoProductFamily, asCopy = false): ProductForm
       packaging: variation.packaging ?? '',
       sizeName: variation.sizeName ?? '',
       description: variation.description ?? '',
+      reorderPoint: variation.reorderPoint === null ? '' : String(variation.reorderPoint),
       inheritsMaster: variation.inheritsMaster,
       weight: variation.inheritsMaster ? '' : weightValue(variation, variation.weightUnit),
       weightUnit: variation.inheritsMaster ? weightUnit : variation.weightUnit,

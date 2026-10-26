@@ -280,7 +280,7 @@ interface VariationDetailsProps {
   photo: React.ReactNode
 }
 
-/** The expanded row: category from the master, the master's or the variation's own weight, the CBM override, description and photo. */
+/** The expanded row: category from the master, the master's or the variation's own weight, the CBM override, reorder point, description and photo. */
 const VariationDetails: React.FC<VariationDetailsProps> = ({ form, index, readOnly, inherits, master, dimensionUnit, photo }) => {
   const {
     control,
@@ -304,7 +304,7 @@ const VariationDetails: React.FC<VariationDetailsProps> = ({ form, index, readOn
   const shownCbm = derivedCbm({ length, width, height, cbm, cbmTouched }, dimensionUnit)
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[repeat(3,minmax(0,1fr))_minmax(0,2fr)_auto]">
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[repeat(4,minmax(0,1fr))_minmax(0,2fr)_auto]">
       <Readout label="Category" value={`${master.category} · master`} />
       {inherits ? (
         <Readout label="Weight" value={`${master.weight} · master`} />
@@ -344,6 +344,23 @@ const VariationDetails: React.FC<VariationDetailsProps> = ({ form, index, readOn
           error={err?.cbm?.message}
           disabled={readOnly}
         />
+      </div>
+      <div className="min-w-0">
+        <label htmlFor={`variation-${index}-reorder`} className="ds-input-label">
+          Reorder <span className="font-normal text-text-muted">(optional)</span>
+        </label>
+        <input
+          id={`variation-${index}-reorder`}
+          type="number"
+          inputMode="numeric"
+          min={0}
+          step={1}
+          placeholder="Units"
+          className={fieldClass(err?.reorderPoint?.message)}
+          disabled={readOnly}
+          {...register(`variations.${index}.reorderPoint`)}
+        />
+        {err?.reorderPoint?.message && <p className="mt-1 text-xs text-danger-600">{err.reorderPoint.message}</p>}
       </div>
       <div className="min-w-0">
         <p className="ds-input-label">Description</p>
