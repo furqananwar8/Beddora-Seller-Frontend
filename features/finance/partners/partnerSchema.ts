@@ -83,11 +83,10 @@ export const emptyPaymentMethodValues: PaymentMethodFormValues = {
   paymentLink: '',
 }
 
-/** A payment method captured before the partner exists (create mode). */
+/** A payment method captured before the partner exists (create mode); its documents are added after saving. */
 export interface StagedPaymentMethod {
   key: string
   values: PaymentMethodFormValues
-  files: File[]
 }
 
 /** Label matching what the API returns for saved methods. */

@@ -19,6 +19,8 @@ interface PaymentMethodDialogProps {
   onClose: () => void
   /** The parent decides whether to stage the details locally or save them through the API. */
   onSubmit: (values: PaymentMethodFormValues, files: File[]) => Promise<void> | void
+  /** Documents can be uploaded once the partner exists; a new partner is saved without them. Defaults to true. */
+  allowDocuments?: boolean
 }
 
 /** A partner's bank or card-link payment details. */
@@ -28,7 +30,7 @@ export const PaymentMethodDialog: React.FC<PaymentMethodDialogProps> = (props) =
   </Modal>
 )
 
-const DialogForm: React.FC<PaymentMethodDialogProps> = ({ subtitle, onClose, onSubmit }) => {
+const DialogForm: React.FC<PaymentMethodDialogProps> = ({ subtitle, onClose, onSubmit, allowDocuments = true }) => {
   const [files, setFiles] = useState<File[]>([])
   const form = useForm<PaymentMethodFormValues>({
     resolver: zodResolver(paymentMethodSchema),
@@ -74,9 +76,13 @@ const DialogForm: React.FC<PaymentMethodDialogProps> = ({ subtitle, onClose, onS
         {type === 'BANK' ? (
           <>
             <BankAccountFields idPrefix="pm" swiftRequired holderLabel="Account holder" />
-            <FormField label="Documents">
-              <FileDropzone multiple files={files} onChange={setFiles} title="Upload documents" hint="Void cheque / bank letter" />
-            </FormField>
+            {allowDocuments ? (
+              <FormField label="Documents">
+                <FileDropzone multiple files={files} onChange={setFiles} title="Upload documents" hint="Void cheque / bank letter" />
+              </FormField>
+            ) : (
+              <p className="rounded-lg bg-secondary-100 px-3 py-2 text-sm text-text-secondary">Documents (void cheque, bank letter) can be uploaded after the partner is saved, by editing it.</p>
+            )}
           </>
         ) : (
           <>

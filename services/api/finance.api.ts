@@ -433,7 +433,8 @@ export const financeApi = baseApi.injectEndpoints({
       query: (name) => ({ url: '/finance/partners/name-check', params: { name } }),
       transformResponse: unwrap,
     }),
-    createPartner: b.mutation<PartnerDetail, FormData>({
+    /** The partner with the payment methods added on the form, in one transaction (no documents). */
+    createPartner: b.mutation<PartnerDetail, Record<string, unknown>>({
       query: (body) => ({ url: '/finance/partners', method: 'POST', body }),
       transformResponse: unwrap,
       invalidatesTags: ['FinancePartners'],

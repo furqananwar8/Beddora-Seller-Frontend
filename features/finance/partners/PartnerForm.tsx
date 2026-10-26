@@ -22,7 +22,7 @@ import { useFinanceFeedback } from '../shared/useFinanceFeedback'
 import { BasicDetailsSection } from './BasicDetailsSection'
 import { PaymentDetailsSection } from './PaymentDetailsSection'
 import { PaymentMethodDialog } from './PaymentMethodDialog'
-import { buildPartnerFormData, buildPartnerPatch, buildPaymentMethodFormData } from './partnerPayload'
+import { buildPartnerCreateBody, buildPartnerPatch, buildPaymentMethodFormData } from './partnerPayload'
 import { applyServerIssues } from '@/utils/apiErrors'
 import {
   emptyPartnerValues,
@@ -107,7 +107,7 @@ export const PartnerForm: React.FC<PartnerFormProps> = ({ partner }) => {
 
   const addPaymentMethod = async (values: PaymentMethodFormValues, methodFiles: File[]) => {
     if (!partner) {
-      setStaged((current) => [...current, { key: crypto.randomUUID(), values, files: methodFiles }])
+      setStaged((current) => [...current, { key: crypto.randomUUID(), values }])
       setDialogOpen(false)
       return
     }
@@ -143,16 +143,8 @@ export const PartnerForm: React.FC<PartnerFormProps> = ({ partner }) => {
         return
       }
 
-      const created = await createPartner(buildPartnerFormData(values)).unwrap()
-      try {
-        for (const item of staged) {
-          await addMethod({ partnerId: created.id, body: buildPaymentMethodFormData(item.values, item.files) }).unwrap()
-        }
-      } catch (error) {
-        failure(error, 'Partner created, but a payment method could not be saved. Add it again here.')
-        router.replace(`${LIST}/${created.id}`)
-        return
-      }
+      // One request: the partner and its payment methods are saved together or not at all
+      const created = await createPartner(buildPartnerCreateBody(values, staged)).unwrap()
       success('Partner created')
       router.push(returnTo ? withQueryParam(returnTo, 'partnerId', String(created.id)) : LIST)
     } catch (error) {
@@ -215,6 +207,7 @@ export const PartnerForm: React.FC<PartnerFormProps> = ({ partner }) => {
         subtitle={`${partner?.name ?? (name.trim() || 'New partner')} · ${partner ? formatPartnerNo(partner.id) : 'New'}`}
         onClose={() => setDialogOpen(false)}
         onSubmit={addPaymentMethod}
+        allowDocuments={editing}
       />
     </div>
   )
