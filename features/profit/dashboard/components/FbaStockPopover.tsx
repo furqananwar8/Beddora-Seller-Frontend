@@ -18,6 +18,10 @@ const GAP = 8
 /** Days until the next order at or below this read as a warning. */
 const REORDER_SOON_DAYS = 7
 
+/** Stock is running low: the next order is due within a week (shown orange / with a warning). */
+export const isReorderSoon = (stock: { daysUntilNextOrder?: number | null }): boolean =>
+  stock.daysUntilNextOrder != null && stock.daysUntilNextOrder <= REORDER_SOON_DAYS
+
 const days = (value: number | null) => (value === null ? '—' : formatNumber(value, 0))
 
 const Metric: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
@@ -37,7 +41,7 @@ export function FbaStockPopover({ stock, cogsRate, anchorRect, onClose }: FbaSto
 
   const left = Math.min(Math.max(8, anchorRect.left), window.innerWidth - WIDTH - 8)
   const top = Math.min(anchorRect.bottom + GAP, window.innerHeight - 220)
-  const reorderSoon = stock.daysUntilNextOrder !== null && stock.daysUntilNextOrder <= REORDER_SOON_DAYS
+  const reorderSoon = isReorderSoon(stock)
 
   return (
     <div

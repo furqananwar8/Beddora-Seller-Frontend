@@ -2,7 +2,8 @@
 
 import React, { useState } from 'react'
 import { createPortal } from 'react-dom'
-import { ChartLine } from 'lucide-react'
+import { TrendingUp } from 'lucide-react'
+import { isReorderSoon } from './components/FbaStockPopover'
 import { MarketplaceFlag } from '@/components/marketplace-flag/MarketPlaceFlag'
 import { Tooltip } from '@/design-system/tooltips'
 import { formatCurrency, formatMoneyIn } from '@/utils/format'
@@ -35,7 +36,7 @@ interface ProductIdentityCellProps {
   /** Shows price per unit, COGS and promo under the identity. Defaults to on; never on a parent row (it has children). */
   showUnitStats?: boolean
   /** The row's FBA stock; when given with `onFbaStockClick`, an "FBA stock: N" link opens its details. */
-  fbaStock?: { fbaStock: number; regions: number } | null
+  fbaStock?: { fbaStock: number; regions: number; daysUntilNextOrder?: number | null } | null
   onFbaStockClick?: (anchorRect: DOMRect) => void
   /** The report's currency (CAD, USD...): price and COGS show its symbol, e.g. C$. */
   currency?: string
@@ -124,10 +125,10 @@ export function ProductIdentityCell({ product, isChild = false, isExpanded = fal
           event.stopPropagation()
           onFbaStockClick(event.currentTarget.getBoundingClientRect())
         }}
-        className="inline-flex items-center gap-1 text-xs font-medium text-primary-600 hover:text-primary-700 hover:underline"
+        className={`inline-flex items-center gap-1 hover:text-primary-600 hover:underline ${isReorderSoon(fbaStock) ? 'text-warning-600' : ''}`}
         aria-label={`FBA stock details for ${product.sku}`}
       >
-        <ChartLine className="h-3 w-3 shrink-0" aria-hidden />
+        <TrendingUp className="h-3 w-3 shrink-0" aria-hidden />
         FBA stock{fbaStock.regions > 1 ? ` (${fbaStock.regions} regions)` : ''}: {fbaStock.fbaStock.toLocaleString('en-CA')}
       </button>
     ) : null
@@ -156,8 +157,22 @@ export function ProductIdentityCell({ product, isChild = false, isExpanded = fal
         </div>
       )}
 
-      {unitStatsShown && (
-      <div className={`flex items-center gap-x-3 gap-y-1 text-xs ${onFbaStockClick ? 'flex-nowrap whitespace-nowrap' : 'flex-wrap'}`}>
+      {unitStatsShown && onFbaStockClick && (
+        <div className="flex flex-nowrap items-center gap-1.5 whitespace-nowrap text-xs text-text-muted">
+          <span>{formatMoneyIn((product.salesRevenue || 0) / Math.max(product.unitsSold || 1, 1), currency)}</span>
+          <span aria-hidden>·</span>
+          <span>COGS: {formatMoneyIn(product.cogsRate || 0, currency)}</span>
+          {fbaStockLink && (
+            <>
+              <span aria-hidden>·</span>
+              {fbaStockLink}
+            </>
+          )}
+        </div>
+      )}
+
+      {unitStatsShown && !onFbaStockClick && (
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
         <div>
           <span className="text-text-primary font-medium">
             {formatMoneyIn(
@@ -175,10 +190,6 @@ export function ProductIdentityCell({ product, isChild = false, isExpanded = fal
           </span>
         </div>
 
-        {/* Where the report shows FBA stock, it takes the promo's place on this line (the column is a little wider to fit it) */}
-        {onFbaStockClick ? (
-          fbaStockLink
-        ) : (
         <div className="flex items-center gap-1">
           <span className="text-text-primary font-medium">
             {formatCurrency(
@@ -197,7 +208,6 @@ export function ProductIdentityCell({ product, isChild = false, isExpanded = fal
             />
           </svg>
         </div>
-        )}
       </div>
       )}
 
