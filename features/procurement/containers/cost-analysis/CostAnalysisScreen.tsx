@@ -37,7 +37,7 @@ const COLUMNS: TreeColumn<ContainerCostItem>[] = [
 export const CostAnalysisScreen: React.FC = () => {
   const list = useContainerListState()
   const { data, isLoading, isFetching, isError } = useGetContainerCostsQuery(list.params)
-  const canMap = useAppAbility().can('write', 'containers:cost-analysis')
+  const canMap = useAppAbility().can('write', 'containers:cost-analysis.mapping')
   const [mapping, setMapping] = useState(false)
 
   return (

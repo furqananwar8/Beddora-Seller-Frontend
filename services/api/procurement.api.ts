@@ -636,7 +636,8 @@ export interface ContainerExpense {
 }
 
 export interface CostMapping {
-  columns: Array<{ key: CostBucketKey; label: string; basis: 'cbm' | 'value'; costCenter: CostCenterOption | null }>
+  /** Each column with the L4 cost centers it takes payments from (an L4 feeds one column only). */
+  columns: Array<{ key: CostBucketKey; label: string; basis: 'cbm' | 'value'; costCenters: CostCenterOption[] }>
   /** Active L4 cost centers that can be picked. */
   options: CostCenterOption[]
 }
@@ -1064,7 +1065,7 @@ export const procurementApi = baseApi.injectEndpoints({
       transformResponse: unwrap,
       providesTags: ['ProcurementContainers'],
     }),
-    saveContainerCostMapping: b.mutation<CostMapping, Array<{ bucket: CostBucketKey; costCenterId: number | null }>>({
+    saveContainerCostMapping: b.mutation<CostMapping, Array<{ bucket: CostBucketKey; costCenterIds: number[] }>>({
       query: (mappings) => ({ url: '/procurement/containers/cost-analysis/mapping', method: 'PUT', body: { mappings } }),
       transformResponse: unwrap,
       invalidatesTags: ['ProcurementContainers'],

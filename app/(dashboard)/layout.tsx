@@ -102,7 +102,7 @@ export default function DashboardLayout({
             ],
           },
           {
-            label: 'Inventory',
+            label: 'Inventory Management',
             subject: 'inventory',
             action: 'read',
             href: '/dashboard/inventory',
