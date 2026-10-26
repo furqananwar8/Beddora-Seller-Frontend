@@ -58,10 +58,10 @@ export function formatCalendarDay(value: string | Date, pattern = 'dd MMM yyyy')
 /** How report rows mark a currency: C$ for CAD, MX$ for MXN, $ for USD (Intl would print "CA$"). */
 const CURRENCY_SYMBOLS: Record<string, string> = { CAD: 'C$', USD: '$', MXN: 'MX$' }
 
-/** `C$27.99`: an amount with the report's currency symbol; unknown codes fall back to formatCurrency. */
+/** `C$ 27.99`: an amount with the report's currency symbol; unknown codes fall back to formatCurrency. */
 export const formatMoneyIn = (amount: number, currency?: string): string => {
   const symbol = currency ? CURRENCY_SYMBOLS[currency] : '$'
   if (!symbol) return formatCurrency(amount, currency)
   const digits = Math.abs(amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-  return `${amount < 0 ? '-' : ''}${symbol}${digits}`
+  return `${amount < 0 ? '-' : ''}${symbol} ${digits}`
 }
