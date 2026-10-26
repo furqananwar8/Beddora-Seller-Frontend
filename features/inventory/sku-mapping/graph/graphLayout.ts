@@ -32,7 +32,6 @@ export interface InternalNodeData extends Record<string, unknown> {
   /** Quantity bound to the selected channel SKU, if any. */
   boundToSelected: number | null
   /** Clicking binds it to the selected channel SKU. */
-  bindable: boolean
   compact: boolean
 }
 
@@ -59,7 +58,6 @@ export interface GraphInput {
   placed: Array<Pick<BindingComponent, 'productId' | 'sku' | 'name' | 'onHand'>>
   selected: string | null
   compact: boolean
-  canBind: boolean
   width: number
   /** Internal nodes the user dragged, by node id: they keep that spot instead of the computed one. */
   moved: Record<string, XYPosition>
@@ -76,7 +74,7 @@ export interface GraphLayout {
  * average height of the channel SKUs bound to it, so edges stay close to horizontal, then is pushed down just enough
  * not to overlap the one above. Unbound (placed) internal SKUs go below.
  */
-export function layoutGraph({ rows, componentsOf, statusOf, placed, selected, compact, canBind, width, moved }: GraphInput): GraphLayout {
+export function layoutGraph({ rows, componentsOf, statusOf, placed, selected, compact, width, moved }: GraphInput): GraphLayout {
   const { height: rowHeight, gap } = compact ? ROW.compact : ROW.regular
   const pitch = rowHeight + gap
   const rightX = Math.max(NODE_WIDTH + 200, width - NODE_WIDTH - EDGE_MARGIN)
@@ -125,11 +123,14 @@ export function layoutGraph({ rows, componentsOf, statusOf, placed, selected, co
     return { component, y: top }
   })
 
-  let bottom = rows.length > 0 ? (rows.length - 1) * pitch : 0
+  // The canvas is as tall as the laid-out graph plus one spare row, and dragging stays inside it: moving a node
+  // never makes the graph (and the page) taller. Positions saved from a larger canvas are pulled back in.
+  const naturalBottom = Math.max(rows.length > 0 ? (rows.length - 1) * pitch : 0, ...positioned.map(({ y }) => y))
+  const lowestTop = naturalBottom + pitch
   for (const { component, y } of positioned) {
     const id = `i:${component.productId}`
-    const position = moved[id] ?? { x: rightX, y }
-    bottom = Math.max(bottom, position.y)
+    const saved = moved[id]
+    const position = saved ? { x: saved.x, y: Math.min(Math.max(saved.y, 0), lowestTop) } : { x: rightX, y }
     nodes.push({
       id,
       type: 'internal',
@@ -139,7 +140,7 @@ export function layoutGraph({ rows, componentsOf, statusOf, placed, selected, co
       focusable: false,
       extent: [
         [NODE_WIDTH + COLUMN_GAP, 0],
-        [Math.max(rightX, NODE_WIDTH + COLUMN_GAP) + NODE_WIDTH, Infinity],
+        [Math.max(rightX, NODE_WIDTH + COLUMN_GAP) + NODE_WIDTH, lowestTop + rowHeight],
       ],
       data: {
         productId: component.productId,
@@ -147,12 +148,13 @@ export function layoutGraph({ rows, componentsOf, statusOf, placed, selected, co
         name: component.name,
         onHand: component.onHand ?? null,
         boundToSelected: selectedComponents.get(component.productId) ?? null,
-        bindable: canBind && selected !== null,
         compact,
       },
     })
   }
 
-  // One spare row under the lowest node gives room to drag a node further down
-  return { nodes, edges, height: rows.length === 0 && positioned.length === 0 ? 0 : bottom + rowHeight + pitch }
+  return { nodes, edges, height: rows.length === 0 && positioned.length === 0 ? 0 : lowestTop + rowHeight }
 }
+
+/** A handle covering its whole node, invisible: lines start (channel SKU) or end (internal SKU) anywhere on the box. */
+export const WHOLE_NODE_HANDLE = '!absolute !inset-0 !h-full !w-full !translate-x-0 !translate-y-0 !transform-none !rounded-md !border-0 !bg-transparent !opacity-0'

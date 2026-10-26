@@ -7,10 +7,10 @@ import { marketplaceName } from '../constants'
 import { MappingStatusBadge } from '../MappingStatusBadge'
 import { useGraphActions } from './GraphActions'
 import type { ChannelNode } from './graphLayout'
-import { NODE_WIDTH } from './graphLayout'
+import { NODE_WIDTH, WHOLE_NODE_HANDLE } from './graphLayout'
 
 export const ChannelSkuNode = memo(function ChannelSkuNode({ data }: NodeProps<ChannelNode>) {
-  const { select } = useGraphActions()
+  const { select, readOnly } = useGraphActions()
   const { row, status, selected, compact } = data
 
   return (
@@ -31,7 +31,8 @@ export const ChannelSkuNode = memo(function ChannelSkuNode({ data }: NodeProps<C
         {!compact && <span className="block truncate text-xs text-text-muted">{marketplaceName(row.marketplace)}{row.reference ? ` · ${row.reference}` : ''}</span>}
       </span>
       <MappingStatusBadge status={status} />
-      <Handle type="source" position={Position.Right} isConnectable={false} className="!h-2 !w-2 !border-0 !bg-transparent" />
+      {/* The whole box is the handle (invisible): press and drag from anywhere on it to an internal SKU to link them; a click still selects */}
+      <Handle type="source" position={Position.Right} isConnectable={!readOnly} className={WHOLE_NODE_HANDLE} />
     </button>
   )
 })

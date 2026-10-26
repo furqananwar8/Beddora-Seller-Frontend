@@ -1,13 +1,13 @@
 'use client'
 
 import React, { useCallback, useEffect, useRef, useState } from 'react'
-import { ReactFlow, type EdgeTypes, type NodeMouseHandler, type NodeTypes, type OnNodesChange, type XYPosition } from '@xyflow/react'
+import { applyNodeChanges, ReactFlow, type Connection, type EdgeTypes, type NodeTypes, type OnConnect, type Node, type OnNodesChange, type XYPosition } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import { BindingEdge } from './BindingEdge'
 import { ChannelSkuNode } from './ChannelSkuNode'
 import { GraphActionsProvider, type GraphActions } from './GraphActions'
 import { InternalSkuNode } from './InternalSkuNode'
-import { MIN_GRAPH_WIDTH, layoutGraph, type GraphInput, type InternalNode } from './graphLayout'
+import { MIN_GRAPH_WIDTH, NODE_WIDTH, layoutGraph, type GraphInput, type InternalNode } from './graphLayout'
 
 const nodeTypes: NodeTypes = { channel: ChannelSkuNode, internal: InternalSkuNode }
 const edgeTypes: EdgeTypes = { binding: BindingEdge }
@@ -42,26 +42,33 @@ export const SkuGraph: React.FC<SkuGraphProps> = ({ actions, channelLabel, ...in
   const [container, available] = useWidth<HTMLDivElement>()
   const width = Math.max(available, MIN_GRAPH_WIDTH)
   const [moved, setMoved] = useState<Record<string, XYPosition>>({})
-  const { nodes, edges, height } = layoutGraph({ ...input, width, moved })
+  /** What React Flow measured for each node; without it every freshly laid-out node is hidden and re-measured (a flash per drag step). */
+  const [measured, setMeasured] = useState<Record<string, NonNullable<Node['measured']>>>({})
+  const layout = layoutGraph({ ...input, width, moved })
+  const { edges, height } = layout
+  const nodes = layout.nodes.map((node) => (measured[node.id] ? { ...node, measured: measured[node.id] } : node))
 
-  const placedAt = new Map(nodes.map((node) => [node.id, node.position]))
-  // A click is reported as a position change to the same spot; only a real move counts as "moved"
+  // React Flow applies its own changes (drag positions, measured sizes); the layout keeps only what it owns
   const onNodesChange: OnNodesChange = (changes) => {
-    const positions = changes.flatMap((change) => {
-      if (change.type !== 'position' || !change.position) return []
-      const at = placedAt.get(change.id)
-      return at && at.x === change.position.x && at.y === change.position.y ? [] : [[change.id, change.position] as const]
+    const next = applyNodeChanges(changes, nodes)
+    const sizes = next.flatMap((node) => (node.measured && node.measured !== measured[node.id] ? [[node.id, node.measured] as const] : []))
+    if (sizes.length > 0) setMeasured((current) => ({ ...current, ...Object.fromEntries(sizes) }))
+    // A click is reported as a position change to the same spot; only a real move counts as "moved"
+    const before = new Map(nodes.map((node) => [node.id, node.position]))
+    const positions = next.flatMap((node) => {
+      const at = before.get(node.id)
+      return at && (at.x !== node.position.x || at.y !== node.position.y) ? [[node.id, node.position] as const] : []
     })
     if (positions.length > 0) setMoved((current) => ({ ...current, ...Object.fromEntries(positions) }))
   }
 
-  // React Flow skips onNodeClick after a drag, so a dropped node isn't bound by accident
-  const onNodeClick: NodeMouseHandler = useCallback(
-    (_event, node) => {
-      const data = (node as InternalNode).data
-      if (node.type === 'internal' && data.bindable && data.boundToSelected === null && !actions.readOnly) actions.bindToSelected(data.productId)
+  // A binding is drawn, never clicked: from a channel SKU (`c:<key>`) to an internal SKU (`i:<productId>`)
+  const isValidConnection = useCallback((link: Connection | { source: string; target: string }) => link.source.startsWith('c:') && link.target.startsWith('i:'), [])
+  const onConnect: OnConnect = useCallback(
+    ({ source, target }) => {
+      if (isValidConnection({ source, target })) actions.connect(source.slice(2), Number(target.slice(2)))
     },
-    [actions]
+    [actions, isValidConnection]
   )
 
   const hasMoved = Object.keys(moved).length > 0
@@ -88,10 +95,13 @@ export const SkuGraph: React.FC<SkuGraphProps> = ({ actions, channelLabel, ...in
               nodeTypes={nodeTypes}
               edgeTypes={edgeTypes}
               onNodesChange={onNodesChange}
-              onNodeClick={onNodeClick}
+              onConnect={onConnect}
+              // A line dropped anywhere on an internal SKU's box reaches its (box-sized) handle
+              connectionRadius={NODE_WIDTH / 2}
+              isValidConnection={isValidConnection}
               viewport={{ x: 0, y: PADDING, zoom: 1 }}
               nodesDraggable={false}
-              nodesConnectable={false}
+              nodesConnectable={!actions.readOnly}
               elementsSelectable={false}
               panOnDrag={false}
               panOnScroll={false}

@@ -62,7 +62,7 @@ export const SkuMappingScreen: React.FC = () => {
           {!readOnly && <InternalSkuPicker bindTo={selectedRow?.sku ?? null} onPick={mapper.bindInternal} />}
           <div className="ml-auto flex min-w-0 items-center gap-3">
             <span className="hidden truncate text-sm text-text-muted xl:block">
-              {readOnly ? 'View only: you can’t change bindings.' : selectedRow ? 'Click an internal node to bind it to the selected SKU' : 'Select a channel SKU to start binding'}
+              {readOnly ? 'View only: you can’t change bindings.' : selectedRow ? 'Press and drag from a channel SKU to an internal SKU to link them' : 'Select a channel SKU to start binding'}
             </span>
             <Button type="button" size="sm" className="h-10 shrink-0 gap-2" onClick={() => setTimelineOpen(true)}>
               Show timeline
@@ -105,8 +105,7 @@ export const SkuMappingScreen: React.FC = () => {
                 placed={mapper.draft.placed}
                 selected={mapper.draft.selected}
                 compact={mapper.compact}
-                canBind={!readOnly}
-                actions={{ select: mapper.select, bindToSelected: mapper.bindToSelected, setQuantity: mapper.setQuantity, readOnly }}
+                actions={{ select: mapper.select, connect: mapper.connect, setQuantity: mapper.setQuantity, readOnly }}
               />
             </div>
           )}
