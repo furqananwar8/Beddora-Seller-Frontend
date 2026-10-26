@@ -7,9 +7,10 @@ import { cn } from '@/utils/cn'
 import { formatCostCenterCode } from './costCenterCode'
 import { buildCostCenterTree, visibleRows } from './costCenterTree'
 import { LevelBadge } from './LevelBadge'
+import { RemoveCostCenterAction } from './RemoveCostCenterAction'
 
-/** Account code first, then Name (which grows and carries the indentation), then Level; fixed widths keep rows under the header. */
-const GRID = 'grid grid-cols-[minmax(9rem,14rem)_minmax(0,1fr)_5rem] items-center gap-4 px-4'
+/** Account code first, then Name (which grows and carries the indentation), Level and the remove action; fixed widths keep rows under the header. */
+const GRID = 'grid grid-cols-[minmax(9rem,14rem)_minmax(0,1fr)_5rem_2.5rem] items-center gap-4 px-4'
 const INDENT_REM = 1.5
 
 const Chevron: React.FC<{ open: boolean }> = ({ open }) => (
@@ -51,6 +52,9 @@ export const BranchDetail: React.FC<{ root: CostCenterRoot }> = ({ root }) => {
           <span role="columnheader">Account Code</span>
           <span role="columnheader">Name</span>
           <span role="columnheader">Level</span>
+          <span role="columnheader" className="sr-only">
+            Actions
+          </span>
         </div>
         {rows.map(({ node, depth }) => {
           const hasChildren = node.children.length > 0
@@ -84,6 +88,9 @@ export const BranchDetail: React.FC<{ root: CostCenterRoot }> = ({ root }) => {
               </span>
               <span role="cell">
                 <LevelBadge level={node.level} />
+              </span>
+              <span role="cell">
+                <RemoveCostCenterAction node={node} hasChildren={hasChildren} />
               </span>
             </div>
           )

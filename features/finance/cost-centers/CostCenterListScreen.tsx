@@ -14,6 +14,7 @@ import { useFinanceCapabilities } from '../shared/useFinanceCapabilities'
 import { BranchDetail } from './BranchDetail'
 import { formatCostCenterCode } from './costCenterCode'
 import { LevelBadge } from './LevelBadge'
+import { RemoveCostCenterAction } from './RemoveCostCenterAction'
 
 const PAGE_SIZE = 15
 export const COST_CENTER_BASE = '/dashboard/finance/cost-center'
@@ -27,6 +28,8 @@ const columns: TreeColumn<CostCenterRoot>[] = [
   },
   { key: 'name', header: 'Name', className: '!text-left', render: (row) => <span className="font-medium text-text-primary">{row.name}</span> },
   { key: 'level', header: 'Level', className: 'w-24 !text-left', render: (row) => <LevelBadge level={row.level} /> },
+  // Whether an L1 has anything under it is only known once its branch loads; the dialog words it either way
+  { key: 'actions', header: '', className: 'w-12', render: (row) => <RemoveCostCenterAction node={row} hasChildren /> },
 ]
 
 /** L1 cost centers, each opening onto its whole hierarchy. A search opens the branches it matched. */
