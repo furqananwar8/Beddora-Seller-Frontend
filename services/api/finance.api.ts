@@ -405,6 +405,11 @@ export interface PopResult {
   balance: number
 }
 
+export interface PartnerRemoval {
+  removed: number[]
+  skipped: Array<{ id: number; name: string; reason: string }>
+}
+
 /* ─────────────── Endpoints ─────────────── */
 
 export const financeApi = baseApi.injectEndpoints({
@@ -435,6 +440,16 @@ export const financeApi = baseApi.injectEndpoints({
     }),
     updatePartner: b.mutation<PartnerDetail, { id: number; body: Record<string, unknown> }>({
       query: ({ id, body }) => ({ url: `/finance/partners/${id}`, method: 'PATCH', body }),
+      transformResponse: unwrap,
+      invalidatesTags: ['FinancePartners'],
+    }),
+    deletePartner: b.mutation<void, number>({
+      query: (id) => ({ url: `/finance/partners/${id}`, method: 'DELETE' }),
+      invalidatesTags: ['FinancePartners'],
+    }),
+    /** Deletes those nothing refers to; `skipped` says why each other one was kept. */
+    deletePartners: b.mutation<PartnerRemoval, number[]>({
+      query: (ids) => ({ url: '/finance/partners/bulk-delete', method: 'POST', body: { ids } }),
       transformResponse: unwrap,
       invalidatesTags: ['FinancePartners'],
     }),
@@ -673,6 +688,8 @@ export const {
   useLazyCheckPartnerNameQuery,
   useCreatePartnerMutation,
   useUpdatePartnerMutation,
+  useDeletePartnerMutation,
+  useDeletePartnersMutation,
   useAddPaymentMethodMutation,
   useRemovePaymentMethodMutation,
   useGetBankProfilesQuery,

@@ -3,6 +3,7 @@
 import React from 'react'
 import { useRouter } from 'next/navigation'
 import { RowActionsMenu } from '@/components/row-actions-menu/RowActionsMenu'
+import { SelectionCheckbox } from '@/components/selection-checkbox/SelectionCheckbox'
 import { useFinanceCapabilities } from '../shared/useFinanceCapabilities'
 import { Spinner } from '@/design-system/loaders'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/design-system/tables'
@@ -14,7 +15,7 @@ import { partnerTypeLabel } from './partnerSchema'
 
 const HEAD = 'text-center align-middle'
 const CELL = 'text-center align-middle'
-const COLUMNS = 9
+const COLUMNS = 10
 const BASE = '/dashboard/finance/partner-profile'
 
 /** `Toronto, ON · Canada`, or whichever parts are known. */
@@ -27,9 +28,17 @@ interface PartnerTableProps {
   isFetching: boolean
   isError: boolean
   onOpen: (id: number) => void
+  /** Row checkboxes for bulk actions; omitted for users who cannot delete. */
+  selection?: {
+    isSelected: (id: number) => boolean
+    toggle: (id: number) => void
+    toggleAllVisible: () => void
+    headerState: 'all' | 'some' | 'none'
+  }
+  onDelete?: (row: PartnerListItem) => void
 }
 
-export const PartnerTable: React.FC<PartnerTableProps> = ({ rows, isLoading, isFetching, isError, onOpen }) => {
+export const PartnerTable: React.FC<PartnerTableProps> = ({ rows, isLoading, isFetching, isError, onOpen, selection, onDelete }) => {
   const router = useRouter()
   const { canWritePartners } = useFinanceCapabilities()
   return (
@@ -37,6 +46,16 @@ export const PartnerTable: React.FC<PartnerTableProps> = ({ rows, isLoading, isF
     <Table className="min-w-full">
       <TableHeader className="sticky top-0 z-10 bg-surface shadow-sm">
         <TableRow>
+          {selection && (
+            <TableHead className={cn(HEAD, 'w-10')}>
+              <SelectionCheckbox
+                label="Select all partners on this page"
+                checked={selection.headerState === 'all'}
+                indeterminate={selection.headerState === 'some'}
+                onChange={selection.toggleAllVisible}
+              />
+            </TableHead>
+          )}
           <TableHead className={HEAD}>ID</TableHead>
           <TableHead className={cn(HEAD, 'min-w-[200px]')}>Name</TableHead>
           <TableHead className={HEAD}>Type</TableHead>
@@ -75,6 +94,11 @@ export const PartnerTable: React.FC<PartnerTableProps> = ({ rows, isLoading, isF
               onKeyDown={(event) => event.key === 'Enter' && onOpen(row.id)}
               className="cursor-pointer hover:bg-secondary-50"
             >
+              {selection && (
+                <TableCell className={CELL}>
+                  <SelectionCheckbox label={`Select ${row.name}`} checked={selection.isSelected(row.id)} onChange={() => selection.toggle(row.id)} />
+                </TableCell>
+              )}
               <TableCell className={cn(CELL, 'font-mono text-text-muted')}>{formatPartnerNo(row.id)}</TableCell>
               <TableCell className={cn(CELL, 'font-medium text-text-primary')}>{row.name}</TableCell>
               <TableCell className={CELL}>{partnerTypeLabel(row.type)}</TableCell>
@@ -86,7 +110,10 @@ export const PartnerTable: React.FC<PartnerTableProps> = ({ rows, isLoading, isF
               <TableCell className={CELL}>
                 <RowActionsMenu
                   label={row.name}
-                  items={[{ key: 'update', label: canWritePartners ? 'Update profile' : 'View profile', onSelect: () => router.push(`${BASE}/${row.id}`) }]}
+                  items={[
+                    { key: 'update', label: canWritePartners ? 'Update profile' : 'View profile', onSelect: () => router.push(`${BASE}/${row.id}`) },
+                    ...(onDelete ? [{ key: 'delete', label: 'Delete partner', onSelect: () => onDelete(row) }] : []),
+                  ]}
                 />
               </TableCell>
             </TableRow>

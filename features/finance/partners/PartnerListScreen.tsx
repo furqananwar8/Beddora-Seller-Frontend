@@ -11,6 +11,8 @@ import { useDebounce } from '@/utils/debounce'
 import { ScreenSearch } from '../shared/ScreenSearch'
 import { useFinanceCapabilities } from '../shared/useFinanceCapabilities'
 import { PartnerTable } from './PartnerTable'
+import { usePartnerRemoval } from './usePartnerRemoval'
+import { useRowSelection } from '@/hooks/useRowSelection'
 
 const PAGE_SIZE = 10
 const BASE = '/dashboard/finance/partner-profile'
@@ -31,6 +33,9 @@ export const PartnerListScreen: React.FC = () => {
     page,
     limit: PAGE_SIZE,
   })
+  const rows = data?.data ?? []
+  const selection = useRowSelection(rows.map((row) => row.id))
+  const removal = usePartnerRemoval(() => selection.clear())
 
   return (
     <Container size="full" className="py-4 sm:py-8">
@@ -59,17 +64,24 @@ export const PartnerListScreen: React.FC = () => {
               { value: 'SUPPLIER', label: 'Supplier' },
             ]}
           />
+          {canWritePartners && selection.count > 0 && (
+            <Button variant="danger" onClick={() => removal.askMany(selection.keys)}>
+              Delete selected ({selection.count})
+            </Button>
+          )}
           {canWritePartners && <Button onClick={() => router.push(`${BASE}/new`)}>+ New partner</Button>}
         </div>
       </div>
 
       <div className="overflow-hidden rounded-lg border border-border shadow-sm">
         <PartnerTable
-          rows={data?.data ?? []}
+          rows={rows}
           isLoading={isLoading}
           isFetching={isFetching}
           isError={isError}
           onOpen={(id) => router.push(`${BASE}/${id}`)}
+          selection={canWritePartners ? selection : undefined}
+          onDelete={canWritePartners ? removal.askOne : undefined}
         />
         {data && (
           <PaginationFooter
@@ -82,6 +94,7 @@ export const PartnerListScreen: React.FC = () => {
           />
         )}
       </div>
+      {removal.dialog}
     </Container>
   )
 }
