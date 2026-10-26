@@ -739,7 +739,8 @@ export const SellerboardProductsTable: React.FC<
                 onToggle={() => toggleRow(product.sku)}
                 titleInTooltip
                 currency={currency}
-                fbaStock={(product.children?.length ?? 0) === 0 ? fbaStockBySku.get(product.sku)?.regions ? fbaStockBySku.get(product.sku) : null : null}
+                // Every product row shows its FBA stock, 0 included, once the lookup has answered; parent rows never do
+                fbaStock={(product.children?.length ?? 0) === 0 ? (fbaStockBySku.get(product.sku) ?? null) : null}
                 onFbaStockClick={
                   fbaStockScope
                     ? (anchorRect) => {

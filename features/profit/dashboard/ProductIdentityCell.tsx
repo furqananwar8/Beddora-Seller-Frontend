@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react'
 import { createPortal } from 'react-dom'
+import { ChartLine } from 'lucide-react'
 import { MarketplaceFlag } from '@/components/marketplace-flag/MarketPlaceFlag'
 import { Tooltip } from '@/design-system/tooltips'
 import { formatCurrency, formatMoneyIn } from '@/utils/format'
@@ -123,9 +124,10 @@ export function ProductIdentityCell({ product, isChild = false, isExpanded = fal
           event.stopPropagation()
           onFbaStockClick(event.currentTarget.getBoundingClientRect())
         }}
-        className="text-xs font-medium text-primary-600 hover:text-primary-700 hover:underline"
+        className="inline-flex items-center gap-1 text-xs font-medium text-primary-600 hover:text-primary-700 hover:underline"
         aria-label={`FBA stock details for ${product.sku}`}
       >
+        <ChartLine className="h-3 w-3 shrink-0" aria-hidden />
         FBA stock{fbaStock.regions > 1 ? ` (${fbaStock.regions} regions)` : ''}: {fbaStock.fbaStock.toLocaleString('en-CA')}
       </button>
     ) : null
