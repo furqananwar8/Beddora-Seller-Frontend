@@ -69,7 +69,7 @@ export const PaymentTable: React.FC<PaymentTableProps> = ({ page, isLoading, isF
             ) : (
               rows.map((row) => {
                 const meta = DOC_STATUS_META[row.status]
-                const payment = PAYMENT_STATE_META[paymentStateOf(row.paidAmount, row.amount)]
+                const payment = PAYMENT_STATE_META[paymentStateOf(row.paidAmount, row.amount, row.status)]
                 return (
                   <TableRow key={row.id}>
                     <TableCell className={CELL}>

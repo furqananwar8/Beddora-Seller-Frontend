@@ -79,7 +79,7 @@ export const RequestsTable: React.FC<RequestsTableProps> = ({ rows, isLoading, i
         ) : (
           rows.map((row) => {
             const meta = REQUEST_STATUS_META[row.status]
-            const payment = PAYMENT_STATE_META[paymentStateOf(row.payment?.paidAmount, row.amount)]
+            const payment = PAYMENT_STATE_META[paymentStateOf(row.payment?.paidAmount, row.amount, row.payment?.status)]
             const expanded = expandedId === row.id
             const decidable = canDecide && row.status === 'PENDING_APPROVAL'
             const busy = busyId === row.id
