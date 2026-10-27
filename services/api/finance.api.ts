@@ -1,4 +1,5 @@
 import { baseApi } from './baseApi'
+import { csv } from './queryParams'
 
 /* ─────────────── Shared ─────────────── */
 
@@ -169,6 +170,64 @@ export interface PartnerAgingReport {
   rows: AgingRow[]
   /** Column totals, one line per currency. */
   totals: Array<{ currency: string; cells: Record<string, AgingCell>; total: number }>
+}
+
+/* ─────────────── Cashflow planning ─────────────── */
+
+export type CashflowGrouping = 'day' | 'week' | 'month'
+
+/** One column: a day, a week (Monday to Sunday) or a month, clipped to the range. */
+export interface CashflowPeriod {
+  key: string
+  label: string
+  start: string
+  end: string
+}
+
+/** A payment recorded against a payment invoice. */
+export interface CashflowEntry {
+  id: number
+  period: string
+  paymentDate: string
+  amount: number
+  bank: string | null
+  /** The payment's own reference (wire / cheque no.). */
+  reference: string | null
+}
+
+export interface CashflowCell {
+  amount: number
+  count: number
+}
+
+/** One payment invoice and its payments per period; one currency per row. */
+export interface CashflowRow {
+  requestId: number
+  requestNo: string
+  invoiceRef: string
+  partner: { id: number; name: string }
+  currency: string
+  cells: Record<string, CashflowCell>
+  total: number
+  entries: CashflowEntry[]
+}
+
+export interface CashflowReport {
+  from: string
+  to: string
+  groupBy: CashflowGrouping
+  periods: CashflowPeriod[]
+  rows: CashflowRow[]
+  /** One footer line per currency. */
+  totals: Array<{ currency: string; cells: Record<string, number>; total: number }>
+}
+
+export interface CashflowParams {
+  /** YYYY-MM-DD, at most two months apart. */
+  from: string
+  to: string
+  groupBy: CashflowGrouping
+  currencies?: string[]
 }
 
 /* ─────────────── Payment requests ─────────────── */
@@ -725,6 +784,14 @@ export const financeApi = baseApi.injectEndpoints({
       invalidatesTags: ['FinanceRequests'],
     }),
 
+    /* cashflow planning */
+    getCashflowPlanning: b.query<CashflowReport, CashflowParams>({
+      query: ({ currencies, ...params }) => ({ url: '/finance/cashflow-planning', params: { ...params, currencies: csv(currencies) } }),
+      transformResponse: unwrap,
+      // Moves whenever a payment is recorded
+      providesTags: ['FinanceProcess'],
+    }),
+
     /* partner aging */
     getPartnerAging: b.query<PartnerAgingReport, void>({
       query: () => '/finance/partner-aging',
@@ -841,4 +908,5 @@ export const {
   useMarkPaidMutation,
   useRevealBankDetailsMutation,
   useGetPartnerAgingQuery,
+  useGetCashflowPlanningQuery,
 } = financeApi

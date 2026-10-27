@@ -6,7 +6,6 @@ import examples from 'libphonenumber-js/examples.mobile.json'
 import { fieldClass } from '@/components/form-field/FormField'
 import { SearchableSelect } from '@/components/searchable-select/SearchableSelect'
 import { useGetCountriesQuery, type GeoCountry } from '@/services/api/geo.api'
-import { cn } from '@/utils/cn'
 
 /** A phone as a form edits it: its country, and the digits after the country's calling code. */
 export interface PhoneValue {
@@ -86,26 +85,19 @@ export const PhoneField: React.FC<PhoneFieldProps> = ({ idPrefix, value, onChang
         error={error && !picked ? error : undefined}
         disabled={disabled}
       />
-      <div className={cn('flex items-stretch overflow-hidden rounded-lg', disabled || !picked ? 'opacity-90' : '')}>
-        <span
-          aria-hidden
-          className={cn('flex shrink-0 items-center rounded-l-lg border border-r-0 px-3 text-sm text-text-secondary', error ? 'border-danger-500 bg-danger-50' : 'border-border bg-secondary-50')}
-        >
-          {picked ? `+${picked.callingCode}` : '+'}
-        </span>
-        <input
-          id={`${idPrefix}-number`}
-          type="tel"
-          inputMode="numeric"
-          autoComplete="tel-national"
-          aria-label={picked ? `Phone number after +${picked.callingCode}` : 'Phone number'}
-          value={value.number}
-          onChange={(event) => type(event.target.value)}
-          placeholder={placeholder}
-          className={cn(fieldClass(error), 'rounded-l-none')}
-          disabled={disabled || !picked}
-        />
-      </div>
+      {/* The country picker already shows the calling code, so only the local digits are typed here */}
+      <input
+        id={`${idPrefix}-number`}
+        type="tel"
+        inputMode="numeric"
+        autoComplete="tel-national"
+        aria-label={picked ? `Phone number after +${picked.callingCode}` : 'Phone number'}
+        value={value.number}
+        onChange={(event) => type(event.target.value)}
+        placeholder={placeholder}
+        className={fieldClass(error)}
+        disabled={disabled || !picked}
+      />
     </div>
   )
 }
