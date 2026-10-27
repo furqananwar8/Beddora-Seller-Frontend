@@ -203,8 +203,8 @@ export const RequestDetailModal: React.FC<RequestDetailModalProps> = ({ requestI
       ) : (
         <>
           {backHref && (
-            <Link href={backHref} className="mb-3 inline-flex items-center gap-1 text-sm font-medium text-primary-600 hover:underline">
-              ← Back
+            <Link href={backHref} className="ds-button ds-button-outline ds-button-sm mb-3">
+              Back
             </Link>
           )}
           <DetailBody detail={data} onClose={onClose} />
