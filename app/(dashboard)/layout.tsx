@@ -195,9 +195,8 @@ export default function DashboardLayout({
                 href: '/dashboard/finance/partner-aging',
               },
               {
-                // Read from the payments being recorded, so it shares their permission (as Partner Aging does)
                 label: 'Cashflow Planning',
-                subject: 'finance:payment-process',
+                subject: 'finance:cashflow-planning',
                 action: 'read',
                 href: '/dashboard/finance/cashflow-planning',
               },

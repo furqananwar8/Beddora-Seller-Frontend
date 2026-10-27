@@ -32,6 +32,7 @@ export const ROUTE_PERMISSIONS: RoutePermission[] = [
   { pattern: '/dashboard/finance/cost-center', subject: 'finance:cost-center' },
   { pattern: '/dashboard/finance/payment-request', subject: 'finance:payment-request' },
   { pattern: '/dashboard/finance/payment-process', subject: 'finance:payment-process' },
+  { pattern: '/dashboard/finance/cashflow-planning', subject: 'finance:cashflow-planning' },
   { pattern: '/dashboard/finance', subject: 'finance' },
 
   // Procurement
