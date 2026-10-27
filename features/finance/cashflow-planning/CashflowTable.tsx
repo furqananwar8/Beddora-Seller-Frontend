@@ -145,14 +145,12 @@ export const CashflowTable: React.FC<CashflowTableProps> = ({ report, isLoading,
       </div>
 
       {/* What the colours mean, for whoever reads the grid */}
-      <ul className="grid gap-2 rounded-lg border border-border bg-surface p-3 text-sm sm:grid-cols-3">
+      <ul className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
         {PAYMENT_STATES.map((state) => (
-          <li key={state} className="flex items-start gap-2">
-            <span aria-hidden className={cn('mt-0.5 h-4 w-4 shrink-0 rounded border', PAYMENT_STATE_META[state].swatch)} />
-            <span>
-              <span className="font-semibold text-text-primary">{PAYMENT_STATE_META[state].label}</span>
-              <span className="block text-xs text-text-muted">{PAYMENT_STATE_META[state].explainer}</span>
-            </span>
+          // The explainer stays available on hover
+          <li key={state} className="flex items-center gap-2" title={PAYMENT_STATE_META[state].explainer}>
+            <span aria-hidden className={cn('h-4 w-4 shrink-0 rounded border', PAYMENT_STATE_META[state].swatch)} />
+            <span className="font-medium text-text-primary">{PAYMENT_STATE_META[state].label}</span>
           </li>
         ))}
       </ul>
