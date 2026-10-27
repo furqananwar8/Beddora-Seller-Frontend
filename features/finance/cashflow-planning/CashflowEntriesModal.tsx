@@ -6,6 +6,9 @@ import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, Table
 import type { CashflowPeriod, CashflowRow } from '@/services/api/finance.api'
 import { formatCurrencyAmount, formatDay } from '../shared/format'
 
+/** Every column centred, under its (centred) header. */
+const CENTER = 'text-center'
+
 export interface CashflowSelection {
   row: CashflowRow
   period: CashflowPeriod
@@ -26,24 +29,26 @@ export const CashflowEntriesModal: React.FC<{ selection: CashflowSelection | nul
             <TableHead>Payment date</TableHead>
             <TableHead>Paid from</TableHead>
             <TableHead>Reference</TableHead>
-            <TableHead className="text-right">Amount</TableHead>
+            <TableHead className={CENTER}>Amount</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {entries.map((entry) => (
             <TableRow key={entry.id}>
-              <TableCell>{formatDay(entry.paymentDate)}</TableCell>
-              <TableCell>{entry.bank ?? '—'}</TableCell>
-              <TableCell>{entry.reference || '—'}</TableCell>
-              <TableCell className="text-right tabular-nums">{formatCurrencyAmount(currency, entry.amount)}</TableCell>
+              <TableCell className={CENTER}>{formatDay(entry.paymentDate)}</TableCell>
+              <TableCell className={CENTER}>{entry.bank ?? '—'}</TableCell>
+              <TableCell className={CENTER}>{entry.reference || '—'}</TableCell>
+              <TableCell className={`${CENTER} tabular-nums`}>{formatCurrencyAmount(currency, entry.amount)}</TableCell>
             </TableRow>
           ))}
         </TableBody>
         {selection && (
           <TableFooter>
             <TableRow>
-              <TableCell colSpan={3}>Total</TableCell>
-              <TableCell className="text-right font-semibold tabular-nums">{formatCurrencyAmount(currency, selection.row.cells[selection.period.key]?.amount ?? 0)}</TableCell>
+              <TableCell colSpan={3} className={CENTER}>
+                Total
+              </TableCell>
+              <TableCell className={`${CENTER} font-semibold tabular-nums`}>{formatCurrencyAmount(currency, selection.row.cells[selection.period.key]?.amount ?? 0)}</TableCell>
             </TableRow>
           </TableFooter>
         )}
