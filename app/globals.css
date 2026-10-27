@@ -412,6 +412,13 @@
     z-index: 30 !important;
   }
 
+  /* The header cell above a sticky first column: every header cell is sticky (and pinned left) at z-30,
+     so the corner sits above them and the other headers slide under it while scrolling sideways */
+  .ds-table th.sticky-corner,
+  table th.sticky-corner {
+    z-index: 40 !important;
+  }
+
   /* Sticky column with specific background colors - ensure they don't inherit */
   .ds-table th.sticky.bg-surface,
   .ds-table td.sticky.bg-surface,

@@ -9,8 +9,11 @@ import { formatMoney } from '../shared/format'
 import type { CashflowSelection } from './CashflowEntriesModal'
 
 const AMOUNT = 'whitespace-nowrap text-right align-middle tabular-nums'
-/** The invoice column stays in view while the periods scroll sideways. */
-const STICKY = 'sticky left-0 z-[1] bg-surface'
+/** Room for a large amount with its currency (e.g. USD 1,234,567.89) without wrapping. */
+const PERIOD = 'min-w-[9rem]'
+const TOTAL = 'min-w-[10rem]'
+/** The invoice column stays in view while the periods scroll sideways (globals.css layers sticky cells). */
+const STICKY = 'sticky left-0 bg-surface'
 
 /** An amount with its currency as a small tag in front, kept on one line so it never spills out of its cell. */
 const Money: React.FC<{ currency: string; amount: number }> = ({ currency, amount }) => (
@@ -36,15 +39,19 @@ export const CashflowTable: React.FC<CashflowTableProps> = ({ report, isLoading,
     <div className="overflow-hidden rounded-lg border border-border shadow-sm">
       <div className="max-h-[calc(100vh-320px)] overflow-auto">
         <Table className="min-w-full">
-          <TableHeader className="sticky top-0 z-10 bg-surface shadow-sm">
+          {/* Above the sticky invoice column, so rows scroll under the header */}
+          <TableHeader className="sticky top-0 z-30 bg-surface shadow-sm">
             <TableRow>
-              <TableHead className={cn(STICKY, 'z-20 min-w-[14rem]')}>Payment invoice</TableHead>
+              {/* sticky-corner (globals.css) lifts it above the other header cells, which slide under it */}
+              <TableHead className={cn(STICKY, 'sticky-corner min-w-[14rem]')}>
+                Payment invoice
+              </TableHead>
               {periods.map((period) => (
-                <TableHead key={period.key} className="whitespace-nowrap text-right">
+                <TableHead key={period.key} className={cn(PERIOD, 'whitespace-nowrap text-right')}>
                   {period.label}
                 </TableHead>
               ))}
-              <TableHead className="text-right">Total</TableHead>
+              <TableHead className={cn(TOTAL, 'text-right')}>Total</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
