@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { RowActionsMenu } from '@/components/row-actions-menu/RowActionsMenu'
 import { Spinner } from '@/design-system/loaders'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/design-system/tables'
@@ -28,14 +28,20 @@ interface RequestsTableProps {
   isError: boolean
   canDecide: boolean
   busyId: number | null
+  /** A request a link pointed at: its row is marked and scrolled into view. */
+  highlightId?: number | null
   onOpen: (id: number) => void
   onEdit: (id: number) => void
   onApprove: (id: number) => void
   onReject: (id: number) => void
 }
 
-export const RequestsTable: React.FC<RequestsTableProps> = ({ rows, isLoading, isError, canDecide, busyId, onOpen, onEdit, onApprove, onReject }) => {
+export const RequestsTable: React.FC<RequestsTableProps> = ({ rows, isLoading, isError, canDecide, busyId, highlightId, onOpen, onEdit, onApprove, onReject }) => {
   const [expandedId, setExpandedId] = useState<number | null>(null)
+  const shown = rows.some((row) => row.id === highlightId)
+  useEffect(() => {
+    if (shown) document.querySelector('[data-highlighted-request]')?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+  }, [shown])
 
   const message = (text: string, danger?: boolean) => (
     <TableRow>
@@ -85,7 +91,12 @@ export const RequestsTable: React.FC<RequestsTableProps> = ({ rows, isLoading, i
             const busy = busyId === row.id
             return (
               <React.Fragment key={row.id}>
-                <TableRow className="cursor-pointer" onClick={() => setExpandedId(expanded ? null : row.id)} aria-expanded={expanded}>
+                <TableRow
+                  data-highlighted-request={row.id === highlightId || undefined}
+                  className={cn('cursor-pointer', row.id === highlightId && 'bg-primary-50 outline outline-2 -outline-offset-2 outline-primary-400')}
+                  onClick={() => setExpandedId(expanded ? null : row.id)}
+                  aria-expanded={expanded}
+                >
                   <TableCell className={CELL}>
                     <button
                       type="button"

@@ -119,8 +119,8 @@ export const CashflowTable: React.FC<CashflowTableProps> = ({ report, isLoading,
               <TableFooter>
                 {/* One line per currency: amounts in different currencies are never added together */}
                 {report.totals.map((line) => (
-                  <TableRow key={line.currency} className="border-t-2 border-border">
-                    <TableCell className={cn(STICKY, 'bg-secondary-50 font-semibold')}>{line.currency} Total</TableCell>
+                  <TableRow key={line.currency} className="border-t-2 border-border bg-secondary-100 [&>td]:bg-secondary-100">
+                    <TableCell className={cn(STICKY, 'bg-secondary-100 font-semibold')}>{line.currency} Total</TableCell>
                     {periods.map((period) => {
                       const cell = line.cells[period.key]
                       return (

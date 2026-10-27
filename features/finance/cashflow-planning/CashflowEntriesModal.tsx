@@ -29,7 +29,9 @@ interface CashflowEntriesModalProps {
 
 /** The requests in one cell, each with its payment state; a reference opens that payment's details. Closed with its X. */
 export const CashflowEntriesModal: React.FC<CashflowEntriesModalProps> = ({ selection, returnTo, onClose }) => {
-  const detailHref = (row: CashflowRow) => `/dashboard/finance/payment-request?open=${row.requestId}&returnTo=${encodeURIComponent(returnTo)}`
+  // The request's row in the payment list, on its Paid / Unpaid tab, with a Back button to this grid
+  const detailHref = (row: CashflowRow) =>
+    `/dashboard/finance/payment-request?${new URLSearchParams({ tab: row.paid ? 'PAID' : 'UNPAID', highlight: String(row.requestId), search: row.invoiceRef, returnTo })}`
 
   return (
     <Modal isOpen={selection !== null} onClose={onClose} title={selection?.title} size="xl">

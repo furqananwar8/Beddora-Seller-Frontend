@@ -38,6 +38,12 @@ type TabId = RequestStatus | RequestPaymentFilter | 'ALL'
 
 const PAYMENT_TABS: ReadonlySet<TabId> = new Set<RequestPaymentFilter>(['PAID', 'UNPAID'])
 
+/** Tabs a link may open (`?tab=`). */
+const TAB_IDS: ReadonlySet<TabId> = new Set<TabId>(['PENDING_APPROVAL', 'APPROVED', 'PAID', 'UNPAID', 'REJECTED', 'ALL', 'DRAFT'])
+
+/** No date range: every request, whenever it was raised. */
+const ANY_DATE: DateRangeValue = { startDate: null, endDate: null, presetId: null }
+
 /** The list filters a tab stands for. */
 const tabFilters = (tab: TabId): Pick<PaymentRequestListParams, 'status' | 'payment' | 'scope'> => {
   if (tab === 'ALL') return {}
@@ -82,6 +88,10 @@ export const PaymentRequestScreen: React.FC = () => {
   // Opened from another screen (Cashflow Planning): its details offer a way back there. Only paths inside the app.
   const returnParam = searchParams.get('returnTo')
   const backHref = returnParam && returnParam.startsWith('/dashboard/') && !returnParam.startsWith('//') ? returnParam : null
+  // A link to one request (`?highlight=`): its row is marked and scrolled to, on the tab the link names, whenever it was raised
+  const highlightParam = Number(searchParams.get('highlight'))
+  const highlightId = Number.isInteger(highlightParam) && highlightParam > 0 ? highlightParam : null
+  const tabParam = searchParams.get('tab') as TabId | null
   // "View payment requests" on a purchase order opens this list narrowed to that PO
   const poParam = Number(searchParams.get('purchaseOrderId'))
   const purchaseOrderId = Number.isInteger(poParam) && poParam > 0 ? poParam : null
@@ -101,11 +111,12 @@ export const PaymentRequestScreen: React.FC = () => {
   const [search, setSearch] = useState(() => searchParams.get('search') ?? '')
   const debouncedSearch = useDebounce(search, 300)
   const [page, setPage] = useState(1)
-  const [chosenTab, setChosenTab] = useState<TabId | null>(null)
+  const [chosenTab, setChosenTab] = useState<TabId | null>(() => (tabParam && TAB_IDS.has(tabParam) ? tabParam : null))
   const [costCenterId, setCostCenterId] = useState('')
   // `dateRange` is what the lists use; `draftRange` is what the picker shows while a custom range is being chosen.
-  const [dateRange, setDateRange] = useState<DateRangeValue>(THIS_MONTH)
-  const [draftRange, setDraftRange] = useState<DateRangeValue>(THIS_MONTH)
+  // A linked request may be older than this month, so the list then starts without a date range
+  const [dateRange, setDateRange] = useState<DateRangeValue>(() => (highlightId ? ANY_DATE : THIS_MONTH))
+  const [draftRange, setDraftRange] = useState<DateRangeValue>(() => (highlightId ? ANY_DATE : THIS_MONTH))
   const draftIsCustom = !draftRange.presetId || draftRange.presetId === 'custom'
   const canApplyCustom = draftIsCustom && Boolean(draftRange.startDate && draftRange.endDate) && (draftRange.startDate !== dateRange.startDate || draftRange.endDate !== dateRange.endDate)
   const [rejectId, setRejectId] = useState<number | null>(null)
@@ -172,6 +183,11 @@ export const PaymentRequestScreen: React.FC = () => {
 
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
+          {backHref && !openId && (
+            <Link href={backHref} className="ds-button ds-button-outline ds-button-sm">
+              Back
+            </Link>
+          )}
           <h1 className="text-xl font-bold text-text-primary sm:text-2xl">Payment Requests</h1>
           {purchaseOrderId && (
             <span className="inline-flex items-center gap-1 rounded-full bg-secondary-100 py-0.5 pl-3 pr-1 text-sm text-secondary-700">
@@ -273,6 +289,7 @@ export const PaymentRequestScreen: React.FC = () => {
             isError={isError}
             canDecide={isApprover}
             busyId={busyId}
+            highlightId={highlightId}
             onOpen={setOpen}
             onEdit={(id) => router.push(`/dashboard/finance/payment-request/new?edit=${id}`)}
             onApprove={(id) => withBusy(id, () => actions.approve(id))}
