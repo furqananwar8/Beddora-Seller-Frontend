@@ -15,7 +15,7 @@ const STICKY = 'sticky left-0 z-[1] bg-surface'
 /** An amount with its currency as a small tag in front, kept on one line so it never spills out of its cell. */
 const Money: React.FC<{ currency: string; amount: number }> = ({ currency, amount }) => (
   <span className="inline-flex items-baseline gap-1 whitespace-nowrap">
-    <span className="text-[10px] font-medium uppercase tracking-wide text-text-muted">{currency}</span>
+    <span className="font-semibold text-text-muted">{currency}</span>
     <span>{formatMoney(amount)}</span>
   </span>
 )
