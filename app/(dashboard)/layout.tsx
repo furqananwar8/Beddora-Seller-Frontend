@@ -289,6 +289,18 @@ export default function DashboardLayout({
                 action: 'read',
                 href: '/dashboard/settings/addresses',
               },
+              {
+                label: 'Company',
+                subject: 'settings:company',
+                action: 'read',
+                href: '/dashboard/settings/company',
+              },
+              {
+                label: 'Warehouses',
+                subject: 'settings:warehouses',
+                action: 'read',
+                href: '/dashboard/settings/warehouses',
+              },
             ],
           },
         ],

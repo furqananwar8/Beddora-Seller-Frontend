@@ -19,7 +19,12 @@ export const EXPORT_IN_PROGRESS_MESSAGE = 'An export is already in progress. Ple
  * One export at a time per hook: a second request is refused until the first has been downloaded (or has
  * failed), so repeated clicks can't queue identical files.
  */
-export function useReportExport(report: ExportReport) {
+export interface ReportExportOptions {
+  /** What the toasts call the file: "Preparing your PDF…". Defaults to "export". */
+  noun?: string
+}
+
+export function useReportExport(report: ExportReport, { noun = 'export' }: ReportExportOptions = {}) {
   const [requestExport] = useRequestExportMutation()
   const { success, failure, info } = useApiFeedback()
   const [isExporting, setIsExporting] = useState(false)
@@ -43,16 +48,16 @@ export function useReportExport(report: ExportReport) {
       const { jobId, fileName, downloadPath } = message.data
       if (!mine.current.delete(jobId)) return
       try {
-        if (message.type === 'export.failed' || !downloadPath) return failure(null, 'The export failed. Please try again.')
+        if (message.type === 'export.failed' || !downloadPath) return failure(null, `The ${noun} failed. Please try again.`)
         await downloadApiFile(downloadPath, fileName ?? `${report}.xlsx`)
-        success('Your export is ready and has been downloaded.')
+        success(`Your ${noun} is ready and has been downloaded.`)
       } catch (error) {
-        failure(error, 'Could not download the export')
+        failure(error, `Could not download the ${noun}`)
       } finally {
         release()
       }
     },
-    [failure, release, report, success]
+    [failure, noun, release, report, success]
   )
 
   useRealtime('export', (message) => {
@@ -70,12 +75,12 @@ export function useReportExport(report: ExportReport) {
       giveUp.current = setTimeout(() => {
         mine.current.clear()
         release()
-        failure(null, 'The export is taking too long. Please try again.')
+        failure(null, `The ${noun} is taking too long. Please try again.`)
       }, EXPORT_GIVE_UP_MS)
       try {
         const { jobId } = await requestExport({ report, format, filters }).unwrap()
         mine.current.add(jobId)
-        info('Preparing your export. It will download automatically when it is ready.')
+        info(`Preparing your ${noun}. It will download automatically when it is ready.`)
         const arrived = early.current.get(jobId)
         if (arrived) {
           early.current.delete(jobId)
@@ -83,10 +88,10 @@ export function useReportExport(report: ExportReport) {
         }
       } catch (error) {
         release()
-        failure(error, 'Could not start the export')
+        failure(error, `Could not start the ${noun}`)
       }
     },
-    [failure, info, release, report, requestExport, settle]
+    [failure, info, noun, release, report, requestExport, settle]
   )
 
   return { start, isExporting }

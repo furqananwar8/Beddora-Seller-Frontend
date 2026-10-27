@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { PaymentRequestDetail, PoRef, ReferenceType } from '@/services/api/finance.api'
+import type { CarrierShipment, PaymentRequestDetail, PoRef, ReferenceType } from '@/services/api/finance.api'
 import { formatCurrencyAmount, formatMoney } from '../shared/format'
 
 /** "12,450.50" -> 12450.5, NaN when it is not a number. */
@@ -11,6 +11,7 @@ const amountOf = (value: string): number => (Number.isFinite(parseAmount(value))
 export const REFERENCE_OPTIONS: Array<{ value: ReferenceType; label: string }> = [
   { value: 'INVOICE', label: 'Invoice' },
   { value: 'PURCHASE_ORDER', label: 'Purchase order' },
+  { value: 'SHIPMENT', label: 'Shipment' },
 ]
 
 /** Same cap as the server. */
@@ -32,10 +33,12 @@ export const emptyLine: RequestLineValues = { amount: '', costCenterId: '' }
 
 const baseSchema = z.object({
   partnerId: z.string().min(1, 'Choose a partner'),
-  /** Paying a supplier invoice, or one of our purchase orders (then there is no invoice no.). */
-  referenceType: z.enum(['INVOICE', 'PURCHASE_ORDER']),
+  /** Paying a supplier invoice, one of our purchase orders (then there is no invoice no.), or a carrier's invoice for shipments. */
+  referenceType: z.enum(['INVOICE', 'PURCHASE_ORDER', 'SHIPMENT']),
   invoiceNo: z.string().trim().max(80, 'Keep it under 80 characters'),
   purchaseOrder: z.custom<PoRef | null>(),
+  /** Shipment requests: the carrier's FBA shipments the invoice is for. */
+  shipments: z.custom<CarrierShipment[]>(),
   invoiceDate: z.string().min(1, 'Invoice date is required'),
   /** yyyy-MM-dd; starts as the invoice date plus the partner's payment term, and may be changed for this request alone. */
   dueDate: z.string(),
@@ -68,6 +71,7 @@ export const makePaymentRequestSchema = (poLimit: PoLimit | null) =>
     // Both are yyyy-MM-dd, so they compare as text
     if (values.dueDate && values.invoiceDate && values.dueDate < values.invoiceDate) ctx.addIssue({ code: 'custom', path: ['dueDate'], message: 'Due date cannot be before the invoice date' })
     if (!isPo && !values.invoiceNo.trim()) ctx.addIssue({ code: 'custom', path: ['invoiceNo'], message: 'Invoice number is required' })
+    if (values.referenceType === 'SHIPMENT' && values.shipments.length === 0) ctx.addIssue({ code: 'custom', path: ['shipments'], message: 'Pick at least one shipment' })
     if (isPo && !values.purchaseOrder) ctx.addIssue({ code: 'custom', path: ['purchaseOrder'], message: 'Pick the purchase order being paid' })
     if (isPo && poLimit && requestTotal(values.lines) > poLimit.leftToRequest) {
       ctx.addIssue({ code: 'custom', path: ['lines'], message: poLimitMessage(poLimit) })
@@ -82,6 +86,7 @@ export const emptyFormValues: PaymentRequestFormValues = {
   referenceType: 'INVOICE',
   invoiceNo: '',
   purchaseOrder: null,
+  shipments: [],
   invoiceDate: '',
   dueDate: '',
   containerNo: '',
@@ -98,6 +103,9 @@ export const linesFromDetail = (detail: PaymentRequestDetail): RequestLineValues
 
 const isPo = (values: PaymentRequestFormValues) => values.referenceType === 'PURCHASE_ORDER'
 
+/** The shipment ids a request sends: its picked shipments on a shipment request, none otherwise. */
+const shipmentIdsOf = (values: PaymentRequestFormValues): number[] => (values.referenceType === 'SHIPMENT' ? values.shipments.map((shipment) => shipment.id) : [])
+
 const linesBody = (values: PaymentRequestFormValues) =>
   values.lines.map((line) => ({ costCenterId: Number(line.costCenterId), amount: parseAmount(line.amount) }))
 
@@ -108,6 +116,7 @@ export function toUpdateBody(values: PaymentRequestFormValues) {
     referenceType: values.referenceType,
     invoiceNo: isPo(values) ? null : values.invoiceNo.trim(),
     purchaseOrderId: isPo(values) ? (values.purchaseOrder?.id ?? null) : null,
+    shipmentIds: shipmentIdsOf(values),
     invoiceDate: values.invoiceDate,
     dueDate: values.dueDate || null,
     containerNo: values.containerNo.trim() || null,
@@ -127,6 +136,7 @@ export function toCreateFormData(values: PaymentRequestFormValues, files: File[]
   } else {
     body.append('invoiceNo', values.invoiceNo.trim())
   }
+  if (values.referenceType === 'SHIPMENT') body.append('shipmentIds', JSON.stringify(shipmentIdsOf(values)))
   if (values.containerNo.trim()) body.append('containerNo', values.containerNo.trim())
   body.append('invoiceDate', values.invoiceDate)
   // Left out, the server uses the invoice date plus the partner's payment term

@@ -29,6 +29,9 @@ export interface PoRowActions {
   onCreatePackagingList: (row: PurchaseOrderListItem) => void
   onViewPackagingLists: (row: PurchaseOrderListItem) => void
   onViewPayments: (row: PurchaseOrderListItem) => void
+  onDownloadPdf: (row: PurchaseOrderListItem) => void
+  /** A PDF is being prepared; the action waits until it has downloaded. */
+  pdfBusy: boolean
   onOpen: (row: PurchaseOrderListItem) => void
   onApprove: (row: PurchaseOrderListItem) => void
   onReject: (row: PurchaseOrderListItem) => void
@@ -48,6 +51,7 @@ function actionsFor(row: PurchaseOrderListItem, actions: PoRowActions): RowActio
   const editable = !approved || row.unlocked
   const items: RowActionItem[] = [
     { key: 'view', label: 'View purchase order', onSelect: () => actions.onOpen(row) },
+    { key: 'pdf', label: actions.pdfBusy ? 'Preparing PDF…' : 'Download PDF', disabled: actions.pdfBusy, onSelect: () => actions.onDownloadPdf(row) },
   ]
   if (actions.canPack && isPackable(row)) items.push({ key: 'pack', label: 'Create packaging list', onSelect: () => actions.onCreatePackagingList(row) })
   if (approved) items.push({ key: 'lists', label: 'View packaging lists', onSelect: () => actions.onViewPackagingLists(row) })

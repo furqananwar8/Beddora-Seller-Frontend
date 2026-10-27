@@ -186,10 +186,25 @@ export interface PurchaseInvoiceForPayment {
   amount: number
   /** The invoice's destination; a request paying it ships there too. */
   marketplaceId: number | null
+  /** The PO the invoice was raised from; its earlier payments are shown on the form. */
+  purchaseOrder: PoRef | null
   /** Not yet asked for by pending or approved requests: the most this request may ask for. */
   leftToRequest: number
   /** Why a payment request cannot pay it now; null when it can. */
   blockedReason: string | null
+}
+
+/** An earlier request paying a purchase order, directly or through one of its invoices. */
+export interface PurchaseOrderPayment {
+  id: number
+  referenceType: ReferenceType
+  invoiceNo: string | null
+  status: RequestStatus
+  currency: string
+  amount: number
+  paidAmount: number
+  paymentStatus: DocStatus | null
+  createdAt: string
 }
 
 /** An L4 cost center, the level expenses are booked to. */
@@ -211,7 +226,18 @@ export interface DuplicateInvoice {
 }
 
 /** What a request pays against. */
-export type ReferenceType = 'INVOICE' | 'PURCHASE_ORDER'
+export type ReferenceType = 'INVOICE' | 'PURCHASE_ORDER' | 'SHIPMENT'
+
+/** One of a carrier's FBA shipments, as a shipment request picks and shows it. */
+export interface CarrierShipment {
+  id: number
+  /** SHP-0042 */
+  reference: string
+  name: string
+  marketplace: string
+  status: string
+  shippedAt: string | null
+}
 
 export interface PoRef {
   id: number
@@ -309,6 +335,8 @@ export interface PaymentRequestDetail {
   baseAmount: number | null
   /** Amounts and the L4 cost centers they are booked to; an invoice request may have several. */
   lines: PaymentRequestLine[]
+  /** Shipment requests: the FBA shipments the carrier's invoice is for. */
+  shipments: CarrierShipment[]
   remarks: string | null
   decisionNote: string | null
   submittedAt: string | null
@@ -626,6 +654,17 @@ export const financeApi = baseApi.injectEndpoints({
       transformResponse: unwrap,
       providesTags: ['ProcurementPurchaseOrders'],
     }),
+    /** What has already been requested and paid against a PO (its own requests and its invoices'). */
+    getPurchaseOrderPayments: b.query<PurchaseOrderPayment[], { purchaseOrderId: number; excludeId?: number }>({
+      query: (params) => ({ url: '/finance/payment-requests/purchase-order-payments', params }),
+      transformResponse: unwrap,
+      providesTags: ['FinanceRequests'],
+    }),
+    /** The carrier's FBA shipments (booked with it at the carrier step), for shipment requests. */
+    getCarrierShipments: b.query<CarrierShipment[], { partnerId: number }>({
+      query: (params) => ({ url: '/finance/payment-requests/shipment-options', params }),
+      transformResponse: unwrap,
+    }),
     getPayableInvoices: b.query<PurchaseInvoiceForPayment[], { partnerId: number }>({
       query: (params) => ({ url: '/finance/payment-requests/payable-invoices', params }),
       transformResponse: unwrap,
@@ -664,8 +703,9 @@ export const financeApi = baseApi.injectEndpoints({
       query: ({ id, documentId }) => ({ url: `/finance/payment-requests/${id}/documents/${documentId}`, method: 'DELETE' }),
       invalidatesTags: ['FinanceRequests'],
     }),
-    submitPaymentRequest: b.mutation<PaymentRequestDetail, number>({
-      query: (id) => ({ url: `/finance/payment-requests/${id}/submit`, method: 'POST' }),
+    /** `confirmExcess`: the requester agreed to pay more than the invoice has left. */
+    submitPaymentRequest: b.mutation<PaymentRequestDetail, { id: number; confirmExcess?: boolean }>({
+      query: ({ id, confirmExcess }) => ({ url: `/finance/payment-requests/${id}/submit`, method: 'POST', body: { confirmExcess } }),
       transformResponse: unwrap,
       invalidatesTags: ['FinanceRequests'],
     }),
@@ -778,6 +818,8 @@ export const {
   useLazyCheckDuplicateInvoiceQuery,
   useLazyCheckPurchaseInvoiceQuery,
   useGetPayableInvoicesQuery,
+  useGetCarrierShipmentsQuery,
+  useGetPurchaseOrderPaymentsQuery,
   useGetLeafCostCentersQuery,
   useGetPayablePurchaseOrdersQuery,
   useAddPopDocumentsMutation,

@@ -51,6 +51,8 @@ export interface PoProduct {
   heightCm: number | null
   dimensionUnit: LengthUnit
   cbm: number | null
+  /** Variations only: the barcode, null when none was given. */
+  upc: string | null
   /** Variations only: the stock level (units) at which to reorder. */
   reorderPoint: number | null
   inheritsMaster: boolean
@@ -107,6 +109,8 @@ export interface VariationBody extends VariantInput, WeightInput, DimensionInput
   /** Blank falls back to `Name-Color-Size`. */
   variantName: string | null
   sku: string | null
+  /** Optional UPC barcode. */
+  upc: string | null
   /** Optional stock level (units) at which to reorder. */
   reorderPoint: number | null
   color: string
@@ -502,7 +506,6 @@ export type ContainerField =
   | 'destinationCity'
   | 'destinationProvince'
   | 'portOfArrival'
-  | 'totalCost'
   | 'currency'
 
 /** What the container's status allows; the server enforces the same rules. */
@@ -557,6 +560,7 @@ export interface ContainerItem {
   destinationCity: string | null
   destinationProvince: string | null
   portOfArrival: string | null
+  /** The final landed cost its cost analysis shows (FOB plus allocated expenses); null while nothing is packed. */
   totalCost: number | null
   currency: PoCurrency
   deliveredAt: string | null
@@ -707,7 +711,6 @@ export interface ContainerBody {
   destinationCity: string | null
   destinationProvince: string | null
   portOfArrival: string | null
-  totalCost: number | null
   currency: PoCurrency
   expectedUpdatedAt?: string
 }

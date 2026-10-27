@@ -33,7 +33,8 @@ export interface RewindResponse {
 
 export interface CarrierEntry {
   shipmentId: string
-  carrier: string
+  /** The vendor partner the leg is booked with; the server stores its name as the carrier. */
+  carrierPartnerId: number
   /** YYYY-MM-DD. Amazon is also told it as the ready-to-ship date the first time. */
   pickupDate: string
   /** YYYY-MM-DD. Our own record only. */
@@ -77,6 +78,11 @@ export const inboundShipmentsApi = baseApi.injectEndpoints({
     /** sandbox: true when the backend sends the Amazon steps to the SP-API sandbox (FBA_SANDBOX). */
     getShipmentsConfig: builder.query<ShipmentsConfig, void>({
       query: () => ({ url: '/inventory/shipments/config' }),
+    }),
+
+    /** Vendor partners a leg can be booked with (the carrier step's picker). */
+    getShipmentCarriers: builder.query<Array<{ id: number; name: string }>, void>({
+      query: () => ({ url: '/inventory/shipments/carriers' }),
     }),
 
     getShipmentPool: builder.query<ReservedPoolItem[], void>({
@@ -191,6 +197,7 @@ export const {
   useGetShipmentsQuery,
   useGetShipmentsConfigQuery,
   useGetShipmentPoolQuery,
+  useGetShipmentCarriersQuery,
   useCreateShipmentMutation,
   useUpdateShipmentItemsMutation,
   useCancelShipmentMutation,

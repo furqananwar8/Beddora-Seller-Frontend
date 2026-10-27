@@ -55,6 +55,11 @@ export const variationSchema = z.object({
   packaging: z.string().trim().max(120, 'Too long'),
   sizeName: z.string().trim().max(60, 'Too long'),
   description: z.string().trim().max(2000, 'Description is too long'),
+  /** Optional barcode: UPC-A, or an 8/13/14-digit GTIN (same rule as the server). */
+  upc: z
+    .string()
+    .trim()
+    .refine((value) => value === '' || /^(\d{8}|\d{12,14})$/.test(value), 'UPC must be 8, 12, 13 or 14 digits'),
   /** Optional stock level (units) at which to reorder; whole number. */
   reorderPoint: z
     .string()
@@ -133,6 +138,7 @@ export function newVariation(master: Pick<ProductFormValues, 'material' | 'packa
     packaging: master.packaging,
     sizeName: '',
     description: '',
+    upc: '',
     reorderPoint: '',
     inheritsMaster: true,
     weight: '',
@@ -185,6 +191,7 @@ export function toProductBody(values: ProductFormValues, expectedUpdatedAt?: str
     packaging: text(variation.packaging),
     sizeName: text(variation.sizeName),
     description: text(variation.description),
+    upc: text(variation.upc),
     reorderPoint: num(variation.reorderPoint),
     inheritsMaster: variation.inheritsMaster,
     // Inheriting: the master's weight and unit are copied on save
@@ -253,6 +260,8 @@ export function fromFamily(family: PoProductFamily, asCopy = false): ProductForm
       packaging: variation.packaging ?? '',
       sizeName: variation.sizeName ?? '',
       description: variation.description ?? '',
+      // A barcode identifies one item, so a copy starts without it (as with the SKU)
+      upc: asCopy ? '' : (variation.upc ?? ''),
       reorderPoint: variation.reorderPoint === null ? '' : String(variation.reorderPoint),
       inheritsMaster: variation.inheritsMaster,
       weight: variation.inheritsMaster ? '' : weightValue(variation, variation.weightUnit),

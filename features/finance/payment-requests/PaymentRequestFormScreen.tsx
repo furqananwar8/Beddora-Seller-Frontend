@@ -9,6 +9,7 @@ import { Container } from '@/components/layout'
 import { FileDropzone } from '@/components/file-dropzone/FileDropzone'
 import { SingleDatePicker } from '@/components/single-date-picker/SingleDatePicker'
 import { StatusBadge } from '@/components/status-badge/StatusBadge'
+import { ConfirmDialog } from '@/components/confirm-dialog/ConfirmDialog'
 import { SegmentedToggle } from '@/components/segmented-toggle/SegmentedToggle'
 import { Button } from '@/design-system/buttons'
 import { Select } from '@/design-system/inputs'
@@ -47,6 +48,8 @@ import { PartnerChips, PartnerSelect, toPartnerOption, withPartnerDetail } from 
 import { PartnerPaymentInfo } from './PartnerPaymentInfo'
 import { PayablePoSelect } from './PayablePoSelect'
 import { PayableInvoiceSelect } from './PayableInvoiceSelect'
+import { PoPaymentHistory } from './PoPaymentHistory'
+import { CarrierShipmentSelect } from './CarrierShipmentSelect'
 import { FxConversionNote } from '../shared/FxConversionNote'
 import { ContainerSelect, containerRefOf } from './ContainerSelect'
 import { RequestLinesSection } from './RequestLinesSection'
@@ -78,6 +81,7 @@ const toFormValues = (detail: PaymentRequestDetail): PaymentRequestFormValues =>
   referenceType: detail.referenceType,
   invoiceNo: detail.invoiceNo ?? '',
   purchaseOrder: detail.purchaseOrder,
+  shipments: detail.shipments ?? [],
   invoiceDate: toDateInputValue(detail.invoiceDate),
   dueDate: detail.dueDate ? toDateInputValue(detail.dueDate) : '',
   containerNo: detail.containerNo ?? '',
@@ -147,6 +151,8 @@ export const PaymentRequestFormScreen: React.FC = () => {
   const [purchaseInvoice, setPurchaseInvoice] = useState<PurchaseInvoiceForPayment | null>(null)
   const [saving, setSaving] = useState<'draft' | 'submit' | null>(null)
   const [removingId, setRemovingId] = useState<string | null>(null)
+  /** Values waiting on "you are paying more than is left" before they are sent for approval. */
+  const [excessPending, setExcessPending] = useState<PaymentRequestFormValues | null>(null)
   const uploadedCount = useRef(0)
   const hydrated = useRef(false)
 
@@ -164,6 +170,8 @@ export const PaymentRequestFormScreen: React.FC = () => {
   const poLocked = byPurchaseOrder && purchaseOrder !== null
   /** So does one of our purchase invoices that can be paid (the server applies its terms too). */
   const invoiceLocked = !byPurchaseOrder && purchaseInvoice !== null && !purchaseInvoice.blockedReason
+  /** The PO being paid, directly or through one of its invoices: its earlier payments are listed. */
+  const paidPo = byPurchaseOrder ? purchaseOrder : (purchaseInvoice?.purchaseOrder ?? null)
   const termsLockedBy = poLocked ? 'Set by the purchase order' : invoiceLocked ? 'Set by the invoice' : null
   const invoiceNo = watch('invoiceNo')
   const lines = watch('lines')
@@ -246,7 +254,7 @@ export const PaymentRequestFormScreen: React.FC = () => {
 
   const runDuplicateCheck = async (partnerId: string, invoiceNo: string) => {
     // Only invoices can be raised twice; a PO request has no invoice number
-    if (!partnerId || !invoiceNo.trim() || getValues('referenceType') !== 'INVOICE') {
+    if (!partnerId || !invoiceNo.trim() || getValues('referenceType') === 'PURCHASE_ORDER') {
       setDuplicate(null)
       setPurchaseInvoice(null)
       return
@@ -263,9 +271,10 @@ export const PaymentRequestFormScreen: React.FC = () => {
   }
 
   const pickPartner = (option: PartnerOption) => {
-    // A PO belongs to one supplier, so a different partner clears it
+    // A PO belongs to one supplier and shipments to one carrier, so a different partner clears them
     if (option.id !== partner?.id) {
       setValue('purchaseOrder', null)
+      setValue('shipments', [])
       setPickedPo(null)
     }
     setPartner(option)
@@ -332,7 +341,17 @@ export const PaymentRequestFormScreen: React.FC = () => {
     }
   }
 
-  const persist = async (values: PaymentRequestFormValues, submit: boolean) => {
+  /** What this request asks for beyond what the invoice has left (its earlier requests and PO advances taken off). */
+  const excessOver = (values: PaymentRequestFormValues): number =>
+    invoiceLocked && purchaseInvoice ? Math.max(0, Math.round((requestTotal(values.lines) - purchaseInvoice.leftToRequest) * 100) / 100) : 0
+
+  /** Sending for approval more than the invoice has left asks first; saving a draft does not. */
+  const submitForApproval = (values: PaymentRequestFormValues) => {
+    if (excessOver(values) > 0) return setExcessPending(values)
+    return persist(values, true)
+  }
+
+  const persist = async (values: PaymentRequestFormValues, submit: boolean, confirmExcess = false) => {
     setFileError(undefined)
     setSaving(submit ? 'submit' : 'draft')
     try {
@@ -350,7 +369,7 @@ export const PaymentRequestFormScreen: React.FC = () => {
       setFiles([])
 
       if (submit) {
-        const sent = await submitRequest(id).unwrap()
+        const sent = await submitRequest({ id, confirmExcess }).unwrap()
         const names = [...new Set((sent.events ?? []).filter((e) => e.type === 'NOTIFIED').map((e) => (typeof e.payload?.name === 'string' ? e.payload.name : null)).filter(Boolean))]
         success(`Sent for approval. ${names.length ? names.join(' and ') : 'Approvers'} ${names.length > 1 ? 'have' : 'has'} been notified.`)
       } else {
@@ -367,7 +386,7 @@ export const PaymentRequestFormScreen: React.FC = () => {
   const invalidFiles = () => setFileError(undefined)
   const busy = saving !== null
   /** Paying one of our purchase invoices that is not approved yet, or already fully paid: the server refuses it too. */
-  const invoiceBlocked = (referenceType === 'INVOICE' && Boolean(purchaseInvoice?.blockedReason)) || fromPoUnpayable
+  const invoiceBlocked = (referenceType !== 'PURCHASE_ORDER' && Boolean(purchaseInvoice?.blockedReason)) || fromPoUnpayable
   const editBlocked = editId !== null && detail && !detail.can.edit
   const statusMeta = REQUEST_STATUS_META[detail?.status ?? 'DRAFT']
   const backHref = fromPoId ? `${PO_URL}/${fromPoId}` : LIST_URL
@@ -400,7 +419,7 @@ export const PaymentRequestFormScreen: React.FC = () => {
 
       <form
         noValidate
-        onSubmit={handleSubmit((values) => persist(values, true), invalidFiles)}
+        onSubmit={handleSubmit(submitForApproval, invalidFiles)}
         className="mx-auto max-w-4xl space-y-4"
       >
         <div className="flex flex-wrap items-center gap-3">
@@ -461,6 +480,24 @@ export const PaymentRequestFormScreen: React.FC = () => {
                 />
               </FormField>
             )}
+            {referenceType === 'SHIPMENT' && (
+              <FormField
+                label="Shipment No"
+                htmlFor="shipments"
+                required
+                error={errors.shipments?.message as string | undefined}
+                hint="FBA shipments booked with this carrier; one invoice may cover several"
+                className="sm:col-span-2 lg:col-span-3"
+              >
+                <Controller
+                  control={control}
+                  name="shipments"
+                  render={({ field }) => (
+                    <CarrierShipmentSelect id="shipments" partnerId={partner?.id ?? null} value={field.value} onChange={field.onChange} error={errors.shipments?.message as string | undefined} />
+                  )}
+                />
+              </FormField>
+            )}
             <FormField label={byPurchaseOrder ? 'Date' : 'Invoice Date'} htmlFor="invoiceDate" required error={errors.invoiceDate?.message}>
               <Controller
                 control={control}
@@ -500,12 +537,24 @@ export const PaymentRequestFormScreen: React.FC = () => {
               className={
                 purchaseInvoice.blockedReason
                   ? 'mt-3 rounded-lg border border-danger-200 bg-danger-50 px-3 py-2 text-sm text-danger-700'
-                  : 'mt-3 rounded-lg border border-success-200 bg-success-50 px-3 py-2 text-sm text-success-700'
+                  : 'mt-3 rounded-lg border border-success-200 bg-success-50 px-4 py-3 text-success-700'
               }
             >
-              {purchaseInvoice.blockedReason
-                ? `${purchaseInvoice.blockedReason}. A payment request cannot be raised for it.`
-                : `Pays purchase invoice ${purchaseInvoice.invoiceRef} (${formatCurrencyAmount(purchaseInvoice.currency, purchaseInvoice.amount)}, approved): ${formatCurrencyAmount(purchaseInvoice.currency, purchaseInvoice.leftToRequest)} left to request. Its status updates as payments are recorded.`}
+              {purchaseInvoice.blockedReason ? (
+                `${purchaseInvoice.blockedReason}. A payment request cannot be raised for it.`
+              ) : (
+                <>
+                  <span className="block text-lg font-semibold">
+                    {formatCurrencyAmount(purchaseInvoice.currency, purchaseInvoice.leftToRequest)} left to pay
+                  </span>
+                  <span className="mt-0.5 block text-sm">
+                    Purchase invoice {purchaseInvoice.invoiceRef} is {formatCurrencyAmount(purchaseInvoice.currency, purchaseInvoice.amount)} (approved)
+                    {purchaseInvoice.amount > purchaseInvoice.leftToRequest &&
+                      `, less ${formatCurrencyAmount(purchaseInvoice.currency, Math.round((purchaseInvoice.amount - purchaseInvoice.leftToRequest) * 100) / 100)} already requested or paid on it and its purchase order`}
+                    .
+                  </span>
+                </>
+              )}
             </p>
           )}
           {duplicate && !byPurchaseOrder && (
@@ -519,6 +568,7 @@ export const PaymentRequestFormScreen: React.FC = () => {
               )}
             </p>
           )}
+          {paidPo && <PoPaymentHistory purchaseOrder={paidPo} excludeId={requestId} />}
         </Section>
 
         <RequestLinesSection
@@ -572,6 +622,25 @@ export const PaymentRequestFormScreen: React.FC = () => {
           </Button>
         </div>
       </form>
+      <ConfirmDialog
+        isOpen={excessPending !== null}
+        title="Paying more than is left"
+        confirmLabel="Continue"
+        busy={saving === 'submit'}
+        onClose={() => setExcessPending(null)}
+        onConfirm={() => {
+          const values = excessPending
+          if (!values) return
+          void persist(values, true, true).finally(() => setExcessPending(null))
+        }}
+      >
+        {excessPending && purchaseInvoice && (
+          <>
+            Only {formatCurrencyAmount(purchaseInvoice.currency, purchaseInvoice.leftToRequest)} is left to pay on {purchaseInvoice.invoiceRef}. This request is for{' '}
+            {formatCurrencyAmount(excessPending.currency, requestTotal(excessPending.lines))}, an excess of {formatCurrencyAmount(purchaseInvoice.currency, excessOver(excessPending))}. Would you like to continue?
+          </>
+        )}
+      </ConfirmDialog>
     </Container>
   )
 }

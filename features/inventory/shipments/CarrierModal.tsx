@@ -5,12 +5,12 @@ import { Modal } from '@/design-system/modals'
 import { Button } from '@/design-system/buttons'
 import { Spinner } from '@/design-system/loaders'
 import { Input } from '@/design-system/inputs'
-import type { CarrierEntry } from '@/services/api/inboundShipments.api'
+import { SearchableSelect } from '@/components/searchable-select/SearchableSelect'
+import { useGetShipmentCarriersQuery, type CarrierEntry } from '@/services/api/inboundShipments.api'
 import { InboundShipment } from './types'
 import { DialogFooter, formatUnits } from './ShipmentParts'
 import { getShipmentUnits } from './workflow'
 
-const MAX_CARRIER_LENGTH = 60
 const MAX_APPOINTMENT_ID_LENGTH = 60
 
 const isoDay = (date: Date) => {
@@ -31,7 +31,8 @@ interface CarrierModalProps {
 
 /** What the seller types for one Amazon shipment's carrier booking. */
 interface BookingFields {
-  carrier: string
+  /** The vendor partner picked as the carrier; null until one is. */
+  carrierPartnerId: number | null
   pickupDate: string
   deliveryDate: string
   amazonAppointmentId: string
@@ -55,7 +56,7 @@ const CarrierForm: React.FC<Omit<CarrierModalProps, 'shipment'> & { shipment: In
       legs.map((l) => [
         l.amazonShipmentId!,
         {
-          carrier: l.carrier ?? shipment.carrier ?? '',
+          carrierPartnerId: l.carrierPartnerId ?? null,
           pickupDate: l.pickupDate ?? tomorrow(),
           deliveryDate: l.deliveryDate ?? l.deliveryWindow?.start.slice(0, 10) ?? '',
           amazonAppointmentId: l.amazonAppointmentId ?? '',
@@ -65,13 +66,14 @@ const CarrierForm: React.FC<Omit<CarrierModalProps, 'shipment'> & { shipment: In
   )
   // Amazon is only told once; going Back to correct a booking can keep an earlier pickup date
   const amazonNotToldYet = !legs.every((l) => l.shippingSolution === 'USE_YOUR_OWN_CARRIER')
+  const { data: carriers = [], isFetching: loadingCarriers } = useGetShipmentCarriersQuery()
   const [touched, setTouched] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const update = (id: string, patch: Partial<BookingFields>) => setBookings((prev) => ({ ...prev, [id]: { ...prev[id], ...patch } }))
   const errorsFor = (b: BookingFields) => ({
-    carrier: b.carrier.trim() ? undefined : 'Enter the carrier name',
+    carrier: b.carrierPartnerId ? undefined : 'Pick the carrier',
     pickupDate: !b.pickupDate || (amazonNotToldYet && b.pickupDate < today()) ? 'Pick today or a later date' : undefined,
     deliveryDate: !b.deliveryDate ? 'Pick the delivery date' : b.deliveryDate < b.pickupDate ? "Can't be before the pickup date" : undefined,
   })
@@ -88,7 +90,7 @@ const CarrierForm: React.FC<Omit<CarrierModalProps, 'shipment'> & { shipment: In
           const b = bookings[l.amazonShipmentId!]
           return {
             shipmentId: l.amazonShipmentId!,
-            carrier: b.carrier.trim(),
+            carrierPartnerId: b.carrierPartnerId!,
             pickupDate: b.pickupDate,
             deliveryDate: b.deliveryDate,
             amazonAppointmentId: b.amazonAppointmentId.trim() || undefined,
@@ -132,15 +134,25 @@ const CarrierForm: React.FC<Omit<CarrierModalProps, 'shipment'> & { shipment: In
                 <span>{formatUnits(leg.units)} units</span>
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
-                <Input
-                  label="Carrier name"
-                  placeholder="e.g. UPS, FedEx, XPO"
-                  maxLength={MAX_CARRIER_LENGTH}
-                  value={b.carrier}
-                  disabled={isSaving}
-                  onChange={(e) => update(id, { carrier: e.target.value })}
-                  error={touched ? errors.carrier : undefined}
-                />
+                <div className="min-w-0">
+                  <p className="ds-input-label">Carrier name</p>
+                  <SearchableSelect<{ id: number; name: string }>
+                    ariaLabel="Carrier name"
+                    value={carriers.find((c) => c.id === b.carrierPartnerId) ?? null}
+                    onChange={(carrier) => update(id, { carrierPartnerId: carrier.id })}
+                    options={carriers}
+                    getKey={(carrier) => carrier.id}
+                    getLabel={(carrier) => carrier.name}
+                    loading={loadingCarriers}
+                    // A leg booked before carriers were vendors shows its typed name until one is picked
+                    placeholder={leg.carrier && !b.carrierPartnerId ? `${leg.carrier} (pick from vendors)` : 'Select a carrier'}
+                    searchPlaceholder="Search vendors"
+                    emptyText="No vendor partners yet. Add the carrier in Partner Profile as a vendor."
+                    disabled={isSaving}
+                    error={touched ? errors.carrier : undefined}
+                  />
+                  {touched && errors.carrier && <p className="mt-1 text-xs text-danger-600">{errors.carrier}</p>}
+                </div>
                 <Input
                   label="Amazon appointment ID (optional)"
                   maxLength={MAX_APPOINTMENT_ID_LENGTH}

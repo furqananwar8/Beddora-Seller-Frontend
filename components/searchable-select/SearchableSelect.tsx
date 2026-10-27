@@ -1,7 +1,8 @@
 'use client'
 
-import React, { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import React, { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { useMenuPosition } from './useMenuPosition'
 import { cn } from '@/utils/cn'
 
 const Chevron: React.FC<{ className?: string }> = ({ className }) => (
@@ -66,39 +67,6 @@ export type SearchableSelectProps<T> = SingleProps<T> | MultiProps<T>
 
 /** Lists this short are scanned faster than searched. */
 export const SEARCH_THRESHOLD = 10
-
-/** Room the menu wants below the trigger before it opens upwards instead. */
-const MENU_ROOM = 320
-const GAP = 4
-
-type MenuPosition = { left: number; width: number } & ({ top: number } | { bottom: number })
-
-/**
- * Where the menu goes: under the trigger, or above it when there is no room below. The menu is portalled
- * to <body> with fixed positioning, so a scrolling table or card never clips it; it follows the trigger
- * while anything scrolls or the window resizes.
- */
-function useMenuPosition(anchor: React.RefObject<HTMLElement>, open: boolean): MenuPosition | null {
-  const [position, setPosition] = useState<MenuPosition | null>(null)
-  useLayoutEffect(() => {
-    if (!open) return setPosition(null)
-    const place = () => {
-      const rect = anchor.current?.getBoundingClientRect()
-      if (!rect) return
-      const below = window.innerHeight - rect.bottom
-      const upwards = below < MENU_ROOM && rect.top > below
-      setPosition(upwards ? { left: rect.left, width: rect.width, bottom: window.innerHeight - rect.top + GAP } : { left: rect.left, width: rect.width, top: rect.bottom + GAP })
-    }
-    place()
-    window.addEventListener('scroll', place, true)
-    window.addEventListener('resize', place)
-    return () => {
-      window.removeEventListener('scroll', place, true)
-      window.removeEventListener('resize', place)
-    }
-  }, [anchor, open])
-  return position
-}
 
 /**
  * One searchable dropdown for the whole app: a button that opens a search box and a listbox.

@@ -1,10 +1,10 @@
 import { baseApi } from './baseApi'
 import { Envelope, unwrap } from './finance.api'
 
-export type ExportFormat = 'xlsx' | 'csv'
+export type ExportFormat = 'xlsx' | 'csv' | 'pdf'
 
 /** Keys of the reports the API can export (`POST /exports`). */
-export type ExportReport = 'profit-by-product' | 'inventory-planner' | 'products-cogs' | 'channel-report-listings' | 'break-even-analysis' | 'sku-binding-history'
+export type ExportReport = 'profit-by-product' | 'inventory-planner' | 'products-cogs' | 'channel-report-listings' | 'break-even-analysis' | 'sku-binding-history' | 'purchase-order-pdf'
 
 export interface ExportRequest {
   report: ExportReport

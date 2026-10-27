@@ -61,7 +61,7 @@ export function useRequestActions() {
   const resubmit = useCallback(
     async (id: number) => {
       try {
-        await submitMutation(id).unwrap()
+        await submitMutation({ id }).unwrap()
         success(`${formatRequestNo(id)} sent for approval`)
         return true
       } catch (error) {

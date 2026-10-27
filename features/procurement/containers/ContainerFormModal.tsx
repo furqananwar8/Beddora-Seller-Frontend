@@ -6,7 +6,6 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useCitySearch } from '@/components/address-fields/AddressFields'
 import { FormField, fieldClass, selectClass } from '@/components/form-field/FormField'
-import { NumericInput } from '@/components/form-field/NumericInput'
 import { SearchableSelect } from '@/components/searchable-select/SearchableSelect'
 import { SegmentedToggle } from '@/components/segmented-toggle/SegmentedToggle'
 import { SingleDatePicker } from '@/components/single-date-picker/SingleDatePicker'
@@ -51,10 +50,6 @@ const schema = z
     destination: z.enum(['US', 'CA']),
     city: z.custom<GeoCity | null>(),
     portOfArrival: z.string().nullable(),
-    totalCost: z
-      .string()
-      .trim()
-      .refine((value) => value === '' || (/^\d+(\.\d{1,2})?$/.test(value) && Number(value) <= 999_999_999), 'Enter an amount with at most 2 decimals'),
     currency: z.enum(['USD', 'CAD']),
   })
   .superRefine((values, ctx) => {
@@ -74,7 +69,6 @@ const SERVER_FIELDS: Record<string, keyof Values> = {
   destinationCity: 'city',
   destinationProvince: 'city',
   portOfArrival: 'portOfArrival',
-  totalCost: 'totalCost',
   currency: 'currency',
 }
 
@@ -93,7 +87,6 @@ function valuesOf(container: ContainerItem | null | undefined, preset?: { destin
       destination: preset?.destination ?? 'US',
       city: null,
       portOfArrival: null,
-      totalCost: '',
       currency: preset?.destination === 'CA' ? 'CAD' : 'USD',
     }
   }
@@ -107,7 +100,6 @@ function valuesOf(container: ContainerItem | null | undefined, preset?: { destin
     destination: container.destination,
     city: container.destinationCity ? { name: container.destinationCity, provinceCode: container.destinationProvince ?? '' } : null,
     portOfArrival: container.portOfArrival,
-    totalCost: container.totalCost === null ? '' : String(container.totalCost),
     currency: container.currency,
   }
 }
@@ -182,7 +174,6 @@ export const ContainerFormModal: React.FC<ContainerFormModalProps> = ({ isOpen, 
       destinationCity: values.city?.name ?? null,
       destinationProvince: values.city?.provinceCode || null,
       portOfArrival: values.portOfArrival,
-      totalCost: values.totalCost === '' ? null : Number(values.totalCost),
       currency: values.currency,
       ...(container ? { expectedUpdatedAt: container.updatedAt } : {}),
     }
@@ -293,15 +284,13 @@ export const ContainerFormModal: React.FC<ContainerFormModalProps> = ({ isOpen, 
             />
           </FormField>
           {askCost && (
-            <FormField label="Total cost" htmlFor="ct-cost" error={errors.totalCost?.message}>
-              <div className="flex gap-2">
-                <NumericInput decimal id="ct-cost" autoComplete="off" placeholder="0.00" className={fieldClass(errors.totalCost?.message)} disabled={locked('totalCost')} {...register('totalCost')} />
-                <Controller
-                  control={control}
-                  name="currency"
-                  render={({ field }) => <SegmentedToggle<PoCurrency> ariaLabel="Currency" value={field.value} onChange={field.onChange} options={CURRENCIES} disabled={locked('currency')} />}
-                />
-              </div>
+            // The total cost is the landed cost its cost analysis works out, not typed here
+            <FormField label="Currency" htmlFor="ct-currency" hint="The total cost is the landed cost from the cost analysis">
+              <Controller
+                control={control}
+                name="currency"
+                render={({ field }) => <SegmentedToggle<PoCurrency> ariaLabel="Currency" value={field.value} onChange={field.onChange} options={CURRENCIES} disabled={locked('currency')} />}
+              />
             </FormField>
           )}
         </div>

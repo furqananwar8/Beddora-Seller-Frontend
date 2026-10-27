@@ -30,6 +30,7 @@ import { cn } from '@/utils/cn'
 import { useDebounce } from '@/utils/debounce'
 import { DESTINATION_LABEL, PAYMENT_META, PO_STATUS_META, newPackagingListHref, newPaymentRequestHref, newPurchaseInvoiceHref, poPackagingListsHref } from '../shared/poMeta'
 import { PoPaymentRequestsModal } from '../shared/PoPaymentRequests'
+import { usePoPdfDownload } from '../shared/usePoPdfDownload'
 import { PoLegend } from './PoLegend'
 import { PurchaseOrdersTable } from './PurchaseOrdersTable'
 import { usePoActions } from './usePoActions'
@@ -86,6 +87,7 @@ export const PurchaseOrdersScreen: React.FC = () => {
   const canPack = ability.can('write', 'procurement:packaging-lists')
   const canInvoice = ability.can('write', 'procurement:purchase-invoices')
   const canRequestPayments = ability.can('write', 'finance:payment-request')
+  const pdf = usePoPdfDownload()
   const decisions = usePoActions()
   const [approving, setApproving] = useState<PurchaseOrderListItem | null>(null)
   const [rejecting, setRejecting] = useState<PurchaseOrderListItem | null>(null)
@@ -233,6 +235,8 @@ export const PurchaseOrdersScreen: React.FC = () => {
             onCreatePackagingList={(row) => router.push(newPackagingListHref(row.id))}
             onViewPackagingLists={(row) => router.push(poPackagingListsHref(row.id))}
             onViewPayments={(row) => setPaymentsOf({ id: row.id, poNo: row.poNo })}
+            onDownloadPdf={(row) => pdf.download(row.id)}
+            pdfBusy={pdf.isExporting}
             onOpen={(row) => router.push(`${BASE}/${row.id}`)}
             onApprove={setApproving}
             onReject={setRejecting}

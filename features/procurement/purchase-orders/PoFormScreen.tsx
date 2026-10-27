@@ -26,6 +26,7 @@ import { applyServerIssues } from '@/utils/apiErrors'
 import { formatCalendarDay } from '@/utils/format'
 import { canRequestPayment, isApprovedPo, isPackable, newPackagingListHref, newPaymentRequestHref, newPurchaseInvoiceHref, PaymentBadge, PoStatusBadge, poPackagingListsHref, poPurchaseInvoicesHref } from '../shared/poMeta'
 import { ViewPoPaymentRequests } from '../shared/PoPaymentRequests'
+import { DownloadPoPdfButton } from '../shared/DownloadPoPdfButton'
 import { ApprovalPanel } from './ApprovalPanel'
 import { emptyPoValues, fromDetail, fromRemaining, poFormSchema, toPoBody, type PoFormValues } from './poForm'
 import { PoOrderDetailsSection, PoSupplierSection } from './PoDetailsSections'
@@ -170,6 +171,7 @@ export const PoFormScreen: React.FC<PoFormScreenProps> = ({ purchaseOrderId }) =
               <h1 className="text-xl font-bold text-text-primary sm:text-2xl">{title}</h1>
               {po && <PoStatusBadge status={po.status} />}
               {po && <PaymentBadge payment={po.payment} withPercent />}
+              {po && <DownloadPoPdfButton purchaseOrderId={po.id} />}
               {po && isApprovedPo(po) && (
                 <Link href={poPackagingListsHref(po.id)} className="text-sm font-medium text-primary-600 underline-offset-2 hover:underline">
                   View packaging lists

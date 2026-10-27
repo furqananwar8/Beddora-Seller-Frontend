@@ -304,7 +304,7 @@ const VariationDetails: React.FC<VariationDetailsProps> = ({ form, index, readOn
   const shownCbm = derivedCbm({ length, width, height, cbm, cbmTouched }, dimensionUnit)
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[repeat(4,minmax(0,1fr))_minmax(0,2fr)_auto]">
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[repeat(5,minmax(0,1fr))_minmax(0,2fr)_auto]">
       <Readout label="Category" value={`${master.category} · master`} />
       {inherits ? (
         <Readout label="Weight" value={`${master.weight} · master`} />
@@ -344,6 +344,20 @@ const VariationDetails: React.FC<VariationDetailsProps> = ({ form, index, readOn
           error={err?.cbm?.message}
           disabled={readOnly}
         />
+      </div>
+      <div className="min-w-0">
+        <label htmlFor={`variation-${index}-upc`} className="ds-input-label">
+          UPC <span className="font-normal text-text-muted">(optional)</span>
+        </label>
+        <input
+          id={`variation-${index}-upc`}
+          inputMode="numeric"
+          maxLength={14}
+          className={fieldClass(err?.upc?.message)}
+          disabled={readOnly}
+          {...register(`variations.${index}.upc`)}
+        />
+        {err?.upc?.message && <p className="mt-1 text-xs text-danger-600">{err.upc.message}</p>}
       </div>
       <div className="min-w-0">
         <label htmlFor={`variation-${index}-reorder`} className="ds-input-label">

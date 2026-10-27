@@ -86,6 +86,8 @@ export interface AmazonShipmentLeg {
   boxes?: number
   deliveryWindow?: DeliveryWindow
   carrier?: string
+  /** The vendor partner the leg was booked with; `carrier` is its name. */
+  carrierPartnerId?: number
   /** YYYY-MM-DD; our own record (Amazon only gets it as ready-to-ship, the first time). */
   pickupDate?: string
   /** YYYY-MM-DD; our own record only. */
