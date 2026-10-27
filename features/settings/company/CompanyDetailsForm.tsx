@@ -1,28 +1,35 @@
 'use client'
 
 import React, { useEffect } from 'react'
-import { useForm } from 'react-hook-form'
+import { Controller, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { FormField } from '@/components/form-field/FormField'
+import { EMPTY_PHONE, fromInternational, isValidPhone, PhoneField, toInternational, type PhoneValue } from '@/components/phone-field/PhoneField'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/design-system/cards'
 import { Input, Textarea } from '@/design-system/inputs'
 import { Button } from '@/design-system/buttons'
 import { Spinner } from '@/design-system/loaders'
 import { useApiFeedback } from '@/hooks/useApiFeedback'
 import { useAppAbility } from '@/hooks/useAppAbility'
-import { useGetCompanyDetailsQuery, useUpdateCompanyDetailsMutation } from '@/services/api/companyDetails.api'
+import { useGetCompanyDetailsQuery, useUpdateCompanyDetailsMutation, type CompanyDetails } from '@/services/api/companyDetails.api'
 
 /** Same rules as the server. */
 const schema = z.object({
   name: z.string().trim().min(1, 'Company name is required').max(120, 'Company name is too long'),
   address: z.string().trim().max(500, 'Address is too long'),
   email: z.union([z.literal(''), z.string().trim().email('Enter a valid email').max(160)]),
-  phone: z.string().trim().max(40, 'Phone is too long'),
+  /** Optional; once digits are typed they must make a real number for the picked country. */
+  phone: z.custom<PhoneValue>().refine((phone) => !phone.number || isValidPhone(phone), 'Enter a valid phone number for this country'),
 })
 
 type Values = z.infer<typeof schema>
 
-const EMPTY: Values = { name: '', address: '', email: '', phone: '' }
+const EMPTY: Values = { name: '', address: '', email: '', phone: EMPTY_PHONE }
+
+const toValues = (details: CompanyDetails): Values => ({ ...details, phone: fromInternational(details.phone, details.phoneCountry) })
+
+const toBody = ({ phone, ...values }: Values): CompanyDetails => ({ ...values, phoneCountry: phone.number ? phone.country : '', phone: toInternational(phone) })
 
 /** Settings > Company: the name, address and contact printed as the letterhead on purchase order PDFs. */
 export const CompanyDetailsForm: React.FC = () => {
@@ -31,16 +38,16 @@ export const CompanyDetailsForm: React.FC = () => {
   const { success, failure } = useApiFeedback()
   const { data, isLoading, isError } = useGetCompanyDetailsQuery()
   const [save, { isLoading: saving }] = useUpdateCompanyDetailsMutation()
-  const { register, handleSubmit, reset, formState } = useForm<Values>({ resolver: zodResolver(schema), defaultValues: EMPTY })
+  const { register, handleSubmit, reset, control, formState } = useForm<Values>({ resolver: zodResolver(schema), defaultValues: EMPTY })
   const { errors, isDirty } = formState
 
   useEffect(() => {
-    if (data) reset(data)
+    if (data) reset(toValues(data))
   }, [data, reset])
 
   const submit = handleSubmit(async (values) => {
     try {
-      reset(await save(values).unwrap())
+      reset(toValues(await save(toBody(values)).unwrap()))
       success('Company details saved')
     } catch (error) {
       failure(error, 'Could not save the company details')
@@ -74,13 +81,21 @@ export const CompanyDetailsForm: React.FC = () => {
             disabled={!canEdit}
             {...register('address')}
           />
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4">
             <Input label="Email" type="email" placeholder="purchasing@beddora.ca" error={errors.email?.message} disabled={!canEdit} {...register('email')} />
-            <Input label="Phone" type="tel" placeholder="+1 416 555 0100" error={errors.phone?.message} disabled={!canEdit} {...register('phone')} />
+            <FormField label="Phone" htmlFor="company-phone-number" error={errors.phone?.message as string | undefined}>
+              <Controller
+                control={control}
+                name="phone"
+                render={({ field }) => (
+                  <PhoneField idPrefix="company-phone" value={field.value} onChange={field.onChange} error={errors.phone?.message as string | undefined} disabled={!canEdit} />
+                )}
+              />
+            </FormField>
           </div>
           {canEdit && (
             <div className="flex justify-end gap-2">
-              <Button type="button" variant="outline" disabled={!isDirty || saving} onClick={() => data && reset(data)}>
+              <Button type="button" variant="outline" disabled={!isDirty || saving} onClick={() => data && reset(toValues(data))}>
                 Discard changes
               </Button>
               <Button type="submit" isLoading={saving} disabled={!isDirty}>

@@ -7,6 +7,9 @@ export interface CompanyDetails {
   /** One line per row. */
   address: string
   email: string
+  /** The phone's country (ISO 3166-1 alpha-2); '' when there is no phone. */
+  phoneCountry: string
+  /** International form, e.g. `+14165550100`. */
   phone: string
 }
 

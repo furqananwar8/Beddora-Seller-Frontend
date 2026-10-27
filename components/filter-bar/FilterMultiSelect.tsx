@@ -18,10 +18,12 @@ interface FilterMultiSelectProps<V extends string | number> {
   /** Changed since the last apply. */
   highlighted?: boolean
   loading?: boolean
+  /** Nothing to pick yet, e.g. states before a country is chosen. */
+  disabled?: boolean
 }
 
 /** A searchable multi-select filter box. An empty selection means "any". */
-export function FilterMultiSelect<V extends string | number>({ id, options, value, onChange, anyLabel, highlighted, loading }: FilterMultiSelectProps<V>) {
+export function FilterMultiSelect<V extends string | number>({ id, options, value, onChange, anyLabel, highlighted, loading, disabled }: FilterMultiSelectProps<V>) {
   const selected = options.filter((option) => value.includes(option.value))
   return (
     <SearchableSelect<FilterOption<V>>
@@ -37,6 +39,7 @@ export function FilterMultiSelect<V extends string | number>({ id, options, valu
       searchPlaceholder="Search..."
       highlighted={highlighted}
       loading={loading}
+      disabled={disabled}
     />
   )
 }

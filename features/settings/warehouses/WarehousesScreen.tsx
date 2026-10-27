@@ -8,19 +8,23 @@ import { useStagedFilters } from '@/components/filter-bar/useStagedFilters'
 import { FormField } from '@/components/form-field/FormField'
 import { PaginationFooter } from '@/components/pagination-footer/PaginationFooter'
 import { RowActionsMenu } from '@/components/row-actions-menu/RowActionsMenu'
+import { SearchableSelect } from '@/components/searchable-select/SearchableSelect'
 import { Button } from '@/design-system/buttons'
 import { Spinner } from '@/design-system/loaders'
 import { useApiFeedback } from '@/hooks/useApiFeedback'
 import { useAppAbility } from '@/hooks/useAppAbility'
-import { useGetCountriesQuery } from '@/services/api/geo.api'
-import { useDeleteWarehouseMutation, useGetWarehouseFilterOptionsQuery, useGetWarehousesQuery, type Warehouse } from '@/services/api/warehouses.api'
+import { useGetCountriesQuery, useGetProvincesQuery, type GeoCountry } from '@/services/api/geo.api'
+import { useDeleteWarehouseMutation, useGetWarehousesQuery, type Warehouse } from '@/services/api/warehouses.api'
 import { cn } from '@/utils/cn'
 import { WarehouseFormModal } from './WarehouseFormModal'
 
 const PAGE_SIZE = 20
 
-/** Search is staged with the other boxes: nothing reloads until "Apply filters". */
-const DEFAULT_FILTERS = { search: '', countries: [] as string[], provinces: [] as string[] }
+/** Search is staged with the other boxes: nothing reloads until "Apply filters". One country, so its states can be listed. */
+const DEFAULT_FILTERS = { search: '', country: '', provinces: [] as string[] }
+
+/** The country filter's "no country" choice. */
+const ANY_COUNTRY: GeoCountry = { code: '', name: 'Any country', currency: null }
 
 const HEAD = 'px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-text-muted'
 const CELL = 'px-4 py-3 align-top text-sm'
@@ -33,19 +37,23 @@ export const WarehousesScreen: React.FC = () => {
   const filters = useStagedFilters(DEFAULT_FILTERS, () => setPage(1))
   const { draft, setDraft, applied, changed } = filters
 
-  const { data, isLoading, isFetching, isError } = useGetWarehousesQuery({ page, limit: PAGE_SIZE, ...applied })
-  const { data: options, isLoading: loadingOptions } = useGetWarehouseFilterOptionsQuery()
-  const { data: countries = [] } = useGetCountriesQuery()
+  const { data, isLoading, isFetching, isError } = useGetWarehousesQuery({
+    page,
+    limit: PAGE_SIZE,
+    search: applied.search,
+    countries: applied.country ? [applied.country] : undefined,
+    provinces: applied.provinces,
+  })
+  const { data: countries = [], isLoading: loadingCountries } = useGetCountriesQuery()
+  // The picked country's states: none to offer until a country is picked
+  const { data: provinceList, isFetching: loadingProvinces } = useGetProvincesQuery(draft.country, { skip: !draft.country })
   const [remove, { isLoading: removing }] = useDeleteWarehouseMutation()
   const [editing, setEditing] = useState<Warehouse | 'new' | null>(null)
   const [deleting, setDeleting] = useState<Warehouse | null>(null)
 
   const countryNames = useMemo(() => new Map(countries.map((country) => [country.code, country.name])), [countries])
-  const countryOptions: FilterOption[] = (options?.countries ?? []).map((code) => ({ value: code, label: countryNames.get(code) ?? code }))
-  // States of the picked countries only, so the list stays short and every pick narrows something
-  const provinceOptions: FilterOption[] = (options?.provinces ?? [])
-    .filter((province) => draft.countries.length === 0 || draft.countries.includes(province.country))
-    .map((province) => ({ value: province.code, label: `${province.code} · ${countryNames.get(province.country) ?? province.country}` }))
+  const provinceOptions: FilterOption[] = (provinceList?.provinces ?? []).map((province) => ({ value: province.code, label: province.name }))
+  const pickedCountry = countries.find((country) => country.code === draft.country) ?? ANY_COUNTRY
 
   const rows = data?.data ?? []
   const filtered = filters.appliedCount > 0
@@ -87,14 +95,21 @@ export const WarehousesScreen: React.FC = () => {
           </FilterItem>
           <FilterItem>
             <FormField label="Country" htmlFor="warehouse-filter-country">
-              <FilterMultiSelect
+              <SearchableSelect<GeoCountry>
                 id="warehouse-filter-country"
-                options={countryOptions}
-                value={draft.countries}
-                onChange={(value) => setDraft('countries', value)}
-                anyLabel="Any country"
-                highlighted={changed.has('countries')}
-                loading={loadingOptions}
+                value={pickedCountry}
+                onChange={(country) => {
+                  if (country.code === draft.country) return
+                  setDraft('country', country.code)
+                  // States belong to one country, so a new country starts with none picked
+                  setDraft('provinces', [])
+                }}
+                options={[ANY_COUNTRY, ...countries]}
+                getKey={(country) => country.code || 'any'}
+                getLabel={(country) => country.name}
+                loading={loadingCountries}
+                searchPlaceholder="Search countries..."
+                highlighted={changed.has('country')}
               />
             </FormField>
           </FilterItem>
@@ -105,9 +120,10 @@ export const WarehousesScreen: React.FC = () => {
                 options={provinceOptions}
                 value={draft.provinces}
                 onChange={(value) => setDraft('provinces', value)}
-                anyLabel="Any state"
+                anyLabel={draft.country ? 'Any state' : 'Pick a country first'}
                 highlighted={changed.has('provinces')}
-                loading={loadingOptions}
+                loading={loadingProvinces}
+                disabled={!draft.country}
               />
             </FormField>
           </FilterItem>

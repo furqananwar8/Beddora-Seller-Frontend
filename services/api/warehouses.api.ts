@@ -28,12 +28,6 @@ export interface WarehouseListParams {
   provinces?: string[]
 }
 
-/** The countries and states warehouses are in, for the list's filters. */
-export interface WarehouseFilterOptions {
-  countries: string[]
-  provinces: Array<{ country: string; code: string }>
-}
-
 export const warehousesApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getWarehouses: builder.query<Page<Warehouse>, WarehouseListParams>({
@@ -41,11 +35,6 @@ export const warehousesApi = baseApi.injectEndpoints({
         url: '/settings/warehouses',
         params: { ...params, search: search || undefined, countries: csv(countries), provinces: csv(provinces) },
       }),
-      providesTags: ['Warehouses'],
-    }),
-    getWarehouseFilterOptions: builder.query<WarehouseFilterOptions, void>({
-      query: () => '/settings/warehouses/filter-options',
-      transformResponse: (response: Envelope<WarehouseFilterOptions>) => unwrap(response),
       providesTags: ['Warehouses'],
     }),
     createWarehouse: builder.mutation<Warehouse, WarehouseBody>({
@@ -67,7 +56,6 @@ export const warehousesApi = baseApi.injectEndpoints({
 
 export const {
   useGetWarehousesQuery,
-  useGetWarehouseFilterOptionsQuery,
   useCreateWarehouseMutation,
   useUpdateWarehouseMutation,
   useDeleteWarehouseMutation,
