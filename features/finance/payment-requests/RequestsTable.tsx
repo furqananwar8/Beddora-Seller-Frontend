@@ -93,7 +93,7 @@ export const RequestsTable: React.FC<RequestsTableProps> = ({ rows, isLoading, i
               <React.Fragment key={row.id}>
                 <TableRow
                   data-highlighted-request={row.id === highlightId || undefined}
-                  className={cn('cursor-pointer', row.id === highlightId && 'bg-primary-50 outline outline-2 -outline-offset-2 outline-primary-400')}
+                  className={cn('cursor-pointer', row.id === highlightId && 'bg-warning-50 outline outline-2 -outline-offset-2 outline-warning-400 [&>td]:bg-warning-50')}
                   onClick={() => setExpandedId(expanded ? null : row.id)}
                   aria-expanded={expanded}
                 >
