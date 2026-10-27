@@ -37,8 +37,10 @@ export const CashflowTable: React.FC<CashflowTableProps> = ({ report, isLoading,
 
   return (
     <div className="overflow-hidden rounded-lg border border-border shadow-sm">
-      <div className="max-h-[calc(100vh-320px)] overflow-auto">
-        <Table className="min-w-full">
+      {/* At most a screen tall: however the page is scrolled, the box (and its pinned header and totals) stays in view */}
+      <div className="max-h-[calc(100vh-7rem)] overflow-auto">
+        {/* The box above scrolls both ways, so the header, the invoice column and the totals stick to it */}
+        <Table className="min-w-full" wrapperClassName="overflow-visible">
           {/* Above the sticky invoice column, so rows scroll under the header */}
           <TableHeader className="sticky top-0 z-30 bg-surface shadow-sm">
             <TableRow>
