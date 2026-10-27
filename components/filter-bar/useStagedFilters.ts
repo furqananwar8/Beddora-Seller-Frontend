@@ -5,10 +5,11 @@ const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
 /**
  * Filters that are staged, then applied: changing a box only edits the draft, and the list
  * reloads once on `apply`. `reset` clears every box back to its default and reloads.
+ * `initial` starts somewhere other than the defaults (e.g. filters kept in the page address).
  */
-export function useStagedFilters<T extends Record<string, unknown>>(defaults: T, onApply?: (applied: T) => void) {
-  const [draft, setDraftState] = useState<T>(defaults)
-  const [applied, setApplied] = useState<T>(defaults)
+export function useStagedFilters<T extends Record<string, unknown>>(defaults: T, onApply?: (applied: T) => void, initial: T = defaults) {
+  const [draft, setDraftState] = useState<T>(initial)
+  const [applied, setApplied] = useState<T>(initial)
 
   const setDraft = useCallback(<K extends keyof T>(key: K, value: T[K]) => setDraftState((current) => ({ ...current, [key]: value })), [])
 

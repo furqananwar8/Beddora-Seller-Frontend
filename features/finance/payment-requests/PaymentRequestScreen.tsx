@@ -79,6 +79,9 @@ export const PaymentRequestScreen: React.FC = () => {
   const searchParams = useSearchParams()
   const openParam = Number(searchParams.get('open'))
   const openId = Number.isInteger(openParam) && openParam > 0 ? openParam : null
+  // Opened from another screen (Cashflow Planning): its details offer a way back there. Only paths inside the app.
+  const returnParam = searchParams.get('returnTo')
+  const backHref = returnParam && returnParam.startsWith('/dashboard/') && !returnParam.startsWith('//') ? returnParam : null
   // "View payment requests" on a purchase order opens this list narrowed to that PO
   const poParam = Number(searchParams.get('purchaseOrderId'))
   const purchaseOrderId = Number.isInteger(poParam) && poParam > 0 ? poParam : null
@@ -289,7 +292,7 @@ export const PaymentRequestScreen: React.FC = () => {
       </div>
 
       <RejectDialog requestId={rejectId} submitting={actions.rejecting} onConfirm={actions.reject} onClose={() => setRejectId(null)} />
-      <RequestDetailModal requestId={openId} onClose={() => setOpen(null)} />
+      <RequestDetailModal requestId={openId} backHref={backHref} onClose={() => setOpen(null)} />
       {canManageExpenseTypes && <ExpenseTypesModal isOpen={showTypes} onClose={() => setShowTypes(false)} />}
       {canManageApprovers && <ApproversModal isOpen={showApprovers} onClose={() => setShowApprovers(false)} />}
     </Container>

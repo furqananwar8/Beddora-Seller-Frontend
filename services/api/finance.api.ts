@@ -184,32 +184,33 @@ export interface CashflowPeriod {
   end: string
 }
 
-/** A payment recorded against a payment invoice. */
-export interface CashflowEntry {
-  id: number
-  period: string
-  paymentDate: string
-  amount: number
-  bank: string | null
-  /** The payment's own reference (wire / cheque no.). */
-  reference: string | null
-}
+/** How a set of requests stands: every one paid in full, none, or some of each. */
+export type CashflowPaymentState = 'PAID' | 'UNPAID' | 'PARTLY_PAID'
 
-export interface CashflowCell {
-  amount: number
-  count: number
-}
-
-/** One payment invoice and its payments per period; one currency per row. */
+/** One approved payment request, under its due date. */
 export interface CashflowRow {
   requestId: number
   requestNo: string
+  /** Invoice number, or the PO number of a purchase-order request. */
   invoiceRef: string
   partner: { id: number; name: string }
   currency: string
-  cells: Record<string, CashflowCell>
-  total: number
-  entries: CashflowEntry[]
+  /** YYYY-MM-DD; the invoice date when the request has no due date. */
+  dueDate: string
+  /** The period column it falls in. */
+  period: string
+  amount: number
+  paidAmount: number
+  /** Paid in full (or settled); otherwise money is still owed. */
+  paid: boolean
+}
+
+/** A footer cell: one currency's requests in one period, summed, and how they stand. */
+export interface CashflowTotalCell {
+  amount: number
+  count: number
+  paidCount: number
+  state: CashflowPaymentState
 }
 
 export interface CashflowReport {
@@ -219,7 +220,7 @@ export interface CashflowReport {
   periods: CashflowPeriod[]
   rows: CashflowRow[]
   /** One footer line per currency. */
-  totals: Array<{ currency: string; cells: Record<string, number>; total: number }>
+  totals: Array<{ currency: string; cells: Record<string, CashflowTotalCell>; total: CashflowTotalCell }>
 }
 
 export interface CashflowParams {
@@ -228,7 +229,11 @@ export interface CashflowParams {
   to: string
   groupBy: CashflowGrouping
   currencies?: string[]
+  /** Paid in full, or still owing; left out, both. */
+  payment?: CashflowPaymentFilter
 }
+
+export type CashflowPaymentFilter = 'PAID' | 'UNPAID'
 
 /* ─────────────── Payment requests ─────────────── */
 

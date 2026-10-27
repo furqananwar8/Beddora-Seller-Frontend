@@ -133,6 +133,8 @@ export const ApprovalTimeline: React.FC<{ events: TimelineEntry[]; status: strin
 
   return (
     <div ref={scroller} className="min-h-0 flex-1 overflow-x-auto overflow-y-auto p-4">
+      {/* Every request raised in the app records its steps; one without any was imported or added another way */}
+      {count === 0 && <p className="py-6 text-center text-sm text-text-muted">No approval history recorded for this request.</p>}
       <ol className="space-y-4">
       {steps.map((step) => (
         <li key={step.key} className="flex items-start gap-3">

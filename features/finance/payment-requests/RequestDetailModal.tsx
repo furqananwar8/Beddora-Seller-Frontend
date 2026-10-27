@@ -184,10 +184,12 @@ const DetailBody: React.FC<DetailBodyProps> = ({ detail, onClose }) => {
 interface RequestDetailModalProps {
   /** Request id from `?open=`; null keeps the modal closed. */
   requestId: number | null
+  /** The screen it was opened from (`?returnTo=`), shown as a Back button; null when opened from this list. */
+  backHref?: string | null
   onClose: () => void
 }
 
-export const RequestDetailModal: React.FC<RequestDetailModalProps> = ({ requestId, onClose }) => {
+export const RequestDetailModal: React.FC<RequestDetailModalProps> = ({ requestId, backHref, onClose }) => {
   const { data, isLoading, isError, error } = useGetPaymentRequestQuery(requestId ?? 0, { skip: requestId === null })
 
   return (
@@ -199,7 +201,14 @@ export const RequestDetailModal: React.FC<RequestDetailModalProps> = ({ requestI
       ) : isError || !data ? (
         <div className="py-12 text-center font-medium text-danger-600">{financeErrorMessage(error, 'Could not load this payment request.')}</div>
       ) : (
-        <DetailBody detail={data} onClose={onClose} />
+        <>
+          {backHref && (
+            <Link href={backHref} className="mb-3 inline-flex items-center gap-1 text-sm font-medium text-primary-600 hover:underline">
+              ← Back
+            </Link>
+          )}
+          <DetailBody detail={data} onClose={onClose} />
+        </>
       )}
     </Modal>
   )

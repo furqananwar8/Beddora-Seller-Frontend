@@ -1,55 +1,82 @@
 'use client'
 
 import React from 'react'
+import Link from 'next/link'
 import { Modal } from '@/design-system/modals'
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/design-system/tables'
-import type { CashflowPeriod, CashflowRow } from '@/services/api/finance.api'
+import type { CashflowRow } from '@/services/api/finance.api'
+import { cn } from '@/utils/cn'
 import { formatCurrencyAmount, formatDay } from '../shared/format'
+import { PAYMENT_STATE_META } from './cashflowMeta'
 
 /** Every column centred, under its (centred) header. */
 const CENTER = 'text-center'
 
+/** What a clicked cell holds: one request, or every request summed in a total. */
 export interface CashflowSelection {
-  row: CashflowRow
-  period: CashflowPeriod
+  title: string
+  currency: string
+  amount: number
+  rows: CashflowRow[]
 }
 
-/** The payments summed in one cell: one invoice, one period. Closed with its X. */
-export const CashflowEntriesModal: React.FC<{ selection: CashflowSelection | null; onClose: () => void }> = ({ selection, onClose }) => {
-  const entries = selection ? selection.row.entries.filter((entry) => entry.period === selection.period.key) : []
-  const currency = selection?.row.currency ?? ''
-  const title = selection ? `${selection.row.requestNo} · ${selection.row.invoiceRef} · ${selection.period.label}` : undefined
+interface CashflowEntriesModalProps {
+  selection: CashflowSelection | null
+  /** This screen's address with its filters, so the payment's details can come back to it. */
+  returnTo: string
+  onClose: () => void
+}
+
+/** The requests in one cell, each with its payment state; a reference opens that payment's details. Closed with its X. */
+export const CashflowEntriesModal: React.FC<CashflowEntriesModalProps> = ({ selection, returnTo, onClose }) => {
+  const detailHref = (row: CashflowRow) => `/dashboard/finance/payment-request?open=${row.requestId}&returnTo=${encodeURIComponent(returnTo)}`
 
   return (
-    <Modal isOpen={selection !== null} onClose={onClose} title={title} size="lg">
-      {selection && <p className="mb-3 text-sm text-text-muted">{selection.row.partner.name}</p>}
+    <Modal isOpen={selection !== null} onClose={onClose} title={selection?.title} size="xl">
       <Table className="min-w-full">
         <TableHeader>
           <TableRow>
-            <TableHead>Payment date</TableHead>
-            <TableHead>Paid from</TableHead>
             <TableHead>Reference</TableHead>
-            <TableHead className={CENTER}>Amount</TableHead>
+            <TableHead>Partner</TableHead>
+            <TableHead>Due date</TableHead>
+            <TableHead>Amount</TableHead>
+            <TableHead>Paid</TableHead>
+            <TableHead>Status</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {entries.map((entry) => (
-            <TableRow key={entry.id}>
-              <TableCell className={CENTER}>{formatDay(entry.paymentDate)}</TableCell>
-              <TableCell className={CENTER}>{entry.bank ?? '—'}</TableCell>
-              <TableCell className={CENTER}>{entry.reference || '—'}</TableCell>
-              <TableCell className={`${CENTER} tabular-nums`}>{formatCurrencyAmount(currency, entry.amount)}</TableCell>
-            </TableRow>
-          ))}
+          {selection?.rows.map((row) => {
+            const meta = PAYMENT_STATE_META[row.paid ? 'PAID' : 'UNPAID']
+            return (
+              <TableRow key={row.requestId}>
+                <TableCell className={CENTER}>
+                  <Link href={detailHref(row)} className="font-medium text-primary-600 hover:underline">
+                    {row.requestNo} · {row.invoiceRef}
+                  </Link>
+                </TableCell>
+                <TableCell className={CENTER}>{row.partner.name}</TableCell>
+                <TableCell className={CENTER}>{formatDay(row.dueDate)}</TableCell>
+                <TableCell className={`${CENTER} tabular-nums`}>{formatCurrencyAmount(row.currency, row.amount)}</TableCell>
+                <TableCell className={`${CENTER} tabular-nums`}>{formatCurrencyAmount(row.currency, row.paidAmount)}</TableCell>
+                <TableCell className={CENTER}>
+                  <span className={cn('rounded-full px-2 py-0.5 text-xs font-semibold uppercase tracking-wide', meta.cell)}>{meta.label}</span>
+                </TableCell>
+              </TableRow>
+            )
+          })}
         </TableBody>
         {selection && (
           <TableFooter>
             <TableRow>
-              {/* The label sits under the first column, centred like the dates above it */}
+              {/* The label sits under the first column, centred like the references above it */}
               <TableCell className={CENTER}>Total</TableCell>
               <TableCell />
               <TableCell />
-              <TableCell className={`${CENTER} font-semibold tabular-nums`}>{formatCurrencyAmount(currency, selection.row.cells[selection.period.key]?.amount ?? 0)}</TableCell>
+              <TableCell className={`${CENTER} font-semibold tabular-nums`}>{formatCurrencyAmount(selection.currency, selection.amount)}</TableCell>
+              <TableCell className={`${CENTER} font-semibold tabular-nums`}>
+                {formatCurrencyAmount(selection.currency, Math.round(selection.rows.reduce((sum, row) => sum + row.paidAmount, 0) * 100) / 100)}
+              </TableCell>
+              <TableCell />
             </TableRow>
           </TableFooter>
         )}
