@@ -45,10 +45,10 @@ export const CashflowEntriesModal: React.FC<{ selection: CashflowSelection | nul
         {selection && (
           <TableFooter>
             <TableRow>
-              {/* The label sits at the start of the row; the amount stays centred under its column */}
-              <TableCell colSpan={3} className="text-left">
-                Total
-              </TableCell>
+              {/* The label sits under the first column, centred like the dates above it */}
+              <TableCell className={CENTER}>Total</TableCell>
+              <TableCell />
+              <TableCell />
               <TableCell className={`${CENTER} font-semibold tabular-nums`}>{formatCurrencyAmount(currency, selection.row.cells[selection.period.key]?.amount ?? 0)}</TableCell>
             </TableRow>
           </TableFooter>
