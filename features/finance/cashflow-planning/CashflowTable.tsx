@@ -12,6 +12,14 @@ const AMOUNT = 'whitespace-nowrap text-right align-middle tabular-nums'
 /** The invoice column stays in view while the periods scroll sideways. */
 const STICKY = 'sticky left-0 z-[1] bg-surface'
 
+/** An amount with its currency as a small tag in front, kept on one line so it never spills out of its cell. */
+const Money: React.FC<{ currency: string; amount: number }> = ({ currency, amount }) => (
+  <span className="inline-flex items-baseline gap-1 whitespace-nowrap">
+    <span className="text-[10px] font-medium uppercase tracking-wide text-text-muted">{currency}</span>
+    <span>{formatMoney(amount)}</span>
+  </span>
+)
+
 interface CashflowTableProps {
   report: CashflowReport | undefined
   isLoading: boolean
@@ -22,7 +30,7 @@ interface CashflowTableProps {
 /** Payment invoices down the side, the payments made against them per period across, totals per currency below. */
 export const CashflowTable: React.FC<CashflowTableProps> = ({ report, isLoading, isError, onOpen }) => {
   const periods = report?.periods ?? []
-  const columns = periods.length + 3
+  const columns = periods.length + 2
 
   return (
     <div className="overflow-hidden rounded-lg border border-border shadow-sm">
@@ -31,7 +39,6 @@ export const CashflowTable: React.FC<CashflowTableProps> = ({ report, isLoading,
           <TableHeader className="sticky top-0 z-10 bg-surface shadow-sm">
             <TableRow>
               <TableHead className={cn(STICKY, 'z-20 min-w-[14rem]')}>Payment invoice</TableHead>
-              <TableHead>Currency</TableHead>
               {periods.map((period) => (
                 <TableHead key={period.key} className="whitespace-nowrap text-right">
                   {period.label}
@@ -64,7 +71,6 @@ export const CashflowTable: React.FC<CashflowTableProps> = ({ report, isLoading,
                     </div>
                     <div className="text-xs text-text-muted">{row.partner.name}</div>
                   </TableCell>
-                  <TableCell>{row.currency}</TableCell>
                   {periods.map((period) => {
                     const cell = row.cells[period.key]
                     return (
@@ -76,7 +82,7 @@ export const CashflowTable: React.FC<CashflowTableProps> = ({ report, isLoading,
                             className="font-medium text-primary-600 hover:underline"
                             title={`${cell.count} payment${cell.count === 1 ? '' : 's'}`}
                           >
-                            {formatMoney(cell.amount)}
+                            <Money currency={row.currency} amount={cell.amount} />
                           </button>
                         ) : (
                           <span className="text-text-muted">—</span>
@@ -84,7 +90,9 @@ export const CashflowTable: React.FC<CashflowTableProps> = ({ report, isLoading,
                       </TableCell>
                     )
                   })}
-                  <TableCell className={cn(AMOUNT, 'font-semibold')}>{formatMoney(row.total)}</TableCell>
+                  <TableCell className={cn(AMOUNT, 'font-semibold')}>
+                    <Money currency={row.currency} amount={row.total} />
+                  </TableCell>
                 </TableRow>
               ))
             )}
@@ -95,13 +103,14 @@ export const CashflowTable: React.FC<CashflowTableProps> = ({ report, isLoading,
               {report.totals.map((total) => (
                 <TableRow key={total.currency} className="border-t-2 border-border">
                   <TableCell className={cn(STICKY, 'bg-secondary-50 font-semibold')}>{total.currency} Total</TableCell>
-                  <TableCell>{total.currency}</TableCell>
                   {periods.map((period) => (
                     <TableCell key={period.key} className={AMOUNT}>
-                      {total.cells[period.key] === undefined ? <span className="text-text-muted">—</span> : formatMoney(total.cells[period.key])}
+                      {total.cells[period.key] === undefined ? <span className="text-text-muted">—</span> : <Money currency={total.currency} amount={total.cells[period.key]} />}
                     </TableCell>
                   ))}
-                  <TableCell className={cn(AMOUNT, 'font-semibold')}>{formatMoney(total.total)}</TableCell>
+                  <TableCell className={cn(AMOUNT, 'font-semibold')}>
+                    <Money currency={total.currency} amount={total.total} />
+                  </TableCell>
                 </TableRow>
               ))}
             </TableFooter>
