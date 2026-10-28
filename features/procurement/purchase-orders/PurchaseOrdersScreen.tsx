@@ -263,7 +263,7 @@ export const PurchaseOrdersScreen: React.FC = () => {
         onClose={() => setApproving(null)}
       >
         <p>
-          Approving moves <strong>{approving?.poNo}</strong> ({approving?.supplier.name}) to In progress and locks every field. An approver can unlock it later for edits.
+          Approving moves <strong>{approving?.poNo}</strong> ({approving?.supplier.name}) to In production and locks every field. An approver can unlock it later for edits.
         </p>
       </ConfirmDialog>
 

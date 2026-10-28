@@ -29,7 +29,7 @@ export const DESTINATION_ROW_TINT: Record<PoDestination, string> = {
 export const PO_STATUS_META: Record<PoStatus, { label: string; tone: StatusTone }> = {
   DRAFT: { label: 'DRAFT', tone: 'neutral' },
   PENDING_APPROVAL: { label: 'PENDING FOR APPROVAL', tone: 'warning' },
-  IN_PROGRESS: { label: 'IN PROGRESS', tone: 'info' },
+  IN_PROGRESS: { label: 'IN PRODUCTION', tone: 'info' },
   READY_TO_SHIP: { label: 'READY TO SHIP', tone: 'success' },
 }
 
