@@ -20,7 +20,7 @@ interface Props {
 
 /** The row's name: the page, or the last part of a subpage (`price-analysis.approval` → "approval"). */
 /** Words shown in capitals instead of title case, e.g. `sku-mapping` → "SKU Mapping". */
-const ACRONYMS = new Set(['sku', 'po', 'ppc', 'ip'])
+const ACRONYMS = new Set(['sku', 'po', 'ppc', 'ip', 'invp'])
 
 const labelOf = (node: PermissionNode) =>
   (node.subpage ? (node.subpage.split('.').pop() ?? node.subpage) : node.page)
