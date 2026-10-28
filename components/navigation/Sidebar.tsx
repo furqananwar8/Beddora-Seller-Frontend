@@ -84,12 +84,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ sections, user }) => {
         )}
       >
         <div className="flex flex-col h-full">
-          {/* Logo */}
+          {/* Keeps the sidebar in line with the top bar; holds the close button on small screens */}
           <div className="ds-sidebar-header">
-            <h2 className="ds-sidebar-logo">SellerMetrics</h2>
             <button
               onClick={() => dispatch(setSidebarOpen(false))}
-              className="lg:hidden text-text-muted hover:text-text-secondary"
+              className="ml-auto lg:hidden text-text-muted hover:text-text-secondary"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

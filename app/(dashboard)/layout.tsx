@@ -272,6 +272,7 @@ export default function DashboardLayout({
             icon: NavIcons.alerts,
             badge: '3',
             disabled: true,
+            hidden: true,
             children: [
               {
                 label: 'Dashboard',
@@ -345,6 +346,9 @@ export default function DashboardLayout({
         ...section,
         items: section.items
           .map((item) => {
+            // Kept in the list but left out of the sidebar for now; the routes still exist
+            if (item.hidden) return null
+
             const visibleChildren =
               item.children?.filter((child) =>
                 ability.can(child.action, child.subject)
