@@ -64,7 +64,7 @@ export const CompanyDetailsForm: React.FC = () => {
   if (isError) return <p className="py-16 text-center text-sm text-danger-600">Could not load the company details.</p>
 
   return (
-    <Card className="max-w-2xl">
+    <Card>
       <CardHeader>
         <CardTitle>Company details</CardTitle>
         <CardDescription>Printed as the letterhead on purchase order PDFs. Changes apply to the next PDF you download.</CardDescription>

@@ -59,7 +59,7 @@ export const CostCenterCreateScreen: React.FC = () => {
   const removingUnder = removing ? pendingDescendants(state, removing.key).length : 0
 
   return (
-    <Container size="full" className="py-4 sm:py-8">
+    <Container size="md" className="py-4 sm:py-8">
       <div className="mb-4 flex flex-col items-start gap-3">
         <Button variant="outline" onClick={goBack}>
           {returnTo ? 'Back to the form' : 'Back to cost centers'}
@@ -67,7 +67,7 @@ export const CostCenterCreateScreen: React.FC = () => {
         <h1 className="text-lg font-bold text-text-primary sm:text-xl">Create cost center & hierarchy</h1>
       </div>
 
-      <div className="max-w-4xl rounded-lg border border-border bg-surface p-4 shadow-sm sm:p-6">
+      <div className="rounded-lg border border-border bg-surface p-4 shadow-sm sm:p-6">
         <p className="mb-2 text-sm text-text-muted">
           Select or add an L1, then the levels below open up. Each new entry is added under the selection on the level above it.
         </p>

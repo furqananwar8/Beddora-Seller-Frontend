@@ -1,5 +1,5 @@
 import { Metadata } from 'next'
-import { PageHeader } from '@/components/layout'
+import { Container, PageHeader } from '@/components/layout'
 import { CompanyDetailsForm } from '@/features/settings/company/CompanyDetailsForm'
 
 export const metadata: Metadata = {
@@ -14,9 +14,9 @@ export const metadata: Metadata = {
  */
 export default function CompanySettingsPage() {
   return (
-    <div className="space-y-6 px-4 py-8 sm:px-6 lg:px-8">
+    <Container size="sm" className="space-y-6 py-8">
       <PageHeader title="Company" description="Your company name, address and contact, printed on purchase order PDFs" />
       <CompanyDetailsForm />
-    </div>
+    </Container>
   )
 }
