@@ -23,13 +23,13 @@ const Money: React.FC<{ currency: string; amount: number }> = ({ currency, amoun
   </span>
 )
 
-/** A coloured amount that opens the breakdown of the requests in it. */
-const Amount: React.FC<{ currency: string; amount: number; state: CashflowPaymentState; count: number; onOpen: () => void }> = ({ currency, amount, state, count, onOpen }) => (
+/** A coloured amount that opens the breakdown of the requests in it; `plain` drops the colour (the totals rows). */
+const Amount: React.FC<{ currency: string; amount: number; state: CashflowPaymentState; count: number; onOpen: () => void; plain?: boolean }> = ({ currency, amount, state, count, onOpen, plain }) => (
   <button
     type="button"
     onClick={onOpen}
     title={`${count} request${count === 1 ? '' : 's'} · ${PAYMENT_STATE_META[state].label}`}
-    className={cn('rounded-md px-2 py-1 font-medium hover:underline', PAYMENT_STATE_META[state].cell)}
+    className={cn('rounded-md px-2 py-1 font-medium hover:underline', !plain && PAYMENT_STATE_META[state].cell)}
   >
     <Money currency={currency} amount={amount} />
   </button>
@@ -117,7 +117,7 @@ export const CashflowTable: React.FC<CashflowTableProps> = ({ report, isLoading,
                       return (
                         <TableCell key={period.key} className={AMOUNT}>
                           {cell ? (
-                            <Amount currency={line.currency} amount={cell.amount} state={cell.state} count={cell.count} onOpen={() => openTotal(line.currency, cell, period.label, period.key)} />
+                            <Amount currency={line.currency} amount={cell.amount} state={cell.state} count={cell.count} onOpen={() => openTotal(line.currency, cell, period.label, period.key)} plain />
                           ) : (
                             <span className="text-text-muted">—</span>
                           )}
@@ -125,7 +125,7 @@ export const CashflowTable: React.FC<CashflowTableProps> = ({ report, isLoading,
                       )
                     })}
                     <TableCell className={cn(AMOUNT, 'font-semibold')}>
-                      <Amount currency={line.currency} amount={line.total.amount} state={line.total.state} count={line.total.count} onOpen={() => openTotal(line.currency, line.total, 'whole range')} />
+                      <Amount currency={line.currency} amount={line.total.amount} state={line.total.state} count={line.total.count} onOpen={() => openTotal(line.currency, line.total, 'whole range')} plain />
                     </TableCell>
                   </TableRow>
                 ))}
