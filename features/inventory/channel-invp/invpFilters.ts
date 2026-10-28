@@ -1,3 +1,4 @@
+import { Container, type LucideIcon, Store, Warehouse } from 'lucide-react'
 import { endOfMonth, format, startOfMonth, subDays, subMonths } from 'date-fns'
 import type { DateRangePreset, DateRangeValue } from '@/components/date-range-picker/DateRangePicker'
 import type { FilterOption } from '@/components/filter-bar/FilterMultiSelect'
@@ -64,6 +65,9 @@ export const VIEW_OPTIONS: Array<SegmentedOption<InvpView>> = [
 export const LINES: InvpLine[] = ['warehouse', 'container', 'channel']
 
 export const lineLabel = (line: InvpLine, channel: InvpChannel) => (line === 'warehouse' ? 'Warehouse' : line === 'container' ? 'Container' : CHANNEL_LABEL[channel])
+
+/** Each stock line's icon in the table. */
+export const LINE_ICON: Record<InvpLine, LucideIcon> = { warehouse: Warehouse, container: Container, channel: Store }
 
 /** Stock levels by days of cover, as the legend explains them. */
 export const LEVEL_META: Record<StockLevel, { label: string; cell: string; swatch: string }> = {

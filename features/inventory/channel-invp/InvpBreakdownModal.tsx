@@ -31,8 +31,9 @@ export const InvpBreakdownModal: React.FC<{ selection: InvpSelection | null; onC
       ) : entries.length === 0 ? (
         <p className="py-8 text-center text-sm text-text-muted">Nothing recorded behind this figure for the period.</p>
       ) : (
-        <Table className="min-w-full">
-          <TableHeader>
+        // The header stays at the top of the modal while the entries scroll under it
+        <Table className="min-w-full" wrapperClassName="overflow-visible">
+          <TableHeader className="sticky top-0 z-10 bg-surface shadow-sm">
             <TableRow>
               <TableHead>Date</TableHead>
               <TableHead>{line === 'container' ? 'Container' : line === 'warehouse' ? 'Movement' : 'Channel SKU'}</TableHead>

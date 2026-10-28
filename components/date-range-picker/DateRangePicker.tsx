@@ -539,7 +539,8 @@ function CalendarGrid({
                     'cursor-not-allowed text-text-muted opacity-40',
 
                   !isDisabled &&
-                    'cursor-pointer hover:bg-primary-100',
+                    // primary is near-black in this theme, so hover uses a light neutral the digit stays readable on
+                    'cursor-pointer hover:bg-secondary-100',
 
                   isSingleSelected &&
                     'rounded-md bg-primary-700 text-white hover:bg-primary-700',
@@ -557,7 +558,7 @@ function CalendarGrid({
                     !isSelectedEnd &&
                     (inRange ||
                       hovered) &&
-                    'bg-primary-100 text-secondary-600',
+                    'bg-secondary-100 text-text-primary',
 
                   isTodayDate &&
                     !isSingleSelected &&

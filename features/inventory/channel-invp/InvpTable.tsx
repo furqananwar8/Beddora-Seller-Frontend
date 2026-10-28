@@ -2,11 +2,10 @@
 
 import React from 'react'
 import { CountryFlag } from '@/components/flags/CountryFlag'
-import { Spinner } from '@/design-system/loaders'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/design-system/tables'
+import { Table, TABLE_STATUS_VIEWPORT, TableBody, TableCell, TableHead, TableHeader, TableRow, TableStatusRow } from '@/design-system/tables'
 import type { InvpChannel, InvpCell, InvpLine, InvpMarketplaceRow, InvpPeriod, InvpReport, InvpRow } from '@/services/api/channelInvp.api'
 import { cn } from '@/utils/cn'
-import { LEVEL_META, LEVELS, lineLabel, LINES, MARKETPLACE_META } from './invpFilters'
+import { LEVEL_META, LEVELS, LINE_ICON, lineLabel, LINES, MARKETPLACE_META } from './invpFilters'
 
 const NUM = 'whitespace-nowrap text-right align-middle tabular-nums'
 const PERIOD = 'min-w-[7.5rem]'
@@ -31,6 +30,17 @@ const format = (cell: InvpCell, currency: string, amount: boolean) =>
     cell.value.toLocaleString()
   )
 
+/** A stock line as its icon; the warehouse is shared by every marketplace of the SKU, which its tooltip says. */
+const LineIcon: React.FC<{ line: InvpLine; channel: InvpChannel; onClick: () => void }> = ({ line, channel, onClick }) => {
+  const Icon = LINE_ICON[line]
+  const label = `${lineLabel(line, channel)}${line === 'warehouse' ? ' (shared)' : ''}`
+  return (
+    <button type="button" onClick={onClick} title={label} aria-label={label} className="inline-flex rounded-md p-1.5 text-text-secondary hover:bg-secondary-100 hover:text-text-primary">
+      <Icon className="h-4 w-4" aria-hidden />
+    </button>
+  )
+}
+
 interface InvpTableProps {
   report: InvpReport | undefined
   channel: InvpChannel
@@ -52,7 +62,7 @@ export const InvpTable: React.FC<InvpTableProps> = ({ report, channel, isLoading
     <div className="space-y-3">
       <div className="overflow-hidden rounded-lg border border-border shadow-sm">
         {/* At most a screen tall: the header, the SKU column and the page stay in view however it is scrolled */}
-        <div className="max-h-[calc(100vh-7rem)] overflow-auto">
+        <div className={cn('max-h-[calc(100vh-7rem)] overflow-auto', TABLE_STATUS_VIEWPORT)}>
           <Table className="min-w-full" wrapperClassName="overflow-visible">
             <TableHeader className="sticky top-0 z-30 bg-surface shadow-sm">
               <TableRow>
@@ -69,19 +79,11 @@ export const InvpTable: React.FC<InvpTableProps> = ({ report, channel, isLoading
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                <TableRow>
-                  <TableCell colSpan={columns} className="py-10 text-center">
-                    <Spinner />
-                  </TableCell>
-                </TableRow>
+                <TableStatusRow colSpan={columns} loading />
               ) : isError ? (
-                <TableRow>
-                  <TableCell colSpan={columns} className="py-10 text-center text-danger-600">Could not load the channel inventory.</TableCell>
-                </TableRow>
+                <TableStatusRow colSpan={columns} tone="danger">Could not load the channel inventory.</TableStatusRow>
               ) : !report || report.data.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={columns} className="py-10 text-center text-text-muted">No SKU is mapped to this channel in the marketplaces picked.</TableCell>
-                </TableRow>
+                <TableStatusRow colSpan={columns}>No SKU is mapped to this channel in the marketplaces picked.</TableStatusRow>
               ) : (
                 report.data.flatMap((row) =>
                   row.marketplaces.flatMap((marketplace, mIndex) =>
@@ -97,9 +99,9 @@ export const InvpTable: React.FC<InvpTableProps> = ({ report, channel, isLoading
                               <div className="text-xs text-text-muted">{row.product.name}</div>
                             </TableCell>
                           )}
-                          <TableCell className="whitespace-nowrap">
-                            {firstOfMarketplace && (
-                              <div className="mb-1 max-w-[12rem] text-xs" title={marketplace.channelSkus.map((entry) => entry.sku).join(', ')}>
+                          {firstOfMarketplace && (
+                            <TableCell rowSpan={LINES.length} className="align-middle">
+                              <div className="max-w-[12rem] text-xs" title={marketplace.channelSkus.map((entry) => entry.sku).join(', ')}>
                                 <div className="flex items-center gap-1.5 font-semibold text-text-secondary">
                                   <CountryFlag code={marketplace.marketplace} />
                                   {MARKETPLACE_META[marketplace.marketplace].label}
@@ -107,15 +109,14 @@ export const InvpTable: React.FC<InvpTableProps> = ({ report, channel, isLoading
                                 {/* Long channel SKUs are cut short; the full list is in the tooltip */}
                                 <div className="truncate text-text-muted">{marketplace.channelSkus.map((entry) => entry.sku).join(', ')}</div>
                               </div>
-                            )}
-                            <button
-                              type="button"
-                              onClick={() => onOpen({ row, marketplace, line, period: null })}
-                              className={cn('text-sm font-medium text-primary-600 hover:underline', line === 'warehouse' && 'after:ml-1 after:text-xs after:font-normal after:text-text-muted after:content-["(shared)"]')}
-                            >
-                              {lineLabel(line, channel)}
-                            </button>
-                          </TableCell>
+                              {/* The lines' icons in one row; each opens its whole-range breakdown, its name is the tooltip */}
+                              <div className="mt-1.5 flex items-center gap-1">
+                                {LINES.map((each) => (
+                                  <LineIcon key={each} line={each} channel={channel} onClick={() => onOpen({ row, marketplace, line: each, period: null })} />
+                                ))}
+                              </div>
+                            </TableCell>
+                          )}
                           {firstOfMarketplace && (
                             <TableCell rowSpan={LINES.length} className={cn(NUM, 'font-semibold')}>
                               {marketplace.dailySales.toLocaleString(undefined, { maximumFractionDigits: 2 })}

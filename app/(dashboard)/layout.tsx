@@ -135,6 +135,12 @@ export default function DashboardLayout({
                 href: '/dashboard/inventory/sku-mapping',
               },
               {
+                label: 'Warehouse Inventory',
+                subject: 'inventory:warehouse-inventory',
+                action: 'read',
+                href: '/dashboard/inventory/warehouse-inventory',
+              },
+              {
                 label: 'Seller Central',
                 // Shares the Planner permission until the backend seeds 'inventory:seller-central'.
                 subject: 'inventory:planner',
