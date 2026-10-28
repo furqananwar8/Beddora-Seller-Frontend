@@ -1136,7 +1136,8 @@ export default function DateRangePicker({
               : undefined
           }
           className={cn(
-            'absolute z-50 flex w-[640px] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-lg border border-border bg-surface shadow-lg sm:flex-row',
+            'absolute z-50 flex max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-lg border border-border bg-surface shadow-lg sm:flex-row',
+            selectionMode === 'range' ? 'w-[640px]' : 'w-[320px]',
 
             position.vertical === 'top'
               ? 'bottom-full mb-2'
@@ -1255,7 +1256,8 @@ export default function DateRangePicker({
                   )}
                 </span>
 
-                <span className="hidden w-[100px] text-center sm:block">
+                {/* One month is enough to pick a single day; two months read as a range picker */}
+                <span className={cn('hidden w-[100px] text-center', selectionMode === 'range' && 'sm:block')}>
                   {format(
                     month2,
                     'MMM yyyy'
@@ -1335,7 +1337,7 @@ export default function DateRangePicker({
                 }
               />
 
-              <div className="hidden min-w-0 flex-1 sm:block">
+              <div className={cn('hidden min-w-0 flex-1', selectionMode === 'range' && 'sm:block')}>
                 <CalendarGrid
                 year={getYear(
                   month2
