@@ -430,6 +430,9 @@ export interface PackagingLineDetail {
   /** Outer carton size typed on the line, in cm; null on lines saved before cartons were recorded. */
   carton: { lengthCm: number | null; widthCm: number | null; heightCm: number | null; unit: LengthUnit }
   cbm: number
+  /** Units per carton and CBM per piece; null while cartons or the carton size are missing. */
+  unitsPerCarton: number | null
+  cbmPerPiece: number | null
   netWeightKg: number
   grossWeightKg: number
 }
@@ -498,17 +501,36 @@ export type LandedAmounts = Record<'CAD' | 'USD', number>
 /** The networks a shipment goes into. */
 export type InboundChannel = 'AMAZON_FBA' | 'WALMART_WFS'
 
+export type OpexCountry = 'CA' | 'US'
+
 export interface SkuLandedRow {
   product: { id: number; sku: string; name: string }
   landedCost: LandedAmounts
   /** Per unit and channel, from approved shipment payment requests; null while none of its shipments there is paid. */
   shipmentCost: Record<InboundChannel, number | null>
-  opexRate: number
+  /** From its latest packaging list line; null while no line has carton dimensions. */
+  cbmPerPiece: number | null
+  /** Per unit and country (CAD): the country's opex rate per CBM this month x the CBM per piece. */
+  warehouseOverhead: Record<OpexCountry, number | null>
   containerCount: number
 }
 
+export type OpexColumnKey = 'thirdPartyLogistics'
+
+/** One month's opex: warehouse overhead plus the 3PL payments, in `currency`. */
+export interface MonthlyOpex {
+  month: string
+  currency: string
+  overhead: { amount: number; recorded: boolean; edited: boolean; updatedAt: string | null }
+  thirdParty: { amount: number; payments: number }
+  total: number
+  /** Per country: its warehouse cost, the CBM of containers delivered there in the month, and the rate per CBM. */
+  countries: Record<OpexCountry, { cost: number; cbm: number; ratePerCbm: number | null }>
+}
+
 export interface SkuLandedReport extends Page<SkuLandedRow> {
-  opexRate: number
+  /** This month's opex, whose rates price the warehouse overhead. */
+  opex: MonthlyOpex
   shipmentCurrency: string
 }
 
@@ -592,6 +614,9 @@ export interface ContainerLine {
   /** Carton size saved on the packaging list, in cm. */
   carton: { lengthCm: number | null; widthCm: number | null; heightCm: number | null }
   cbm: number
+  /** Units per carton and CBM per piece; null while cartons or the carton size are missing. */
+  unitsPerCarton: number | null
+  cbmPerPiece: number | null
   netWeightKg: number
   grossWeightKg: number
 }
@@ -699,12 +724,19 @@ export interface ContainerExpense {
   mapped: boolean
 }
 
-export interface CostMapping {
-  /** Each column with the L4 cost centers it takes payments from (an L4 feeds one column only). */
-  columns: Array<{ key: CostBucketKey; label: string; basis: 'cbm' | 'value'; costCenters: CostCenterOption[] }>
+/** A screen's expense columns, each with the L4 cost centers it takes payments from (an L4 feeds one column anywhere). */
+export interface ExpenseMapping<K extends string, Extra = unknown> {
+  columns: Array<{ key: K; label: string; costCenters: CostCenterOption[] } & Extra>
   /** Active L4 cost centers that can be picked. */
   options: CostCenterOption[]
 }
+
+export interface ExpenseMappingEntry<K extends string> {
+  bucket: K
+  costCenterIds: number[]
+}
+
+export type CostMapping = ExpenseMapping<CostBucketKey, { basis: 'cbm' | 'value' }>
 
 export interface ContainerCostItem {
   id: number
@@ -1127,6 +1159,26 @@ export const procurementApi = baseApi.injectEndpoints({
       query: ({ search, ...params }) => ({ url: '/procurement/containers/sku-landed', params: { ...params, search: search || undefined } }),
       providesTags: ['ProcurementContainers', 'FinanceRequests'],
     }),
+    getSkuLandedOpex: b.query<MonthlyOpex, string>({
+      query: (month) => `/procurement/containers/sku-landed/opex/${month}`,
+      transformResponse: unwrap,
+      providesTags: ['ProcurementContainers', 'FinanceRequests'],
+    }),
+    setWarehouseOverhead: b.mutation<MonthlyOpex, { month: string; amount: number }>({
+      query: ({ month, amount }) => ({ url: `/procurement/containers/sku-landed/opex/${month}/overhead`, method: 'PUT', body: { amount } }),
+      transformResponse: unwrap,
+      invalidatesTags: ['ProcurementContainers'],
+    }),
+    getSkuLandedMapping: b.query<ExpenseMapping<OpexColumnKey>, void>({
+      query: () => '/procurement/containers/sku-landed/mapping',
+      transformResponse: unwrap,
+      providesTags: ['ProcurementContainers'],
+    }),
+    saveSkuLandedMapping: b.mutation<ExpenseMapping<OpexColumnKey>, ExpenseMappingEntry<OpexColumnKey>[]>({
+      query: (mappings) => ({ url: '/procurement/containers/sku-landed/mapping', method: 'PUT', body: { mappings } }),
+      transformResponse: unwrap,
+      invalidatesTags: ['ProcurementContainers'],
+    }),
     getSkuLandedTimeline: b.query<SkuLandedTimeline, number>({
       query: (productId) => `/procurement/containers/sku-landed/${productId}`,
       transformResponse: unwrap,
@@ -1256,6 +1308,10 @@ export const procurementApi = baseApi.injectEndpoints({
 export const {
   useGetSkuLandedQuery,
   useGetSkuLandedTimelineQuery,
+  useGetSkuLandedOpexQuery,
+  useSetWarehouseOverheadMutation,
+  useGetSkuLandedMappingQuery,
+  useSaveSkuLandedMappingMutation,
   useGetPoProductsQuery,
   useGetPoProductSummaryQuery,
   useGetPoProductQuery,

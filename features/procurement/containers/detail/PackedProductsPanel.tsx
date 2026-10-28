@@ -1,5 +1,6 @@
 'use client'
 
+import { formatCbmPerPiece, formatUnitsPerCarton } from '@/utils/cartonMetrics'
 import React from 'react'
 import Link from 'next/link'
 import type { ContainerDetail } from '@/services/api/procurement.api'
@@ -58,6 +59,8 @@ export const PackedProductsPanel: React.FC<{ container: ContainerDetail }> = ({ 
                   <Fact label="Cartons">{qty(line.cartons)}</Fact>
                   <Fact label="Carton L × W × H">{formatDimensions(line.carton.lengthCm, line.carton.widthCm, line.carton.heightCm, 'CM')}</Fact>
                   <Fact label="CBM">{line.cbm.toFixed(2)}</Fact>
+                  <Fact label="Units / carton">{formatUnitsPerCarton(line.unitsPerCarton)}</Fact>
+                  <Fact label="CBM / piece">{formatCbmPerPiece(line.cbmPerPiece)}</Fact>
                   <Fact label="Net / gross">
                     {kg(line.netWeightKg)} / {kg(line.grossWeightKg)}
                   </Fact>

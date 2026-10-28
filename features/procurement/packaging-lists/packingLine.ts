@@ -1,4 +1,5 @@
 import type { PackablePoLines, PackagingLineBody, PackagingLineDetail, PoProduct } from '@/services/api/procurement.api'
+import { cartonMetrics } from '@/utils/cartonMetrics'
 import { cbmOf } from '../shared/units'
 
 /** What the user typed for one SKU of one PO. Carton dimensions are in cm; empty net weight follows the product. */
@@ -82,6 +83,7 @@ export function computeLine(line: PackableLine, value: LineValue | undefined) {
     remaining: line.available - safeUnits,
     // Cartons x the carton's volume; without a carton size it falls back to the product's CBM per unit (as the server does)
     cbm: hasCarton ? round(cbmOf(l, w, h, 'CM') * safeCartons, 4) : round((line.product.cbm ?? 0) * safeUnits, 4),
+    ...cartonMetrics(safeUnits, safeCartons, numberOrNull(l), numberOrNull(w), numberOrNull(h)),
     net,
     productNet,
     // Left empty, gross is taken as net (the server does the same)

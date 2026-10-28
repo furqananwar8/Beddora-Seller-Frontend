@@ -1,5 +1,6 @@
 'use client'
 
+import { formatCbmPerPiece, formatUnitsPerCarton } from '@/utils/cartonMetrics'
 import React from 'react'
 import { fieldClass } from '@/components/form-field/FormField'
 import { NumericInput } from '@/components/form-field/NumericInput'
@@ -27,7 +28,7 @@ const HEAD = 'px-3 py-2 text-center text-xs font-semibold uppercase tracking-wid
  */
 const CELL = 'px-3 py-2 text-center align-top tabular-nums'
 const FOOT_CELL = 'px-3 py-2 text-center align-middle tabular-nums'
-const COLUMNS = 12
+const COLUMNS = 14
 const qty = (value: number) => value.toLocaleString('en-CA')
 const kg = (value: number) => `${value.toLocaleString('en-CA', { maximumFractionDigits: 1 })} kg`
 
@@ -85,6 +86,8 @@ export const PackingLinesTable: React.FC<PackingLinesTableProps> = ({ groups, va
             <th className={HEAD}>Cartons</th>
             <th className={cn(HEAD, 'min-w-[14rem]')}>Carton L × W × H (cm)</th>
             <th className={HEAD}>CBM</th>
+            <th className={HEAD}>Units / carton</th>
+            <th className={HEAD}>CBM / piece</th>
             <th className={HEAD}>Net wt (kg)</th>
             <th className={HEAD}>Gross wt (kg)</th>
           </tr>
@@ -172,6 +175,12 @@ export const PackingLinesTable: React.FC<PackingLinesTableProps> = ({ groups, va
                       <td className={cn(CELL, 'font-mono text-xs')}>
                         <Value>{figures.cbm.toFixed(2)}</Value>
                       </td>
+                      <td className={cn(CELL, 'tabular-nums')}>
+                        <Value>{formatUnitsPerCarton(figures.unitsPerCarton)}</Value>
+                      </td>
+                      <td className={cn(CELL, 'font-mono text-xs')}>
+                        <Value>{formatCbmPerPiece(figures.cbmPerPiece)}</Value>
+                      </td>
                       <td className={CELL}>
                         <NumberCell
                           decimal
@@ -227,6 +236,8 @@ export const PackingLinesTable: React.FC<PackingLinesTableProps> = ({ groups, va
             <td className={FOOT_CELL}>{qty(total((row) => row.figures.cartons))}</td>
             <td />
             <td className={cn(FOOT_CELL, 'font-mono text-xs')}>{total((row) => row.figures.cbm).toFixed(2)}</td>
+            <td />
+            <td />
             <td className={cn(FOOT_CELL, 'whitespace-nowrap')}>{kg(total((row) => row.figures.net))}</td>
             <td className={cn(FOOT_CELL, 'whitespace-nowrap')}>{kg(total((row) => row.figures.gross))}</td>
           </tr>
