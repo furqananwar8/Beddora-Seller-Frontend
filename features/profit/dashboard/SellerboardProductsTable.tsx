@@ -32,6 +32,7 @@ import { RefundReasonsPopover, type RefundReasonsScope } from './components/Refu
 import { FbaStockPopover } from './components/FbaStockPopover'
 import { useGetFbaStockQuery, type FbaStockSummary } from '@/services/api/inventoryPlanner.api'
 import { cn } from '@/utils/cn'
+import { lossTone, profitTone } from '@/utils/profitTone'
 
 /* ──────────────────────────────────────────────────────
  * Types
@@ -804,22 +805,22 @@ export const SellerboardProductsTable: React.FC<
             </TableCell>
 
             {/* Gross Profit */}
-            <TableCell className="text-right font-medium text-success-600 whitespace-nowrap px-4 py-3">
+            <TableCell className={`text-right font-medium whitespace-nowrap px-4 py-3 ${profitTone(product.grossProfit)}`}>
               {formatCurrency(product.grossProfit || 0)}
             </TableCell>
 
             {/* Net Profit */}
-            <TableCell className="text-right font-semibold text-success-600 whitespace-nowrap px-4 py-3">
+            <TableCell className={`text-right font-semibold whitespace-nowrap px-4 py-3 ${profitTone(product.netProfit)}`}>
               {formatCurrency(product.netProfit || 0)}
             </TableCell>
 
             {/* Margin */}
-            <TableCell className="text-right whitespace-nowrap px-4 py-3">
+            <TableCell className={`text-right whitespace-nowrap px-4 py-3 ${lossTone(product.margin)}`}>
               {formatPercentage(product.margin || 0)}
             </TableCell>
 
             {/* ROI */}
-            <TableCell className="text-right whitespace-nowrap px-4 py-3">
+            <TableCell className={`text-right whitespace-nowrap px-4 py-3 ${lossTone(product.roi)}`}>
               {formatPercentage(product.roi || 0)}
             </TableCell>
 

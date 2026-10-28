@@ -247,7 +247,7 @@ export default function DashboardLayout({
             children: [
               { label: 'Containers', subject: 'containers:containers', action: 'read', href: '/dashboard/containers' },
               { label: 'Cost Analysis', subject: 'containers:cost-analysis', action: 'read', href: '/dashboard/containers/cost-analysis' },
-              { label: 'SKU Landed', subject: 'containers:sku-landed', action: 'read', href: '/dashboard/containers/sku-landed' },
+              { label: 'SKU Landed Cost', subject: 'containers:sku-landed', action: 'read', href: '/dashboard/containers/sku-landed' },
             ],
           },
           {
@@ -424,6 +424,8 @@ export default function DashboardLayout({
       },
       {
         id: 'chart',
+        // Hidden from the header for now; set to false to bring it back
+        hidden: true,
         label: 'Chart',
         icon: (
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -438,6 +440,8 @@ export default function DashboardLayout({
       },
       {
         id: 'pnl',
+        // Hidden from the header for now; set to false to bring it back
+        hidden: true,
         label: 'P&L',
         icon: (
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -452,6 +456,8 @@ export default function DashboardLayout({
       },
       {
         id: 'map',
+        // Hidden from the header for now; set to false to bring it back
+        hidden: true,
         label: 'Map',
         icon: (
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -466,6 +472,8 @@ export default function DashboardLayout({
       },
       {
         id: 'trends',
+        // Hidden from the header for now; set to false to bring it back
+        hidden: true,
         label: 'Trends',
         icon: (
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -528,7 +536,7 @@ export default function DashboardLayout({
             onMarketplaceChange={setMarketplaceValue}
             onPeriodChange={setPeriodValue}
             dashboardTitle={showDashboardTabs ? 'Dashboard' : isChannelReport ? 'Live Report' : undefined}
-            dashboardTabs={showDashboardTabs ? dashboardTabs : undefined}
+            dashboardTabs={showDashboardTabs ? dashboardTabs.filter((tab) => !tab.hidden) : undefined}
             activeDashboardTab={showDashboardTabs ? activeDashboardTab : undefined}
             onDashboardTabChange={showDashboardTabs ? setActiveDashboardTab : undefined}
           />
