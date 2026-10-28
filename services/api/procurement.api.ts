@@ -729,6 +729,8 @@ export interface ExpenseMapping<K extends string, Extra = unknown> {
   columns: Array<{ key: K; label: string; costCenters: CostCenterOption[] } & Extra>
   /** Active L4 cost centers that can be picked. */
   options: CostCenterOption[]
+  /** L4s another screen's columns hold (L4 id -> that column's label): they cannot be picked here. */
+  elsewhere: Record<number, string>
 }
 
 export interface ExpenseMappingEntry<K extends string> {

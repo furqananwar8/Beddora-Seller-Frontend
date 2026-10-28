@@ -69,7 +69,9 @@ export function ExpenseMappingModal<K extends string>({ open, onClose, descripti
                       addHref={COST_CENTERS_HREF}
                       disabledReason={(choice) => {
                         const owner = pickedBy.get(choice.id)
-                        return owner && owner !== column.key ? `Mapped to ${labelOf.get(owner)}` : false
+                        if (owner && owner !== column.key) return `Mapped to ${labelOf.get(owner)}`
+                        const other = mapping.elsewhere[choice.id]
+                        return other ? `Mapped to ${other}` : false
                       }}
                       placeholder="Pick L4 expenses"
                     />
