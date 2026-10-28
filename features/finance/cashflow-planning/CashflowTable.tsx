@@ -1,8 +1,7 @@
 'use client'
 
 import React from 'react'
-import { Spinner } from '@/design-system/loaders'
-import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/design-system/tables'
+import { Table, TABLE_STATUS_VIEWPORT, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow, TableStatusRow } from '@/design-system/tables'
 import type { CashflowPaymentState, CashflowReport, CashflowRow, CashflowTotalCell } from '@/services/api/finance.api'
 import { cn } from '@/utils/cn'
 import { formatMoney } from '../shared/format'
@@ -60,7 +59,7 @@ export const CashflowTable: React.FC<CashflowTableProps> = ({ report, isLoading,
     <div className="space-y-3">
       <div className="overflow-hidden rounded-lg border border-border shadow-sm">
         {/* At most a screen tall: however the page is scrolled, the box (and its pinned header and totals) stays in view */}
-        <div className="max-h-[calc(100vh-7rem)] overflow-auto">
+        <div className={cn('max-h-[calc(100vh-7rem)] overflow-auto', TABLE_STATUS_VIEWPORT)}>
           {/* The box above scrolls both ways, so the header, the first column and the totals stick to it */}
           <Table className="min-w-full" wrapperClassName="overflow-visible">
             {/* Above the sticky first column, so rows scroll under the header */}
@@ -79,19 +78,11 @@ export const CashflowTable: React.FC<CashflowTableProps> = ({ report, isLoading,
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                <TableRow>
-                  <TableCell colSpan={columns} className="py-10 text-center">
-                    <Spinner />
-                  </TableCell>
-                </TableRow>
+                <TableStatusRow colSpan={columns} loading />
               ) : isError ? (
-                <TableRow>
-                  <TableCell colSpan={columns} className="py-10 text-center text-danger-600">Could not load the cashflow.</TableCell>
-                </TableRow>
+                <TableStatusRow colSpan={columns} tone="danger">Could not load the cashflow.</TableStatusRow>
               ) : !report || report.rows.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={columns} className="py-10 text-center text-text-muted">No approved payment request falls due in this range.</TableCell>
-                </TableRow>
+                <TableStatusRow colSpan={columns}>No approved payment request falls due in this range.</TableStatusRow>
               ) : (
                 report.rows.map((row) => {
                   const open = () => onOpen({ title: `${row.requestNo} · ${row.invoiceRef}`, currency: row.currency, amount: row.amount, rows: [row] })
