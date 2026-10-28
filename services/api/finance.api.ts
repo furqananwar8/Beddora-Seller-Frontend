@@ -454,7 +454,7 @@ export interface UserCandidate {
 
 /* ─────────────── Payment process ─────────────── */
 
-export type DocStatus = 'PAYMENT_PENDING' | 'PARTIALLY_PAID' | 'POP_UPLOADED' | 'PAID' | 'AMOUNT_SETTLED'
+export type DocStatus = 'PAYMENT_PENDING' | 'PARTIALLY_PAID' | 'POP_UPLOADED' | 'PAID' | 'AMOUNT_SETTLED' | 'CANCELLED'
 
 export interface PaymentDocumentListItem {
   id: number
@@ -471,6 +471,9 @@ export interface PaymentDocumentListItem {
   balance: number
   status: DocStatus
   canMarkPaid: boolean
+  /** Only while nothing is paid on it. */
+  canCancel: boolean
+  cancelReason: string | null
 }
 
 export interface PaymentDocumentSummary {
@@ -512,6 +515,11 @@ export interface PaymentDocumentDetail {
   markedPaidAt: string | null
   /** Why it was closed with a balance outstanding (AMOUNT_SETTLED). */
   settledReason: string | null
+  canCancel: boolean
+  /** Why finance cancelled it (CANCELLED). */
+  cancelReason: string | null
+  cancelledBy: UserRef | null
+  cancelledAt: string | null
   pops: Pop[]
   paymentMethod: { id: number; type: 'BANK' | 'CARD_LINK'; ibanLast4: string | null; accountNumberLast4: string | null; paymentLink: string | null } | null
   request: {
@@ -851,6 +859,12 @@ export const financeApi = baseApi.injectEndpoints({
       transformResponse: unwrap,
       invalidatesTags: ['FinanceProcess', 'FinanceRequests'],
     }),
+    /** Only while nothing is paid on it; the reason is required. */
+    cancelPayment: b.mutation<PaymentDocumentDetail, { id: number; reason: string }>({
+      query: ({ id, reason }) => ({ url: `/finance/payment-documents/${id}/cancel`, method: 'POST', body: { reason } }),
+      transformResponse: unwrap,
+      invalidatesTags: ['FinanceProcess', 'FinanceRequests'],
+    }),
     revealBankDetails: b.mutation<BankDetails, number>({
       query: (id) => ({ url: `/finance/payment-documents/${id}/bank-details`, method: 'POST' }),
       transformResponse: unwrap,
@@ -911,6 +925,7 @@ export const {
   useGetFxTodayQuery,
   useAddPopMutation,
   useMarkPaidMutation,
+  useCancelPaymentMutation,
   useRevealBankDetailsMutation,
   useGetPartnerAgingQuery,
   useGetCashflowPlanningQuery,

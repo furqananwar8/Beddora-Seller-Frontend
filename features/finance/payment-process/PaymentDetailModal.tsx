@@ -54,6 +54,12 @@ export const PaymentDetailModal: React.FC<PaymentDetailModalProps> = ({ docId, o
             <Item label="Paid">{formatCurrencyAmount(data.currency, data.paidAmount)}</Item>
             <Item label="Balance">{formatCurrencyAmount(data.currency, data.balance)}</Item>
             {data.settledReason && <Item label="Settled because">{data.settledReason}</Item>}
+            {data.cancelReason && (
+              <Item label="Cancelled because">
+                {data.cancelReason}
+                {data.cancelledBy && <span className="block text-xs font-normal text-text-muted">by {data.cancelledBy.name}</span>}
+              </Item>
+            )}
           </dl>
 
           <Section title="Request">

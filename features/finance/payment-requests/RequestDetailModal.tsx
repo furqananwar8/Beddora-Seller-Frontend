@@ -30,6 +30,7 @@ const PAYMENT_STATUS = {
   POP_UPLOADED: 'Fully covered, awaiting confirmation',
   PAID: 'Closed',
   AMOUNT_SETTLED: 'Settled with a balance outstanding',
+  CANCELLED: 'Cancelled',
 } as const
 
 const Summary: React.FC<{ detail: PaymentRequestDetail }> = ({ detail }) => (
