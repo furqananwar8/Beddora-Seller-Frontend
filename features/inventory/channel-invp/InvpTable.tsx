@@ -1,6 +1,7 @@
 'use client'
 
 import React from 'react'
+import { CountryFlag } from '@/components/flags/CountryFlag'
 import { Spinner } from '@/design-system/loaders'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/design-system/tables'
 import type { InvpChannel, InvpCell, InvpLine, InvpMarketplaceRow, InvpPeriod, InvpReport, InvpRow } from '@/services/api/channelInvp.api'
@@ -99,8 +100,9 @@ export const InvpTable: React.FC<InvpTableProps> = ({ report, channel, isLoading
                           <TableCell className="whitespace-nowrap">
                             {firstOfMarketplace && (
                               <div className="mb-1 max-w-[12rem] text-xs" title={marketplace.channelSkus.map((entry) => entry.sku).join(', ')}>
-                                <div className="font-semibold text-text-secondary">
-                                  {MARKETPLACE_META[marketplace.marketplace].flag} {MARKETPLACE_META[marketplace.marketplace].label}
+                                <div className="flex items-center gap-1.5 font-semibold text-text-secondary">
+                                  <CountryFlag code={marketplace.marketplace} />
+                                  {MARKETPLACE_META[marketplace.marketplace].label}
                                 </div>
                                 {/* Long channel SKUs are cut short; the full list is in the tooltip */}
                                 <div className="truncate text-text-muted">{marketplace.channelSkus.map((entry) => entry.sku).join(', ')}</div>

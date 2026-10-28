@@ -2,6 +2,7 @@ import { endOfMonth, format, startOfMonth, subDays, subMonths } from 'date-fns'
 import type { DateRangePreset, DateRangeValue } from '@/components/date-range-picker/DateRangePicker'
 import type { FilterOption } from '@/components/filter-bar/FilterMultiSelect'
 import type { SegmentedOption } from '@/components/segmented-toggle/SegmentedToggle'
+import { STATUS_TONE } from '@/utils/statusTones'
 import type { InvpChannel, InvpGrouping, InvpLine, InvpMarketplace, InvpView, StockLevel } from '@/services/api/channelInvp.api'
 
 /** Same cap as the server: about three months back. */
@@ -38,15 +39,15 @@ export const CHANNEL_OPTIONS: Array<SegmentedOption<InvpChannel>> = [
 
 export const CHANNEL_LABEL: Record<InvpChannel, string> = { amazon: 'Amazon', shopify: 'Shopify', walmart: 'Walmart', temu: 'Temu' }
 
-export const MARKETPLACE_META: Record<InvpMarketplace, { label: string; flag: string }> = {
-  CA: { label: 'Canada', flag: '🇨🇦' },
-  US: { label: 'USA', flag: '🇺🇸' },
-  MX: { label: 'Mexico', flag: '🇲🇽' },
+export const MARKETPLACE_META: Record<InvpMarketplace, { label: string }> = {
+  CA: { label: 'Canada' },
+  US: { label: 'USA' },
+  MX: { label: 'Mexico' },
 }
 
 export const MARKETPLACE_OPTIONS: Array<FilterOption<InvpMarketplace>> = (Object.keys(MARKETPLACE_META) as InvpMarketplace[]).map((code) => ({
   value: code,
-  label: `${MARKETPLACE_META[code].flag} ${MARKETPLACE_META[code].label}`,
+  label: MARKETPLACE_META[code].label,
 }))
 
 export const GROUPING_OPTIONS: Array<SegmentedOption<InvpGrouping>> = [
@@ -66,9 +67,9 @@ export const lineLabel = (line: InvpLine, channel: InvpChannel) => (line === 'wa
 
 /** Stock levels by days of cover, as the legend explains them. */
 export const LEVEL_META: Record<StockLevel, { label: string; cell: string; swatch: string }> = {
-  LOW: { label: 'Low in stock', cell: 'bg-success-200 text-success-900', swatch: 'bg-success-200 border-success-300' },
-  MID: { label: 'Mid in stock', cell: 'bg-warning-200 text-warning-900', swatch: 'bg-warning-200 border-warning-300' },
-  HIGH: { label: 'Much stock, has to be sold', cell: 'bg-danger-200 text-danger-900', swatch: 'bg-danger-200 border-danger-300' },
+  LOW: { label: 'Low in stock', ...STATUS_TONE.green },
+  MID: { label: 'Mid in stock', ...STATUS_TONE.yellow },
+  HIGH: { label: 'Much stock, has to be sold', ...STATUS_TONE.red },
 }
 
 export const LEVELS: StockLevel[] = ['LOW', 'MID', 'HIGH']

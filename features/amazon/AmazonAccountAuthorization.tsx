@@ -64,15 +64,15 @@ export const AmazonAccountAuthorization: React.FC<AmazonAccountAuthorizationProp
   }
 
   const marketplaceOptions = [
-    { value: 'US', label: 'United States', flag: '🇺🇸' },
-    { value: 'CA', label: 'Canada', flag: '🇨🇦' },
-    { value: 'UK', label: 'United Kingdom', flag: '🇬🇧' },
-    { value: 'DE', label: 'Germany', flag: '🇩🇪' },
-    { value: 'FR', label: 'France', flag: '🇫🇷' },
-    { value: 'IT', label: 'Italy', flag: '🇮🇹' },
-    { value: 'ES', label: 'Spain', flag: '🇪🇸' },
-    { value: 'JP', label: 'Japan', flag: '🇯🇵' },
-    { value: 'AU', label: 'Australia', flag: '🇦🇺' },
+    { value: 'US', label: 'United States' },
+    { value: 'CA', label: 'Canada' },
+    { value: 'UK', label: 'United Kingdom' },
+    { value: 'DE', label: 'Germany' },
+    { value: 'FR', label: 'France' },
+    { value: 'IT', label: 'Italy' },
+    { value: 'ES', label: 'Spain' },
+    { value: 'JP', label: 'Japan' },
+    { value: 'AU', label: 'Australia' },
   ]
 
   if (isLoadingStatus) {
@@ -186,7 +186,7 @@ export const AmazonAccountAuthorization: React.FC<AmazonAccountAuthorizationProp
             >
               {marketplaceOptions.map((option) => (
                 <option key={option.value} value={option.value}>
-                  {option.flag} {option.label}
+                  {option.label}
                 </option>
               ))}
             </select>

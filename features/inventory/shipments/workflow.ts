@@ -1,3 +1,4 @@
+import type { FlagCode } from '@/components/flags/CountryFlag'
 import type { RewindTarget } from '@/services/api/inboundShipments.api'
 import {
   InboundShipment,
@@ -203,8 +204,8 @@ export const STATUS_META: Record<
   },
 }
 
-export const MARKETPLACE_META: Record<Marketplace, { label: string; flag: string; currency: string }> = {
-  'Amazon.com': { label: 'US', flag: '🇺🇸', currency: 'USD' },
-  'Amazon.ca': { label: 'CA', flag: '🇨🇦', currency: 'CAD' },
-  'Amazon.mx': { label: 'MX', flag: '🇲🇽', currency: 'MXN' },
+export const MARKETPLACE_META: Record<Marketplace, { label: FlagCode; currency: string }> = {
+  'Amazon.com': { label: 'US', currency: 'USD' },
+  'Amazon.ca': { label: 'CA', currency: 'CAD' },
+  'Amazon.mx': { label: 'MX', currency: 'MXN' },
 }

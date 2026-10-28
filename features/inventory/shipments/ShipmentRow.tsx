@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { CountryFlag } from '@/components/flags/CountryFlag'
 import Link from 'next/link'
 import { TableCell, TableRow } from '@/design-system/tables'
 import { Button } from '@/design-system/buttons'
@@ -246,8 +247,10 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({
         </TableCell>
 
         <TableCell className="whitespace-nowrap text-sm">
-          <span className="mr-1">{market.flag}</span>
-          {market.label}
+          <span className="inline-flex items-center gap-1.5">
+            <CountryFlag code={market.label} />
+            {market.label}
+          </span>
         </TableCell>
 
         <TableCell className="whitespace-nowrap">

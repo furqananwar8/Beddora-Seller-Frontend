@@ -490,7 +490,7 @@ export const ShipmentsScreen: React.FC = () => {
           <option value="all">All marketplaces</option>
           {(Object.keys(MARKETPLACE_META) as Marketplace[]).map((mp) => (
             <option key={mp} value={mp}>
-              {MARKETPLACE_META[mp].flag} {mp}
+              {mp}
             </option>
           ))}
         </select>
