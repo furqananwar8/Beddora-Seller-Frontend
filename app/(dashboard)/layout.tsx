@@ -141,6 +141,12 @@ export default function DashboardLayout({
                 href: '/dashboard/inventory/warehouse-inventory',
               },
               {
+                label: 'Inventory Aging',
+                subject: 'inventory:inventory-aging',
+                action: 'read',
+                href: '/dashboard/inventory/inventory-aging',
+              },
+              {
                 label: 'Seller Central',
                 // Shares the Planner permission until the backend seeds 'inventory:seller-central'.
                 subject: 'inventory:planner',

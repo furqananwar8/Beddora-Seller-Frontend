@@ -1,0 +1,50 @@
+import { baseApi } from './baseApi'
+import { Page } from './finance.api'
+
+export type AgingMarketplace = 'CA' | 'US' | 'MX'
+/** Every SKU, or only those holding units older than 180 or 365 days. */
+export type AgeFilter = 'all' | 'over-180' | 'over-365'
+export type AgeBucketKey = 'invAge0To90Days' | 'invAge91To180Days' | 'invAge181To270Days' | 'invAge271To365Days' | 'invAge365PlusDays'
+
+export interface InventoryAgingRow {
+  sellerSku: string
+  fnSku: string | null
+  asin: string
+  productName: string | null
+  available: number
+  /** Units per age bucket; null when Amazon's report did not give that bucket. */
+  ages: Record<AgeBucketKey, number | null>
+  unitsShipped: { t30: number | null; t60: number | null; t90: number | null }
+  sellThrough: number | null
+  daysOfSupply: number | null
+  recommendedAction: string | null
+  healthStatus: string | null
+}
+
+export interface InventoryAgingReport extends Page<InventoryAgingRow> {
+  /** The Amazon snapshot shown (the latest for the marketplace); null before the first sync. */
+  snapshotDate: string | null
+  /** The age columns in display order, as the server buckets them. */
+  buckets: Array<{ key: AgeBucketKey; label: string }>
+  /** Units per bucket over every SKU matching the filters, not only this page. */
+  totals: Record<AgeBucketKey, number> & { available: number }
+}
+
+export interface InventoryAgingParams {
+  marketplace: AgingMarketplace
+  age: AgeFilter
+  search?: string
+  page: number
+  limit: number
+}
+
+export const inventoryAgingApi = baseApi.injectEndpoints({
+  endpoints: (builder) => ({
+    getInventoryAging: builder.query<InventoryAgingReport, InventoryAgingParams>({
+      query: ({ search, ...rest }) => ({ url: '/inventory/inventory-aging', params: { ...rest, search: search || undefined } }),
+      providesTags: ['Inventory'],
+    }),
+  }),
+})
+
+export const { useGetInventoryAgingQuery } = inventoryAgingApi
