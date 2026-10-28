@@ -152,6 +152,7 @@ export const SkuLandedScreen: React.FC = () => {
             isError={isError}
             emptyText={applied.search ? 'No SKU matches.' : 'No SKUs yet.'}
             errorText="Could not load the SKU landed costs."
+            headerTone="primary"
           />
         </div>
         {data && <PaginationFooter page={data.page} pageSize={data.limit} totalItems={data.totalRecords} totalPages={data.totalPages} onPageChange={setPage} itemLabel="SKUs" />}

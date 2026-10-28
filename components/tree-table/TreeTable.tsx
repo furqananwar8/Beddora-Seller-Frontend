@@ -39,10 +39,18 @@ interface TreeTableProps<T> {
   isError?: boolean
   emptyText?: string
   errorText?: string
+  /** `primary` fills the header with the brand colour (as on the finance reports); `plain` by default. */
+  headerTone?: keyof typeof HEADER_TONE
   className?: string
 }
 
 const CELL = 'text-center align-middle'
+
+/** Set on every header cell: the cell's own `bg-surface` must be replaced (a global sticky-header rule pins it white). */
+const HEADER_TONE = {
+  plain: '',
+  primary: 'border-white/20 bg-primary-600 text-white',
+} as const
 
 /** The nearest ancestor that scrolls sideways (the table's own scroll box). */
 function scrollBoxOf(element: HTMLElement): HTMLElement | null {
@@ -91,6 +99,7 @@ export function TreeTable<T>({
   isError,
   emptyText = 'Nothing to show.',
   errorText = 'Could not load the list.',
+  headerTone = 'plain',
   className,
 }: TreeTableProps<T>) {
   // Explicit toggles override the automatic state, so a user can still close an auto-opened row
@@ -102,6 +111,7 @@ export function TreeTable<T>({
   const isOpen = (row: T) => toggled.get(getKey(row)) ?? autoExpand?.(row) ?? false
   const toggle = (row: T) => setToggled((current) => new Map(current).set(getKey(row), !isOpen(row)))
   const grouped = columns.some((column) => column.group)
+  const tone = HEADER_TONE[headerTone]
   // Index of the first column under each header group
   const columnStarts = headerGroups(columns).reduce<number[]>((starts, group, index, groups) => [...starts, index === 0 ? 0 : starts[index - 1] + groups[index - 1].span], [])
 
@@ -112,15 +122,15 @@ export function TreeTable<T>({
           <>
             {/* A column without a group is one cell spanning both rows; grouped columns sit under their group's cell */}
             <TableRow>
-              {expandColumn && <TableHead rowSpan={2} className="w-10" aria-label="Expand" />}
+              {expandColumn && <TableHead rowSpan={2} className={cn('w-10', tone)} aria-label="Expand" />}
               {headerGroups(columns).map((group, index) => {
                 const first = columns[columnStarts[index]]
                 return group.label ? (
-                  <TableHead key={`group-${index}`} colSpan={group.span} className="border-b border-border text-center">
+                  <TableHead key={`group-${index}`} colSpan={group.span} className={cn('border-b border-border text-center', tone)}>
                     {group.label}
                   </TableHead>
                 ) : (
-                  <TableHead key={first.key} rowSpan={2} className={cn(CELL, first.className)}>
+                  <TableHead key={first.key} rowSpan={2} className={cn(CELL, tone, first.className)}>
                     {first.header}
                   </TableHead>
                 )
@@ -130,7 +140,7 @@ export function TreeTable<T>({
               {columns
                 .filter((column) => column.group)
                 .map((column) => (
-                  <TableHead key={column.key} className={cn(CELL, column.className)}>
+                  <TableHead key={column.key} className={cn(CELL, tone, column.className)}>
                     {column.header}
                   </TableHead>
                 ))}
@@ -138,9 +148,9 @@ export function TreeTable<T>({
           </>
         ) : (
           <TableRow>
-            {expandColumn && <TableHead className="w-10" aria-label="Expand" />}
+            {expandColumn && <TableHead className={cn('w-10', tone)} aria-label="Expand" />}
             {columns.map((column) => (
-              <TableHead key={column.key} className={cn(CELL, column.className)}>
+              <TableHead key={column.key} className={cn(CELL, tone, column.className)}>
                 {column.header}
               </TableHead>
             ))}
