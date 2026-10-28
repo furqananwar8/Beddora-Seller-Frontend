@@ -347,7 +347,7 @@ const buildProductStatData = (
             currency: true,
           },
           {
-            label: 'Sales tax collection fee',
+            label: 'Other transaction fee',
             value: feeDetails.salesTaxCollectionFee,
             currency: true,
           },

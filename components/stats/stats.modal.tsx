@@ -178,8 +178,8 @@ const STAT_TOOLTIPS: Record<
     formula: 'Sum(Amazon Category Commission Fees)',
     note: 'Percentage-based referral fee charged by Amazon for listing on marketplace.',
   },
-  'Sales tax collection fee': {
-    title: 'Marketplace Tax Collection Fee',
+  'Other transaction fee': {
+    title: 'Other Transaction Fee',
     formula: 'Sum(Sales Tax Administrative Collection Fees)',
     note: 'Fee charged by Amazon for processing and remitting buyer sales tax.',
   },

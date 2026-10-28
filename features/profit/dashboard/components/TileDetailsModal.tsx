@@ -575,7 +575,7 @@ export const TileDetailsModal: React.FC<TileDetailsModalProps> = ({
                     'Deal participation fee': amazonFees.dealParticipationFee,
                     'Deal performance fee': amazonFees.dealPerformanceFee,
                     'FBA disposal fee': amazonFees.fbaDisposalFee,
-                    'Sales tax collection fee': amazonFees.salesTaxCollectionFee,
+                    'Other transaction fee': amazonFees.salesTaxCollectionFee,
                     'Reversal reimbursement': amazonFees.reversalReimbursement,
                     'Shipping chargeback': amazonFees.shippingChargeback,
                     'Warehouse lost': amazonFees.warehouseLost,

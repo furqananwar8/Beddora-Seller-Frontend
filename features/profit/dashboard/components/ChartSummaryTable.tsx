@@ -833,7 +833,7 @@ export const ChartSummaryTable: React.FC<ChartSummaryTableProps> = ({
                     /> */}
 
                     <DetailRow
-                      label="Sales tax collection fee"
+                      label="Other transaction fee"
                       value={
                         -Number(
                           amazonFees.salesTaxCollectionFee ?? 0

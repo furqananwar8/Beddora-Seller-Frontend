@@ -4,7 +4,7 @@ export type FeeTaxMap = Record<string, number>
 const FEE_TAX_LABELS: Record<string, string> = {
   fbaPerUnitFulfillmentFee: 'FBA per unit fulfilment fee',
   referralFee: 'Referral fee',
-  salesTaxCollectionFee: 'Sales tax collection fee',
+  salesTaxCollectionFee: 'Other transaction fee',
   fbaStorageFee: 'FBA storage fee',
   refundCommission: 'Refund commission',
   fbaDisposalFee: 'FBA disposal fee',
