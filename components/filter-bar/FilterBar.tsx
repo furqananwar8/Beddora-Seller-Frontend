@@ -14,6 +14,9 @@ interface FilterItemProps {
 /** A toggle filling its filter box: options share the width by label length, so a long label stays on one line. */
 export const FILL_TOGGLE = 'flex w-full [&>button]:flex-auto [&>button]:px-2'
 
+/** Wraps a DateRangePicker so it fills its filter box at the height of the other controls. */
+export const FILL_PICKER = 'rounded-lg [&>div]:block [&>div]:w-full [&>div>button]:h-10 [&>div>button]:w-full [&>div>button]:py-0 [&>div>button>span]:flex-1 [&>div>button>span]:text-left'
+
 /** One filter box: one column of the filter grid, or two when `wide`. */
 export const FilterItem: React.FC<FilterItemProps> = ({ children, wide, className }) => (
   <div className={cn('min-w-0', wide && 'sm:col-span-2', className)}>{children}</div>

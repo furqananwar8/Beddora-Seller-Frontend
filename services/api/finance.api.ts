@@ -172,6 +172,13 @@ export interface PartnerAgingReport {
   totals: Array<{ currency: string; cells: Record<string, AgingCell>; total: number }>
 }
 
+export interface PartnerAgingParams {
+  /** YYYY-MM-DD invoice dates; either end may be left out. */
+  from?: string
+  to?: string
+  currencies?: string[]
+}
+
 /* ─────────────── Cashflow planning ─────────────── */
 
 export type CashflowGrouping = 'day' | 'week' | 'month'
@@ -806,8 +813,8 @@ export const financeApi = baseApi.injectEndpoints({
     }),
 
     /* partner aging */
-    getPartnerAging: b.query<PartnerAgingReport, void>({
-      query: () => '/finance/partner-aging',
+    getPartnerAging: b.query<PartnerAgingReport, PartnerAgingParams>({
+      query: ({ currencies, ...params }) => ({ url: '/finance/partner-aging', params: { ...params, currencies: csv(currencies) } }),
       transformResponse: unwrap,
       // Moves whenever a request is raised, approved or paid
       providesTags: ['FinanceRequests', 'FinanceProcess'],

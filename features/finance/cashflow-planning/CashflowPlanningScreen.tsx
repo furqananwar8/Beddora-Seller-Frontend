@@ -3,7 +3,7 @@
 import React, { useCallback, useMemo, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import DateRangePicker from '@/components/date-range-picker/DateRangePicker'
-import { FILL_TOGGLE, FilterBar, FilterItem } from '@/components/filter-bar/FilterBar'
+import { FILL_PICKER, FILL_TOGGLE, FilterBar, FilterItem } from '@/components/filter-bar/FilterBar'
 import { FilterMultiSelect } from '@/components/filter-bar/FilterMultiSelect'
 import { useStagedFilters } from '@/components/filter-bar/useStagedFilters'
 import { FormField } from '@/components/form-field/FormField'
@@ -29,8 +29,6 @@ import {
   type PaymentChoice,
 } from './cashflowFilters'
 
-/** The date picker fills its filter box like the other controls. */
-const PICKER_BOX = 'rounded-lg [&>div]:block [&>div]:w-full [&>div>button]:h-10 [&>div>button]:w-full [&>div>button]:py-0 [&>div>button>span]:flex-1 [&>div>button>span]:text-left'
 
 /**
  * Cashflow planning: every approved payment request, paid or not, under its due date (up to two months, per day, week
@@ -73,7 +71,7 @@ export const CashflowPlanningScreen: React.FC = () => {
         <FilterBar pendingCount={changed.size} activeCount={filters.activeCount} onApply={filters.apply} onReset={filters.reset}>
           <FilterItem wide>
             <FormField label="Date range">
-              <div className={cn(PICKER_BOX, changed.has('range') && 'ring-1 ring-primary-500')}>
+              <div className={cn(FILL_PICKER, changed.has('range') && 'ring-1 ring-primary-500')}>
                 <DateRangePicker
                   value={draft.range}
                   presets={CASHFLOW_PRESETS}

@@ -3,6 +3,7 @@ import type { DateRangePreset, DateRangeValue } from '@/components/date-range-pi
 import type { FilterOption } from '@/components/filter-bar/FilterMultiSelect'
 import type { SegmentedOption } from '@/components/segmented-toggle/SegmentedToggle'
 import type { CashflowGrouping, CashflowPaymentFilter } from '@/services/api/finance.api'
+import { CURRENCIES, currencyOptions } from '../shared/currency'
 
 /** Same cap as the server: two months of days stays readable. */
 export const MAX_RANGE_DAYS = 62
@@ -31,9 +32,7 @@ export const GROUPING_OPTIONS: Array<SegmentedOption<CashflowGrouping>> = [
   { value: 'month', label: 'Month' },
 ]
 
-export const CURRENCIES = ['CAD', 'USD', 'MXN']
-
-export const CURRENCY_OPTIONS: FilterOption[] = CURRENCIES.map((code) => ({ value: code, label: code }))
+export const CURRENCY_OPTIONS: FilterOption[] = currencyOptions()
 
 /** '' is both. */
 export type PaymentChoice = CashflowPaymentFilter | ''
@@ -74,7 +73,7 @@ export function filtersFromParams(params: URLSearchParams): CashflowFilters {
   return {
     range: isDay(from) && isDay(to) ? withinCap({ startDate: from, endDate: to, presetId: params.get('preset') }) : defaults.range,
     groupBy: groupBy && GROUPINGS.includes(groupBy) ? groupBy : defaults.groupBy,
-    currencies: (params.get('currencies') ?? '').split(',').filter((code) => CURRENCIES.includes(code)),
+    currencies: (params.get('currencies') ?? '').split(',').filter((code) => (CURRENCIES as readonly string[]).includes(code)),
     payment: payment === 'PAID' || payment === 'UNPAID' ? payment : '',
   }
 }

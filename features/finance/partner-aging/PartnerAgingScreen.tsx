@@ -1,15 +1,31 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useMemo, useState } from 'react'
+import DateRangePicker from '@/components/date-range-picker/DateRangePicker'
+import { FILL_PICKER, FilterBar, FilterItem } from '@/components/filter-bar/FilterBar'
+import { FilterMultiSelect } from '@/components/filter-bar/FilterMultiSelect'
+import { useStagedFilters } from '@/components/filter-bar/useStagedFilters'
+import { FormField } from '@/components/form-field/FormField'
 import { Container } from '@/components/layout'
 import { useGetPartnerAgingQuery } from '@/services/api/finance.api'
+import { cn } from '@/utils/cn'
+import { currencyOptions } from '../shared/currency'
 import { formatDay } from '../shared/format'
+import { agingParams, defaultAgingFilters } from './agingFilters'
 import { AgingEntriesModal, type AgingSelection } from './AgingEntriesModal'
 import { AgingTable } from './AgingTable'
 
-/** Open payments per partner by how close they are to their due date, and how far past it. */
+const CURRENCY_OPTIONS = currencyOptions()
+
+/**
+ * Open payments per partner by how close they are to their due date, and how far past it. Invoice dates and currencies
+ * narrow it down; filters apply with the button.
+ */
 export const PartnerAgingScreen: React.FC = () => {
-  const { data, isLoading, isError } = useGetPartnerAgingQuery()
+  const defaults = useMemo(defaultAgingFilters, [])
+  const filters = useStagedFilters(defaults)
+  const { draft, setDraft, applied, changed } = filters
+  const { data, isLoading, isFetching, isError } = useGetPartnerAgingQuery(agingParams(applied))
   const [selection, setSelection] = useState<AgingSelection | null>(null)
 
   return (
@@ -20,7 +36,37 @@ export const PartnerAgingScreen: React.FC = () => {
           Requests raised and not yet paid, by due date{data ? ` as of ${formatDay(data.asOf)}` : ''}. Click an amount to see the payments in it.
         </p>
       </div>
-      <AgingTable report={data} isLoading={isLoading} isError={isError} onOpen={setSelection} />
+      <div className="mb-4 rounded-lg border border-border bg-surface p-4 shadow-sm">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-sm font-semibold text-text-primary">Filters</h2>
+          <p className="text-xs text-text-muted">Leave a filter empty to include everything</p>
+        </div>
+        <FilterBar pendingCount={changed.size} activeCount={filters.activeCount} onApply={filters.apply} onReset={filters.reset}>
+          <FilterItem wide>
+            <FormField label="Invoice date">
+              <div className={cn(FILL_PICKER, changed.has('range') && 'ring-1 ring-primary-500')}>
+                <DateRangePicker value={draft.range} onChange={(next) => setDraft('range', next)} placeholder="Any invoice date" />
+              </div>
+            </FormField>
+          </FilterItem>
+          <FilterItem>
+            <FormField label="Currency" htmlFor="aging-currency">
+              <FilterMultiSelect
+                id="aging-currency"
+                options={CURRENCY_OPTIONS}
+                value={draft.currencies}
+                onChange={(value) => setDraft('currencies', value)}
+                anyLabel="All currencies"
+                highlighted={changed.has('currencies')}
+              />
+            </FormField>
+          </FilterItem>
+        </FilterBar>
+      </div>
+
+      <div className={cn(isFetching && !isLoading && 'opacity-70 transition-opacity')}>
+        <AgingTable report={data} isLoading={isLoading} isError={isError} onOpen={setSelection} />
+      </div>
       <AgingEntriesModal selection={selection} onClose={() => setSelection(null)} />
     </Container>
   )
