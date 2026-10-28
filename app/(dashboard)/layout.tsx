@@ -129,13 +129,6 @@ export default function DashboardLayout({
                 href: '/dashboard/inventory/adjustments',
               },
               {
-                label: 'Channel Inventory (IP)',
-                // Shares the Planner permission until the backend seeds 'inventory:channel-inventory'.
-                subject: 'inventory:planner',
-                action: 'read',
-                href: '/dashboard/inventory/channel-inventory',
-              },
-              {
                 label: 'SKU Mapping',
                 subject: 'inventory:sku-mapping',
                 action: 'read',
@@ -147,6 +140,29 @@ export default function DashboardLayout({
                 subject: 'inventory:planner',
                 action: 'read',
                 href: '/dashboard/inventory/seller-central',
+              },
+            ],
+          },
+          {
+            label: 'Channel Inventory',
+            subject: 'inventory',
+            action: 'read',
+            href: '/dashboard/inventory/channel-inventory',
+            icon: NavIcons.inventory,
+            children: [
+              {
+                // Each channel's current stock (formerly "Channel Inventory (IP)" under Inventory Management)
+                label: 'Inventory',
+                // Shares the Planner permission until the backend seeds 'inventory:channel-inventory'.
+                subject: 'inventory:planner',
+                action: 'read',
+                href: '/dashboard/inventory/channel-inventory',
+              },
+              {
+                label: 'Channel INVP',
+                subject: 'inventory:channel-invp',
+                action: 'read',
+                href: '/dashboard/inventory/channel-invp',
               },
             ],
           },
