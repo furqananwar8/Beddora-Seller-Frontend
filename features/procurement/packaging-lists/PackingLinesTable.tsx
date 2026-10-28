@@ -19,6 +19,8 @@ interface PackingLinesTableProps {
   /** Errors from the server, keyed like {@link lineKey}. */
   serverErrors?: Map<string, string>
   readOnly: boolean
+  /** Takes a SKU off this list only; its units stay on the PO for another list. Left out, rows cannot be removed. */
+  onRemove?: (key: string) => void
 }
 
 const HEAD = 'px-3 py-2 text-center text-xs font-semibold uppercase tracking-wide text-text-muted'
@@ -28,7 +30,7 @@ const HEAD = 'px-3 py-2 text-center text-xs font-semibold uppercase tracking-wid
  */
 const CELL = 'px-3 py-2 text-center align-top tabular-nums'
 const FOOT_CELL = 'px-3 py-2 text-center align-middle tabular-nums'
-const COLUMNS = 14
+const BASE_COLUMNS = 14
 const qty = (value: number) => value.toLocaleString('en-CA')
 const kg = (value: number) => `${value.toLocaleString('en-CA', { maximumFractionDigits: 1 })} kg`
 
@@ -66,8 +68,10 @@ const NumberCell: React.FC<{
 )
 
 /** SKU lines grouped by PO: PO qty, allocated elsewhere, available, quantity to be shipped, remaining, cartons, carton size, CBM, net and gross weight. */
-export const PackingLinesTable: React.FC<PackingLinesTableProps> = ({ groups, values, onChange, serverErrors, readOnly }) => {
+export const PackingLinesTable: React.FC<PackingLinesTableProps> = ({ groups, values, onChange, serverErrors, readOnly, onRemove }) => {
   const { isOpen, toggle } = useExpandedRows<string>()
+  const removable = Boolean(onRemove) && !readOnly
+  const columns = BASE_COLUMNS + (removable ? 1 : 0)
   const all = groups.flatMap((group) => group.lines.map((line) => ({ line, figures: computeLine(line, values.get(lineKey(group.purchaseOrder.id, line.product.id))) })))
   const total = (pick: (row: (typeof all)[number]) => number) => all.reduce((sum, row) => sum + pick(row), 0)
 
@@ -90,13 +94,14 @@ export const PackingLinesTable: React.FC<PackingLinesTableProps> = ({ groups, va
             <th className={HEAD}>CBM / piece</th>
             <th className={HEAD}>Net wt (kg)</th>
             <th className={HEAD}>Gross wt (kg)</th>
+            {removable && <th className="w-10" aria-label="Remove" />}
           </tr>
         </thead>
         <tbody>
           {groups.map((group) => (
             <React.Fragment key={group.purchaseOrder.id}>
               <tr className="border-t border-border bg-secondary-50/60">
-                <td colSpan={COLUMNS} className="px-3 py-2 text-left text-xs text-text-secondary">
+                <td colSpan={columns} className="px-3 py-2 text-left text-xs text-text-secondary">
                   <span className="font-semibold text-text-primary">{group.purchaseOrder.poNo}</span> · {group.purchaseOrder.supplier.name} · PO price{' '}
                   <span className="font-semibold tabular-nums text-text-primary">{group.purchaseOrder.price === null ? 'no rates yet' : formatCurrencyAmount(group.purchaseOrder.currency, group.purchaseOrder.price)}</span>
                 </td>
@@ -204,11 +209,28 @@ export const PackingLinesTable: React.FC<PackingLinesTableProps> = ({ groups, va
                           readOnly={readOnly}
                         />
                       </td>
+                      {removable && (
+                        <td className={CELL}>
+                          <Value>
+                            <button
+                              type="button"
+                              onClick={() => onRemove?.(key)}
+                              title={`Remove ${line.product.ref} from this list (its units stay on ${group.purchaseOrder.poNo})`}
+                              aria-label={`Remove ${line.product.ref} from this list`}
+                              className="rounded p-1 text-text-muted hover:bg-danger-50 hover:text-danger-600"
+                            >
+                              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          </Value>
+                        </td>
+                      )}
                     </tr>
                     {expanded && (
                       <tr className="bg-secondary-50/60">
                         <td />
-                        <td colSpan={COLUMNS - 1} className="px-3 pb-4 pt-2 text-left">
+                        <td colSpan={columns - 1} className="px-3 pb-4 pt-2 text-left">
                           <ProductSpecs product={line.product} />
                           <p className="mt-2 text-xs text-text-muted">
                             Default dimensions on the product: {formatDimensions(line.product.lengthCm, line.product.widthCm, line.product.heightCm, line.product.dimensionUnit)}. Read-only here; change them on the product.
@@ -240,6 +262,7 @@ export const PackingLinesTable: React.FC<PackingLinesTableProps> = ({ groups, va
             <td />
             <td className={cn(FOOT_CELL, 'whitespace-nowrap')}>{kg(total((row) => row.figures.net))}</td>
             <td className={cn(FOOT_CELL, 'whitespace-nowrap')}>{kg(total((row) => row.figures.gross))}</td>
+            {removable && <td />}
           </tr>
         </tfoot>
       </table>

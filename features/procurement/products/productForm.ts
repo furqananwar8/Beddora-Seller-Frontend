@@ -60,6 +60,11 @@ export const variationSchema = z.object({
     .string()
     .trim()
     .refine((value) => value === '' || /^(\d{8}|\d{12,14})$/.test(value), 'UPC must be 8, 12, 13 or 14 digits'),
+  /** Optional Amazon listing ID: 10 letters or digits (same rule as the server, which upper-cases it). */
+  asin: z
+    .string()
+    .trim()
+    .refine((value) => value === '' || /^[A-Za-z0-9]{10}$/.test(value), 'ASIN must be 10 letters or digits'),
   /** Optional stock level (units) at which to reorder; whole number. */
   reorderPoint: z
     .string()
@@ -139,6 +144,7 @@ export function newVariation(master: Pick<ProductFormValues, 'material' | 'packa
     sizeName: '',
     description: '',
     upc: '',
+    asin: '',
     reorderPoint: '',
     inheritsMaster: true,
     weight: '',
@@ -192,6 +198,7 @@ export function toProductBody(values: ProductFormValues, expectedUpdatedAt?: str
     sizeName: text(variation.sizeName),
     description: text(variation.description),
     upc: text(variation.upc),
+    asin: text(variation.asin),
     reorderPoint: num(variation.reorderPoint),
     inheritsMaster: variation.inheritsMaster,
     // Inheriting: the master's weight and unit are copied on save
@@ -262,6 +269,7 @@ export function fromFamily(family: PoProductFamily, asCopy = false): ProductForm
       description: variation.description ?? '',
       // A barcode identifies one item, so a copy starts without it (as with the SKU)
       upc: asCopy ? '' : (variation.upc ?? ''),
+      asin: asCopy ? '' : (variation.asin ?? ''),
       reorderPoint: variation.reorderPoint === null ? '' : String(variation.reorderPoint),
       inheritsMaster: variation.inheritsMaster,
       weight: variation.inheritsMaster ? '' : weightValue(variation, variation.weightUnit),

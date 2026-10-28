@@ -360,6 +360,20 @@ const VariationDetails: React.FC<VariationDetailsProps> = ({ form, index, readOn
         {err?.upc?.message && <p className="mt-1 text-xs text-danger-600">{err.upc.message}</p>}
       </div>
       <div className="min-w-0">
+        <label htmlFor={`variation-${index}-asin`} className="ds-input-label">
+          ASIN <span className="font-normal text-text-muted">(optional)</span>
+        </label>
+        <input
+          id={`variation-${index}-asin`}
+          maxLength={10}
+          autoCapitalize="characters"
+          className={cn(fieldClass(err?.asin?.message), 'uppercase')}
+          disabled={readOnly}
+          {...register(`variations.${index}.asin`)}
+        />
+        {err?.asin?.message && <p className="mt-1 text-xs text-danger-600">{err.asin.message}</p>}
+      </div>
+      <div className="min-w-0">
         <label htmlFor={`variation-${index}-reorder`} className="ds-input-label">
           Reorder <span className="font-normal text-text-muted">(optional)</span>
         </label>

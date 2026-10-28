@@ -53,6 +53,8 @@ export interface PoProduct {
   cbm: number | null
   /** Variations only: the barcode, null when none was given. */
   upc: string | null
+  /** Variations only: the Amazon listing's ASIN, null when none was given. */
+  asin: string | null
   /** Variations only: the stock level (units) at which to reorder. */
   reorderPoint: number | null
   inheritsMaster: boolean
@@ -111,6 +113,8 @@ export interface VariationBody extends VariantInput, WeightInput, DimensionInput
   sku: string | null
   /** Optional UPC barcode. */
   upc: string | null
+  /** Optional Amazon ASIN. */
+  asin: string | null
   /** Optional stock level (units) at which to reorder. */
   reorderPoint: number | null
   color: string
@@ -461,8 +465,12 @@ export interface PackablePurchaseOrder {
   status: PoStatus
   isOpen: boolean
   units: number
+  /** Units not yet on another packaging list. */
+  unitsLeft: number
   /** Other packaging lists this PO is already on. */
   listCount: number
+  /** Containers already holding some of this PO's units, with how many. */
+  containers: Array<{ id: number; containerNo: string; containerNumber: string | null; status: ContainerStatus; units: number }>
 }
 
 export interface PackablePoLines {

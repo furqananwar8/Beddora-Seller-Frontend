@@ -3,7 +3,7 @@
 import React from 'react'
 import { SearchableSelect } from '@/components/searchable-select/SearchableSelect'
 import type { PackablePurchaseOrder } from '@/services/api/procurement.api'
-import { DESTINATION_LABEL, isPackable } from '../shared/poMeta'
+import { CONTAINER_STATUS_META, DESTINATION_LABEL, containerLabel, isPackable } from '../shared/poMeta'
 
 interface PackablePoSelectProps {
   id?: string
@@ -46,13 +46,22 @@ export const PackablePoSelect: React.FC<PackablePoSelectProps> = ({ id, options,
       getLabel={(po) => `${po.poNo} ${po.supplier.name}`}
       renderValue={(picked) => picked.map((po) => po.poNo).join(', ')}
       renderOption={(po) => (
-        <span className="flex items-center justify-between gap-3">
-          <span className="font-medium">
-            {po.poNo} <span className="font-normal text-text-secondary">· {po.supplier.name}</span>
+        <span className="flex flex-col gap-0.5">
+          <span className="flex items-center justify-between gap-3">
+            <span className="font-medium">
+              {po.poNo} <span className="font-normal text-text-secondary">· {po.supplier.name}</span>
+            </span>
+            <span className="truncate text-xs text-text-muted">
+              {DESTINATION_LABEL[po.destination]} · {po.unitsLeft.toLocaleString('en-CA')} of {po.units.toLocaleString('en-CA')} units left · {po.listCount ? plural(po.listCount, 'packaging list') : 'no packaging lists'}
+            </span>
           </span>
-          <span className="truncate text-xs text-text-muted">
-            {DESTINATION_LABEL[po.destination]} · {po.units.toLocaleString('en-CA')} units · {po.listCount ? plural(po.listCount, 'packaging list') : 'no packaging lists'}
-          </span>
+          {/* Units of this PO already booked in containers, so nobody packs them twice */}
+          {po.containers.length > 0 && (
+            <span className="text-xs text-text-secondary">
+              In containers:{' '}
+              {po.containers.map((container) => `${containerLabel(container)} (${CONTAINER_STATUS_META[container.status].label}) · ${container.units.toLocaleString('en-CA')} units`).join('; ')}
+            </span>
+          )}
         </span>
       )}
       disabledReason={(po) => unpackableReason(po, selected)}

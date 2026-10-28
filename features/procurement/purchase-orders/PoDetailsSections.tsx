@@ -9,13 +9,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/design-system/cards/
 import type { PoCurrency, PoDestination } from '@/services/api/procurement.api'
 import { cn } from '@/utils/cn'
 import { formatCalendarDay } from '@/utils/format'
+import { DESTINATION_OPTIONS } from '../shared/poMeta'
 import { SupplierSelect } from '../shared/SupplierSelect'
 import type { PoFormValues } from './poForm'
 
-const DESTINATIONS: Array<{ value: PoDestination; label: string }> = [
-  { value: 'US', label: 'USA' },
-  { value: 'CA', label: 'CANADA' },
-]
 const CURRENCIES: Array<{ value: PoCurrency; label: string }> = [
   { value: 'CAD', label: 'CAD' },
   { value: 'USD', label: 'USD' },
@@ -181,7 +178,7 @@ export const PoOrderDetailsSection: React.FC<SectionProps> = ({ form, readOnly }
           <Controller
             control={control}
             name="destination"
-            render={({ field }) => <SegmentedToggle<PoDestination> ariaLabel="Destination" value={field.value} onChange={field.onChange} options={DESTINATIONS} disabled={readOnly} />}
+            render={({ field }) => <SegmentedToggle<PoDestination> ariaLabel="Destination" value={field.value} onChange={field.onChange} options={DESTINATION_OPTIONS} disabled={readOnly} />}
           />
         </FormField>
         <FormField label="Currency" required>

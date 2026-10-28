@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { FormActions } from '@/components/form-actions/FormActions'
 import { FormField } from '@/components/form-field/FormField'
+import { SegmentedToggle } from '@/components/segmented-toggle/SegmentedToggle'
 import { Container } from '@/components/layout'
 import { StatusBadge } from '@/components/status-badge/StatusBadge'
 import { Button } from '@/design-system/buttons'
@@ -20,10 +21,11 @@ import {
   useGetProcurementPurchaseOrderQuery,
   useUpdatePackagingListMutation,
   type PackagingListBody,
+  type PoDestination,
 } from '@/services/api/procurement.api'
 import { serverIssues } from '@/utils/apiErrors'
 import { downloadApiFile } from '@/utils/downloadFile'
-import { DESTINATION_LABEL, containerLabel, supplierNames } from '../shared/poMeta'
+import { DESTINATION_LABEL, DESTINATION_OPTIONS, containerLabel, supplierNames } from '../shared/poMeta'
 import { PackablePoSelect } from './PackablePoSelect'
 import { computeLine, EMPTY_LINE, lineKey, newLine, savedLine, toLineBody, type LineValue } from './packingLine'
 import { PackingLinesTable } from './PackingLinesTable'
@@ -54,8 +56,12 @@ export const PackagingListFormScreen: React.FC<PackagingListFormScreenProps> = (
   const { data: fromPo } = useGetProcurementPurchaseOrderQuery(fromPoId ?? 0, { skip: !fromPoId })
 
   const [poIds, setPoIds] = useState<number[]>([])
+  /** Narrows the POs offered to one destination; '' is every destination. */
+  const [destinationFilter, setDestinationFilter] = useState<PoDestination | ''>('')
   const [values, setValues] = useState<Map<string, LineValue>>(new Map())
   const [closePoIds, setClosePoIds] = useState<Set<number>>(new Set())
+  /** SKU lines taken off this list (by {@link lineKey}); their units stay on the PO, free for another list. */
+  const [removed, setRemoved] = useState<Set<string>>(new Set())
   const [serverErrors, setServerErrors] = useState<Map<string, string>>(new Map())
   const [formError, setFormError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -76,6 +82,8 @@ export const PackagingListFormScreen: React.FC<PackagingListFormScreenProps> = (
   const excludeListId = packagingListId
   // Any supplier's POs: one list may carry several suppliers' goods
   const { data: poOptions = [], isFetching: loadingOptions } = useGetPackablePurchaseOrdersQuery({ excludeListId }, { skip: readOnly })
+  // POs already picked stay listed whatever the filter, so a pick never disappears from the box
+  const shownPoOptions = useMemo(() => (destinationFilter ? poOptions.filter((po) => po.destination === destinationFilter || poIds.includes(po.id)) : poOptions), [poOptions, destinationFilter, poIds])
   const { data: groups = [], isFetching: loadingLines } = useGetPackablePoLinesQuery({ purchaseOrderIds: poIds, excludeListId }, { skip: poIds.length === 0 })
 
   // New lines start with everything still available, in cartons the size of the product; typed values are kept when POs are added or removed
@@ -97,7 +105,12 @@ export const PackagingListFormScreen: React.FC<PackagingListFormScreenProps> = (
     })
   }, [groups, readOnly])
 
-  const shownGroups = useMemo(() => groups.filter((group) => poIds.includes(group.purchaseOrder.id)), [groups, poIds])
+  const pickedGroups = useMemo(() => groups.filter((group) => poIds.includes(group.purchaseOrder.id)), [groups, poIds])
+  const shownGroups = useMemo(
+    () => pickedGroups.map((group) => ({ ...group, lines: group.lines.filter((line) => !removed.has(lineKey(group.purchaseOrder.id, line.product.id))) })).filter((group) => group.lines.length > 0),
+    [pickedGroups, removed]
+  )
+  const removedLines = pickedGroups.flatMap((group) => group.lines.filter((line) => removed.has(lineKey(group.purchaseOrder.id, line.product.id))).map((line) => ({ group, line })))
   const figures = shownGroups.flatMap((group) =>
     group.lines.map((line) => ({ group, line, key: lineKey(group.purchaseOrder.id, line.product.id), ...computeLine(line, values.get(lineKey(group.purchaseOrder.id, line.product.id))) }))
   )
@@ -106,11 +119,15 @@ export const PackagingListFormScreen: React.FC<PackagingListFormScreenProps> = (
   const overAllocated = figures.filter((row) => row.units > row.line.available)
 
   /** POs that will keep unallocated units after this list: they can be closed on save. */
-  const leftovers = shownGroups
+  const leftovers = pickedGroups
     .map((group) => ({
       po: group.purchaseOrder,
       open: poOptions.find((option) => option.id === group.purchaseOrder.id)?.isOpen ?? true,
-      left: figures.filter((row) => row.group.purchaseOrder.id === group.purchaseOrder.id && row.remaining > 0).map((row) => ({ sku: row.line.product.ref, units: row.remaining })),
+      left: [
+        ...figures.filter((row) => row.group.purchaseOrder.id === group.purchaseOrder.id && row.remaining > 0).map((row) => ({ sku: row.line.product.ref, units: row.remaining })),
+        // A removed SKU leaves everything it had available on the PO
+        ...removedLines.filter((item) => item.group.purchaseOrder.id === group.purchaseOrder.id && item.line.available > 0).map((item) => ({ sku: item.line.product.ref, units: item.line.available })),
+      ],
     }))
     .filter((item) => item.open && item.left.length > 0)
 
@@ -200,6 +217,17 @@ export const PackagingListFormScreen: React.FC<PackagingListFormScreenProps> = (
             <CardTitle>Purchase orders</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-4 md:grid-cols-2">
+            {!existing && (
+              <FormField label="Destination" className="md:col-span-2">
+                <SegmentedToggle<PoDestination | ''>
+                  ariaLabel="Destination"
+                  value={destinationFilter}
+                  onChange={setDestinationFilter}
+                  options={[{ value: '', label: 'All' }, ...DESTINATION_OPTIONS]}
+                  className="w-fit"
+                />
+              </FormField>
+            )}
             <FormField
               label="Purchase order(s)"
               htmlFor="pl-pos"
@@ -213,7 +241,7 @@ export const PackagingListFormScreen: React.FC<PackagingListFormScreenProps> = (
                   <span className="text-text-muted"> · {supplierNames(existing.suppliers)}</span>
                 </p>
               ) : (
-                <PackablePoSelect id="pl-pos" options={poOptions} value={poIds} onChange={setPoIds} loading={loadingOptions} />
+                <PackablePoSelect id="pl-pos" options={shownPoOptions} value={poIds} onChange={setPoIds} loading={loadingOptions} />
               )}
             </FormField>
           </CardContent>
@@ -231,7 +259,30 @@ export const PackagingListFormScreen: React.FC<PackagingListFormScreenProps> = (
                 <Spinner />
               </div>
             ) : (
-              <PackingLinesTable groups={shownGroups} values={values} onChange={changeLine} serverErrors={serverErrors} readOnly={readOnly} />
+              <>
+                {shownGroups.length > 0 ? (
+                  <PackingLinesTable
+                    groups={shownGroups}
+                    values={values}
+                    onChange={changeLine}
+                    serverErrors={serverErrors}
+                    readOnly={readOnly}
+                    onRemove={(key) => setRemoved((current) => new Set(current).add(key))}
+                  />
+                ) : (
+                  <p className="py-6 text-center text-sm text-text-muted">Every SKU is removed from this list.</p>
+                )}
+                {!readOnly && removedLines.length > 0 && (
+                  <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-secondary-50 px-3 py-2 text-sm text-text-secondary">
+                    <span>
+                      Removed from this list (still available on the PO): {removedLines.map((item) => item.line.product.ref).join(', ')}
+                    </span>
+                    <button type="button" onClick={() => setRemoved(new Set())} className="font-medium text-text-primary underline-offset-2 hover:underline">
+                      Restore
+                    </button>
+                  </div>
+                )}
+              </>
             )}
             {overAllocated.length > 0 && (
               <p role="alert" className="rounded-lg border border-danger-200 bg-danger-50 px-3 py-2 text-sm text-danger-700">

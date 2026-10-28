@@ -25,9 +25,8 @@ import {
   type PoDestination,
 } from '@/services/api/procurement.api'
 import { applyServerIssues } from '@/utils/apiErrors'
-import { CONTAINER_STATUS_META, CONTAINER_STATUSES, DESTINATION_LABEL, containerLabel, isShipping } from '../shared/poMeta'
+import { CONTAINER_STATUS_META, CONTAINER_STATUSES, DESTINATION_OPTIONS, containerLabel, isShipping } from '../shared/poMeta'
 
-const DESTINATIONS = (['US', 'CA'] as const).map((value) => ({ value, label: DESTINATION_LABEL[value] }))
 const CURRENCIES: Array<{ value: PoCurrency; label: string }> = [
   { value: 'USD', label: 'USD' },
   { value: 'CAD', label: 'CAD' },
@@ -234,7 +233,7 @@ export const ContainerFormModal: React.FC<ContainerFormModalProps> = ({ isOpen, 
           </FormField>
 
           <FormField label="Destination country" error={errors.destination?.message} hint={preset && !container ? 'The packaging list ships here' : undefined}>
-            <SegmentedToggle<PoDestination> ariaLabel="Destination country" value={destination} onChange={changeDestination} options={DESTINATIONS} disabled={(Boolean(preset) && !container) || locked('destination')} />
+            <SegmentedToggle<PoDestination> ariaLabel="Destination country" value={destination} onChange={changeDestination} options={DESTINATION_OPTIONS} disabled={(Boolean(preset) && !container) || locked('destination')} />
           </FormField>
           <FormField label="Destination city" htmlFor="ct-city" error={errors.city?.message}>
             <Controller
