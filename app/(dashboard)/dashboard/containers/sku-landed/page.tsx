@@ -2,7 +2,7 @@ import { Metadata } from 'next'
 import { SkuLandedScreen } from '@/features/procurement/containers'
 
 export const metadata: Metadata = {
-  title: 'SKU Landed | Beddora',
+  title: 'SKU Landed Cost | Beddora',
   description: 'Landed and shipment cost per SKU',
 }
 

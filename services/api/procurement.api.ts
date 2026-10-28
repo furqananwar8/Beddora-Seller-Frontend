@@ -529,38 +529,13 @@ export interface MonthlyOpex {
 }
 
 export interface SkuLandedReport extends Page<SkuLandedRow> {
-  /** This month's opex, whose rates price the warehouse overhead. */
+  /** The day the costs are for (YYYY-MM-DD). */
+  asOf: string
+  /** `live` for today; `snapshot` for an earlier day, from that day's nightly snapshot. */
+  source: 'live' | 'snapshot'
+  /** Opex of the month of `asOf`, whose rates price the warehouse overhead. */
   opex: MonthlyOpex
   shipmentCurrency: string
-}
-
-export interface SkuLandedInvoiceLine {
-  id: number
-  invoiceNo: string
-  currency: string
-  units: number
-  unitPrice: number
-  totalAmount: number
-}
-
-export interface SkuLandedContainer extends ContainerRef {
-  destination: PoDestination
-  etd: string | null
-  eta: string | null
-  currency: string
-  units: number
-  /** The SKU's total in this container (FOB plus its share of every expense), in the container's currency. */
-  total: number
-  landedCurrency: keyof LandedAmounts
-  /** total / units, in the landed currency. */
-  unitCost: number
-  purchaseInvoices: SkuLandedInvoiceLine[]
-}
-
-export interface SkuLandedTimeline {
-  product: SkuLandedRow['product']
-  landedCost: LandedAmounts
-  containers: SkuLandedContainer[]
 }
 
 /* ─────────────── Containers ─────────────── */
@@ -1157,8 +1132,8 @@ export const procurementApi = baseApi.injectEndpoints({
       transformResponse: unwrap,
       providesTags: ['ProcurementContainers', 'FinanceRequests'],
     }),
-    getSkuLanded: b.query<SkuLandedReport, PageParams>({
-      query: ({ search, ...params }) => ({ url: '/procurement/containers/sku-landed', params: { ...params, search: search || undefined } }),
+    getSkuLanded: b.query<SkuLandedReport, PageParams & { asOf?: string }>({
+      query: ({ search, asOf, ...params }) => ({ url: '/procurement/containers/sku-landed', params: { ...params, search: search || undefined, asOf: asOf || undefined } }),
       providesTags: ['ProcurementContainers', 'FinanceRequests'],
     }),
     getSkuLandedOpex: b.query<MonthlyOpex, string>({
@@ -1180,11 +1155,6 @@ export const procurementApi = baseApi.injectEndpoints({
       query: (mappings) => ({ url: '/procurement/containers/sku-landed/mapping', method: 'PUT', body: { mappings } }),
       transformResponse: unwrap,
       invalidatesTags: ['ProcurementContainers'],
-    }),
-    getSkuLandedTimeline: b.query<SkuLandedTimeline, number>({
-      query: (productId) => `/procurement/containers/sku-landed/${productId}`,
-      transformResponse: unwrap,
-      providesTags: ['ProcurementContainers', 'FinanceRequests'],
     }),
     getContainerCostMapping: b.query<CostMapping, void>({
       query: () => '/procurement/containers/cost-analysis/mapping',
@@ -1309,7 +1279,6 @@ export const procurementApi = baseApi.injectEndpoints({
 
 export const {
   useGetSkuLandedQuery,
-  useGetSkuLandedTimelineQuery,
   useGetSkuLandedOpexQuery,
   useSetWarehouseOverheadMutation,
   useGetSkuLandedMappingQuery,

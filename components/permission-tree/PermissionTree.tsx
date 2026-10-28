@@ -18,15 +18,20 @@ interface Props {
   onChange: (ids: number[]) => void
 }
 
-/** The row's name: the page, or the last part of a subpage (`price-analysis.approval` → "approval"). */
 /** Words shown in capitals instead of title case, e.g. `sku-mapping` → "SKU Mapping". */
 const ACRONYMS = new Set(['sku', 'po', 'ppc', 'ip', 'invp'])
 
-const labelOf = (node: PermissionNode) =>
+/** Screens whose name is not their slug read out (`sku-landed` is the SKU Landed Cost screen). */
+const DISPLAY_NAMES: Record<string, string> = { 'sku-landed': 'SKU Landed Cost' }
+
+const slugLabel = (node: PermissionNode) =>
   (node.subpage ? (node.subpage.split('.').pop() ?? node.subpage) : node.page)
     .split('-')
     .map((word) => (ACRONYMS.has(word) ? word.toUpperCase() : word))
     .join(' ')
+
+/** The row's name: its display name, else the page or the last part of a subpage (`price-analysis.approval` → "approval"). */
+const labelOf = (node: PermissionNode) => (node.subpage && DISPLAY_NAMES[node.subpage]) || slugLabel(node)
 
 interface RowProps {
   node: PermissionNode
