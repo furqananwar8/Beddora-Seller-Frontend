@@ -15,7 +15,7 @@ import {
   usePushStockMutation,
   useSaveAllocationMutation,
 } from '@/services/api/inventoryPlanner.api'
-import { AssignMode, assignByPercent, assignRemaining, isSplitChanged, splitError, splitFromBalances } from './allocationMath'
+import { AssignMode, SplitShares, assignByShares, assignRemaining, isSplitChanged, splitError, splitFromBalances } from './allocationMath'
 
 export type AllocationStep = 'split' | 'channels' | 'review' | 'result'
 
@@ -126,13 +126,14 @@ export function useAllocationDrawer(initialItems: ProductInventoryItem[]) {
     [items]
   )
 
-  const assignPercent = useCallback(
-    (itemId: string, fbaPercent: number) => {
+  /** The slider: divides the item's new units between FBA, WFS and FBM by percentage. */
+  const assignShares = useCallback(
+    (itemId: string, shares: SplitShares) => {
       const item = items.find((i) => i.id === itemId)
       if (!item) return
       setState((prev) => ({
         ...prev,
-        splits: { ...prev.splits, [itemId]: assignByPercent(item.balances, prev.splits[itemId], fbaPercent) },
+        splits: { ...prev.splits, [itemId]: assignByShares(item.balances, prev.splits[itemId], shares) },
       }))
     },
     [items]
@@ -236,7 +237,7 @@ export function useAllocationDrawer(initialItems: ProductInventoryItem[]) {
     removeItem,
     setSplitField,
     assign,
-    assignPercent,
+    assignShares,
     toggleChannel,
     setColumn,
     goTo,

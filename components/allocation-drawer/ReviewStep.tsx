@@ -17,7 +17,7 @@ const Change = ({ before, after }: { before: number; after: number }) =>
     </span>
   )
 
-const FIELDS: (keyof AllocationSplit)[] = ['fba', 'buffer', 'fbm']
+const FIELDS: (keyof AllocationSplit)[] = ['fba', 'wfs', 'buffer', 'fbm']
 
 export const ReviewStep: React.FC<{ items: ProductInventoryItem[]; model: AllocationDrawerModel }> = ({ items, model }) => {
   const { state, channelsFor, listingCount, changedCount, preview } = model
@@ -29,6 +29,9 @@ export const ReviewStep: React.FC<{ items: ProductInventoryItem[]; model: Alloca
   const moves = planned.flatMap((p) => p.moves.map((m) => ({ ...m, sku: p.sku })))
   const fbaGains = planned
     .map((p) => ({ sku: p.sku, gain: p.after.FBA_POOL - p.before.FBA_POOL }))
+    .filter((g) => g.gain > 0)
+  const wfsGains = planned
+    .map((p) => ({ sku: p.sku, gain: (p.after.WFS_POOL ?? 0) - (p.before.WFS_POOL ?? 0) }))
     .filter((g) => g.gain > 0)
 
   return (
@@ -58,6 +61,7 @@ export const ReviewStep: React.FC<{ items: ProductInventoryItem[]; model: Alloca
             <tr>
               <TH className="w-[280px]">Product</TH>
               <TH>FBA</TH>
+              <TH>WFS</TH>
               <TH>Buffer</TH>
               <TH>FBM</TH>
               <TH className="w-[200px]">Channels</TH>
@@ -135,6 +139,8 @@ export const ReviewStep: React.FC<{ items: ProductInventoryItem[]; model: Alloca
         {fbaGains.length > 0
           ? `More units in the FBA pool: ${fbaGains.map((g) => `${g.sku} +${n(g.gain)}`).join(', ')}. Book them into a shipment from FBA shipments when you're ready.`
           : 'FBA units wait in the FBA pool until you book them into a shipment from FBA shipments.'}
+        {wfsGains.length > 0 &&
+          ` More units in the WFS pool: ${wfsGains.map((g) => `${g.sku} +${n(g.gain)}`).join(', ')}. Book them into a Walmart WFS shipment from Shipments.`}
       </Notice>
     </div>
   )

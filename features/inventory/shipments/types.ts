@@ -2,13 +2,19 @@
  * Inbound Shipment domain model
  *
  * An inbound shipment is OUR record first: it gets an internal ID the moment it
- * is created and only becomes known to Amazon once we call createInboundPlan
- * (SP-API Fulfillment Inbound v2024-03-20). Units in an open shipment are held
- * in the FBA_RESERVED stock bucket; physical stock is only deducted when the
- * shipment is marked as shipped.
+ * is created and only becomes known to its partner once it is sent: Amazon FBA
+ * (createInboundPlan, SP-API Fulfillment Inbound v2024-03-20) or Walmart WFS
+ * (an inbound order). Units in an open shipment are held in the channel's
+ * reserved stock bucket (FBA_RESERVED / WFS_RESERVED); physical stock is only
+ * deducted when the shipment is marked as shipped.
  */
 
-export type Marketplace = 'Amazon.com' | 'Amazon.ca' | 'Amazon.mx'
+/** The fulfillment network a shipment goes to; fixed when the shipment is created. */
+export type ShipmentChannel = 'amazon_fba' | 'walmart_wfs'
+
+export type AmazonMarketplace = 'Amazon.com' | 'Amazon.ca' | 'Amazon.mx'
+export type WalmartMarketplace = 'Walmart.US' | 'Walmart.CA'
+export type Marketplace = AmazonMarketplace | WalmartMarketplace
 
 /** Lifecycle status. Only `in_progress` is editable on our side. */
 export type ShipmentStatus =
@@ -19,8 +25,10 @@ export type ShipmentStatus =
   | 'cancelled'
 
 /**
- * Progress through the Amazon inbound workflow while `in_progress`.
- * Each stage is the LAST completed step.
+ * Progress through the partner's inbound workflow while `in_progress`.
+ * Each stage is the LAST completed step. FBA uses them all; WFS skips
+ * placement_confirmed and window_confirmed (Walmart assigns the FCs and takes
+ * the delivery date with the order).
  */
 export type ShipmentStage =
   | 'draft' //                internal only, nothing sent to Amazon
@@ -31,7 +39,8 @@ export type ShipmentStage =
   | 'transport_confirmed' //  generate/confirmTransportationOptions
   | 'labels_ready' //         box labels (v0 getLabels) verified
 
-export type LabelType = 'box' | 'pallet' | 'unit'
+/** box / pallet / unit: Amazon. carton (per Walmart shipment) / carrier (Walmart-carrier bookings): Walmart. */
+export type LabelType = 'box' | 'pallet' | 'unit' | 'carton' | 'carrier'
 
 /** Our server keeps a copy of each label file; this is how that copy is doing. */
 export interface LabelFileStatus {
@@ -60,11 +69,18 @@ export interface InboundShipmentItem {
   sku: string
   fnsku?: string
   asin: string
+  /** WFS: identifiers from the marketplace's Walmart listing. */
+  gtin?: string
+  walmartItemId?: string
+  /** WFS: sellable units per case; WFS lines are booked in whole cases. */
+  unitsPerCase?: number
   title: string
   imageUrl?: string
   quantity: number
-  /** Populated from Amazon once the shipment is receiving. */
+  /** Populated from the partner once the shipment is receiving. */
   quantityReceived?: number
+  /** WFS: units Walmart's FC received damaged. */
+  quantityDamaged?: number
 }
 
 export interface DeliveryWindow {
@@ -77,6 +93,8 @@ export interface DeliveryWindow {
  * each with its own FBA shipment ID, destination FC, window and carrier.
  */
 export interface AmazonShipmentLeg {
+  /** The partner's shipment id, for every channel (Amazon shipmentId, Walmart shipmentId). */
+  id?: string
   amazonShipmentId?: string
   /** FBA15... ID printed on labels. */
   shipmentConfirmationId?: string
@@ -99,9 +117,25 @@ export interface AmazonShipmentLeg {
   /** AMAZON_PARTNERED_CARRIER | USE_YOUR_OWN_CARRIER */
   shippingSolution?: string
   status?: string
-  /** Own carrier: tracking was sent to Amazon when the shipment was marked as shipped. */
+  /** Own carrier: tracking was sent to the partner when the shipment was marked as shipped. */
   trackingSent?: boolean
+  // ── Walmart WFS legs
+  /** Walmart's shipment id. */
+  shipmentId?: string
+  destinationAddress?: { addressLine1?: string; city?: string; stateCode?: string; postalCode?: string; countryCode?: string }
+  items?: { sku: string; quantity: number }[]
+  /** Walmart's expected delivery (can differ from the date asked for). */
+  expectedDeliveryDate?: string
+  carrierMode?: 'own' | 'walmart'
+  /** The Walmart carrier quote this leg was booked with. */
+  quote?: { quoteId: string; carrierName?: string; amount?: number; currency?: string; booked: boolean }
 }
+
+/** Any channel's leg. */
+export type ShipmentLeg = AmazonShipmentLeg
+
+/** The partner's id of a leg, whatever the channel. */
+export const legId = (l: ShipmentLeg) => l.id ?? l.amazonShipmentId ?? l.shipmentId ?? ''
 
 /** What marking one Amazon shipment as shipped needs from the seller. */
 export interface ShipLegRequirement {
@@ -112,6 +146,8 @@ export interface ShipLegRequirement {
   mode: 'parcel' | 'freight'
   carrier?: string
   boxes: { boxId: string; label: string }[]
+  /** 'numbers': the partner takes a list of tracking numbers for the whole shipment (Walmart), not one per box. */
+  tracking?: 'numbers'
 }
 
 /** Tracking entered for one own-carrier leg: a number per box (parcel) or BOL / freight bill numbers (freight). */
@@ -120,6 +156,8 @@ export interface ShipTrackingInput {
   boxes?: { boxId: string; trackingId: string }[]
   billOfLadingNumber?: string
   freightBillNumbers?: string[]
+  /** Walmart: tracking numbers for the whole shipment. */
+  trackingNumbers?: string[]
 }
 
 export interface InboundShipment {
@@ -127,25 +165,36 @@ export interface InboundShipment {
   /** Human-facing internal reference, e.g. SHP-0042. */
   reference: string
   name: string
+  /** Missing only from servers that predate channels; treat as amazon_fba. */
+  channel?: ShipmentChannel
   marketplace: Marketplace
   status: ShipmentStatus
   stage: ShipmentStage
   items: InboundShipmentItem[]
   amazonInboundPlanId?: string
-  legs: AmazonShipmentLeg[]
+  /** The plan / order id on the partner's side (Amazon inbound plan, Walmart inbound order). */
+  externalRef?: string
+  legs: ShipmentLeg[]
   deliveryWindow?: DeliveryWindow
   carrier?: string
   createdAt: string
   updatedAt: string
   shippedAt?: string
-  /** Box and FNSKU label copies on our server, fetched in the background once labels are generated. */
-  labels: Partial<Record<'box' | 'unit', LabelFileStatus>>
+  /** Label copies on our server, fetched in the background once labels are generated. */
+  labels: Partial<Record<Exclude<LabelType, 'pallet'>, LabelFileStatus>>
   /** Where the shipment ships from (snapshot taken when it was created or sent to Amazon). */
   shipFrom?: ShipFromAddress
   /** Amazon's fee estimates, saved as each option was confirmed. */
   fees?: ShipmentFees
-  /** Last time receiving status was pulled from Amazon. */
+  /** Last time receiving status was pulled from the partner. */
   syncedAt?: string
+  /** WFS inputs and Walmart's answers. */
+  wfs?: {
+    expectedDeliveryDate?: string
+    inventoryTransfer?: boolean
+    /** Walmart's latest rejections of the inbound order. */
+    errors?: { code?: string; field?: string; description: string }[]
+  }
 }
 
 export interface ShipFromAddress {
@@ -170,7 +219,7 @@ export interface SavedShipFromAddress extends ShipFromAddress {
 }
 
 export interface FeeLine {
-  kind: 'packing' | 'placement' | 'transport'
+  kind: 'packing' | 'placement' | 'transport' | 'carrier'
   label: string
   amount: number
   currency: string
@@ -183,8 +232,8 @@ export interface ShipmentFees {
 }
 
 /**
- * A product's FBA stock that hasn't shipped: units allocated to FBA in the
- * Planner, shared by every marketplace.
+ * A product's stock for one channel that hasn't shipped: units allocated to FBA
+ * (or WFS) in the Planner, shared by every marketplace of that channel.
  */
 export interface ReservedPoolItem {
   productId: string
@@ -193,9 +242,16 @@ export interface ReservedPoolItem {
   asin: string
   title: string
   imageUrl?: string
-  /** Units allocated to FBA that have not physically shipped yet. */
+  /** Units allocated to the channel that have not physically shipped yet. */
   reserved: number
   casePack?: CasePack
+  /** Saved units per case, even without carton dimensions. */
+  unitsPerCase?: number
+  /** WFS: identifiers from the marketplace's Walmart listing, and why it can't be booked. */
+  gtin?: string
+  walmartItemId?: string
+  eligible?: boolean
+  blockReason?: string
 }
 
 /**
@@ -263,4 +319,32 @@ export interface PackingSubmission {
   /** Save single-SKU box specs as those SKUs' case packs. */
   saveCasePacks: boolean
   groups: { packingGroupId: string; boxes: BoxSpec[] }[]
+}
+
+// ── WFS cartons and carrier
+
+/** Cartons for one Walmart shipment: label counts by load type, plus sizes (inches, pounds) for Walmart's carrier quote. */
+export interface WfsCartons {
+  shipmentId: string
+  singleSku: number
+  mixedSku: number
+  pallet: number
+  packages?: { count: number; length: number; width: number; height: number; weight: number }[]
+}
+
+export interface WfsCarrierEntry {
+  shipmentId: string
+  mode: 'own' | 'walmart'
+  /** Own carrier: its name. */
+  carrier?: string
+  /** Walmart carrier: the quote to book. */
+  quoteId?: string
+}
+
+export interface CarrierQuote {
+  quoteId: string
+  carrierName?: string
+  amount?: number
+  currency?: string
+  estimatedDelivery?: string
 }

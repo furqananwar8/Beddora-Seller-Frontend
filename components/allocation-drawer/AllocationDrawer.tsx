@@ -16,8 +16,8 @@ interface AllocationDrawerProps {
   /** Snapshot of the selected planner rows, taken when the drawer opens. */
   items: ProductInventoryItem[]
   onClose: () => void
-  /** Opens FBA shipment creation for the drawer's items. */
-  onCreateShipment: (itemIds: string[]) => void
+  /** Opens shipment creation (FBA or WFS) for the drawer's items. */
+  onCreateShipment: (itemIds: string[], channel: 'amazon_fba' | 'walmart_wfs') => void
   /** The split was saved with no FBM change, so the Channels step was skipped and nothing was pushed. */
   onSavedWithoutChannels: (itemIds: string[]) => void
 }
@@ -168,7 +168,8 @@ function FooterActions({ model, onClose, onCreateShipment, onSavedWithoutChannel
     case 'result':
       return (
         <>
-          <DrawerButton onClick={() => onCreateShipment(itemIds)}>Create FBA shipment</DrawerButton>
+          <DrawerButton onClick={() => onCreateShipment(itemIds, 'amazon_fba')}>Create FBA shipment</DrawerButton>
+          <DrawerButton onClick={() => onCreateShipment(itemIds, 'walmart_wfs')}>Create WFS shipment</DrawerButton>
           <DrawerButton variant="primary" onClick={onClose}>
             Done
           </DrawerButton>

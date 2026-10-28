@@ -6,7 +6,7 @@ import { STOCK_LEGEND, StockBar } from './StockBar'
 import { Chip, Tile } from './drawerUi'
 import { AllocationSlider } from './AllocationSlider'
 import { AddSkuMenu } from './AddSkuMenu'
-import { DEFAULT_FBA_PERCENT, onHand, parseUnits, splitFromBalances, unassigned } from './allocationMath'
+import { DEFAULT_SHARES, onHand, parseUnits, sharesOf, splitFromBalances, unassigned, wfsReserved } from './allocationMath'
 
 const n = (value: number) => value.toLocaleString()
 
@@ -72,7 +72,8 @@ const SplitCard = ({ item, model }: { item: ProductInventoryItem; model: Allocat
   const newUnits = balances.UNALLOCATED
   const newFba = Math.max(0, split.fba - base.fba)
   const newFbm = Math.max(0, split.fbm - base.fbm)
-  const set = (field: 'fba' | 'buffer' | 'fbm') => (units: number) => model.setSplitField(item.id, field, units)
+  const newWfs = Math.max(0, split.wfs - base.wfs)
+  const set = (field: 'fba' | 'wfs' | 'buffer' | 'fbm') => (units: number) => model.setSplitField(item.id, field, units)
   const fieldId = (name: string) => `alloc-${item.id}-${name}`
 
   return (
@@ -127,24 +128,38 @@ const SplitCard = ({ item, model }: { item: ProductInventoryItem; model: Allocat
                 aria-pressed={sliderOpen}
                 className={sliderOpen ? 'bg-amber-100' : undefined}
                 onClick={() => {
-                  if (!sliderOpen) model.assignPercent(item.id, DEFAULT_FBA_PERCENT)
+                  // Start from half FBA / half FBM only when nothing is assigned yet; typed numbers are kept
+                  if (!sliderOpen && newFba + newWfs + newFbm === 0) model.assignShares(item.id, DEFAULT_SHARES)
                   setSliderOpen((open) => !open)
                 }}
               >
                 Allocation slider
               </Chip>
               <Chip onClick={() => model.assign(item.id, 'fba')} disabled={left <= 0}>All to FBA</Chip>
+              <Chip onClick={() => model.assign(item.id, 'wfs')} disabled={left <= 0}>All to WFS</Chip>
               <Chip onClick={() => model.assign(item.id, 'fbm')} disabled={left <= 0}>All to FBM</Chip>
               <Chip onClick={() => model.assign(item.id, 'even')} disabled={left <= 0}>Split evenly</Chip>
             </div>
           </div>
-          {sliderOpen && <AllocationSlider itemId={item.sku} newUnits={newUnits} onChange={(pct) => model.assignPercent(item.id, pct)} />}
-          <div className="flex items-end gap-3">
-            <div className="w-40">
+          {sliderOpen && (
+            <AllocationSlider
+              itemId={item.sku}
+              shares={sharesOf(balances, split) ?? DEFAULT_SHARES}
+              units={{ fba: newFba, wfs: newWfs, fbm: newFbm }}
+              unassigned={Math.max(0, left)}
+              onChange={(shares) => model.assignShares(item.id, shares)}
+            />
+          )}
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="w-36">
               <NumberField id={fieldId('new-fba')} label="To FBA" tone="amber" value={newFba} onChange={(u) => set('fba')(base.fba + u)} />
             </div>
             <span className="pb-2 text-xl text-amber-800">+</span>
-            <div className="w-40">
+            <div className="w-36">
+              <NumberField id={fieldId('new-wfs')} label="To WFS" tone="amber" value={newWfs} onChange={(u) => set('wfs')(base.wfs + u)} />
+            </div>
+            <span className="pb-2 text-xl text-amber-800">+</span>
+            <div className="w-36">
               <NumberField id={fieldId('new-fbm')} label="To FBM" tone="amber" value={newFbm} onChange={(u) => set('fbm')(base.fbm + u)} />
             </div>
             <span className="pb-2 text-xl text-amber-800">=</span>
@@ -160,7 +175,7 @@ const SplitCard = ({ item, model }: { item: ProductInventoryItem; model: Allocat
 
       <StockBar balances={balances} split={split} />
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         <NumberField
           id={fieldId('fba')}
           label="FBA total"
@@ -171,6 +186,17 @@ const SplitCard = ({ item, model }: { item: ProductInventoryItem; model: Allocat
             newFba > 0 && `${n(base.fba)} + ${n(newFba)} new`,
             balances.FBA_RESERVED > 0 && `min ${n(balances.FBA_RESERVED)}, held by FBA shipments`
           )}
+        />
+        <NumberField
+          id={fieldId('wfs')}
+          label="Walmart WFS"
+          value={split.wfs}
+          onChange={set('wfs')}
+          invalid={split.wfs < wfsReserved(balances) || Boolean(error && left < 0)}
+          hint={joinHint(
+            newWfs > 0 && `${n(base.wfs)} + ${n(newWfs)} new`,
+            wfsReserved(balances) > 0 && `min ${n(wfsReserved(balances))}, held by WFS shipments`
+          ) ?? 'Booked into WFS shipments'}
         />
         <NumberField id={fieldId('buffer')} label="Safety buffer" value={split.buffer} onChange={set('buffer')} hint="Never pushed to channels" />
         <NumberField
@@ -196,15 +222,18 @@ export const SplitStep: React.FC<{ items: ProductInventoryItem[]; model: Allocat
     left: items.reduce((s, i) => s + Math.max(0, unassigned(i.balances, model.state.splits[i.id])), 0),
     fba: splits.reduce((s, sp) => s + sp.fba, 0),
     reserved: items.reduce((s, i) => s + i.balances.FBA_RESERVED, 0),
+    wfs: splits.reduce((s, sp) => s + sp.wfs, 0),
+    wfsReserved: items.reduce((s, i) => s + wfsReserved(i.balances), 0),
     fbm: splits.reduce((s, sp) => s + sp.fbm, 0),
   }
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
         <Tile label="On hand" value={n(totals.onHand)} />
         <Tile label={`Unassigned · ${n(totals.newUnits)} new`} value={totals.left > 0 ? n(totals.left) : '0 left'} tone="amber" />
         <Tile label={`FBA · ${n(totals.reserved)} in shipments`} value={n(totals.fba)} tone="blue" />
+        <Tile label={`WFS · ${n(totals.wfsReserved)} in shipments`} value={n(totals.wfs)} tone="blue" />
         <Tile label="FBM" value={n(totals.fbm)} tone="green" />
       </div>
 

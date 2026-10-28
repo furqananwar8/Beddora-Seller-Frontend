@@ -17,19 +17,21 @@ import {
   InboundShipmentItem,
   LabelType,
   ReservedPoolItem,
+  legId,
 } from './types'
 import {
   MARKETPLACE_META,
-  NEXT_ACTION,
   NextAction,
   canEditItems,
   cancelledAtLabel,
   getReceivedUnits,
   getShipmentUnits,
   legReference,
-  shipsAsFreight,
+  nextActionOf,
 } from './workflow'
+import { channelIdOf, channelOf } from './channels'
 import {
+  ChannelChip,
   ChevronIcon,
   FloatingMenu,
   ProductThumb,
@@ -52,7 +54,7 @@ interface ShipmentRowProps {
   shipment: InboundShipment
   isExpanded: boolean
   onToggle: () => void
-  /** FBA pool (shared by every marketplace). */
+  /** The shipment's channel pool (shared by every marketplace of the channel). */
   pool: ReservedPoolItem[]
   /** Unassigned reserved units per product, NOT counting this shipment's own qty. */
   availableElsewhere: Record<string, number>
@@ -68,15 +70,9 @@ interface ShipmentRowProps {
   downloadingLabels: Partial<Record<LabelType, boolean>>
 }
 
-const LABELS: { type: LabelType; label: string }[] = [
-  { type: 'box', label: 'Box labels' },
-  { type: 'pallet', label: 'Pallet labels' },
-  { type: 'unit', label: 'FNSKU unit labels' },
-]
-
 const sameItems = (a: InboundShipmentItem[], b: InboundShipmentItem[]) =>
   a.length === b.length &&
-  a.every((x) => b.some((y) => y.productId === x.productId && y.quantity === x.quantity))
+  a.every((x) => b.some((y) => y.productId === x.productId && y.quantity === x.quantity && y.unitsPerCase === x.unitsPerCase))
 
 export const ShipmentRow: React.FC<ShipmentRowProps> = ({
   shipment,
@@ -93,11 +89,14 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({
   downloadingLabels,
 }) => {
   const editable = canEditItems(shipment)
+  const channel = channelOf(shipment)
+  // WFS books whole cases, so each line carries its units per case
+  const byCase = channelIdOf(shipment) === 'walmart_wfs'
   const [draft, setDraft] = useState<InboundShipmentItem[]>(shipment.items)
   const [isSaving, setIsSaving] = useState(false)
   const [isActing, setIsActing] = useState(false)
   const [isAddOpen, setIsAddOpen] = useState(false)
-  // Ship-from is editable only until the plan is sent to Amazon
+  // Ship-from is editable only until the plan is sent to the partner
   const canChangeFrom = shipment.status === 'in_progress' && shipment.stage === 'draft'
   const [fromChoice, setFromChoice] = useState<ShipFromChoice | null>(null)
   const [isEditingFrom, setIsEditingFrom] = useState(false)
@@ -119,8 +118,9 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({
   const showReceived = shipment.status === 'receiving' || shipment.status === 'closed'
   // Our server keeps label copies only until the shipment is shipped or cancelled
   const labelsAvailable = shipment.stage === 'labels_ready' && shipment.status === 'in_progress'
-  const next = shipment.status === 'in_progress' ? NEXT_ACTION[shipment.stage] : null
-  const labels = LABELS.filter((l) => l.type !== 'pallet' || shipsAsFreight(shipment))
+  const next = nextActionOf(shipment)
+  const labels = channel.labels.filter((l) => !l.appliesTo || l.appliesTo(shipment))
+  const planRef = shipment.externalRef ?? shipment.amazonInboundPlanId
   const legRefs = shipment.legs.map(legReference).filter(Boolean)
 
   const maxFor = (productId: string) => availableElsewhere[productId] ?? 0
@@ -131,6 +131,8 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({
       const max = maxFor(item.productId)
       if (!Number.isInteger(item.quantity) || item.quantity < 1) e[item.productId] = 'Min 1, or remove the line'
       else if (item.quantity > max) e[item.productId] = `Only ${formatUnits(max)} reserved units available`
+      else if (byCase && (!item.unitsPerCase || !Number.isInteger(item.unitsPerCase) || item.unitsPerCase < 1)) e[item.productId] = 'Enter units per case'
+      else if (byCase && item.quantity % item.unitsPerCase! !== 0) e[item.productId] = `Whole cases of ${formatUnits(item.unitsPerCase!)} only`
     }
     return e
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -139,16 +141,26 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({
   const hasErrors = Object.keys(errors).length > 0 || draft.length === 0
 
   const addable = pool.filter(
-    (p) => !draft.some((i) => i.productId === p.productId) && maxFor(p.productId) > 0
+    (p) => !draft.some((i) => i.productId === p.productId) && maxFor(p.productId) > 0 && p.eligible !== false
   )
 
   const setQty = (productId: string, quantity: number) =>
     setDraft((prev) => prev.map((i) => (i.productId === productId ? { ...i, quantity } : i)))
 
+  const setUnitsPerCase = (productId: string, unitsPerCase: number) =>
+    setDraft((prev) => prev.map((i) => (i.productId === productId ? { ...i, unitsPerCase } : i)))
+
+  /** The most this line can take: every available unit, or (WFS) every whole case of them. */
+  const maxQty = (productId: string, unitsPerCase?: number) => {
+    const max = maxFor(productId)
+    return byCase && unitsPerCase ? Math.floor(max / unitsPerCase) * unitsPerCase : max
+  }
+
   const removeLine = (productId: string) =>
     setDraft((prev) => prev.filter((i) => i.productId !== productId))
 
   const addLine = (p: ReservedPoolItem) => {
+    const unitsPerCase = byCase ? p.unitsPerCase ?? p.casePack?.unitsPerBox : undefined
     setDraft((prev) => [
       ...prev,
       {
@@ -156,9 +168,12 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({
         sku: p.sku,
         fnsku: p.fnsku,
         asin: p.asin,
+        gtin: p.gtin,
+        walmartItemId: p.walmartItemId,
         title: p.title,
         imageUrl: p.imageUrl,
-        quantity: maxFor(p.productId),
+        quantity: maxQty(p.productId, unitsPerCase),
+        ...(byCase ? { unitsPerCase } : {}),
       },
     ])
     setIsAddOpen(false)
@@ -247,7 +262,8 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({
         </TableCell>
 
         <TableCell className="whitespace-nowrap text-sm">
-          <span className="inline-flex items-center gap-1.5">
+          <span className="flex items-center gap-1.5">
+            <ChannelChip channel={channel.id} />
             <CountryFlag code={market.label} />
             {market.label}
           </span>
@@ -284,7 +300,7 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({
               ? `Next: ${next.label}`
               : shipment.status === 'closed'
               ? 'Complete'
-              : 'With Amazon'}
+              : `With ${channel.partner}`}
           </div>
         </TableCell>
 
@@ -344,17 +360,32 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({
             <div className="space-y-4 border-l-2 border-secondary-800 px-6 py-5">
               <WorkflowStepper shipment={shipment} onGoBack={onGoBack} onReopen={onAction} />
 
-              {/* Amazon details */}
+              {shipment.status === 'in_progress' && !!shipment.wfs?.errors?.length && (
+                <div role="alert" className="rounded-lg border border-danger-200 bg-danger-50 px-4 py-3 text-sm text-danger-700">
+                  <div className="font-semibold">Walmart rejected the last inbound order</div>
+                  <ul className="mt-1 list-disc space-y-0.5 pl-5">
+                    {shipment.wfs.errors.map((e, i) => (
+                      <li key={i}>
+                        {e.field ? `${e.field}: ` : ''}
+                        {e.description}
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="mt-1 text-xs">Fix the products or the listing on Walmart, then send it again.</p>
+                </div>
+              )}
+
+              {/* Partner details */}
               <dl className="grid grid-cols-2 gap-x-6 gap-y-3 rounded-lg border border-border bg-surface p-4 text-sm md:grid-cols-3 xl:grid-cols-6">
                 <Detail label="Internal ID" value={<span className="font-mono">{shipment.reference}</span>} />
                 <Detail
-                  label="Inbound plan"
+                  label={channel.copy.planLabel}
                   value={
-                    shipment.amazonInboundPlanId ? (
-                      <span className="font-mono text-xs">{shipment.amazonInboundPlanId}</span>
+                    planRef ? (
+                      <span className="font-mono text-xs">{planRef}</span>
                     ) : (
                       <span className="text-text-subtle">
-                        {shipment.status === 'cancelled' ? 'Never sent to Amazon' : 'Not sent to Amazon'}
+                        {shipment.status === 'cancelled' ? `Never sent to ${channel.partner}` : `Not sent to ${channel.partner}`}
                       </span>
                     )
                   }
@@ -365,7 +396,7 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({
                     shipment.legs.length ? (
                       <div className="space-y-0.5">
                         {shipment.legs.map((l) => (
-                          <div key={l.amazonShipmentId ?? l.fulfillmentCenter}>
+                          <div key={legId(l) || l.fulfillmentCenter}>
                             <span className="font-mono font-semibold">{l.fulfillmentCenter}</span>
                             <span className="text-xs text-text-muted">
                               {' '}· {formatUnits(l.units)} u{l.boxes ? ` · ${formatUnits(l.boxes)} box${l.boxes === 1 ? '' : 'es'}` : ''}
@@ -387,7 +418,7 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({
                     )
                   }
                 />
-                <Detail label="Delivery window" value={formatWindow(shipment.deliveryWindow)} />
+                <Detail label={byCase ? 'Expected delivery' : 'Delivery window'} value={formatWindow(shipment.deliveryWindow)} />
                 <Detail label="Carrier" value={shipment.carrier ?? '—'} />
                 <Detail
                   label={shipment.shippedAt ? 'Shipped' : 'Created'}
@@ -432,14 +463,14 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({
                           </div>
                         </>
                       ) : (
-                        <div className="mt-1 text-text-muted">Not chosen yet. Your default address is used when this is sent to Amazon.</div>
+                        <div className="mt-1 text-text-muted">Not chosen yet. Your default address is used when this is sent to {channel.partner}.</div>
                       )}
                     </div>
                   )}
                   {shipment.fees && (
                     <div className="rounded-lg border border-border bg-surface p-4 text-sm">
                       <div className="flex items-baseline justify-between">
-                        <span className="text-[11px] font-medium uppercase tracking-wider text-text-muted">Amazon fees (estimate)</span>
+                        <span className="text-[11px] font-medium uppercase tracking-wider text-text-muted">{channel.copy.feesTitle}</span>
                         <span className="font-semibold text-text-primary">
                           {shipment.fees.totals.map((t) => formatCurrency(t.amount, t.currency)).join(' + ')}
                         </span>
@@ -452,7 +483,7 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({
                           </li>
                         ))}
                       </ul>
-                      <p className="mt-2 text-[11px] text-text-muted">Quoted when each option was confirmed. Amazon&apos;s final charge can differ.</p>
+                      <p className="mt-2 text-[11px] text-text-muted">{channel.copy.feesNote}</p>
                     </div>
                   )}
                 </div>
@@ -466,10 +497,10 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({
                     <p className="text-xs text-text-muted">
                       {editable
                         ? shipment.stage === 'plan_created'
-                          ? 'Saving changes recreates the Amazon plan from the updated products.'
-                          : 'Quantities come from your FBA reserved pool.'
+                          ? channel.copy.editRebuildsPlan
+                          : `Quantities come from your ${channel.program} reserved pool.`
                         : shipment.status === 'in_progress'
-                        ? 'Quantities are locked once box contents are sent. Cancel and re-plan to change them.'
+                        ? channel.copy.quantitiesLocked
                         : 'Read-only.'}
                     </p>
                   </div>
@@ -518,7 +549,8 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({
                   <thead>
                     <tr className="border-b border-border text-left text-xs font-semibold uppercase tracking-wider text-text-muted">
                       <th className="px-4 py-2.5">Product</th>
-                      <th className="px-4 py-2.5">FNSKU</th>
+                      <th className="px-4 py-2.5">{channel.identifier.header}</th>
+                      {byCase && <th className="px-4 py-2.5 text-right">Units / case</th>}
                       {editable && <th className="px-4 py-2.5 text-right">Reserved available</th>}
                       <th className="px-4 py-2.5 text-right">{editable ? 'Qty in shipment' : 'Shipped qty'}</th>
                       {showReceived && <th className="px-4 py-2.5 text-right">Received</th>}
@@ -530,7 +562,7 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({
                       const original = shipment.items.find((i) => i.productId === item.productId)
                       const changed = !original || original.quantity !== item.quantity
                       const error = errors[item.productId]
-                      const max = maxFor(item.productId)
+                      const max = maxQty(item.productId, item.unitsPerCase)
                       const short =
                         showReceived && (item.quantityReceived ?? 0) < item.quantity
                       return (
@@ -544,16 +576,35 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({
                               <ProductThumb src={item.imageUrl} alt={item.title} size="sm" />
                               <div className="min-w-0">
                                 <div className="max-w-md truncate text-text-primary group-hover:text-primary-700 group-hover:underline">{item.title}</div>
-                                <div className="text-xs text-text-muted">
-                                  <span className="font-mono">{item.sku}</span> · {item.asin}
-                                </div>
+                                <div className="text-xs text-text-muted">{channel.itemSubline(item)}</div>
                               </div>
                             </Link>
                           </td>
-                          <td className="px-4 py-2.5 font-mono text-xs text-text-muted">{item.fnsku ?? '—'}</td>
+                          <td className="px-4 py-2.5 font-mono text-xs text-text-muted">{channel.identifier.value(item) ?? '—'}</td>
+                          {byCase && (
+                            <td className="px-4 py-2.5 text-right">
+                              {editable ? (
+                                <input
+                                  type="number"
+                                  min={1}
+                                  step={1}
+                                  value={item.unitsPerCase ?? ''}
+                                  onChange={(e) => setUnitsPerCase(item.productId, e.target.valueAsNumber)}
+                                  aria-label={`Units per case for ${item.sku}`}
+                                  className="w-20 rounded-md border border-border px-2 py-1 text-right text-sm focus:outline-none focus:ring-2 focus:ring-secondary-200"
+                                />
+                              ) : item.unitsPerCase ? (
+                                <span className="text-text-secondary">
+                                  {formatUnits(item.quantity / item.unitsPerCase)} × {formatUnits(item.unitsPerCase)}
+                                </span>
+                              ) : (
+                                '—'
+                              )}
+                            </td>
+                          )}
                           {editable && (
                             <td className="px-4 py-2.5 text-right text-text-muted">
-                              {formatUnits(max)}
+                              {formatUnits(maxFor(item.productId))}
                             </td>
                           )}
                           <td className="px-4 py-2.5 text-right">
@@ -606,6 +657,9 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({
                                   {formatUnits(item.quantity - (item.quantityReceived ?? 0))} short, open a case
                                 </div>
                               )}
+                              {!!item.quantityDamaged && (
+                                <div className="text-[11px] text-danger-600">{formatUnits(item.quantityDamaged)} damaged</div>
+                              )}
                             </td>
                           )}
                           {editable && (
@@ -627,7 +681,7 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({
                     })}
                     {draft.length === 0 && (
                       <tr>
-                        <td colSpan={6} className="px-4 py-6 text-center text-sm text-text-muted">
+                        <td colSpan={byCase ? 7 : 6} className="px-4 py-6 text-center text-sm text-text-muted">
                           No products. Add at least one, or cancel the shipment.
                         </td>
                       </tr>
@@ -635,7 +689,7 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({
                   </tbody>
                   <tfoot>
                     <tr className="border-t border-border bg-secondary-50 text-sm">
-                      <td className="px-4 py-2.5 font-semibold" colSpan={editable ? 3 : 2}>
+                      <td className="px-4 py-2.5 font-semibold" colSpan={(editable ? 3 : 2) + (byCase ? 1 : 0)}>
                         Total · {draft.length} SKU{draft.length !== 1 && 's'}
                       </td>
                       <td className="px-4 py-2.5 text-right font-semibold">
@@ -671,7 +725,7 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({
                         key={l.type}
                         type={l.type}
                         label={l.label}
-                        status={l.type === 'pallet' ? undefined : shipment.labels?.[l.type]}
+                        status={l.type === 'pallet' ? undefined : shipment.labels?.[l.type as Exclude<LabelType, 'pallet'>]}
                         isDownloading={!!downloadingLabels[l.type]}
                         onClick={() => onDownloadLabel(l.type)}
                       />
@@ -690,7 +744,7 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({
                       </Button>
                       <Button size="sm" onClick={handleSave} disabled={hasErrors || isSaving}>
                         {isSaving ? (
-                          <span className="flex items-center gap-2"><Spinner size="sm" className="text-white" /> {shipment.stage === 'plan_created' ? 'Recreating Amazon plan…' : 'Saving…'}</span>
+                          <span className="flex items-center gap-2"><Spinner size="sm" className="text-white" /> {shipment.stage === 'plan_created' ? channel.copy.rebuildingPlan : 'Saving…'}</span>
                         ) : (
                           'Save quantities'
                         )}

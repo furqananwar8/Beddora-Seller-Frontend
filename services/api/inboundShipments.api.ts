@@ -1,6 +1,7 @@
 import { baseApi } from './baseApi'
 import type {
   AmazonOption,
+  CarrierQuote,
   InboundShipment,
   LabelType,
   Marketplace,
@@ -9,15 +10,46 @@ import type {
   ReservedPoolItem,
   ShipFromAddress,
   ShipLegRequirement,
+  ShipmentChannel,
   ShipTrackingInput,
+  WfsCarrierEntry,
+  WfsCartons,
 } from '@/features/inventory/shipments/types'
 
 import type { LabelFormatCatalog } from '@/features/inventory/shipments/labelFormats'
 
+/** One marketplace a channel ships to, with its optional features (WFS: connected, inventoryTransfer, walmartCarrier). */
+export interface ChannelMarketplaceConfig {
+  id: Marketplace
+  label: string
+  country: string
+  currency: string
+  capabilities: Record<string, boolean>
+}
+
+export interface ChannelConfig {
+  id: ShipmentChannel
+  label: string
+  enabled: boolean
+  disabledReason?: string
+  sandbox: boolean
+  marketplaces: ChannelMarketplaceConfig[]
+  labelFormats: LabelFormatCatalog
+}
+
 export interface ShipmentsConfig {
+  /** Amazon FBA sandbox (FBA_SANDBOX); per-channel flags are in `channels`. */
   sandbox: boolean
   /** Printable label sizes the backend offers for box and FNSKU labels. */
   labelFormats?: LabelFormatCatalog
+  /** Every channel the backend supports; missing on servers that predate channels. */
+  channels?: ChannelConfig[]
+}
+
+export interface PoolArg {
+  channel: ShipmentChannel
+  /** WFS: eligibility depends on the marketplace's Walmart listings. */
+  marketplace?: Marketplace
 }
 
 export type OptionKind = 'placement' | 'window'
@@ -46,12 +78,20 @@ export interface CarrierEntry {
 export interface ShipmentLineInput {
   inventoryItemId: number
   quantity: number
+  /** WFS: sellable units per case; the quantity is whole cases of it. */
+  unitsPerCase?: number
 }
 
 export interface CreateShipmentRequest {
+  /** Omitted for FBA, as before channels. */
+  channel?: ShipmentChannel
   name: string
   marketplace: Marketplace
   items: ShipmentLineInput[]
+  /** WFS: YYYY-MM-DD the inventory should reach Walmart. */
+  expectedDeliveryDate?: string
+  /** WFS (Walmart.US): ship everything to one FC and let Walmart redistribute it. */
+  inventoryTransfer?: boolean
   /** A saved address, or a typed one (saved to the address book unless saveShipFromAddress is false). */
   shipFromAddressId?: number
   shipFromAddress?: ShipFromAddress
@@ -85,8 +125,12 @@ export const inboundShipmentsApi = baseApi.injectEndpoints({
       query: () => ({ url: '/inventory/shipments/carriers' }),
     }),
 
-    getShipmentPool: builder.query<ReservedPoolItem[], void>({
-      query: () => ({ url: '/inventory/shipments/pool' }),
+    /** Without an argument: the FBA pool (as before channels). */
+    getShipmentPool: builder.query<ReservedPoolItem[], PoolArg | void>({
+      query: (arg) => ({
+        url: '/inventory/shipments/pool',
+        params: arg ? { channel: arg.channel, ...(arg.marketplace ? { marketplace: arg.marketplace } : {}) } : undefined,
+      }),
       // Allocations in the Planner change the FBA pool, and they invalidate Inventory
       providesTags: ['InboundShipments', 'Inventory'],
     }),
@@ -97,8 +141,8 @@ export const inboundShipmentsApi = baseApi.injectEndpoints({
       invalidatesTags: (_result, _error, arg) => (arg.deferListRefresh ? ['Inventory'] : ['InboundShipments', 'Inventory']),
     }),
 
-    updateShipmentItems: builder.mutation<InboundShipment, { id: string; items: ShipmentLineInput[] }>({
-      query: ({ id, items }) => ({ url: `/inventory/shipments/${id}/items`, method: 'PATCH', body: { items } }),
+    updateShipmentItems: builder.mutation<InboundShipment, { id: string; items: ShipmentLineInput[]; expectedDeliveryDate?: string }>({
+      query: ({ id, ...body }) => ({ url: `/inventory/shipments/${id}/items`, method: 'PATCH', body }),
       invalidatesTags: ['InboundShipments', 'Inventory'],
     }),
 
@@ -186,6 +230,24 @@ export const inboundShipmentsApi = baseApi.injectEndpoints({
       invalidatesTags: ['InboundShipments'],
     }),
 
+    // ── Walmart WFS steps (same endpoints, WFS bodies)
+
+    /** Cartons per Walmart shipment. */
+    submitWfsCartons: builder.mutation<InboundShipment, { id: string; legs: WfsCartons[] }>({
+      query: ({ id, legs }) => ({ url: `/inventory/shipments/${id}/packing/confirm`, method: 'POST', body: { legs } }),
+      invalidatesTags: ['InboundShipments'],
+    }),
+
+    /** Walmart's carrier rates for one Walmart shipment (Walmart.com, small parcel). */
+    quoteWfsCarrier: builder.mutation<{ quotes: CarrierQuote[] }, { id: string; shipmentId: string }>({
+      query: ({ id, shipmentId }) => ({ url: `/inventory/shipments/${id}/carrier/quote`, method: 'POST', body: { shipmentId } }),
+    }),
+
+    submitWfsCarrier: builder.mutation<InboundShipment, { id: string; carriers: WfsCarrierEntry[] }>({
+      query: ({ id, ...body }) => ({ url: `/inventory/shipments/${id}/carrier`, method: 'POST', body }),
+      invalidatesTags: ['InboundShipments'],
+    }),
+
     syncShipments: builder.mutation<InboundShipment[], void>({
       query: () => ({ url: '/inventory/shipments/sync', method: 'POST' }),
       invalidatesTags: ['InboundShipments'],
@@ -213,5 +275,8 @@ export const {
   useRewindShipmentMutation,
   useGenerateShipmentLabelsMutation,
   useDownloadShipmentLabelsMutation,
+  useSubmitWfsCartonsMutation,
+  useQuoteWfsCarrierMutation,
+  useSubmitWfsCarrierMutation,
   useSyncShipmentsMutation,
 } = inboundShipmentsApi
