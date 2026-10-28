@@ -490,6 +490,57 @@ export interface PackagingListBody {
   expectedUpdatedAt?: string
 }
 
+/* ─────────────── SKU Landed ─────────────── */
+
+/** Per-unit amounts: US containers count in USD, Canadian ones in CAD. */
+export type LandedAmounts = Record<'CAD' | 'USD', number>
+
+/** The networks a shipment goes into. */
+export type InboundChannel = 'AMAZON_FBA' | 'WALMART_WFS'
+
+export interface SkuLandedRow {
+  product: { id: number; sku: string; name: string }
+  landedCost: LandedAmounts
+  /** Per unit and channel, from approved shipment payment requests; null while none of its shipments there is paid. */
+  shipmentCost: Record<InboundChannel, number | null>
+  opexRate: number
+  containerCount: number
+}
+
+export interface SkuLandedReport extends Page<SkuLandedRow> {
+  opexRate: number
+  shipmentCurrency: string
+}
+
+export interface SkuLandedInvoiceLine {
+  id: number
+  invoiceNo: string
+  currency: string
+  units: number
+  unitPrice: number
+  totalAmount: number
+}
+
+export interface SkuLandedContainer extends ContainerRef {
+  destination: PoDestination
+  etd: string | null
+  eta: string | null
+  currency: string
+  units: number
+  /** The SKU's total in this container (FOB plus its share of every expense), in the container's currency. */
+  total: number
+  landedCurrency: keyof LandedAmounts
+  /** total / units, in the landed currency. */
+  unitCost: number
+  purchaseInvoices: SkuLandedInvoiceLine[]
+}
+
+export interface SkuLandedTimeline {
+  product: SkuLandedRow['product']
+  landedCost: LandedAmounts
+  containers: SkuLandedContainer[]
+}
+
 /* ─────────────── Containers ─────────────── */
 
 /** BOOKED: fully editable · IN_TRANSIT, ON_RAIL, ON_BOARD, ARRIVED_AT_PORT: only the ETA can change · DELIVERED ("Mark as delivered" only): nothing can change. */
@@ -1072,6 +1123,15 @@ export const procurementApi = baseApi.injectEndpoints({
       transformResponse: unwrap,
       providesTags: ['ProcurementContainers', 'FinanceRequests'],
     }),
+    getSkuLanded: b.query<SkuLandedReport, PageParams>({
+      query: ({ search, ...params }) => ({ url: '/procurement/containers/sku-landed', params: { ...params, search: search || undefined } }),
+      providesTags: ['ProcurementContainers', 'FinanceRequests'],
+    }),
+    getSkuLandedTimeline: b.query<SkuLandedTimeline, number>({
+      query: (productId) => `/procurement/containers/sku-landed/${productId}`,
+      transformResponse: unwrap,
+      providesTags: ['ProcurementContainers', 'FinanceRequests'],
+    }),
     getContainerCostMapping: b.query<CostMapping, void>({
       query: () => '/procurement/containers/cost-analysis/mapping',
       transformResponse: unwrap,
@@ -1194,6 +1254,8 @@ export const procurementApi = baseApi.injectEndpoints({
 })
 
 export const {
+  useGetSkuLandedQuery,
+  useGetSkuLandedTimelineQuery,
   useGetPoProductsQuery,
   useGetPoProductSummaryQuery,
   useGetPoProductQuery,

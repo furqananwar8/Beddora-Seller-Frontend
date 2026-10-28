@@ -53,12 +53,4 @@ export const FIGURE_COLUMNS: FigureColumn[] = ([
   { key: 'costCad', label: 'Cost (CAD)', money: 'CAD', value: (row) => row.costCad, strong: true },
 ] satisfies FigureColumn[]).map((column) => ({ ...column, group: PLATFORMS_INVENTORY }))
 
-/** Header groups over the figure columns: consecutive columns sharing a group form one cell. */
-export function headerGroups(columns: FigureColumn[]): Array<{ label: string | null; span: number }> {
-  return columns.reduce<Array<{ label: string | null; span: number }>>((groups, column) => {
-    const last = groups[groups.length - 1]
-    if (last && column.group && last.label === column.group) last.span += 1
-    else groups.push({ label: column.group ?? null, span: 1 })
-    return groups
-  }, [])
-}
+export { headerGroups } from '@/utils/headerGroups'

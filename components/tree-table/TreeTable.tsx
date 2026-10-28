@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import { Spinner } from '@/design-system/loaders'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/design-system/tables'
 import { cn } from '@/utils/cn'
+import { headerGroups } from '@/utils/headerGroups'
 
 export interface TreeColumn<T> {
   key: string
@@ -11,6 +12,8 @@ export interface TreeColumn<T> {
   /** Extra classes for the header and every cell of this column (widths, alignment overrides). */
   className?: string
   render: (row: T, context: { isChild: boolean; parent?: T }) => React.ReactNode
+  /** Shown above the column, spanning the neighbouring columns that share it. */
+  group?: string
 }
 
 interface TreeTableProps<T> {
@@ -99,6 +102,16 @@ export function TreeTable<T>({
   return (
     <Table className={cn('min-w-full', className)}>
       <TableHeader className="sticky top-0 z-10 bg-surface shadow-sm">
+        {columns.some((column) => column.group) && (
+          <TableRow>
+            <TableHead className="w-10" />
+            {headerGroups(columns).map((group, index) => (
+              <TableHead key={index} colSpan={group.span} className={cn('text-center', group.label && 'border-b border-border')}>
+                {group.label}
+              </TableHead>
+            ))}
+          </TableRow>
+        )}
         <TableRow>
           <TableHead className="w-10" aria-label="Expand" />
           {columns.map((column) => (

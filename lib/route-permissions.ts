@@ -47,6 +47,7 @@ export const ROUTE_PERMISSIONS: RoutePermission[] = [
 
   // Containers
   { pattern: '/dashboard/containers/cost-analysis', subject: 'containers:cost-analysis' },
+  { pattern: '/dashboard/containers/sku-landed', subject: 'containers:sku-landed' },
   { pattern: '/dashboard/containers', subject: 'containers:containers' },
 
   // Breakeven

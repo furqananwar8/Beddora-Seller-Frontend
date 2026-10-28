@@ -247,6 +247,7 @@ export default function DashboardLayout({
             children: [
               { label: 'Containers', subject: 'containers:containers', action: 'read', href: '/dashboard/containers' },
               { label: 'Cost Analysis', subject: 'containers:cost-analysis', action: 'read', href: '/dashboard/containers/cost-analysis' },
+              { label: 'SKU Landed', subject: 'containers:sku-landed', action: 'read', href: '/dashboard/containers/sku-landed' },
             ],
           },
           {
