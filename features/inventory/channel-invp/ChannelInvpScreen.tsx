@@ -8,6 +8,8 @@ import { useStagedFilters } from '@/components/filter-bar/useStagedFilters'
 import { FormField } from '@/components/form-field/FormField'
 import { Container } from '@/components/layout'
 import { PaginationFooter } from '@/components/pagination-footer/PaginationFooter'
+import { Button } from '@/design-system/buttons'
+import { useReportExport } from '@/hooks/useReportExport'
 import { SegmentedToggle } from '@/components/segmented-toggle/SegmentedToggle'
 import { useGetChannelInvpQuery, type InvpChannel, type InvpGrouping, type InvpView } from '@/services/api/channelInvp.api'
 import { cn } from '@/utils/cn'
@@ -43,6 +45,9 @@ export const ChannelInvpScreen: React.FC = () => {
     limit: PAGE_SIZE,
   }
   const { data, isLoading, isFetching, isError } = useGetChannelInvpQuery(query, { skip: !ready })
+  // Built by the export worker; the file downloads by itself when the server announces it over SSE
+  const { start: startExport, isExporting } = useReportExport('channel-invp')
+  const { page: _page, limit: _limit, ...exportFilters } = query
 
   const open = ({ row, marketplace, line, period }: InvpTarget) =>
     setSelection({
@@ -52,9 +57,14 @@ export const ChannelInvpScreen: React.FC = () => {
 
   return (
     <Container size="full" className="py-4 sm:py-8">
-      <div className="mb-4 px-1 sm:mb-6">
-        <h1 className="text-xl font-bold text-text-primary sm:text-2xl">Channel INVP</h1>
-        <p className="mt-1 text-sm text-text-muted">Stock per SKU in our warehouse, in containers and at {CHANNEL_LABEL[applied.channel]}, with daily sales. Click a label or figure to see what it is made of.</p>
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3 px-1 sm:mb-6">
+        <div>
+          <h1 className="text-xl font-bold text-text-primary sm:text-2xl">Channel INVP</h1>
+          <p className="mt-1 text-sm text-text-muted">Stock per SKU in our warehouse, in containers and at {CHANNEL_LABEL[applied.channel]}, with daily sales. Click a label or figure to see what it is made of.</p>
+        </div>
+        <Button type="button" size="sm" variant="outline" disabled={!data?.totalRecords || isExporting} onClick={() => void startExport('xlsx', exportFilters)}>
+          {isExporting ? 'Exporting…' : 'Export Excel'}
+        </Button>
       </div>
 
       <div className="mb-4 rounded-lg border border-border bg-surface p-4 shadow-sm">

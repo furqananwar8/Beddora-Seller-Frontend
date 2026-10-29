@@ -7,6 +7,7 @@ import { TreeTable, type TreeColumn } from '@/components/tree-table/TreeTable'
 import { Button } from '@/design-system/buttons'
 import { formatCurrencyAmount } from '@/features/finance/shared/format'
 import { useAppAbility } from '@/hooks/useAppAbility'
+import { useReportExport } from '@/hooks/useReportExport'
 import { useGetContainerCostsQuery, type ContainerCostItem } from '@/services/api/procurement.api'
 import { cn } from '@/utils/cn'
 import { ContainerStatusBadge, DESTINATION_ROW_TINT } from '../../shared/poMeta'
@@ -39,6 +40,9 @@ export const CostAnalysisScreen: React.FC = () => {
   const { data, isLoading, isFetching, isError } = useGetContainerCostsQuery(list.params)
   const canMap = useAppAbility().can('write', 'containers:cost-analysis.mapping')
   const [mapping, setMapping] = useState(false)
+  // Built by the export worker; the file downloads by itself when the server announces it over SSE
+  const { start: startExport, isExporting } = useReportExport('container-cost-analysis')
+  const { page: _page, limit: _limit, ...exportFilters } = list.params
 
   return (
     <Container size="full" className="py-4 sm:py-8">
@@ -47,11 +51,16 @@ export const CostAnalysisScreen: React.FC = () => {
           <h1 className="text-xl font-bold text-text-primary sm:text-2xl">Cost Analysis</h1>
           <p className="text-sm text-text-muted">Landed cost per SKU: invoice price and expenses, plus freight, trucking and penalties by CBM, duties and brokerage by value</p>
         </div>
-        {canMap && (
-          <Button type="button" size="sm" variant="outline" onClick={() => setMapping(true)}>
-            Map expense columns
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          <Button type="button" size="sm" variant="outline" disabled={!data?.totalRecords || isExporting} onClick={() => void startExport('xlsx', exportFilters)}>
+            {isExporting ? 'Exporting…' : 'Export Excel'}
           </Button>
-        )}
+          {canMap && (
+            <Button type="button" size="sm" variant="outline" onClick={() => setMapping(true)}>
+              Map expense columns
+            </Button>
+          )}
+        </div>
       </div>
 
       <ContainerFilterBar state={list} idPrefix="ca" />

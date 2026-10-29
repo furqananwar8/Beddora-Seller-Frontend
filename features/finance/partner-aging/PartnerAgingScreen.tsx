@@ -6,6 +6,8 @@ import { FILL_PICKER, FilterBar, FilterItem } from '@/components/filter-bar/Filt
 import { FilterMultiSelect } from '@/components/filter-bar/FilterMultiSelect'
 import { useStagedFilters } from '@/components/filter-bar/useStagedFilters'
 import { FormField } from '@/components/form-field/FormField'
+import { Button } from '@/design-system/buttons'
+import { useReportExport } from '@/hooks/useReportExport'
 import { Container } from '@/components/layout'
 import { useGetPartnerAgingQuery } from '@/services/api/finance.api'
 import { cn } from '@/utils/cn'
@@ -27,14 +29,29 @@ export const PartnerAgingScreen: React.FC = () => {
   const { draft, setDraft, applied, changed } = filters
   const { data, isLoading, isFetching, isError } = useGetPartnerAgingQuery(agingParams(applied))
   const [selection, setSelection] = useState<AgingSelection | null>(null)
+  const { start: startExport, isExporting } = useReportExport('partner-aging')
 
   return (
     <Container size="full" className="py-4 sm:py-8">
-      <div className="mb-4 px-1 sm:mb-6">
-        <h1 className="text-xl font-bold text-text-primary sm:text-2xl">Partner Aging Report</h1>
-        <p className="mt-1 text-sm text-text-muted">
-          Requests raised and not yet paid, by due date{data ? ` as of ${formatDay(data.asOf)}` : ''}. Click an amount to see the payments in it.
-        </p>
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3 px-1 sm:mb-6">
+        <div>
+          <h1 className="text-xl font-bold text-text-primary sm:text-2xl">Partner Aging Report</h1>
+          <p className="mt-1 text-sm text-text-muted">
+            Requests raised and not yet paid, by due date
+            {data ? ` as of ${formatDay(data.asOf)}` : ''}. Click an amount to see the payments in it.
+          </p>
+        </div>
+        {/* Built by the export worker; the file downloads by itself when the server announces it over SSE */}
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-10"
+          disabled={!data?.rows.length || isExporting}
+          onClick={() => void startExport('xlsx', { ...agingParams(applied) })}
+        >
+          {isExporting ? 'Exporting…' : 'Export Excel'}
+        </Button>
       </div>
       <div className="mb-4 rounded-lg border border-border bg-surface p-4 shadow-sm">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">

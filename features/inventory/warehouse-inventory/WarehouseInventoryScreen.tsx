@@ -8,6 +8,8 @@ import { Container } from '@/components/layout'
 import { PaginationFooter } from '@/components/pagination-footer/PaginationFooter'
 import { SegmentedToggle } from '@/components/segmented-toggle/SegmentedToggle'
 import { SingleDatePicker } from '@/components/single-date-picker/SingleDatePicker'
+import { Button } from '@/design-system/buttons'
+import { useReportExport } from '@/hooks/useReportExport'
 import { useGetWarehouseInventoryQuery, type StockFilter } from '@/services/api/warehouseInventory.api'
 import { cn } from '@/utils/cn'
 import { WarehouseInventoryTable } from './WarehouseInventoryTable'
@@ -25,13 +27,21 @@ export const WarehouseInventoryScreen: React.FC = () => {
   const filters = useStagedFilters(defaults, () => setPage(1))
   const { draft, setDraft, applied, changed } = filters
 
-  const { data, isLoading, isFetching, isError } = useGetWarehouseInventoryQuery({ asOf: applied.asOf, stock: applied.stock, search: applied.search.trim(), page, limit: PAGE_SIZE })
+  const query = { asOf: applied.asOf, stock: applied.stock, search: applied.search.trim() }
+  const { data, isLoading, isFetching, isError } = useGetWarehouseInventoryQuery({ ...query, page, limit: PAGE_SIZE })
+  // Built by the export worker; the file downloads by itself when the server announces it over SSE
+  const { start: startExport, isExporting } = useReportExport('warehouse-inventory')
 
   return (
     <Container size="full" className="py-4 sm:py-8">
-      <div className="mb-4 px-1 sm:mb-6">
-        <h1 className="text-xl font-bold text-text-primary sm:text-2xl">Warehouse Inventory</h1>
-        <p className="mt-1 text-sm text-text-muted">Stock per SKU at Amazon, in our warehouses and in containers on their way, with the pipeline at its landed cost.</p>
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3 px-1 sm:mb-6">
+        <div>
+          <h1 className="text-xl font-bold text-text-primary sm:text-2xl">Warehouse Inventory</h1>
+          <p className="mt-1 text-sm text-text-muted">Stock per SKU at Amazon, in our warehouses and in containers on their way, with the pipeline at its landed cost.</p>
+        </div>
+        <Button type="button" variant="outline" size="sm" className="h-10" disabled={!data?.totalRecords || isExporting} onClick={() => void startExport('xlsx', query)}>
+          {isExporting ? 'Exporting…' : 'Export Excel'}
+        </Button>
       </div>
 
       <div className="mb-4 rounded-lg border border-border bg-surface p-4 shadow-sm">

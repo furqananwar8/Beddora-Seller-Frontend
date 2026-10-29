@@ -8,8 +8,10 @@ import { FilterMultiSelect } from '@/components/filter-bar/FilterMultiSelect'
 import { useStagedFilters } from '@/components/filter-bar/useStagedFilters'
 import { FormField } from '@/components/form-field/FormField'
 import { Container } from '@/components/layout'
+import { Button } from '@/design-system/buttons'
 import { SegmentedToggle } from '@/components/segmented-toggle/SegmentedToggle'
 import { useApiFeedback } from '@/hooks/useApiFeedback'
+import { useReportExport } from '@/hooks/useReportExport'
 import { useGetCashflowPlanningQuery, type CashflowGrouping } from '@/services/api/finance.api'
 import { cn } from '@/utils/cn'
 import { CashflowEntriesModal, type CashflowSelection } from './CashflowEntriesModal'
@@ -28,7 +30,6 @@ import {
   type CashflowFilters,
   type PaymentChoice,
 } from './cashflowFilters'
-
 
 /**
  * Cashflow planning: every approved payment request, paid or not, under its due date (up to two months, per day, week
@@ -50,17 +51,35 @@ export const CashflowPlanningScreen: React.FC = () => {
 
   const { range, groupBy, currencies, payment } = applied
   const ready = Boolean(range.startDate && range.endDate)
-  const { data, isLoading, isFetching, isError } = useGetCashflowPlanningQuery(
-    { from: range.startDate ?? '', to: range.endDate ?? '', groupBy, currencies, payment: payment || undefined },
-    { skip: !ready }
-  )
+  const params = {
+    from: range.startDate ?? '',
+    to: range.endDate ?? '',
+    groupBy,
+    currencies,
+    payment: payment || undefined,
+  }
+  const { data, isLoading, isFetching, isError } = useGetCashflowPlanningQuery(params, { skip: !ready })
+  const { start: startExport, isExporting } = useReportExport('cashflow-planning')
   const returnTo = `${pathname}?${filtersToParams(applied)}`
 
   return (
     <Container size="full" className="py-4 sm:py-8">
-      <div className="mb-4 px-1 sm:mb-6">
-        <h1 className="text-xl font-bold text-text-primary sm:text-2xl">Cashflow Planning</h1>
-        <p className="mt-1 text-sm text-text-muted">Approved payment requests by due date, paid or not. Click an amount to see the requests in it.</p>
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3 px-1 sm:mb-6">
+        <div>
+          <h1 className="text-xl font-bold text-text-primary sm:text-2xl">Cashflow Planning</h1>
+          <p className="mt-1 text-sm text-text-muted">Approved payment requests by due date, paid or not. Click an amount to see the requests in it.</p>
+        </div>
+        {/* Built by the export worker; the file downloads by itself when the server announces it over SSE */}
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-10"
+          disabled={!ready || !data?.rows.length || isExporting}
+          onClick={() => void startExport('xlsx', params)}
+        >
+          {isExporting ? 'Exporting…' : 'Export Excel'}
+        </Button>
       </div>
 
       <div className="mb-4 rounded-lg border border-border bg-surface p-4 shadow-sm">

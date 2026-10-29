@@ -12,6 +12,7 @@ import { SingleDatePicker } from '@/components/single-date-picker/SingleDatePick
 import { Button } from '@/design-system/buttons'
 import { formatCurrencyAmount } from '@/features/finance/shared/format'
 import { useAppAbility } from '@/hooks/useAppAbility'
+import { useReportExport } from '@/hooks/useReportExport'
 import { formatCbmPerPiece } from '@/utils/cartonMetrics'
 import { useGetSkuLandedQuery, type InboundChannel, type LandedAmounts, type OpexCountry, type SkuLandedRow } from '@/services/api/procurement.api'
 import { cn } from '@/utils/cn'
@@ -85,6 +86,7 @@ export const SkuLandedScreen: React.FC = () => {
   const opex = data?.opex
   const canWrite = useAppAbility().can('write', 'containers:sku-landed')
   const [dialog, setDialog] = useState<'overhead' | 'mapping' | null>(null)
+  const { start: startExport, isExporting } = useReportExport('sku-landed')
 
   return (
     <Container size="full" className="py-4 sm:py-8">
@@ -93,7 +95,7 @@ export const SkuLandedScreen: React.FC = () => {
           <h1 className="text-xl font-bold text-text-primary sm:text-2xl">SKU Landed Cost</h1>
           <p className="text-sm text-text-muted">Landed cost per unit from every container in transit or delivered, and the shipment cost to Amazon</p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="ml-auto flex flex-wrap items-center gap-2">
           <div className="rounded-lg border border-border bg-surface px-3 py-2 text-sm" title="Warehouse overhead plus 3PL payments this month">
             Opex · {opex ? monthLabel(opex.month) : '—'} <span className="ml-2 font-semibold tabular-nums text-text-primary">{opex ? formatCurrencyAmount(opex.currency, opex.total) : '—'}</span>
             {opex && (
@@ -104,6 +106,9 @@ export const SkuLandedScreen: React.FC = () => {
           </div>
           <Button type="button" size="sm" variant="outline" onClick={() => setDialog('overhead')}>
             Warehouse overhead
+          </Button>
+          <Button type="button" size="sm" variant="outline" disabled={isExporting} onClick={() => void startExport('xlsx', { search: applied.search.trim(), asOf: applied.asOf })}>
+            {isExporting ? 'Exporting…' : 'Export Excel'}
           </Button>
           {canWrite && (
             <Button type="button" size="sm" variant="outline" onClick={() => setDialog('mapping')}>

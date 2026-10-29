@@ -11,7 +11,6 @@ import { Container } from '@/components/layout'
 import { PaginationFooter } from '@/components/pagination-footer/PaginationFooter'
 import { RowActionsMenu, type RowActionItem } from '@/components/row-actions-menu/RowActionsMenu'
 import { SegmentedToggle } from '@/components/segmented-toggle/SegmentedToggle'
-import { Button } from '@/design-system/buttons'
 import { Spinner } from '@/design-system/loaders'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/design-system/tables'
 import { useApiFeedback } from '@/hooks/useApiFeedback'
@@ -216,10 +215,6 @@ export const PackagingListsScreen: React.FC = () => {
                           </Link>
                           <ContainerStatusBadge status={row.container.status} />
                         </div>
-                      ) : canAssign ? (
-                        <Button type="button" variant="outline" size="sm" className="whitespace-nowrap border-dashed" onClick={() => setAssigning(row)}>
-                          + Assign container
-                        </Button>
                       ) : (
                         <span className="text-text-muted">—</span>
                       )}

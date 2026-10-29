@@ -7,6 +7,7 @@ import { Button } from '@/design-system/buttons'
 import { KpiCard } from '@/design-system/kpi'
 import { Spinner } from '@/design-system/loaders'
 import { useAppAbility } from '@/hooks/useAppAbility'
+import { useReportExport } from '@/hooks/useReportExport'
 import { cn } from '@/utils/cn'
 import { ChangeTimelineModal } from './ChangeTimelineModal'
 import { ChannelSkuPicker } from './ChannelSkuPicker'
@@ -26,6 +27,8 @@ export const SkuMappingScreen: React.FC = () => {
   const readOnly = !ability.can('write', 'inventory:sku-mapping')
   const mapper = useSkuMapper()
   const [timelineOpen, setTimelineOpen] = useState(false)
+  // Built by the export worker; the file downloads by itself when the server announces it over SSE
+  const { start: startExport, isExporting } = useReportExport('sku-mapping')
   const { summary, rows, selectedRow, channel } = mapper
   const auditRow = selectedRow ?? rows.find((row) => row.version !== null) ?? null
 
@@ -64,6 +67,9 @@ export const SkuMappingScreen: React.FC = () => {
             <span className="hidden truncate text-sm text-text-muted xl:block">
               {readOnly ? 'View only: you can’t change bindings.' : selectedRow ? 'Press and drag from a channel SKU to an internal SKU to link them' : 'Select a channel SKU to start binding'}
             </span>
+            <Button type="button" variant="outline" size="sm" className="h-10 shrink-0" disabled={!summary?.total || isExporting} onClick={() => void startExport('xlsx', { ...mapper.scope })}>
+              {isExporting ? 'Exporting…' : 'Export Excel'}
+            </Button>
             <Button type="button" size="sm" className="h-10 shrink-0 gap-2" onClick={() => setTimelineOpen(true)}>
               Show timeline
               {mapper.pending.length > 0 && <span className="rounded bg-warning-500 px-1.5 text-xs text-white">{mapper.pending.length}</span>}

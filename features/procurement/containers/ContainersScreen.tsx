@@ -6,6 +6,7 @@ import { PaginationFooter } from '@/components/pagination-footer/PaginationFoote
 import { RowActionsMenu } from '@/components/row-actions-menu/RowActionsMenu'
 import { TreeTable, type TreeColumn } from '@/components/tree-table/TreeTable'
 import { Button } from '@/design-system/buttons'
+import { useReportExport } from '@/hooks/useReportExport'
 import { useGetContainersQuery, useGetContainerSummaryQuery, type ContainerItem } from '@/services/api/procurement.api'
 import { cn } from '@/utils/cn'
 import { formatCalendarDay } from '@/utils/format'
@@ -34,6 +35,7 @@ export const ContainersScreen: React.FC = () => {
   const list = useContainerListState()
   const { data, isLoading, isFetching, isError } = useGetContainersQuery(list.params)
   const { data: summary } = useGetContainerSummaryQuery()
+  const { start: startExport, isExporting } = useReportExport('containers')
 
   const columns: TreeColumn<ContainerItem>[] = [
     {
@@ -84,11 +86,16 @@ export const ContainersScreen: React.FC = () => {
             </p>
           )}
         </div>
-        {actions.canAssign && (
-          <Button type="button" size="sm" onClick={actions.startCreate}>
-            + New container
+        <div className="flex flex-wrap items-center gap-2">
+          <Button type="button" size="sm" variant="outline" disabled={isExporting} onClick={() => void startExport('xlsx', { search: list.params.search, status: list.params.status, destination: list.params.destination })}>
+            {isExporting ? 'Exporting…' : 'Export Excel'}
           </Button>
-        )}
+          {actions.canAssign && (
+            <Button type="button" size="sm" onClick={actions.startCreate}>
+              + New container
+            </Button>
+          )}
+        </div>
       </div>
 
       <ContainerFilterBar state={list} idPrefix="ct" />
