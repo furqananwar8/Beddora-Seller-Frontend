@@ -98,7 +98,7 @@ const STAT_TOOLTIPS: Record<
   },
   'Gross profit': {
     title: 'Gross Profit',
-    formula: 'Sales Revenue - Promo - Ads - Amazon Fees - COGS - Refund Cost (except September 2026)',
+    formula: 'Sales Revenue - Promo - Ads - Amazon Fees - COGS - Refund Cost',
     note: 'Direct profit generated before deducting indirect overhead expenses.',
   },
   'Indirect expenses': {

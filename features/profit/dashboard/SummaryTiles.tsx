@@ -72,7 +72,7 @@ const TILE_TOOLTIPS = {
     },
     netProfit: {
         title: 'Net Profit',
-        formula: 'Sales Revenue - Promo - Ads - Amazon Fees - COGS - Refund Cost (except September 2026)',
+        formula: 'Sales Revenue - Promo - Ads - Amazon Fees - COGS - Refund Cost',
         note: 'Final profit remaining after all direct, indirect, and operational costs.',
     },
     estStorage: {

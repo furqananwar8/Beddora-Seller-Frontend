@@ -169,7 +169,7 @@ const COLUMN_TOOLTIPS: Record<
   },
   grossProfit: {
     title: 'Gross Profit',
-    formula: 'Sales Revenue - Promo - Ads - Amazon Fees - COGS - Refund Cost (except September 2026)',
+    formula: 'Sales Revenue - Promo - Ads - Amazon Fees - COGS - Refund Cost',
     note: 'Profit directly generated from product operations before indirect expenses.',
   },
   netProfit: {
