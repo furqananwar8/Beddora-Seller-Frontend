@@ -4,6 +4,7 @@ import React from 'react'
 import { Table, TABLE_STATUS_VIEWPORT, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow, TableStatusRow } from '@/design-system/tables'
 import type { InventoryAgingReport, InventoryAgingRow } from '@/services/api/inventoryAging.api'
 import { cn } from '@/utils/cn'
+import { formatEnumLabel } from '@/utils/format'
 
 /** Every body cell is centred both ways. */
 const CELL = 'text-center align-middle'
@@ -110,7 +111,7 @@ export const InventoryAgingTable: React.FC<InventoryAgingTableProps> = ({ report
                   <TableCell className={NUM}>{decimal(row.sellThrough, 2)}</TableCell>
                   <TableCell className={NUM}>{decimal(row.daysOfSupply, 0)}</TableCell>
                   <TableCell className={cn(CELL, 'text-xs')} title={row.healthStatus ?? undefined}>
-                    {row.recommendedAction ?? <span className="text-text-muted">—</span>}
+                    {row.recommendedAction ? formatEnumLabel(row.recommendedAction) : <span className="text-text-muted">—</span>}
                   </TableCell>
                 </TableRow>
               ))
