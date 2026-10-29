@@ -2,10 +2,11 @@
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { useAppAbility } from '@/hooks/useAppAbility'
-import { useCreateBarcodeScanMutation } from '@/services/api/barcode.api'
+import { useCreateBarcodeScanMutation, type BarcodeScan } from '@/services/api/barcode.api'
 import { KeyboardWedgeSource } from './scanner/KeyboardWedgeSource'
 import { WebSerialSource, isWebSerialSupported, type BaudSetting, type WebSerialStatus } from './scanner/WebSerialSource'
 import type { ScanEvent } from './scanner/types'
+import { DESKTOP_SCANNERS_ENABLED } from './scannerConfig'
 
 const BAUD_SETTING_KEY = 'barcode_serial_baud_setting'
 /** Offered when the automatic baud rate does not suit a scanner. */
@@ -27,6 +28,10 @@ interface BarcodeScannerContextValue {
   setBaudSetting: (value: BaudSetting) => void
   /** Asks the browser which serial device to allow (needs a click). Remembered for next time. */
   connectSerial: () => Promise<void>
+  /** Saves a scan from a source owned by a screen (e.g. the handheld scan field), with the same retries. */
+  recordScan: (scan: ScanEvent) => Promise<BarcodeScan | null>
+  /** Whether this user may save scans. */
+  canScan: boolean
   lastScan?: ScanEvent
   /** Scans that could not be saved even after retrying. */
   failedScans: number
@@ -63,17 +68,18 @@ export function BarcodeScannerProvider({ children }: { children: React.ReactNode
   const createScanRef = useRef(createScan)
   createScanRef.current = createScan
 
-  const save = useCallback(async (scan: ScanEvent) => {
+  /** Resolves with the saved scan (content parsed by the server), or null when every retry failed. */
+  const save = useCallback(async (scan: ScanEvent): Promise<BarcodeScan | null> => {
     setLastScan(scan)
     for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
       try {
-        await createScanRef.current(scan).unwrap()
-        return
+        return await createScanRef.current(scan).unwrap()
       } catch {
         if (attempt < RETRY_DELAYS_MS.length) await new Promise((r) => setTimeout(r, RETRY_DELAYS_MS[attempt]))
       }
     }
     setFailedScans((count) => count + 1)
+    return null
   }, [])
 
   useEffect(() => {
@@ -81,7 +87,7 @@ export function BarcodeScannerProvider({ children }: { children: React.ReactNode
   }, [])
 
   useEffect(() => {
-    if (!canScan) return
+    if (!canScan || !DESKTOP_SCANNERS_ENABLED) return
 
     const keyboard = new KeyboardWedgeSource()
     keyboard.start(save)
@@ -130,10 +136,12 @@ export function BarcodeScannerProvider({ children }: { children: React.ReactNode
       baudSetting,
       setBaudSetting,
       connectSerial,
+      recordScan: save,
+      canScan,
       lastScan,
       failedScans,
     }),
-    [keyboardListening, serialStatus, baudSetting, setBaudSetting, connectSerial, lastScan, failedScans]
+    [keyboardListening, serialStatus, baudSetting, setBaudSetting, connectSerial, save, canScan, lastScan, failedScans]
   )
 
   return <BarcodeScannerContext.Provider value={value}>{children}</BarcodeScannerContext.Provider>

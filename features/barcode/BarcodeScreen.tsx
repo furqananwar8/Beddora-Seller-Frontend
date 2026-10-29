@@ -8,7 +8,9 @@ import { Input } from '@/design-system/inputs'
 import { Spinner } from '@/design-system/loaders'
 import { useGetBarcodeScansQuery } from '@/services/api/barcode.api'
 import { BAUD_RATES, useBarcodeScanner } from './BarcodeScannerProvider'
+import { HandheldScanField } from './HandheldScanField'
 import { ScanCard } from './ScanCard'
+import { DESKTOP_SCANNERS_ENABLED } from './scannerConfig'
 
 const PAGE_SIZE = 24
 /** New scans from other users/devices show up without a reload. */
@@ -108,7 +110,8 @@ export function BarcodeScreen() {
         </div>
       </div>
 
-      <ScannerStatus />
+      <HandheldScanField />
+      {DESKTOP_SCANNERS_ENABLED && <ScannerStatus />}
 
       {!data ? (
         <div className="flex justify-center py-16">

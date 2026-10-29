@@ -1,7 +1,7 @@
 import { baseApi } from './baseApi'
 import { unwrap, type Page, type PageParams } from './finance.api'
 
-export type ScanSource = 'serial' | 'keyboard'
+export type ScanSource = 'serial' | 'keyboard' | 'handheld'
 
 /** What a scanned code contains; the raw text is always kept in `barcode`. */
 export type BarcodeDataType = 'text' | 'number' | 'json' | 'url' | 'gs1' | 'keyvalue'

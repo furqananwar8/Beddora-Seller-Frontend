@@ -9,6 +9,7 @@ import { ValueRow, ValueRows } from './ValueView'
 const SOURCE_LABEL: Record<BarcodeScan['source'], string> = {
   serial: 'USB serial',
   keyboard: 'Keyboard mode',
+  handheld: 'Handheld scanner',
 }
 
 const formatScannedAt = (iso: string): string =>
@@ -73,7 +74,7 @@ export function ScanCard({ scan }: { scan: BarcodeScan }) {
             <Badge variant="primary" size="sm" className="whitespace-nowrap border-transparent bg-slate-800 text-white">
               {DATA_TYPE_LABEL[scan.dataType] ?? scan.dataType}
             </Badge>
-            <Badge variant={scan.source === 'serial' ? 'success' : 'secondary'} size="sm" className="whitespace-nowrap">
+            <Badge variant={scan.source !== 'keyboard' ? 'success' : 'secondary'} size="sm" className="whitespace-nowrap">
               {SOURCE_LABEL[scan.source]}
             </Badge>
           </div>
