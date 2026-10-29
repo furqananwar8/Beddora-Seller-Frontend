@@ -84,6 +84,12 @@ export default function DashboardLayout({
                 action: 'read',
                 href: '/dashboard/profit/products',
               },
+              {
+                label: 'PM Incentive',
+                subject: 'profit:pm-incentive',
+                action: 'read',
+                href: '/dashboard/profit/pm-incentive',
+              },
             ],
           },
           {

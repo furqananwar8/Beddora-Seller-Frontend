@@ -11,6 +11,7 @@ export const ROUTE_PERMISSIONS: RoutePermission[] = [
   // Profit
   { pattern: '/dashboard/profit/dashboard', subject: 'profit:dashboard' },
   { pattern: '/dashboard/profit/products', subject: 'profit:products' },
+  { pattern: '/dashboard/profit/pm-incentive', subject: 'profit:pm-incentive' },
   { pattern: '/dashboard/profit', subject: 'profit' },
 
   // PPC

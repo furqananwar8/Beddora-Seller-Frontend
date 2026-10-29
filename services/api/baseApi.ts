@@ -33,6 +33,7 @@ export const tagTypes = [
   'PurchaseOrders',
   'InboundShipments',
   'ShipFromAddresses',
+  'ProductManagers',
   'PPC',
   'PPCMetrics',
   'PPCOptimization',
