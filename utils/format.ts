@@ -45,20 +45,6 @@ export const formatPercentage = (value: number, decimals: number = 2): string =>
   return `${formatNumber(value, decimals)}%`
 }
 
-/**
- * A code-style value as words, each capitalised: `GoToRestock` → "Go To Restock", `SendToFBA` → "Send To FBA",
- * `Create sale` → "Create Sale". Acronyms keep their capitals.
- */
-export const formatEnumLabel = (value: string): string =>
-  value
-    .replace(/[_-]+/g, ' ')
-    .replace(/([a-z\d])([A-Z])/g, '$1 $2')
-    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
-    .trim()
-    .split(/\s+/)
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ')
-
 
 /**
  * A calendar day (invoice date, ETD) as `dd MMM yyyy`. Such dates arrive as midnight UTC, so they are
