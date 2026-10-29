@@ -12,13 +12,10 @@ export interface InventoryAgingRow {
   asin: string
   productName: string | null
   available: number
+  /** Held for orders, FC transfers or processing: in the age buckets but not in `available`. Null on older snapshots. */
+  reserved: number | null
   /** Units per age bucket; null when Amazon's report did not give that bucket. */
   ages: Record<AgeBucketKey, number | null>
-  unitsShipped: { t30: number | null; t60: number | null; t90: number | null }
-  sellThrough: number | null
-  daysOfSupply: number | null
-  recommendedAction: string | null
-  healthStatus: string | null
 }
 
 export interface InventoryAgingReport extends Page<InventoryAgingRow> {
@@ -27,7 +24,7 @@ export interface InventoryAgingReport extends Page<InventoryAgingRow> {
   /** The age columns in display order, as the server buckets them. */
   buckets: Array<{ key: AgeBucketKey; label: string }>
   /** Units per bucket over every SKU matching the filters, not only this page. */
-  totals: Record<AgeBucketKey, number> & { available: number }
+  totals: Record<AgeBucketKey, number> & { available: number; reserved: number }
 }
 
 export interface InventoryAgingParams {

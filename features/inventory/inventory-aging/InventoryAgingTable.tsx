@@ -4,25 +4,16 @@ import React from 'react'
 import { Table, TABLE_STATUS_VIEWPORT, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow, TableStatusRow } from '@/design-system/tables'
 import type { InventoryAgingReport, InventoryAgingRow } from '@/services/api/inventoryAging.api'
 import { cn } from '@/utils/cn'
-import { formatEnumLabel } from '@/utils/format'
 
 /** Every body cell is centred both ways. */
 const CELL = 'text-center align-middle'
 const NUM = cn(CELL, 'whitespace-nowrap tabular-nums')
 /** The SKU column stays in view while the figures scroll sideways (globals.css layers sticky cells). */
 const STICKY = 'sticky left-0 bg-surface'
-/** SKU, ASIN, available; then the age buckets; then units shipped; then sell-through, days of supply, action. */
-const IDENTITY_COLUMNS = 3
-const SHIPPED = [
-  { key: 't30', label: '30 days' },
-  { key: 't60', label: '60 days' },
-  { key: 't90', label: '90 days' },
-] as const
-const TRAILING_COLUMNS = 3
+/** SKU, ASIN, available, reserved; then the age buckets. */
+const IDENTITY_COLUMNS = 4
 
 const units = (value: number | null) => (value === null ? <span className="text-text-muted">—</span> : value.toLocaleString())
-const decimal = (value: number | null, digits: number) =>
-  value === null ? <span className="text-text-muted">—</span> : value.toLocaleString(undefined, { minimumFractionDigits: digits, maximumFractionDigits: digits })
 
 /** Units older than 180 days are what long-term storage fees are charged on, so they stand out. */
 const OLD_BUCKETS = new Set(['invAge181To270Days', 'invAge271To365Days', 'invAge365PlusDays'])
@@ -33,10 +24,10 @@ interface InventoryAgingTableProps {
   isError: boolean
 }
 
-/** One row per seller SKU: units by how long they have sat at Amazon, what sold lately, and Amazon's advice. */
+/** One row per seller SKU: units by how long they have sat at Amazon, beside what is sellable and what is reserved. */
 export const InventoryAgingTable: React.FC<InventoryAgingTableProps> = ({ report, isLoading, isError }) => {
   const buckets = report?.buckets ?? []
-  const columns = IDENTITY_COLUMNS + buckets.length + SHIPPED.length + TRAILING_COLUMNS
+  const columns = IDENTITY_COLUMNS + buckets.length
   const rows: InventoryAgingRow[] = report?.data ?? []
 
   return (
@@ -50,29 +41,20 @@ export const InventoryAgingTable: React.FC<InventoryAgingTableProps> = ({ report
               <TableHead colSpan={buckets.length || 1} className="border-b border-border text-center">
                 Inventory age
               </TableHead>
-              <TableHead colSpan={SHIPPED.length} className="border-b border-border text-center">
-                Units shipped
-              </TableHead>
-              <TableHead colSpan={TRAILING_COLUMNS} />
             </TableRow>
             <TableRow>
               {/* sticky-corner (globals.css) lifts it above the other header cells, which slide under it */}
               <TableHead className={cn(STICKY, 'sticky-corner min-w-[16rem] text-center')}>SKU</TableHead>
               <TableHead className="min-w-[8rem] text-center">ASIN</TableHead>
               <TableHead className="min-w-[6rem] text-center">Available</TableHead>
+              <TableHead className="min-w-[6rem] text-center" title="Held for customer orders, FC transfers or processing: counted in the age columns, not in Available">
+                Reserved
+              </TableHead>
               {buckets.map((bucket) => (
                 <TableHead key={bucket.key} className="min-w-[6.5rem] whitespace-nowrap text-center">
                   {bucket.label}
                 </TableHead>
               ))}
-              {SHIPPED.map((column) => (
-                <TableHead key={column.key} className="min-w-[5.5rem] whitespace-nowrap text-center">
-                  {column.label}
-                </TableHead>
-              ))}
-              <TableHead className="min-w-[6rem] whitespace-nowrap text-center">Sell-through</TableHead>
-              <TableHead className="min-w-[6rem] whitespace-nowrap text-center">Days of supply</TableHead>
-              <TableHead className="min-w-[10rem] text-center">Recommended action</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -95,6 +77,7 @@ export const InventoryAgingTable: React.FC<InventoryAgingTableProps> = ({ report
                   </TableCell>
                   <TableCell className={cn(CELL, 'font-mono text-xs')}>{row.asin || '—'}</TableCell>
                   <TableCell className={cn(NUM, 'font-semibold')}>{row.available.toLocaleString()}</TableCell>
+                  <TableCell className={NUM}>{units(row.reserved)}</TableCell>
                   {buckets.map((bucket) => {
                     const value = row.ages[bucket.key]
                     return (
@@ -103,16 +86,6 @@ export const InventoryAgingTable: React.FC<InventoryAgingTableProps> = ({ report
                       </TableCell>
                     )
                   })}
-                  {SHIPPED.map((column) => (
-                    <TableCell key={column.key} className={NUM}>
-                      {units(row.unitsShipped[column.key])}
-                    </TableCell>
-                  ))}
-                  <TableCell className={NUM}>{decimal(row.sellThrough, 2)}</TableCell>
-                  <TableCell className={NUM}>{decimal(row.daysOfSupply, 0)}</TableCell>
-                  <TableCell className={cn(CELL, 'text-xs')} title={row.healthStatus ?? undefined}>
-                    {row.recommendedAction ? formatEnumLabel(row.recommendedAction) : <span className="text-text-muted">—</span>}
-                  </TableCell>
                 </TableRow>
               ))
             )}
@@ -123,12 +96,12 @@ export const InventoryAgingTable: React.FC<InventoryAgingTableProps> = ({ report
                 <TableCell className={cn(STICKY, 'bg-secondary-100 text-left font-semibold')}>Total · {report.totalRecords.toLocaleString()} SKUs</TableCell>
                 <TableCell />
                 <TableCell className={cn(NUM, 'font-semibold')}>{report.totals.available.toLocaleString()}</TableCell>
+                <TableCell className={cn(NUM, 'font-semibold')}>{report.totals.reserved.toLocaleString()}</TableCell>
                 {buckets.map((bucket) => (
                   <TableCell key={bucket.key} className={cn(NUM, 'font-semibold')}>
                     {report.totals[bucket.key].toLocaleString()}
                   </TableCell>
                 ))}
-                <TableCell colSpan={SHIPPED.length + TRAILING_COLUMNS} />
               </TableRow>
             </TableFooter>
           )}
