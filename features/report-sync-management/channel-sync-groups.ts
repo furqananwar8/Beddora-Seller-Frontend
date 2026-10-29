@@ -29,6 +29,11 @@ export const CHANNEL_SYNC_GROUPS = {
     title: 'Wayfair',
     emptyText: 'Wayfair is not connected (no Wayfair API credentials configured).',
   },
+  temu: {
+    channel: 'temu',
+    title: 'Temu',
+    emptyText: 'No Temu market is connected (no Temu app key or access token configured).',
+  },
 } satisfies Record<string, ChannelSyncGroupConfig>
 
 /** A channel sync row (one data type and mode, covering every market / store) as a table row. */

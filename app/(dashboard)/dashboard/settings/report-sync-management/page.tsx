@@ -39,10 +39,12 @@ export default function ReportSyncManagementPage() {
   const walmart = useChannelSyncManagement(CHANNEL_SYNC_GROUPS.walmart.channel)
   const shopify = useChannelSyncManagement(CHANNEL_SYNC_GROUPS.shopify.channel)
   const wayfair = useChannelSyncManagement(CHANNEL_SYNC_GROUPS.wayfair.channel)
+  const temu = useChannelSyncManagement(CHANNEL_SYNC_GROUPS.temu.channel)
   const channels = [
     { config: CHANNEL_SYNC_GROUPS.walmart, sync: walmart },
     { config: CHANNEL_SYNC_GROUPS.shopify, sync: shopify },
     { config: CHANNEL_SYNC_GROUPS.wayfair, sync: wayfair },
+    { config: CHANNEL_SYNC_GROUPS.temu, sync: temu },
   ]
 
   const amazonRows: SyncTableRow[] = MANAGED_SYNC_JOBS.flatMap(({ syncType, label, modes }) =>
