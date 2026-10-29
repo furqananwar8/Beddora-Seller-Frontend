@@ -4,7 +4,28 @@ import { unwrap, type Page, type PageParams } from './finance.api'
 export type ScanSource = 'serial' | 'keyboard' | 'handheld'
 
 /** What a scanned code contains; the raw text is always kept in `barcode`. */
-export type BarcodeDataType = 'text' | 'number' | 'json' | 'url' | 'gs1' | 'keyvalue'
+export type BarcodeDataType = 'text' | 'number' | 'json' | 'url' | 'gs1' | 'shipping_label' | 'keyvalue'
+
+/** A carrier's shipping label in one shape whatever its barcode layout (payload of 'shipping_label' scans). */
+export interface ShippingLabel {
+  format: string
+  carrier?: string
+  trackingNumber?: string
+  serviceClass?: string
+  shipDate?: string
+  weight?: { value: number; unit: string }
+  package?: { number: number; total: number }
+  recipient?: {
+    name?: string
+    addressLines?: string[]
+    city?: string
+    state?: string
+    postalCode?: string
+    country?: string
+  }
+  /** Every element read from the barcode. */
+  fields: Record<string, string>
+}
 
 export interface BarcodeScan {
   id: number

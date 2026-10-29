@@ -6,6 +6,7 @@ export const DATA_TYPE_LABEL: Record<BarcodeDataType, string> = {
   json: 'JSON',
   url: 'Link',
   gs1: 'GS1',
+  shipping_label: 'Shipping label',
   keyvalue: 'Key / value',
 }
 

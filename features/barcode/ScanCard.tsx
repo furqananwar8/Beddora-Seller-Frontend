@@ -2,7 +2,7 @@
 
 import { Badge } from '@/design-system/badges'
 import { Card, CardContent } from '@/design-system/cards'
-import type { BarcodeScan } from '@/services/api/barcode.api'
+import type { BarcodeScan, ShippingLabel } from '@/services/api/barcode.api'
 import { DATA_TYPE_LABEL, gs1Label, gs1Value, isPlainObject } from './barcodeContent'
 import { ValueRow, ValueRows } from './ValueView'
 
@@ -35,6 +35,10 @@ function headline(scan: BarcodeScan): string {
       return 'Key / value data'
     case 'gs1':
       return 'GS1 code'
+    case 'shipping_label': {
+      const label = scan.payload as ShippingLabel
+      return label.trackingNumber ?? label.recipient?.name ?? 'Shipping label'
+    }
     case 'url':
       return isPlainObject(scan.payload) && typeof scan.payload.host === 'string' ? scan.payload.host : 'Link'
     default:
