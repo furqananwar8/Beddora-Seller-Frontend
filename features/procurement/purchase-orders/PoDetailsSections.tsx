@@ -196,7 +196,7 @@ export const PoOrderDetailsSection: React.FC<SectionProps> = ({ form, readOnly }
           />
         </FormField>
         <FormField
-          label="ETD"
+          label="ERD"
           htmlFor="po-etd"
           required
           error={errors.etd?.message}

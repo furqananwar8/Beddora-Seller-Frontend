@@ -325,7 +325,7 @@ export const PoFormScreen: React.FC<PoFormScreenProps> = ({ purchaseOrderId }) =
       </ConfirmDialog>
 
       <ConfirmDialog isOpen={confirmClose} title={`Close ${po?.poNo ?? 'PO'}`} confirmLabel="Close PO" tone="danger" busy={toggling} onConfirm={() => void changeOpen(false)} onClose={() => setConfirmClose(false)}>
-        <p>A closed PO takes no new packaging lists or payments and stops ETD reminders. Units not packed yet can move to a new PO with “Create PO from remaining”.</p>
+        <p>A closed PO takes no new packaging lists or payments and stops ERD reminders. Units not packed yet can move to a new PO with “Create PO from remaining”.</p>
       </ConfirmDialog>
     </Container>
   )

@@ -39,7 +39,7 @@ export const PayablePoSelect: React.FC<PayablePoSelectProps> = ({ id, partnerId,
           <span className="flex items-center justify-between gap-2">
             <span className="font-medium">{payable.poNo}</span>
             <span className="shrink-0 text-xs text-text-muted">
-              {DESTINATION[payable.destination]} · {formatCurrencyAmount(payable.currency, payable.leftToRequest)} left of {formatMoney(payable.amount)} · ETD {formatDay(payable.etd)}
+              {DESTINATION[payable.destination]} · {formatCurrencyAmount(payable.currency, payable.leftToRequest)} left of {formatMoney(payable.amount)} · ERD {formatDay(payable.etd)}
             </span>
           </span>
         )

@@ -23,7 +23,7 @@ export const PoLegend: React.FC = () => (
       </p>
     </section>
     <section>
-      <h2 className="mb-2 text-sm font-semibold text-text-primary">ETD email reminders</h2>
+      <h2 className="mb-2 text-sm font-semibold text-text-primary">ERD email reminders</h2>
       <div className="grid gap-2 sm:grid-cols-3">
         <div className="rounded-lg border border-success-500 bg-success-50 px-3 py-2 text-xs text-success-700">
           <p className="font-semibold">&gt; 10 days</p>
@@ -34,7 +34,7 @@ export const PoLegend: React.FC = () => (
           <p>Orange · email every day</p>
         </div>
         <div className="rounded-lg border border-danger-500 bg-danger-50 px-3 py-2 text-xs text-danger-700">
-          <p className="font-semibold">Past ETD</p>
+          <p className="font-semibold">Past ERD</p>
           <p>Orange-red · overdue email daily</p>
         </div>
       </div>

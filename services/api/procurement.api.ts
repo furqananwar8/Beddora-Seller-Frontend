@@ -165,6 +165,8 @@ export interface PurchaseOrderListItem {
   currency: PoCurrency
   productionDate: string | null
   etd: string
+  /** ARD: actual ready date, set from the list. */
+  ard: string | null
   etdAlert: EtdAlert
   skuCount: number
   units: number
@@ -227,7 +229,10 @@ export interface PurchaseOrderDetail {
   destination: PoDestination
   currency: PoCurrency
   productionDate: string | null
+  /** ERD: estimated ready date. */
   etd: string
+  /** ARD: actual ready date, once the goods are ready. */
+  ard: string | null
   etdAlert: EtdAlert
   status: PoStatus
   isOpen: boolean
@@ -992,6 +997,11 @@ export const procurementApi = baseApi.injectEndpoints({
       transformResponse: unwrap,
       invalidatesTags: ['ProcurementPurchaseOrders'],
     }),
+    setPurchaseOrderArd: b.mutation<{ id: number; ard: string | null }, { id: number; ard: string | null }>({
+      query: ({ id, ard }) => ({ url: `/procurement/purchase-orders/${id}/ard`, method: 'PUT', body: { ard } }),
+      transformResponse: unwrap,
+      invalidatesTags: ['ProcurementPurchaseOrders'],
+    }),
     setPurchaseOrderOpen: b.mutation<PurchaseOrderDetail, { id: number; isOpen: boolean }>({
       query: ({ id, isOpen }) => ({ url: `/procurement/purchase-orders/${id}/open`, method: 'POST', body: { isOpen } }),
       transformResponse: unwrap,
@@ -1312,6 +1322,7 @@ export const {
   useGetPurchaseOrderRemainingQuery,
   useCreateProcurementPurchaseOrderMutation,
   useUpdateProcurementPurchaseOrderMutation,
+  useSetPurchaseOrderArdMutation,
   useSetPurchaseOrderOpenMutation,
   useApprovePurchaseOrderMutation,
   useRejectPurchaseOrderMutation,

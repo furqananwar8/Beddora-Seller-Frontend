@@ -31,13 +31,13 @@ export const poFormSchema = z
     destination: z.enum(['US', 'CA']),
     currency: z.enum(['USD', 'CAD']),
     productionDate: z.string(),
-    etd: z.string().min(1, 'ETD is required'),
+    etd: z.string().min(1, 'ERD is required'),
     lines: z.array(poLineSchema).min(1, 'Add at least one product'),
   })
   .superRefine((values, ctx) => {
     if (!values.supplier) ctx.addIssue({ code: 'custom', path: ['supplier'], message: 'Supplier is required' })
     if (values.productionDate && values.etd && values.etd < values.productionDate) {
-      ctx.addIssue({ code: 'custom', path: ['etd'], message: 'ETD must be on or after the production date' })
+      ctx.addIssue({ code: 'custom', path: ['etd'], message: 'ERD must be on or after the production date' })
     }
     values.lines.forEach((line, index) => {
       if (line.maxUnits !== undefined && Number(line.unitsOrdered) > line.maxUnits) {

@@ -193,7 +193,7 @@ export const PurchaseOrdersScreen: React.FC = () => {
             </FormField>
           </FilterItem>
           <FilterItem>
-            <FormField label="ETD">
+            <FormField label="ERD">
               <div
                 className={cn(
                   'rounded-lg [&>div]:block [&>div]:w-full [&>div>button]:h-10 [&>div>button]:w-full [&>div>button]:py-0 [&>div>button>span]:flex-1 [&>div>button>span]:text-left',
@@ -205,7 +205,7 @@ export const PurchaseOrdersScreen: React.FC = () => {
             </FormField>
           </FilterItem>
           <FilterItem>
-            <FormField label="ETD alert" htmlFor="po-alert">
+            <FormField label="ERD alert" htmlFor="po-alert">
               <FilterMultiSelect id="po-alert" options={ALERTS} value={draft.etdAlerts} onChange={(v) => setDraft('etdAlerts', v)} anyLabel="Overdue · ≤ 10 · > 10 days" highlighted={box('etdAlerts')} />
             </FormField>
           </FilterItem>
@@ -302,7 +302,7 @@ export const PurchaseOrdersScreen: React.FC = () => {
         onConfirm={() => closing && void changeOpen(closing, false)}
         onClose={() => setClosing(null)}
       >
-        <p>A closed PO takes no new packaging lists or payments and stops ETD reminders. Units not packed yet can move to a new PO with “Create PO from remaining”.</p>
+        <p>A closed PO takes no new packaging lists or payments and stops ERD reminders. Units not packed yet can move to a new PO with “Create PO from remaining”.</p>
       </ConfirmDialog>
       <PoPaymentRequestsModal purchaseOrder={paymentsOf} onClose={() => setPaymentsOf(null)} />
     </Container>
