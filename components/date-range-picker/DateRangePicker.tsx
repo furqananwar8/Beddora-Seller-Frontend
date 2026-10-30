@@ -7,6 +7,7 @@ import React, {
   useRef,
   useCallback,
 } from 'react'
+import { createPortal } from 'react-dom'
 
 import {
   format,
@@ -665,15 +666,11 @@ export default function DateRangePicker({
       null
     )
 
-  // The popup opens on the requested side, flips to the other when that would run
-  // off the screen, and as a last resort is pinned to the screen's left edge.
-  // It opens below the trigger, or above it when it does not fit below and there is more room above.
+  // The popup is portalled to <body> with fixed coordinates, so a scrolling table or card never clips it. It
+  // opens on the requested side, flips to the other when that would run off the screen, and is kept on screen as a
+  // last resort; below the trigger, or above it when it does not fit below and there is more room above.
   const [position, setPosition] =
-    useState<{
-      side: 'left' | 'right'
-      shift?: number
-      vertical?: 'top' | 'bottom'
-    }>({ side: placement })
+    useState<{ left: number; top?: number; bottom?: number } | null>(null)
 
   const activePresets =
     presets ??
@@ -723,56 +720,76 @@ export default function DateRangePicker({
   ])
 
   useLayoutEffect(() => {
-    if (!isOpen || !containerRef.current) {
+    if (!isOpen) {
+      setPosition(null)
       return
     }
 
     const margin = 8
-    const rect =
-      containerRef.current.getBoundingClientRect()
-    const width = Math.min(
-      640,
-      window.innerWidth - 32
-    )
+    const gap = 8
 
-    const fits = (
-      side: 'left' | 'right'
-    ) =>
-      side === 'left'
-        ? rect.left + width <=
-          window.innerWidth - margin
-        : rect.right - width >= margin
+    const place = () => {
+      const rect =
+        containerRef.current?.getBoundingClientRect()
+      if (!rect) {
+        return
+      }
+      const width = Math.min(
+        640,
+        window.innerWidth - 32
+      )
 
-    const other =
-      placement === 'left'
-        ? 'right'
-        : 'left'
+      const leftFor = (
+        side: 'left' | 'right'
+      ) =>
+        side === 'left'
+          ? rect.left
+          : rect.right - width
+      const fits = (
+        side: 'left' | 'right'
+      ) => {
+        const left = leftFor(side)
+        return left >= margin && left + width <= window.innerWidth - margin
+      }
+      const other =
+        placement === 'left'
+          ? 'right'
+          : 'left'
+      const side = fits(placement)
+        ? placement
+        : fits(other)
+          ? other
+          : placement
+      const left = Math.min(
+        Math.max(leftFor(side), margin),
+        window.innerWidth - width - margin
+      )
 
-    // Room for the popup (plus its 8px gap) below the trigger, otherwise open it above when that has more room.
-    const popupHeight =
-      popupRef.current?.offsetHeight ?? 0
-    const roomBelow =
-      window.innerHeight -
-      rect.bottom -
-      margin
-    const roomAbove =
-      rect.top - margin
-    const vertical =
-      popupHeight + 8 > roomBelow &&
-      roomAbove > roomBelow
-        ? 'top'
-        : 'bottom'
+      const popupHeight =
+        popupRef.current?.offsetHeight ?? 0
+      const roomBelow =
+        window.innerHeight -
+        rect.bottom -
+        margin
+      const roomAbove =
+        rect.top - margin
+      const above =
+        popupHeight + gap > roomBelow &&
+        roomAbove > roomBelow
 
-    if (fits(placement)) {
-      setPosition({ side: placement, vertical })
-    } else if (fits(other)) {
-      setPosition({ side: other, vertical })
-    } else {
-      setPosition({
-        side: 'left',
-        shift: margin - rect.left,
-        vertical,
-      })
+      setPosition(
+        above
+          ? { left, bottom: window.innerHeight - rect.top + gap }
+          : { left, top: rect.bottom + gap }
+      )
+    }
+
+    place()
+    window.addEventListener('scroll', place, true)
+    window.addEventListener('resize', place)
+    return () => {
+      window.removeEventListener('scroll', place, true)
+      window.removeEventListener('resize', place)
     }
   }, [isOpen, placement])
 
@@ -787,11 +804,11 @@ export default function DateRangePicker({
 
     const handleClickOutside =
       (e: MouseEvent) => {
+        const target = e.target as Node
         if (
           containerRef.current &&
-          !containerRef.current.contains(
-            e.target as Node
-          )
+          !containerRef.current.contains(target) &&
+          !popupRef.current?.contains(target)
         ) {
           setIsOpen(false)
         }
@@ -1127,25 +1144,17 @@ export default function DateRangePicker({
       {trigger ??
         defaultTrigger}
 
-      {isOpen && (
+      {isOpen && createPortal(
         <div
           ref={popupRef}
-          style={
-            position.shift !== undefined
-              ? { left: position.shift }
-              : undefined
-          }
+          // Above modals (z 9999), like the app's dropdown menus; hidden for the first frame until it is measured
+          style={{
+            ...(position ?? { left: 0, top: 0 }),
+            zIndex: 10000,
+            visibility: position ? undefined : 'hidden',
+          }}
           className={cn(
-            'absolute z-50 flex w-[640px] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-lg border border-border bg-surface shadow-lg sm:flex-row',
-
-            position.vertical === 'top'
-              ? 'bottom-full mb-2'
-              : 'mt-2',
-
-            position.side === 'left'
-              ? 'left-0'
-              : 'right-0',
-
+            'fixed flex w-[640px] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-lg border border-border bg-surface shadow-lg sm:flex-row',
             className
           )}
         >
@@ -1435,7 +1444,8 @@ export default function DateRangePicker({
               )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   )
