@@ -11,6 +11,7 @@ import { setAmazonSession } from '@/store/amazon.slice'
 import { useAppAbility } from '@/hooks/useAppAbility'
 import { AiAssistant } from '@/components/ai-assistant'
 import { BarcodeScannerProvider } from '@/features/barcode/BarcodeScannerProvider'
+import { MANUAL_SHIPMENT_FLOW } from '@/features/shipping/shippingFlags'
 
 /** Routes whose content is shorter than the screen, so the layout sizes them below the header (`.ds-content-fit`). */
 const FIT_BELOW_HEADER_ROUTES = [
@@ -248,6 +249,18 @@ export default function DashboardLayout({
               { label: 'Purchase Invoices', subject: 'procurement:purchase-invoices', action: 'read', href: '/dashboard/procurement/purchase-invoices' },
               { label: 'Packaging Lists', subject: 'procurement:packaging-lists', action: 'read', href: '/dashboard/procurement/packaging-lists' },
               { label: 'Price Analysis', subject: 'procurement:price-analysis', action: 'read', href: '/dashboard/procurement/price-analysis' },
+            ],
+          },
+          {
+            label: 'Shipping',
+            subject: 'shipping:parcels',
+            action: 'read',
+            href: '/dashboard/shipping/orders',
+            icon: NavIcons.shipping,
+            children: [
+              { label: 'Orders', subject: 'shipping:parcels', action: 'read', href: '/dashboard/shipping/orders' },
+              ...(MANUAL_SHIPMENT_FLOW ? [{ label: 'Create shipment', subject: 'shipping:parcels', action: 'write' as const, href: '/dashboard/shipping/create' }] : []),
+              { label: 'Bookings', subject: 'shipping:parcels', action: 'read', href: '/dashboard/shipping/bookings' },
             ],
           },
           {

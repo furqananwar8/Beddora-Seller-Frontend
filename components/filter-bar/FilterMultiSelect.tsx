@@ -6,6 +6,8 @@ import { SearchableSelect } from '@/components/searchable-select/SearchableSelec
 export interface FilterOption<V extends string | number = string> {
   value: V
   label: string
+  /** Shown under the option, which can't be picked (e.g. "Not connected"). */
+  disabledReason?: string
 }
 
 interface FilterMultiSelectProps<V extends string | number> {
@@ -34,6 +36,7 @@ export function FilterMultiSelect<V extends string | number>({ id, options, valu
       options={options}
       getKey={(option) => String(option.value)}
       getLabel={(option) => option.label}
+      disabledReason={(option) => option.disabledReason}
       renderValue={(picked) => (picked.length <= 2 ? picked.map((option) => option.label).join(', ') : `${picked.length} selected`)}
       placeholder={anyLabel}
       searchPlaceholder="Search..."
