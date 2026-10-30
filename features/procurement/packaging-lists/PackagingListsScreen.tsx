@@ -21,12 +21,12 @@ import { useDebounce } from '@/utils/debounce'
 import { downloadApiFile } from '@/utils/downloadFile'
 import { AssignContainerModal } from '../containers'
 import { CONTAINER_ROUTES } from '../containers/routes'
-import { ContainerStatusBadge, containerLabel, formatPoNo, newPackagingListHref, supplierNames } from '../shared/poMeta'
+import { containerLabel, formatPoNo, newPackagingListHref, supplierNames } from '../shared/poMeta'
 
 const BASE = '/dashboard/procurement/packaging-lists'
 const PAGE_SIZE = 20
 const CELL = 'text-center align-middle'
-const COLUMNS = 10
+const COLUMNS = 9
 
 interface Filters extends Record<string, unknown> {
   container: ContainerFilter
@@ -95,6 +95,7 @@ export const PackagingListsScreen: React.FC = () => {
       ...(canWrite ? [{ key: 'edit', label: 'Edit quantities', onSelect: () => router.push(`${BASE}/${row.id}?edit=1`), disabled: Boolean(shipped), disabledReason: shipped }] : []),
       // Once in a container a list stays there; the container decides what happens next
       ...(canAssign && !row.container ? [{ key: 'assign', label: 'Assign container', onSelect: () => setAssigning(row) }] : []),
+      ...(row.container ? [{ key: 'container', label: `Open ${containerLabel(row.container)}`, onSelect: () => router.push(CONTAINER_ROUTES.detail(row.container!.id)) }] : []),
       { key: 'pdf', label: 'Download PDF', onSelect: () => void download(row) },
       ...(canWrite ? [{ key: 'delete', label: 'Delete list', tone: 'danger' as const, onSelect: () => setDeleting(row), disabled: Boolean(shipped), disabledReason: shipped }] : []),
     ]
@@ -175,7 +176,6 @@ export const PackagingListsScreen: React.FC = () => {
                 <TableHead className={CELL}>Cartons</TableHead>
                 <TableHead className={CELL}>CBM</TableHead>
                 <TableHead className={CELL}>Gross wt</TableHead>
-                <TableHead className={cn(CELL, 'min-w-[160px]')}>Container</TableHead>
                 <TableHead className={CELL}>Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -207,18 +207,6 @@ export const PackagingListsScreen: React.FC = () => {
                     <TableCell className={cn(CELL, 'tabular-nums')}>{qty(row.cartons)}</TableCell>
                     <TableCell className={cn(CELL, 'font-mono text-xs')}>{row.cbm.toFixed(2)}</TableCell>
                     <TableCell className={cn(CELL, 'whitespace-nowrap tabular-nums')}>{kg(row.grossWeightKg)}</TableCell>
-                    <TableCell className={CELL}>
-                      {row.container ? (
-                        <div className="flex flex-col items-center gap-0.5">
-                          <Link href={CONTAINER_ROUTES.detail(row.container.id)} className="font-mono text-sm font-semibold text-primary-600 underline-offset-2 hover:underline">
-                            {containerLabel(row.container)}
-                          </Link>
-                          <ContainerStatusBadge status={row.container.status} />
-                        </div>
-                      ) : (
-                        <span className="text-text-muted">—</span>
-                      )}
-                    </TableCell>
                     <TableCell className={CELL}>
                       <RowActionsMenu label={row.plNo} items={actionsFor(row)} />
                     </TableCell>
