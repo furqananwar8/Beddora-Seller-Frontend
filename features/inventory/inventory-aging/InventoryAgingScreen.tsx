@@ -7,7 +7,9 @@ import { FormField } from '@/components/form-field/FormField'
 import { Container } from '@/components/layout'
 import { PaginationFooter } from '@/components/pagination-footer/PaginationFooter'
 import { SegmentedToggle } from '@/components/segmented-toggle/SegmentedToggle'
-import { useGetInventoryAgingQuery, type AgeFilter, type AgingMarketplace } from '@/services/api/inventoryAging.api'
+import { Button } from '@/design-system/buttons'
+import { useReportExport } from '@/hooks/useReportExport'
+import { useGetInventoryAgingQuery, type AgeFilter, type AgingMarketplace, type AgingSortColumn, type SortOrder } from '@/services/api/inventoryAging.api'
 import { cn } from '@/utils/cn'
 import { InventoryAgingTable } from './InventoryAgingTable'
 import { AGE_OPTIONS, defaultFilters, MARKETPLACE_OPTIONS } from './inventoryAgingFilters'
@@ -23,17 +25,44 @@ export const InventoryAgingScreen: React.FC = () => {
   const [page, setPage] = useState(1)
   const filters = useStagedFilters(defaults, () => setPage(1))
   const { draft, setDraft, applied, changed } = filters
+  // Unsorted keeps the server's oldest-stock-first order; a header click sorts highest first, again lowest first
+  const [sort, setSort] = useState<{
+    column: AgingSortColumn
+    order: SortOrder
+  } | null>(null)
+  const onSort = (column: AgingSortColumn) => {
+    setSort((current) => (current?.column === column ? { column, order: current.order === 'desc' ? 'asc' : 'desc' } : { column, order: 'desc' }))
+    setPage(1)
+  }
 
-  const { data, isLoading, isFetching, isError } = useGetInventoryAgingQuery({ marketplace: applied.marketplace, age: applied.age, search: applied.search.trim(), page, limit: PAGE_SIZE })
+  const query = {
+    marketplace: applied.marketplace,
+    age: applied.age,
+    search: applied.search.trim(),
+    sortBy: sort?.column,
+    sortOrder: sort?.order,
+  }
+  const { data, isLoading, isFetching, isError } = useGetInventoryAgingQuery({
+    ...query,
+    page,
+    limit: PAGE_SIZE,
+  })
+  // Built by the export worker; the file downloads by itself when the server announces it over SSE
+  const { start: startExport, isExporting } = useReportExport('inventory-aging')
 
   return (
     <Container size="full" className="py-4 sm:py-8">
-      <div className="mb-4 px-1 sm:mb-6">
-        <h1 className="text-xl font-bold text-text-primary sm:text-2xl">Inventory Aging</h1>
-        <p className="mt-1 text-sm text-text-muted">
-          Units at Amazon by how long they have been in its warehouses, from Amazon&apos;s Inventory Age report
-          {data?.snapshotDate ? ` of ${data.snapshotDate}` : ''}. Stock over 180 days old is shown in red.
-        </p>
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3 px-1 sm:mb-6">
+        <div>
+          <h1 className="text-xl font-bold text-text-primary sm:text-2xl">Inventory Aging</h1>
+          <p className="mt-1 text-sm text-text-muted">
+            Units at Amazon by how long they have been in its warehouses, from Amazon&apos;s Inventory Age report
+            {data?.snapshotDate ? ` of ${data.snapshotDate}` : ''}. Stock over 180 days old is shown in red.
+          </p>
+        </div>
+        <Button type="button" variant="outline" size="sm" className="h-10" disabled={!data?.totalRecords || isExporting} onClick={() => void startExport('xlsx', query)}>
+          {isExporting ? 'Exporting…' : 'Export Excel'}
+        </Button>
       </div>
 
       <div className="mb-4 rounded-lg border border-border bg-surface p-4 shadow-sm">
@@ -55,7 +84,7 @@ export const InventoryAgingScreen: React.FC = () => {
               />
             </FormField>
           </FilterItem>
-          <FilterItem>
+          <FilterItem wide>
             <FormField label="Marketplace">
               <SegmentedToggle<AgingMarketplace>
                 ariaLabel="Marketplace"
@@ -81,10 +110,8 @@ export const InventoryAgingScreen: React.FC = () => {
       </div>
 
       <div className={cn('space-y-3', isFetching && !isLoading && 'opacity-70 transition-opacity')}>
-        <InventoryAgingTable report={data} isLoading={isLoading} isError={isError} />
-        {data && data.totalRecords > 0 && (
-          <PaginationFooter page={data.page} pageSize={data.limit} totalItems={data.totalRecords} totalPages={data.totalPages} onPageChange={setPage} itemLabel="SKUs" />
-        )}
+        <InventoryAgingTable report={data} isLoading={isLoading} isError={isError} sort={sort} onSort={onSort} />
+        {data && data.totalRecords > 0 && <PaginationFooter page={data.page} pageSize={data.limit} totalItems={data.totalRecords} totalPages={data.totalPages} onPageChange={setPage} itemLabel="SKUs" />}
       </div>
     </Container>
   )

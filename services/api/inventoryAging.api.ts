@@ -27,10 +27,16 @@ export interface InventoryAgingReport extends Page<InventoryAgingRow> {
   totals: Record<AgeBucketKey, number> & { available: number; reserved: number }
 }
 
+/** Columns the server can order by, highest first (`desc`) or lowest first (`asc`). */
+export type AgingSortColumn = 'available' | 'reserved' | AgeBucketKey
+export type SortOrder = 'asc' | 'desc'
+
 export interface InventoryAgingParams {
   marketplace: AgingMarketplace
   age: AgeFilter
   search?: string
+  sortBy?: AgingSortColumn
+  sortOrder?: SortOrder
   page: number
   limit: number
 }

@@ -1,8 +1,9 @@
 'use client'
 
 import React from 'react'
+import { ArrowDownWideNarrow, ArrowUpDown, ArrowUpNarrowWide } from 'lucide-react'
 import { Table, TABLE_STATUS_VIEWPORT, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow, TableStatusRow } from '@/design-system/tables'
-import type { InventoryAgingReport, InventoryAgingRow } from '@/services/api/inventoryAging.api'
+import type { AgingSortColumn, InventoryAgingReport, InventoryAgingRow, SortOrder } from '@/services/api/inventoryAging.api'
 import { cn } from '@/utils/cn'
 
 /** Every body cell is centred both ways. */
@@ -22,10 +23,40 @@ interface InventoryAgingTableProps {
   report: InventoryAgingReport | undefined
   isLoading: boolean
   isError: boolean
+  sort: { column: AgingSortColumn; order: SortOrder } | null
+  onSort: (column: AgingSortColumn) => void
+}
+
+interface SortableHeadProps {
+  column: AgingSortColumn
+  sort: InventoryAgingTableProps['sort']
+  onSort: InventoryAgingTableProps['onSort']
+  className?: string
+  title?: string
+  children: React.ReactNode
+}
+
+/** A header that orders the whole report by its column: highest first, then lowest first. */
+const SortableHead: React.FC<SortableHeadProps> = ({ column, sort, onSort, className, title, children }) => {
+  const active = sort?.column === column
+  return (
+    <TableHead className={cn('text-center', className)} title={title} aria-sort={active ? (sort.order === 'desc' ? 'descending' : 'ascending') : 'none'}>
+      <button type="button" onClick={() => onSort(column)} className="group inline-flex items-center justify-center gap-1.5 whitespace-nowrap uppercase hover:text-text-primary">
+        {children}
+        {!active ? (
+          <ArrowUpDown aria-hidden className="h-3.5 w-3.5 text-text-tertiary opacity-60 group-hover:opacity-100" />
+        ) : sort.order === 'desc' ? (
+          <ArrowDownWideNarrow aria-hidden className="h-3.5 w-3.5 text-primary-600" />
+        ) : (
+          <ArrowUpNarrowWide aria-hidden className="h-3.5 w-3.5 text-primary-600" />
+        )}
+      </button>
+    </TableHead>
+  )
 }
 
 /** One row per seller SKU: units by how long they have sat at Amazon, beside what is sellable and what is reserved. */
-export const InventoryAgingTable: React.FC<InventoryAgingTableProps> = ({ report, isLoading, isError }) => {
+export const InventoryAgingTable: React.FC<InventoryAgingTableProps> = ({ report, isLoading, isError, sort, onSort }) => {
   const buckets = report?.buckets ?? []
   const columns = IDENTITY_COLUMNS + buckets.length
   const rows: InventoryAgingRow[] = report?.data ?? []
@@ -46,14 +77,16 @@ export const InventoryAgingTable: React.FC<InventoryAgingTableProps> = ({ report
               {/* sticky-corner (globals.css) lifts it above the other header cells, which slide under it */}
               <TableHead className={cn(STICKY, 'sticky-corner min-w-[16rem] text-center')}>SKU</TableHead>
               <TableHead className="min-w-[8rem] text-center">ASIN</TableHead>
-              <TableHead className="min-w-[6rem] text-center">Available</TableHead>
-              <TableHead className="min-w-[6rem] text-center" title="Held for customer orders, FC transfers or processing: counted in the age columns, not in Available">
+              <SortableHead column="available" sort={sort} onSort={onSort} className="min-w-[6rem]">
+                Available
+              </SortableHead>
+              <SortableHead column="reserved" sort={sort} onSort={onSort} className="min-w-[6rem]" title="Held for customer orders, FC transfers or processing: counted in the age columns, not in Available">
                 Reserved
-              </TableHead>
+              </SortableHead>
               {buckets.map((bucket) => (
-                <TableHead key={bucket.key} className="min-w-[6.5rem] whitespace-nowrap text-center">
+                <SortableHead key={bucket.key} column={bucket.key} sort={sort} onSort={onSort} className="min-w-[6.5rem]">
                   {bucket.label}
-                </TableHead>
+                </SortableHead>
               ))}
             </TableRow>
           </TableHeader>

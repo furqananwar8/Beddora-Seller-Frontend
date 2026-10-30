@@ -17,6 +17,7 @@ export type ExportReport =
   | "container-cost-analysis"
   | "channel-invp"
   | "partner-aging"
+  | "inventory-aging"
   | "cashflow-planning"
   | "sku-mapping"
   | "warehouse-inventory";
