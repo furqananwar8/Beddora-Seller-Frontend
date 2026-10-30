@@ -28,7 +28,8 @@ interface VariationsSectionProps {
 }
 
 const HEAD = 'px-2 py-2 text-center text-xs font-semibold uppercase tracking-wide text-text-muted'
-const CELL = 'px-2 py-2 text-center align-middle'
+// Cells sit at the top so a field's error under it grows the row downwards instead of lifting the fields
+const CELL = 'px-2 py-2 text-center align-top'
 const input = (error?: string) => cn(fieldClass(error), 'h-9 min-w-[7rem] py-1 text-sm')
 
 const Readout: React.FC<{ label: string; value: string }> = ({ label, value }) => (
@@ -126,7 +127,7 @@ export const VariationsSection: React.FC<VariationsSectionProps> = ({ form, prod
                             aria-expanded={expanded}
                             aria-label={expanded ? 'Hide details' : 'Show details'}
                             onClick={() => toggle(key)}
-                            className="rounded p-1 text-text-muted hover:bg-secondary-100"
+                            className="mt-1.5 rounded p-1 text-text-muted hover:bg-secondary-100"
                           >
                             <svg className={cn('h-4 w-4 transition-transform', expanded && 'rotate-90')} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -194,7 +195,7 @@ export const VariationsSection: React.FC<VariationsSectionProps> = ({ form, prod
                           </div>
                           {dimsError && <p className="mt-1 text-left text-xs text-danger-600">{dimsError}</p>}
                         </td>
-                        <td className={cn(CELL, 'whitespace-nowrap font-mono text-xs text-text-secondary')}>
+                        <td className={cn(CELL, 'whitespace-nowrap font-mono text-xs leading-9 text-text-secondary')}>
                           {derivedCbm({ length: row.length, width: row.width, height: row.height, cbm: row.cbm, cbmTouched: row.cbmTouched }, dimensionUnit) || '—'}
                         </td>
                         <td className={CELL}>
