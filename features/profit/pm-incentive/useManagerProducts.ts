@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { endOfMonth, format, parse, startOfMonth, subMonths } from 'date-fns'
+import { endOfMonth, format, parse } from 'date-fns'
 import type { MonthValue } from '@/components/month-picker/MonthPicker'
 import { useGetAccountsQuery } from '@/services/api/accounts.api'
 import { useGetProfitByProductQuery, type ProductProfitBreakdown } from '@/services/api/profit.api'
@@ -32,9 +32,6 @@ export const monthRange = (month: MonthValue): DayRange => {
   return dayRange(start, endOfMonth(start))
 }
 
-/** The last twelve months, so products that did not sell this month can still be assigned. */
-const lastYearRange = (): DayRange => dayRange(startOfMonth(subMonths(new Date(), 11)), new Date())
-
 /**
  * Amazon products from the profit-by-product report the Products page uses: one row per seller SKU,
  * in USD across every marketplace, for the account picked on the profit pages.
@@ -48,23 +45,6 @@ function useAmazonProducts(range: DayRange, skip = false) {
     { skip: skip || !accountId },
   )
   return { rows: data, isFetching, isError }
-}
-
-export interface SkuOption {
-  sku: string
-  title: string
-}
-
-/** Every Amazon SKU sold or advertised in the last year, for the product picker. */
-export function useAmazonSkuOptions(skip = false) {
-  const range = useMemo(lastYearRange, [])
-  const { rows, isFetching } = useAmazonProducts(range, skip)
-  const options = useMemo(() => {
-    const titles = new Map<string, string>()
-    for (const row of rows) if (!titles.has(row.sku)) titles.set(row.sku, row.productTitle ?? '')
-    return [...titles].map(([sku, title]): SkuOption => ({ sku, title })).sort((a, b) => a.sku.localeCompare(b.sku))
-  }, [rows])
-  return { options, isFetching }
 }
 
 function salesOf(rows: ProductProfitBreakdown[]): ManagerSales {

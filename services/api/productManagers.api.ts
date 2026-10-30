@@ -4,8 +4,20 @@ export interface ProductManager {
   id: string
   name: string
   email: string
-  /** Amazon seller SKUs this manager looks after. */
+  /** The sales channel the SKUs belong to (`amazon`, `walmart`…). */
+  channel: string
+  /** Seller SKUs on that channel this manager looks after. */
   skus: string[]
+}
+
+export interface ManagerChannel {
+  id: string
+  name: string
+}
+
+export interface ChannelSkuOption {
+  sku: string
+  title: string
 }
 
 export type ProductManagerInput = Omit<ProductManager, 'id'>
@@ -19,6 +31,16 @@ export const productManagersApi = baseApi.injectEndpoints({
       query: () => '/profit/product-managers',
       transformResponse: unwrap<ProductManager[]>,
       providesTags: ['ProductManagers'],
+    }),
+
+    getManagerChannels: builder.query<ManagerChannel[], void>({
+      query: () => '/profit/product-managers/channels',
+      transformResponse: unwrap<ManagerChannel[]>,
+    }),
+
+    getManagerChannelSkus: builder.query<ChannelSkuOption[], string>({
+      query: (channel) => ({ url: '/profit/product-managers/skus', params: { channel } }),
+      transformResponse: unwrap<ChannelSkuOption[]>,
     }),
 
     createProductManager: builder.mutation<ProductManager, ProductManagerInput>({
@@ -40,4 +62,11 @@ export const productManagersApi = baseApi.injectEndpoints({
   }),
 })
 
-export const { useGetProductManagersQuery, useCreateProductManagerMutation, useUpdateProductManagerMutation, useDeleteProductManagerMutation } = productManagersApi
+export const {
+  useGetProductManagersQuery,
+  useGetManagerChannelsQuery,
+  useGetManagerChannelSkusQuery,
+  useCreateProductManagerMutation,
+  useUpdateProductManagerMutation,
+  useDeleteProductManagerMutation,
+} = productManagersApi
