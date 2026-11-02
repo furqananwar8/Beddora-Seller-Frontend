@@ -1,9 +1,11 @@
+import type { SavedShipFromAddress } from '@/features/inventory/shipments/types'
+
 /**
  * Shipping (parcel carriers) types, mirroring the backend's API contract v1
  * (`bbeddora/docs/shipping-carriers/api-contract.md`). Keep the two in step.
  */
 
-export type ProviderId = 'stallion' | 'shippo' | 'uniuni'
+export type ProviderId = 'stallion' | 'shippo' | 'uniuni' | 'fedex'
 export type Incoterm = 'DDP' | 'DAP' | 'DDU'
 export type Handover = 'DROP_OFF' | 'PICKUP'
 export type LabelFormat = 'pdf_4x6' | 'zpl_4x6' | 'pdf_letter'
@@ -67,7 +69,8 @@ export interface CustomsLine {
 
 export interface ShipmentRequest {
   /** A row of /inventory/addresses. */
-  shipFromAddressId: number
+  /** "address:5" (Settings › Addresses) or "warehouse:3" (Settings › Warehouses). */
+  shipFrom: string
   to: ShipAddress
   packages: ParcelPackage[]
   /** Required (≥ 1) when the from-country differs from the to-country. */
@@ -81,6 +84,17 @@ export interface ShipmentRequest {
   insuranceAmount?: number | null
   reference?: string | null
   providers?: ProviderId[]
+}
+
+/* ─────────────── Ship from ─────────────── */
+
+/** A place to ship from: a saved address or a warehouse (which ships under the company's name and phone). */
+export interface ShipFromOption extends SavedShipFromAddress {
+  /** "<kind>:<id>". */
+  id: string
+  kind: 'address' | 'warehouse'
+  /** What carriers need that the place lacks, and where to add it; such a place can't be quoted. */
+  missing: string[]
 }
 
 /* ─────────────── Config & products ─────────────── */
@@ -276,7 +290,8 @@ export interface ShipmentSummary {
 export type ChannelId = 'walmart' | 'amazon' | 'temu'
 /** Marking the order shipped on its channel after booking; SKIPPED while SHIPPING_ENV=sandbox. */
 export type ChannelSync = 'PENDING' | 'SENT' | 'SKIPPED' | 'FAILED'
-export type Fulfillment = 'TO_BOOK' | 'BOOKED' | 'SHIPPED_ON_CHANNEL' | 'CANCELLED'
+/** NOT_READY: the channel hasn't released the order for shipping yet (payment pending). */
+export type Fulfillment = 'NOT_READY' | 'TO_BOOK' | 'BOOKED' | 'SHIPPED_ON_CHANNEL' | 'CANCELLED'
 
 export interface ChannelOrderRef {
   channel: ChannelId
@@ -296,16 +311,39 @@ export interface ChannelOrderLine {
   sku: string
   productName: string
   quantity: number
+  /** What the customer paid per unit, before tax. */
+  unitPrice: number | null
+  currency: string | null
+  /** Tax on the line's full quantity; null when the channel doesn't report it. */
+  tax: number | null
   /** The channel's wording. */
   status: string
 }
 
+/** What an order's total is made of. Discounts are negative; tax is null when the channel doesn't report it. */
+export interface ChannelOrderAmounts {
+  items: number
+  shipping: number
+  discount: number
+  tax: number | null
+}
+
 /** Tracking the channel itself knows (orders shipped directly on the channel). */
 export interface ChannelTracking {
-  carrier: string
+  carrier: string | null
+  /** The carrier's service, e.g. "Intelcom Standard". */
+  service?: string | null
   trackingNumber: string
   trackingUrl: string | null
   shippedAt: string | null
+  /** The channel's package status, e.g. "SHIPPED"; on the order's own read, the carrier's latest status. */
+  status?: string | null
+  /** Carrier scans, newest first: only on the order's own read (GET one channel order). */
+  events?: TrackingEvent[]
+  /** The provider that read the scans. */
+  trackedBy?: string | null
+  /** Why there are no scans, when there are none. */
+  trackingNote?: string | null
 }
 
 export interface ChannelOrderBooking {
@@ -321,6 +359,8 @@ export interface ChannelOrderBooking {
   statusLabel: string
   channelSync: ChannelSync | null
   channelSyncMessage: string | null
+  /** The newest carrier scan we have stored, or null before the first one. */
+  latestEvent: TrackingEvent | null
 }
 
 export interface ChannelOrderListItem extends ChannelOrderRef {
@@ -332,6 +372,7 @@ export interface ChannelOrderListItem extends ChannelOrderRef {
   channelStatus: string
   fulfillment: Fulfillment
   lines: ChannelOrderLine[]
+  amounts: ChannelOrderAmounts
   total: number
   currency: string
   tracking: ChannelTracking[]
@@ -344,6 +385,8 @@ export interface ChannelOrderListParams {
   limit: number
   search?: string
   channels?: ChannelId[]
+  /** Marketplace countries: "CA", "US", "MX". */
+  countries?: string[]
   states?: Fulfillment[]
   /** yyyy-mm-dd, on the order date. */
   from?: string

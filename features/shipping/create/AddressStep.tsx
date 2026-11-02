@@ -8,7 +8,7 @@ import { PhoneField } from '@/components/phone-field/PhoneField'
 import { SearchableSelect } from '@/components/searchable-select/SearchableSelect'
 import { SegmentedToggle } from '@/components/segmented-toggle/SegmentedToggle'
 import { Button } from '@/design-system/buttons'
-import type { SavedShipFromAddress } from '@/features/inventory/shipments/types'
+import type { ShipFromOption } from '../types'
 import { useGetProvincesQuery } from '@/services/api/geo.api'
 import { SectionCard } from '../shared/Card'
 import type { DraftAction, ShipmentDraft, ShipToDraft } from './shipmentDraft'
@@ -18,9 +18,9 @@ import { WizardFooter } from './WizardFooter'
 interface AddressStepProps {
   draft: ShipmentDraft
   dispatch: React.Dispatch<DraftAction>
-  addresses: SavedShipFromAddress[]
+  addresses: ShipFromOption[]
   loadingAddresses: boolean
-  shipFrom: SavedShipFromAddress | undefined
+  shipFrom: ShipFromOption | undefined
   onCancel: () => void
 }
 
@@ -29,8 +29,15 @@ const RESIDENTIAL_OPTIONS = [
   { value: 'BUSINESS' as const, label: 'Business' },
 ]
 
-/** A saved ship-from address as a small card. */
-export const ShipFromCard: React.FC<{ address: SavedShipFromAddress }> = ({ address }) => (
+/** The ship-from picked up front: the first warehouse, else the default saved address, else the only option. */
+export const defaultShipFrom = (options: ShipFromOption[]): ShipFromOption | undefined =>
+  options.find((option) => option.kind === 'warehouse') ?? options.find((option) => option.isDefault) ?? (options.length === 1 ? options[0] : undefined)
+
+/** "Main warehouse (Warehouse)", "Office (default)". */
+const shipFromLabel = (option: ShipFromOption) => `${option.label}${option.kind === 'warehouse' ? ' (Warehouse)' : option.isDefault ? ' (default)' : ''}`
+
+/** A ship-from place as a small card; a warehouse ships under the company's name and phone. */
+export const ShipFromCard: React.FC<{ address: ShipFromOption }> = ({ address }) => (
   <div className="rounded-lg bg-secondary-50 p-3 text-sm leading-6 text-text-secondary">
     <span className="font-semibold text-text-primary">{address.companyName || address.name}</span>
     {address.companyName && <span> · {address.name}</span>}
@@ -40,6 +47,7 @@ export const ShipFromCard: React.FC<{ address: SavedShipFromAddress }> = ({ addr
     {address.city}, {address.stateOrProvinceCode} {address.postalCode} · {address.countryCode}
     <br />
     <span className="text-text-muted">{[address.phoneNumber, address.email].filter(Boolean).join(' · ')}</span>
+    {address.missing.length > 0 && <p className="mt-2 text-xs text-danger-600">Can't ship from here yet. Add: {address.missing.join(', ')}</p>}
   </div>
 )
 
@@ -59,32 +67,39 @@ interface AddressSectionProps {
 }
 
 /** Pick the saved ship-from address, shown as a card. */
-export const ShipFromSection: React.FC<AddressSectionProps & { addresses: SavedShipFromAddress[]; loadingAddresses: boolean; shipFrom: SavedShipFromAddress | undefined }> = ({ dispatch, shown, addresses, loadingAddresses, shipFrom }) => (
-  <SectionCard title="Ship from" subtitle="saved addresses">
+export const ShipFromSection: React.FC<AddressSectionProps & { addresses: ShipFromOption[]; loadingAddresses: boolean; shipFrom: ShipFromOption | undefined }> = ({ dispatch, shown, addresses, loadingAddresses, shipFrom }) => (
+  <SectionCard title="Ship from" subtitle="saved addresses and warehouses">
     <FormField label="Address" htmlFor="ship-from" required error={shown.shipFrom}>
-      <SearchableSelect<SavedShipFromAddress>
+      <SearchableSelect<ShipFromOption>
         id="ship-from"
         value={shipFrom ?? null}
         onChange={(address) => dispatch({ type: 'setShipFrom', id: address.id })}
         options={addresses}
         getKey={(address) => address.id}
-        getLabel={(address) => `${address.label}${address.isDefault ? ' (default)' : ''}`}
+        getLabel={shipFromLabel}
         loading={loadingAddresses}
         placeholder="Select address"
-        searchPlaceholder="Search addresses..."
-        emptyText="No saved addresses yet."
+        searchPlaceholder="Search addresses and warehouses..."
+        emptyText="No saved addresses or warehouses yet."
         error={shown.shipFrom}
       />
     </FormField>
     {shipFrom && <ShipFromCard address={shipFrom} />}
     <p className="mt-3 text-xs text-text-muted">
-      Manage addresses in{' '}
+      Manage them in{' '}
       <Link href="/dashboard/settings/addresses" className="text-primary-600 hover:underline">
         Settings › Addresses
+      </Link>{' '}
+      and{' '}
+      <Link href="/dashboard/settings/warehouses" className="text-primary-600 hover:underline">
+        Settings › Warehouses
       </Link>
     </p>
   </SectionCard>
 )
+
+/** The ship-to fields' error keys. */
+export const SHIP_TO_KEYS = ['name', 'address1', 'country', 'province', 'city', 'postalCode', 'phone', 'email']
 
 /** The customer's address, phone and email, residential or business. */
 export const ShipToSection: React.FC<AddressSectionProps> = ({ draft, dispatch, shown }) => {
@@ -165,7 +180,7 @@ export const AddressStep: React.FC<AddressStepProps> = ({ draft, dispatch, addre
         }
         hint={attempted && Object.keys(errors).length > 0 ? `Fill the ${Object.keys(errors).length} highlighted fields to continue` : undefined}
       >
-        <Button onClick={next}>Continue to Shipment Info →</Button>
+        <Button onClick={next}>Continue to Shipment Info</Button>
       </WizardFooter>
     </>
   )

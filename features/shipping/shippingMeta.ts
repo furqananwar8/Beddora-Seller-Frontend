@@ -13,7 +13,7 @@ export const orderSearchHref = (orderId: string) => `${ORDERS_HREF}?${new URLSea
 /** The Bookings list opens this shipment's drawer. */
 export const bookingHref = (id: number) => `${BOOKINGS_HREF}?shipment=${id}`
 
-export const PROVIDER_LABEL: Record<ProviderId, string> = { stallion: 'Stallion Express', shippo: 'Shippo', uniuni: 'UniUni' }
+export const PROVIDER_LABEL: Record<ProviderId, string> = { stallion: 'Stallion Express', shippo: 'Shippo', uniuni: 'UniUni', fedex: 'FedEx' }
 export const PROVIDERS = Object.keys(PROVIDER_LABEL) as ProviderId[]
 export const CHANNEL_LABEL: Record<ChannelId, string> = { walmart: 'Walmart', amazon: 'Amazon', temu: 'Temu' }
 
@@ -47,9 +47,10 @@ export const STATUS_LABEL: Record<ParcelStatus, string> = {
 }
 
 export const FULFILLMENT_META: Record<Fulfillment, { label: string; tone: StatusTone }> = {
+  NOT_READY: { label: 'Not Ready', tone: 'neutral' },
   TO_BOOK: { label: 'To Book', tone: 'warning' },
   BOOKED: { label: 'Booked', tone: 'info' },
-  SHIPPED_ON_CHANNEL: { label: 'Shipped On Channel', tone: 'success' },
+  SHIPPED_ON_CHANNEL: { label: 'Shipped', tone: 'success' },
   CANCELLED: { label: 'Cancelled', tone: 'neutral' },
 }
 

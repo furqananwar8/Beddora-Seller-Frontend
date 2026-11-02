@@ -76,7 +76,7 @@ export const BookingConfirmed: React.FC<BookingConfirmedProps> = ({ shipment, on
           {next.label}
         </Button>
         <Link href={bookingHref(shipment.id)} className="ds-button ds-button-ghost ds-button-md">
-          Go to Bookings →
+          Go to Bookings
         </Link>
       </div>
 

@@ -79,7 +79,7 @@ export const CustomsCard: React.FC<CustomsCardProps> = ({ draft, errors, lane, d
                     <td className={`${CELL} min-w-[190px]`}>
                       <div className="flex gap-1">
                         <NumericInput aria-label="Unit value" decimal value={line.unitValue} onChange={(event) => patch({ unitValue: event.target.value })} className={numberField(error('unitValue'), auto('unitValue'))} />
-                        <SegmentedToggle ariaLabel="Currency" value={line.currency} onChange={(currency) => patch({ currency })} options={CURRENCIES} className="[&>button]:px-2" />
+                        <SegmentedToggle ariaLabel="Currency" value={line.currency} onChange={(currency) => patch({ currency })} options={CURRENCIES} variant="primary" className="[&>button]:px-2" />
                       </div>
                       <Message error={error('unitValue')} />
                     </td>

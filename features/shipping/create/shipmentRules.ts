@@ -1,6 +1,6 @@
 import { isValidPhone, toInternational } from '@/components/phone-field/PhoneField'
 import { kgTo } from '@/features/procurement/shared/units'
-import type { SavedShipFromAddress } from '@/features/inventory/shipments/types'
+import type { ShipFromOption } from '../types'
 import type { CustomsLine, ShipmentRequest, ShippingProduct } from '../types'
 import { isUnmapped, numberOf, UNITS, type CustomsDraft, type PackageField, type ShipmentDraft } from './shipmentDraft'
 
@@ -12,7 +12,7 @@ const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const HS_CODE = /^\d[\d.]*\d$/
 const hsDigits = (code: string) => code.replace(/\./g, '').length
 
-export const isCrossBorder = (draft: ShipmentDraft, from: SavedShipFromAddress | undefined) =>
+export const isCrossBorder = (draft: ShipmentDraft, from: ShipFromOption | undefined) =>
   Boolean(from && draft.shipTo.address.country && from.countryCode !== draft.shipTo.address.country)
 
 /** Step 1. `needsProvince`: the ship-to country lists provinces / states. */
@@ -116,7 +116,7 @@ export function toShipmentRequest(draft: ShipmentDraft, crossBorder: boolean): S
     }
   })
   return {
-    shipFromAddressId: Number(draft.shipFromId),
+    shipFrom: draft.shipFromId,
     to: {
       name: shipTo.name.trim(),
       company: blank(shipTo.company),

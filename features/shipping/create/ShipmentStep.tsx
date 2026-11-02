@@ -16,13 +16,16 @@ interface ShipmentStepProps {
   errors: FieldErrors
   /** "CA → US" when cross-border, else null. */
   lane: string | null
+  /** The footer's Back; the Address step by default. */
+  onBack?: () => void
+  backLabel?: string
 }
 
 /**
  * Step 2: products, the carton, customs lines and options. Required values the product master didn't supply are
  * flagged straight away, and "Get rates" waits until they are filled.
  */
-export const ShipmentStep: React.FC<ShipmentStepProps> = ({ draft, dispatch, errors, lane }) => {
+export const ShipmentStep: React.FC<ShipmentStepProps> = ({ draft, dispatch, errors, lane, onBack, backLabel = 'Back' }) => {
   const missing = fieldCount(errors)
   const hint = errors.products ? 'Add a product to get rates' : missing > 0 ? `Fill the ${missing} highlighted ${missing === 1 ? 'field' : 'fields'} to get rates` : undefined
   // Nothing is flagged until there is something to check
@@ -39,14 +42,14 @@ export const ShipmentStep: React.FC<ShipmentStepProps> = ({ draft, dispatch, err
 
       <WizardFooter
         start={
-          <Button variant="outline" onClick={() => dispatch({ type: 'goTo', step: 0 })}>
-            ← Back
+          <Button variant="outline" onClick={onBack ?? (() => dispatch({ type: 'goTo', step: 0 }))}>
+            {backLabel}
           </Button>
         }
         hint={hint && <span className="text-danger-600">{hint}</span>}
       >
         <Button disabled={Boolean(hint)} onClick={() => dispatch({ type: 'goTo', step: 2 })}>
-          Get rates →
+          Get rates
         </Button>
       </WizardFooter>
     </div>

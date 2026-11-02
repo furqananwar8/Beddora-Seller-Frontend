@@ -15,8 +15,8 @@ const BOOKING: StepDef = { title: 'Booking', hint: 'Review & book' }
 
 /** Create shipment from scratch. */
 export const CREATE_STEPS = [ADDRESS, SHIPMENT, RATES, BOOKING]
-/** Booking a channel order: address and parcel come from the order. */
-export const ORDER_STEPS = [RATES, BOOKING]
+/** Booking a channel order: addresses and parcel are prefilled from the order and our products, then reviewed. */
+export const ORDER_STEPS = [{ ...SHIPMENT, hint: 'Review prefilled details' }, RATES, BOOKING]
 
 interface WizardStepperProps {
   steps: StepDef[]

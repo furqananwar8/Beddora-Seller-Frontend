@@ -12,8 +12,10 @@ import { useApiFeedback } from '@/hooks/useApiFeedback'
 import { useAppAbility } from '@/hooks/useAppAbility'
 import { useGetChannelOrdersQuery, useGetOrderChannelsQuery, useRetryChannelSyncMutation } from '@/services/api/shipping.api'
 import { cn } from '@/utils/cn'
+import { MARKETPLACES } from '@/utils/marketplaces'
 import { FULFILLMENT_META } from '../shippingMeta'
-import type { ChannelId, ChannelTracking, Fulfillment } from '../types'
+import type { ChannelId, ChannelOrderRef, Fulfillment } from '../types'
+import { OrderDrawer } from './OrderDrawer'
 import { OrdersTable } from './OrdersTable'
 
 const PAGE_SIZE = 20
@@ -21,18 +23,23 @@ const PAGE_SIZE = 20
 interface Filters extends Record<string, unknown> {
   search: string
   channels: ChannelId[]
+  /** Marketplace countries: "CA", "US", "MX". */
+  countries: string[]
   states: Fulfillment[]
   ordered: DateRangeValue
 }
 
-const DEFAULT_FILTERS: Filters = { search: '', channels: [], states: [], ordered: { startDate: null, endDate: null } }
+const DEFAULT_FILTERS: Filters = { search: '', channels: [], countries: [], states: [], ordered: { startDate: null, endDate: null } }
+/** Canada, USA, Mexico: the marketplaces the profit screens offer, by country. */
+const MARKETPLACE_OPTIONS: FilterOption<string>[] = MARKETPLACES.map((marketplace) => ({ value: marketplace.code, label: marketplace.name }))
 const FULFILLMENT_OPTIONS: FilterOption<Fulfillment>[] = (Object.keys(FULFILLMENT_META) as Fulfillment[]).map((value) => ({ value, label: FULFILLMENT_META[value].label }))
 
 const day = (value: string | null) => (value ? value.slice(0, 10) : undefined)
 
 /**
  * Shipping › Orders: seller-fulfilled channel orders to book with our carriers ("Get rates"), and orders shipped on
- * the channel with its own carrier, shown with the channel's tracking. `?search=` starts the list searched.
+ * the channel with its own carrier, shown with the channel's tracking. Get details in a row's actions opens the order's drawer; `?search=`
+ * starts the list searched.
  */
 export const OrdersScreen: React.FC = () => {
   const canWrite = useAppAbility().can('write', 'shipping:parcels')
@@ -44,14 +51,17 @@ export const OrdersScreen: React.FC = () => {
   const { draft, setDraft, applied, changed } = filters
   const [retrySync] = useRetryChannelSyncMutation()
   const [retrying, setRetrying] = useState<number | null>(null)
+  const [opened, setOpened] = useState<ChannelOrderRef | null>(null)
 
   const { data: channels = [], isLoading: loadingChannels } = useGetOrderChannelsQuery()
   const channelOptions: FilterOption<ChannelId>[] = channels.map((channel) => ({ value: channel.id, label: channel.label, disabledReason: channel.connected ? undefined : 'Not connected' }))
+
   const { data, isLoading, isFetching, isError } = useGetChannelOrdersQuery({
     page,
     limit: PAGE_SIZE,
     search: applied.search.trim(),
     channels: applied.channels,
+    countries: applied.countries,
     states: applied.states,
     from: day(applied.ordered.startDate),
     to: day(applied.ordered.endDate),
@@ -68,18 +78,6 @@ export const OrdersScreen: React.FC = () => {
     } finally {
       setRetrying(null)
     }
-  }
-
-  // The channel's tracking page, or the number on the clipboard when the channel gave no link
-  const track = (tracking: ChannelTracking) => {
-    if (tracking.trackingUrl) {
-      window.open(tracking.trackingUrl, '_blank', 'noopener,noreferrer')
-      return
-    }
-    navigator.clipboard.writeText(tracking.trackingNumber).then(
-      () => success(`${tracking.carrier} tracking number copied`),
-      () => info(`${tracking.carrier} tracking: ${tracking.trackingNumber}`)
-    )
   }
 
   return (
@@ -111,6 +109,11 @@ export const OrdersScreen: React.FC = () => {
             </FormField>
           </FilterItem>
           <FilterItem>
+            <FormField label="Marketplace" htmlFor="order-marketplace">
+              <FilterMultiSelect id="order-marketplace" options={MARKETPLACE_OPTIONS} value={draft.countries} onChange={(value) => setDraft('countries', value)} anyLabel="All marketplaces" highlighted={changed.has('countries')} />
+            </FormField>
+          </FilterItem>
+          <FilterItem>
             <FormField label="Fulfillment" htmlFor="order-fulfillment">
               <FilterMultiSelect id="order-fulfillment" options={FULFILLMENT_OPTIONS} value={draft.states} onChange={(value) => setDraft('states', value)} anyLabel="Any fulfillment" highlighted={changed.has('states')} />
             </FormField>
@@ -135,11 +138,13 @@ export const OrdersScreen: React.FC = () => {
             canWrite={canWrite}
             retrying={retrying}
             onRetrySync={(id) => void retry(id)}
-            onTrack={track}
+            onOpen={({ channel, market, orderId }) => setOpened({ channel, market, orderId })}
           />
         </div>
         {data && data.totalRecords > 0 && <PaginationFooter page={data.page} pageSize={data.limit} totalItems={data.totalRecords} totalPages={data.totalPages} onPageChange={setPage} itemLabel="orders" />}
       </div>
+
+      <OrderDrawer order={opened} canWrite={canWrite} onClose={() => setOpened(null)} />
     </div>
   )
 }

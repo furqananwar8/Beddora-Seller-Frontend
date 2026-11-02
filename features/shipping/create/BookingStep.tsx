@@ -4,7 +4,7 @@ import React, { useEffect, useRef } from 'react'
 import { Alert } from '@/design-system/alerts'
 import { Button } from '@/design-system/buttons'
 import { useApiFeedback } from '@/hooks/useApiFeedback'
-import type { SavedShipFromAddress } from '@/features/inventory/shipments/types'
+import type { ShipFromOption } from '../types'
 import { useBookShipmentMutation } from '@/services/api/shipping.api'
 import { useLabelFormats } from '../shared/useLabelFormats'
 import { CartonIllustration } from '../shared/CartonIllustration'
@@ -20,7 +20,7 @@ import { WizardFooter } from './WizardFooter'
 interface BookingStepProps {
   draft: ShipmentDraft
   dispatch: React.Dispatch<DraftAction>
-  shipFrom: SavedShipFromAddress
+  shipFrom: ShipFromOption
   rate: Rate
   quoteId: string
   onBooked: (shipment: ParcelShipmentDto) => void
@@ -183,7 +183,7 @@ export const BookingStep: React.FC<BookingStepProps> = ({ draft, dispatch, shipF
       <WizardFooter
         start={
           <Button variant="outline" onClick={edit(2)}>
-            ← Back to rates
+            Back to rates
           </Button>
         }
       >

@@ -5,10 +5,10 @@ import { useRouter } from 'next/navigation'
 import { Alert } from '@/design-system/alerts'
 import { Button } from '@/design-system/buttons'
 import { useAppAbility } from '@/hooks/useAppAbility'
-import { useGetShipFromAddressesQuery } from '@/services/api/shipFromAddresses.api'
+import { useGetShipFromOptionsQuery } from '@/services/api/shipping.api'
 import { BOOKINGS_HREF, money } from '../shippingMeta'
 import type { ParcelShipmentDto } from '../types'
-import { AddressStep } from './AddressStep'
+import { AddressStep, defaultShipFrom } from './AddressStep'
 import { BookingConfirmed } from './BookingConfirmed'
 import { BookingStep } from './BookingStep'
 import { RatesStep } from './RatesStep'
@@ -27,15 +27,15 @@ export const CreateShipmentScreen: React.FC = () => {
   const canWrite = useAppAbility().can('write', 'shipping:parcels')
   const [draft, dispatch] = useReducer(draftReducer, INITIAL_DRAFT)
   const [booked, setBooked] = useState<ParcelShipmentDto | null>(null)
-  const { data: addresses = [], isLoading: loadingAddresses } = useGetShipFromAddressesQuery()
+  const { data: addresses = [], isLoading: loadingAddresses } = useGetShipFromOptionsQuery()
   const shipFrom = addresses.find((address) => address.id === draft.shipFromId)
   const crossBorder = isCrossBorder(draft, shipFrom)
   const errors = shipmentErrors(draft, crossBorder)
   const { stream, rate, refetch: refetchRates, reset: resetRates } = useDraftRates(draft, dispatch, crossBorder)
 
-  // The default ship-from address is picked up front
+  // The first warehouse (else the default address) is picked up front
   useEffect(() => {
-    const fallback = addresses.find((address) => address.isDefault) ?? (addresses.length === 1 ? addresses[0] : undefined)
+    const fallback = defaultShipFrom(addresses)
     if (!draft.shipFromId && fallback) dispatch({ type: 'setShipFrom', id: fallback.id })
   }, [addresses, draft.shipFromId])
 

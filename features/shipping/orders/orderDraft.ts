@@ -47,7 +47,7 @@ function customsFromOrder(product: ShippingProduct, detail: ChannelOrderDetail) 
 }
 
 /**
- * A channel order as a draft on the Rates step: its ship-to, one product per mapped product (units = quantity ×
+ * A channel order as a draft on the Shipment Info step, for review before rates: its ship-to, one product per mapped product (units = quantity ×
  * units per item, summed when a bundle repeats a product) and one stand-in per unmapped SKU. The reducer's `load`
  * fills the package from them.
  */
@@ -62,7 +62,7 @@ export function draftFromOrder(detail: ChannelOrderDetail, shipFromId: string): 
   const products = [...picked.values()]
   return {
     ...INITIAL_DRAFT,
-    step: 2,
+    step: 1,
     shipFromId,
     shipTo: shipToFrom(detail.shipTo),
     products,

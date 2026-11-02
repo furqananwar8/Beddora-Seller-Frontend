@@ -7,6 +7,7 @@ const MARK: Record<ProviderId, { initials: string; className: string }> = {
   stallion: { initials: 'ST', className: 'bg-orange-500 text-white' },
   shippo: { initials: 'SH', className: 'bg-emerald-600 text-white' },
   uniuni: { initials: 'UU', className: 'bg-sky-600 text-white' },
+  fedex: { initials: 'FX', className: 'bg-violet-700 text-white' },
 }
 
 interface ProviderLogoProps {

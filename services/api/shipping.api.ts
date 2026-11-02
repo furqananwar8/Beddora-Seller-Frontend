@@ -11,13 +11,14 @@ import type {
   ShipmentSummary,
   ShippingConfig,
   ShippingProduct,
+  ShipFromOption,
 } from '@/features/shipping/types'
 import { baseApi } from './baseApi'
 import { Envelope, Page, unwrap } from './finance.api'
 import { csv } from './queryParams'
 
 /**
- * Parcel shipping over Stallion, Shippo and UniUni. The rate stream (SSE) and document downloads are plain
+ * Parcel shipping over Stallion, Shippo, UniUni and FedEx. The rate stream (SSE) and document downloads are plain
  * `fetch` calls: see `features/shipping/useRateStream.ts` and `features/shipping/print/usePrintDocument.ts`.
  */
 export const shippingApi = baseApi.injectEndpoints({
@@ -27,6 +28,12 @@ export const shippingApi = baseApi.injectEndpoints({
       transformResponse: (response: Envelope<ShippingConfig>) => unwrap(response),
       providesTags: ['ShippingConfig'],
       keepUnusedDataFor: 600,
+    }),
+    /** Saved ship-from addresses, then warehouses. */
+    getShipFromOptions: builder.query<ShipFromOption[], void>({
+      query: () => '/shipping/ship-from',
+      transformResponse: (response: Envelope<ShipFromOption[]>) => unwrap(response),
+      providesTags: ['ShipFromAddresses', 'Warehouses'],
     }),
     searchShippingProducts: builder.query<ShippingProduct[], { search: string; limit?: number }>({
       query: ({ search, limit = 20 }) => ({ url: '/shipping/products', params: { search: search || undefined, limit } }),
@@ -77,9 +84,9 @@ export const shippingApi = baseApi.injectEndpoints({
       keepUnusedDataFor: 600,
     }),
     getChannelOrders: builder.query<Page<ChannelOrderListItem>, ChannelOrderListParams>({
-      query: ({ search, channels, states, ...params }) => ({
+      query: ({ search, channels, countries, states, ...params }) => ({
         url: '/shipping/channel-orders',
-        params: { ...params, search: search || undefined, channels: csv(channels), states: csv(states) },
+        params: { ...params, search: search || undefined, channels: csv(channels), countries: csv(countries), states: csv(states) },
       }),
       providesTags: ['ShippingChannelOrders'],
     }),
@@ -93,6 +100,7 @@ export const shippingApi = baseApi.injectEndpoints({
 
 export const {
   useGetShippingConfigQuery,
+  useGetShipFromOptionsQuery,
   useSearchShippingProductsQuery,
   useGetShipmentsQuery,
   useGetShipmentSummaryQuery,

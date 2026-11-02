@@ -138,7 +138,7 @@ export const RatesStep: React.FC<RatesStepProps> = ({ stream, incoterm, selected
       <WizardFooter
         start={
           <Button variant="outline" onClick={onBack}>
-            ← Back
+            Back
           </Button>
         }
         hint={
@@ -152,7 +152,7 @@ export const RatesStep: React.FC<RatesStepProps> = ({ stream, incoterm, selected
         }
       >
         <Button disabled={!selected} onClick={onContinue}>
-          Continue to Booking →
+          Continue to Booking
         </Button>
       </WizardFooter>
     </>
