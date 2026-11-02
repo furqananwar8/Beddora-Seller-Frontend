@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useRef } from 'react'
+import React, { useCallback, useRef, useState } from 'react'
 
 import { PieChart } from '@/design-system/charts/PieChart'
 import { ChartPalette } from '@/design-system/charts/ChartPalette'
@@ -9,6 +9,7 @@ import { ProductProfitBreakdown, useGetRefundReasonsQuery } from '@/services/api
 import { formatNumber } from '@/utils/format'
 import { useAnchoredRect } from '@/hooks/useAnchoredRect'
 import { useDismiss } from '@/hooks/useDismiss'
+import { RefundMessagesModal } from './RefundMessagesModal'
 
 /** The date range and marketplaces the products table shows: the refunds counted in it. */
 export interface RefundReasonsScope {
@@ -34,8 +35,8 @@ const REASON_COLORS = [ChartPalette.danger, ChartPalette.warning, ChartPalette.a
 
 /**
  * A product's refunds by return reason: a donut of the refunded units and a legend of each reason, its status and
- * the customers' comments. Opens under the clicked refund count and moves with it; hidden while its row is scrolled
- * out of the table, closed on an outside click or Escape.
+ * the customers' comments; "View messages" lists every comment with its date. Opens under the clicked refund count
+ * and moves with it; hidden while its row is scrolled out of the table, closed on an outside click or Escape.
  */
 export function RefundReasonsPopover({ product, scope, anchor, onClose }: RefundReasonsPopoverProps) {
   const panelRef = useRef<HTMLDivElement>(null)
@@ -47,7 +48,12 @@ export function RefundReasonsPopover({ product, scope, anchor, onClose }: Refund
     { skip: !scope.startDate || !scope.endDate },
   )
 
-  useDismiss(panelRef, onClose)
+  const [viewingMessages, setViewingMessages] = useState(false)
+  // the messages modal sits outside the panel: clicks and Escape there are the modal's, not a dismissal
+  const dismiss = useCallback(() => {
+    if (!viewingMessages) onClose()
+  }, [viewingMessages, onClose])
+  useDismiss(panelRef, dismiss)
   const anchorRect = useAnchoredRect(anchor)
   if (!anchorRect) return null
 
@@ -60,6 +66,7 @@ export function RefundReasonsPopover({ product, scope, anchor, onClose }: Refund
     color: reason.reasonCode ? REASON_COLORS[reasonIndex++ % REASON_COLORS.length] : PENDING_COLOR,
   }))
   const title = product.groupLabel ?? product.productTitle ?? product.sku
+  const messages = data?.messages ?? []
 
   return (
     <div
@@ -122,8 +129,15 @@ export function RefundReasonsPopover({ product, scope, anchor, onClose }: Refund
               </li>
             ))}
           </ul>
+          <div className="flex items-center justify-between gap-3 border-t border-border px-4 py-2.5 text-xs">
+            <span className="text-text-muted">{messages.length ? `${messages.length} customer ${messages.length === 1 ? 'message' : 'messages'}` : 'No customer messages'}</span>
+            <button type="button" onClick={() => setViewingMessages(true)} disabled={!messages.length} className="font-medium text-primary-600 hover:underline disabled:cursor-not-allowed disabled:text-text-subtle disabled:no-underline">
+              View messages
+            </button>
+          </div>
         </>
       )}
+      <RefundMessagesModal title={viewingMessages ? title : null} messages={messages} onClose={() => setViewingMessages(false)} />
     </div>
   )
 }

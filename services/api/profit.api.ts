@@ -172,9 +172,22 @@ export interface RefundReasonSlice {
   comments: string[]
 }
 
+/** One customer's return message, with when the item came back. */
+export interface RefundMessage {
+  comment: string
+  /** ISO; null when Amazon gave no return date. */
+  returnedAt: string | null
+  reason: string
+  status: string | null
+  orderId: string | null
+  sku: string | null
+}
+
 export interface RefundReasonBreakdown {
   totalUnits: number
   reasons: RefundReasonSlice[]
+  /** Every customer comment on these refunds' returns, newest first. */
+  messages: RefundMessage[]
 }
 
 export interface RefundReasonFilters {
