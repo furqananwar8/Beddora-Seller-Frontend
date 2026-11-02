@@ -348,6 +348,7 @@ export const TileDetailsModal: React.FC<TileDetailsModalProps> = ({
   const estimatedStorageFee = Number(data.estimatedStorageFee ?? 0)
   const longTermStorageFee = Number(data.longTermStorageFee ?? 0)
 
+  // The products table's order (Sales → … → ROI), then the tile-only figures; storage is shown, never deducted
   const metrics = [
     {
       key: 'sales',
@@ -362,22 +363,35 @@ export const TileDetailsModal: React.FC<TileDetailsModalProps> = ({
       expandable: false,
     },
     {
-      key: 'promo',
-      label: 'Promo',
-      value: formatCurrency(-totalPromo, displayCurrency),
+      key: 'refund-units',
+      label: 'Refund units',
+      value: formatNumber(refundCount, 0),
       expandable: false,
-    },
-    {
-      key: 'advertising',
-      label: 'Advertising cost',
-      value: formatCurrency(-advertisingCost, displayCurrency),
-      expandable: true,
     },
     {
       key: 'refund',
       label: 'Refund cost',
       value: formatCurrency(-refundCost, displayCurrency),
       expandable: true,
+    },
+    {
+      key: 'promo',
+      label: 'Promo',
+      value: formatCurrency(-totalPromo, displayCurrency),
+      expandable: false,
+    },
+    {
+      key: 'cogs',
+      label: 'Cost of goods',
+      value: formatCurrency(-totalCOGS, displayCurrency),
+      expandable: false,
+    },
+    {
+      key: 'gross-profit',
+      label: 'Gross profit',
+      value: formatCurrency(grossProfit, displayCurrency),
+      expandable: false,
+      bold: true,
     },
     {
       key: 'amazon-fees',
@@ -396,17 +410,10 @@ export const TileDetailsModal: React.FC<TileDetailsModalProps> = ({
         ]
       : []),
     {
-      key: 'cogs',
-      label: 'Cost of goods',
-      value: formatCurrency(-totalCOGS, displayCurrency),
-      expandable: false,
-    },
-    {
-      key: 'gross-profit',
-      label: 'Gross profit',
-      value: formatCurrency(grossProfit, displayCurrency),
-      expandable: false,
-      bold: true,
+      key: 'advertising',
+      label: 'Ads',
+      value: formatCurrency(-advertisingCost, displayCurrency),
+      expandable: true,
     },
     {
       key: 'indirect-expenses',
@@ -416,7 +423,7 @@ export const TileDetailsModal: React.FC<TileDetailsModalProps> = ({
     },
     {
       key: 'net-profit',
-      label: 'Net profit',
+      label: 'Net profit before storage',
       value: formatCurrency(netProfit, displayCurrency),
       expandable: false,
       bold: true,
@@ -428,6 +435,30 @@ export const TileDetailsModal: React.FC<TileDetailsModalProps> = ({
     ]
       .filter(({ amount }) => amount > 0)
       .map(({ key, label, amount }) => ({ key, label, value: formatCurrency(amount, displayCurrency), expandable: false })),
+    {
+      key: 'net-after-storage',
+      label: 'Net profit after storage',
+      value: formatCurrency(netProfit - estimatedStorageFee - longTermStorageFee, displayCurrency),
+      expandable: false,
+    },
+    {
+      key: 'margin',
+      label: 'Margin',
+      value: formatPercentage(margin),
+      expandable: false,
+    },
+    {
+      key: 'tacos',
+      label: 'TACOS',
+      value: formatPercentage(salesRevenue ? (Math.abs(advertisingCost) / salesRevenue) * 100 : 0),
+      expandable: false,
+    },
+    {
+      key: 'roi',
+      label: 'ROI',
+      value: formatPercentage(roi),
+      expandable: false,
+    },
     {
       key: 'estimated-payout',
       label: 'Estimated payout',
@@ -444,18 +475,6 @@ export const TileDetailsModal: React.FC<TileDetailsModalProps> = ({
       key: 'refund-percent',
       label: '% Refunds',
       value: formatPercentage(refundPercentage),
-      expandable: false,
-    },
-    {
-      key: 'margin',
-      label: 'Margin',
-      value: formatPercentage(margin),
-      expandable: false,
-    },
-    {
-      key: 'roi',
-      label: 'ROI',
-      value: formatPercentage(roi),
       expandable: false,
     },
   ]

@@ -44,7 +44,6 @@ import SummaryTiles, { SUMMARY_TILE_GRID } from './SummaryTiles'
 import { DateRangeValue } from '@/components/date-range-picker/DateRangePicker'
 
 import ProfitDashboardHeader from '../dashboard/components/ProfitDashboardHeader'
-import { ProfitOverviewBanner } from './components/ProfitOverviewBanner'
 
 import {
   ALL_MARKETPLACES,
@@ -346,7 +345,6 @@ export const ProfitSettlementReport: React.FC = () => {
   )
 
   const isFetchingActive = appliedPresetId === 'custom' ? customSummaryFetching : profitFetching
-  const activeSummaryData = appliedPresetId === 'custom' ? customSummaryData : profitData
 
   // ──────────────────────────────
   // Period map
@@ -683,29 +681,6 @@ export const ProfitSettlementReport: React.FC = () => {
 
         {activeTab === 'tiles' && (
           <>
-            {/* Loading skeleton */}
-            {isFetchingActive && (
-              <div className="bg-surface-secondary border border-border rounded-xl p-6 mb-6 animate-pulse">
-                <div className="h-6 bg-border rounded w-1/3 mb-4" />
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 items-center">
-                  {[...Array(4)].map((_, index) => (
-                    <div key={index} className="h-8 bg-border rounded" />
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Overview banner */}
-            {activeSummaryData?.summary && !isFetchingActive && (
-              <ProfitOverviewBanner
-                title={`Profit Overview (${currentPreset.label})`}
-                totalRevenue={activeSummaryData.summary.totalRevenue}
-                totalProfit={activeSummaryData.summary.totalProfit}
-                totalOrders={activeSummaryData.summary.totalOrders}
-                totalUnits={activeSummaryData.summary.totalUnits}
-              />
-            )}
-
             {/* Tiles header */}
             <ProfitDashboardHeader
               isFiltering={false}
