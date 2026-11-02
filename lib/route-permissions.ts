@@ -46,6 +46,11 @@ export const ROUTE_PERMISSIONS: RoutePermission[] = [
   { pattern: '/dashboard/procurement/price-analysis', subject: 'procurement:price-analysis' },
   { pattern: '/dashboard/procurement', subject: 'procurement' },
 
+  // Shipping
+  { pattern: '/dashboard/shipping/orders', subject: 'shipping:parcels' },
+  { pattern: '/dashboard/shipping/create', subject: 'shipping:parcels' },
+  { pattern: '/dashboard/shipping/bookings', subject: 'shipping:parcels' },
+
   // Containers
   { pattern: '/dashboard/containers/cost-analysis', subject: 'containers:cost-analysis' },
   { pattern: '/dashboard/containers/sku-landed', subject: 'containers:sku-landed' },
@@ -87,6 +92,7 @@ export const SUBJECT_ROUTE_MAP: Record<string, string> = {
   'inventory:planner': '/dashboard/inventory/planner',
   'finance:payment-request': '/dashboard/finance/payment-request',
   'procurement:products': '/dashboard/procurement/products',
+  'shipping:parcels': '/dashboard/shipping/orders',
   'breakeven-analysis:sku-wise': '/breakeven-analysis',
   'alerts:dashboard': '/dashboard/alerts/dashboard',
   'alerts:settings': '/dashboard/alerts/settings',

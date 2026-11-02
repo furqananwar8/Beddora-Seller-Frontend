@@ -7,7 +7,7 @@ import { cn } from '@/utils/cn'
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
 
 /** Photos need the user's token, so they are fetched and shown from a blob URL instead of a plain <img src>. */
-function useProductPhotoUrl(productId: number | null, version: string): string | null {
+function useProductPhotoUrl(productId: number | null, version: string, basePath: string): string | null {
   const [url, setUrl] = useState<string | null>(null)
   useEffect(() => {
     if (productId === null) {
@@ -17,7 +17,7 @@ function useProductPhotoUrl(productId: number | null, version: string): string |
     let objectUrl: string | null = null
     let cancelled = false
     const token = store.getState().auth?.accessToken
-    fetch(`${API_BASE_URL}/procurement/products/${productId}/photo`, { headers: token ? { authorization: `Bearer ${token}` } : undefined, credentials: 'include' })
+    fetch(`${API_BASE_URL}${basePath}/${productId}/photo`, { headers: token ? { authorization: `Bearer ${token}` } : undefined, credentials: 'include' })
       .then((response) => (response.ok ? response.blob() : null))
       .then((blob) => {
         if (cancelled || !blob) return
@@ -29,7 +29,7 @@ function useProductPhotoUrl(productId: number | null, version: string): string |
       cancelled = true
       if (objectUrl) URL.revokeObjectURL(objectUrl)
     }
-  }, [productId, version])
+  }, [productId, version, basePath])
   return url
 }
 
@@ -45,11 +45,13 @@ interface ProductPhotoProps {
   /** Changes when the photo may have changed (the product's updatedAt), so the thumbnail refetches. */
   version: string
   alt: string
+  /** Where `/:id/photo` is served; the procurement product master by default. */
+  basePath?: string
   className?: string
 }
 
-export const ProductPhoto: React.FC<ProductPhotoProps> = ({ productId, hasPhoto, version, alt, className }) => {
-  const url = useProductPhotoUrl(hasPhoto ? productId : null, version)
+export const ProductPhoto: React.FC<ProductPhotoProps> = ({ productId, hasPhoto, version, alt, basePath = '/procurement/products', className }) => {
+  const url = useProductPhotoUrl(hasPhoto ? productId : null, version, basePath)
   return (
     <span className={cn('flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-secondary-50', className)}>
       {url ? <img src={url} alt={alt} className="h-full w-full object-cover" /> : <Placeholder />}

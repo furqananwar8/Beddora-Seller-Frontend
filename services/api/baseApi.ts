@@ -90,13 +90,16 @@ export const tagTypes = [
   'Notifications',
   'SkuMapping',
   'CompanyDetails',
-  'Warehouses'
+  'Warehouses',
+  'ShippingConfig',
+  'ShippingShipments',
+  'ShippingChannelOrders'
 ] as const
 
 export type TagType = typeof tagTypes[number]
 
 // Base API URL - update this with your actual API endpoint
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
 
 export const baseApi = createApi({
   reducerPath: 'api',
