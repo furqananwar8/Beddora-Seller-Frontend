@@ -42,7 +42,8 @@ function freshness(shipment: ParcelShipmentDto): string | null {
 
 /** One booking: status, tracking number, documents, actions, the tracking timeline and the shipment's details. */
 export const BookingDrawer: React.FC<BookingDrawerProps> = ({ shipmentId, canWrite, onClose }) => {
-  const { data: shipment, isLoading, isError } = useGetShipmentQuery(shipmentId ?? 0, { skip: shipmentId === null })
+  // currentData, not data: data keeps the previously opened booking while this one loads
+  const { currentData: shipment, isFetching, isError } = useGetShipmentQuery(shipmentId ?? 0, { skip: shipmentId === null })
   const [refresh, { isLoading: refreshing }] = useRefreshTrackingMutation()
   const { success, failure } = useApiFeedback()
   const [printing, setPrinting] = useState<DocumentType | null>(null)
@@ -68,7 +69,7 @@ export const BookingDrawer: React.FC<BookingDrawerProps> = ({ shipmentId, canWri
       subtitle={shipment && `Created ${shortDateTime(shipment.createdAt)}${shipment.createdBy ? ` by ${shipment.createdBy.name}` : ''}`}
       closeOnEscape={!printing && !cancelling}
       onClose={onClose}
-      state={isLoading ? 'loading' : isError || !shipment ? 'error' : 'ready'}
+      state={!shipment && isFetching ? 'loading' : isError || !shipment ? 'error' : 'ready'}
       errorMessage="Could not load this booking."
       overlays={
         <>

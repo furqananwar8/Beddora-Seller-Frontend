@@ -15,8 +15,10 @@ import { cn } from '@/utils/cn'
 import { MARKETPLACES } from '@/utils/marketplaces'
 import { FULFILLMENT_META } from '../shippingMeta'
 import type { ChannelId, ChannelOrderRef, Fulfillment } from '../types'
+import { PrintDialog } from '../print/PrintDialog'
 import { OrderDrawer } from './OrderDrawer'
 import { OrdersTable } from './OrdersTable'
+import { useOrderInvoiceDownload } from './useOrderInvoiceDownload'
 
 const PAGE_SIZE = 20
 
@@ -52,6 +54,8 @@ export const OrdersScreen: React.FC = () => {
   const [retrySync] = useRetryChannelSyncMutation()
   const [retrying, setRetrying] = useState<number | null>(null)
   const [opened, setOpened] = useState<ChannelOrderRef | null>(null)
+  const [printing, setPrinting] = useState<number | null>(null)
+  const { download: downloadInvoice, isExporting: invoiceBusy } = useOrderInvoiceDownload()
 
   const { data: channels = [], isLoading: loadingChannels } = useGetOrderChannelsQuery()
   const channelOptions: FilterOption<ChannelId>[] = channels.map((channel) => ({ value: channel.id, label: channel.label, disabledReason: channel.connected ? undefined : 'Not connected' }))
@@ -139,12 +143,16 @@ export const OrdersScreen: React.FC = () => {
             retrying={retrying}
             onRetrySync={(id) => void retry(id)}
             onOpen={({ channel, market, orderId }) => setOpened({ channel, market, orderId })}
+            onPrintLabel={setPrinting}
+            onDownloadInvoice={downloadInvoice}
+            invoiceBusy={invoiceBusy}
           />
         </div>
         {data && data.totalRecords > 0 && <PaginationFooter page={data.page} pageSize={data.limit} totalItems={data.totalRecords} totalPages={data.totalPages} onPageChange={setPage} itemLabel="orders" />}
       </div>
 
       <OrderDrawer order={opened} canWrite={canWrite} onClose={() => setOpened(null)} />
+      <PrintDialog shipmentId={printing} initialDocument="label" onClose={() => setPrinting(null)} />
     </div>
   )
 }
