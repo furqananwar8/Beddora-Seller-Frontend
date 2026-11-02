@@ -15,11 +15,10 @@ import { Spinner } from '@/design-system/loaders'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/design-system/tables'
 import { useApiFeedback } from '@/hooks/useApiFeedback'
 import { useAppAbility } from '@/hooks/useAppAbility'
-import { useDeletePackagingListMutation, useGetPackagingListsQuery, useGetPackagingListSummaryQuery, type ContainerFilter, type PackagingListItem } from '@/services/api/procurement.api'
+import { useDeletePackagingListMutation, useGetPackagingListsQuery, useGetPackagingListSummaryQuery, useRequestContainerMutation, type ContainerFilter, type PackagingListItem } from '@/services/api/procurement.api'
 import { cn } from '@/utils/cn'
 import { useDebounce } from '@/utils/debounce'
 import { downloadApiFile } from '@/utils/downloadFile'
-import { AssignContainerModal } from '../containers'
 import { CONTAINER_ROUTES } from '../containers/routes'
 import { containerLabel, formatPoNo, newPackagingListHref, supplierNames } from '../shared/poMeta'
 
@@ -64,7 +63,8 @@ export const PackagingListsScreen: React.FC = () => {
   const { data, isLoading, isFetching, isError } = useGetPackagingListsQuery({ page, limit: PAGE_SIZE, search: debouncedSearch, purchaseOrderId, container: applied.container })
   const { data: summary } = useGetPackagingListSummaryQuery()
 
-  const [assigning, setAssigning] = useState<PackagingListItem | null>(null)
+  const [requesting, setRequesting] = useState<PackagingListItem | null>(null)
+  const [requestContainer, { isLoading: requestBusy }] = useRequestContainerMutation()
   const [deleting, setDeleting] = useState<PackagingListItem | null>(null)
   const [deleteList, { isLoading: deletingBusy }] = useDeletePackagingListMutation()
 
@@ -76,6 +76,17 @@ export const PackagingListsScreen: React.FC = () => {
       setDeleting(null)
     } catch (error) {
       failure(error, 'Could not delete the packaging list')
+    }
+  }
+
+  const confirmRequest = async () => {
+    if (!requesting) return
+    try {
+      const container = await requestContainer({ packagingListId: requesting.id }).unwrap()
+      success(`${container.containerNo} requested for ${requesting.plNo}. The container team was notified.`)
+      setRequesting(null)
+    } catch (error) {
+      failure(error, 'Could not request a container')
     }
   }
 
@@ -93,8 +104,8 @@ export const PackagingListsScreen: React.FC = () => {
     return [
       { key: 'view', label: 'View packaging list', onSelect: () => router.push(`${BASE}/${row.id}`) },
       ...(canWrite ? [{ key: 'edit', label: 'Edit quantities', onSelect: () => router.push(`${BASE}/${row.id}?edit=1`), disabled: Boolean(shipped), disabledReason: shipped }] : []),
-      // Once in a container a list stays there; the container decides what happens next
-      ...(canAssign && !row.container ? [{ key: 'assign', label: 'Assign container', onSelect: () => setAssigning(row) }] : []),
+      // Containers are booked on the Containers screen: a list only asks for one, and stays in it once there
+      ...(canAssign && !row.container ? [{ key: 'request', label: 'Request container', onSelect: () => setRequesting(row) }] : []),
       ...(row.container ? [{ key: 'container', label: `Open ${containerLabel(row.container)}`, onSelect: () => router.push(CONTAINER_ROUTES.detail(row.container!.id)) }] : []),
       { key: 'pdf', label: 'Download PDF', onSelect: () => void download(row) },
       ...(canWrite ? [{ key: 'delete', label: 'Delete list', tone: 'danger' as const, onSelect: () => setDeleting(row), disabled: Boolean(shipped), disabledReason: shipped }] : []),
@@ -219,7 +230,16 @@ export const PackagingListsScreen: React.FC = () => {
         {data && <PaginationFooter page={data.page} pageSize={data.limit} totalItems={data.totalRecords} totalPages={data.totalPages} onPageChange={setPage} itemLabel="packaging lists" />}
       </div>
 
-      <AssignContainerModal list={assigning} onClose={() => setAssigning(null)} />
+      <ConfirmDialog
+        isOpen={requesting !== null}
+        title={`Request a container for ${requesting?.plNo ?? 'this list'}`}
+        confirmLabel="Request container"
+        busy={requestBusy}
+        onConfirm={confirmRequest}
+        onClose={() => setRequesting(null)}
+      >
+        <p>The container team is notified. A placeholder container carrying this list appears on Containers, and they fill in its details there.</p>
+      </ConfirmDialog>
 
       <ConfirmDialog isOpen={deleting !== null} title={`Delete ${deleting?.plNo ?? 'list'}`} confirmLabel="Delete list" tone="danger" busy={deletingBusy} onConfirm={confirmDelete} onClose={() => setDeleting(null)}>
         <p>

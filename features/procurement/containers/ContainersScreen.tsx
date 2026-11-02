@@ -10,7 +10,7 @@ import { useReportExport } from '@/hooks/useReportExport'
 import { useGetContainersQuery, useGetContainerSummaryQuery, type ContainerItem } from '@/services/api/procurement.api'
 import { cn } from '@/utils/cn'
 import { formatCalendarDay } from '@/utils/format'
-import { ContainerStatusBadge, DESTINATION_LABEL, DESTINATION_ROW_TINT } from '../shared/poMeta'
+import { ContainerStatusBadge, DESTINATION_LABEL, DESTINATION_ROW_TINT, NeedsDetailsBadge } from '../shared/poMeta'
 import { ContainerRowDetail } from './detail/ContainerOverview'
 import { ContainerCell, skuSummary } from './list/ContainerCell'
 import { ContainerFilterBar } from './list/ContainerFilterBar'
@@ -68,7 +68,17 @@ export const ContainersScreen: React.FC = () => {
     {
       key: 'status',
       header: 'Status',
-      render: (container) => <Stack top={<ContainerStatusBadge status={container.status} />} bottom={container.deliveredAt ? formatCalendarDay(container.deliveredAt) : undefined} />,
+      render: (container) => (
+        <Stack
+          top={
+            <span className="inline-flex flex-wrap items-center gap-1">
+              <ContainerStatusBadge status={container.status} />
+              {container.needsDetails && <NeedsDetailsBadge />}
+            </span>
+          }
+          bottom={container.deliveredAt ? formatCalendarDay(container.deliveredAt) : undefined}
+        />
+      ),
     },
     { key: 'actions', header: 'Actions', render: (container) => <RowActionsMenu label={container.containerNo} items={actions.actionsFor(container)} /> },
   ]

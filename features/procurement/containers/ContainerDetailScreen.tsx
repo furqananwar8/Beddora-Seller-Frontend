@@ -10,7 +10,7 @@ import { Spinner } from '@/design-system/loaders'
 import { formatCurrencyAmount } from '@/features/finance/shared/format'
 import { useGetContainerDetailQuery } from '@/services/api/procurement.api'
 import { formatCalendarDay } from '@/utils/format'
-import { CONTAINER_STATUS_META, ContainerStatusBadge, DESTINATION_LABEL, containerLabel, isShipping } from '../shared/poMeta'
+import { CONTAINER_STATUS_META, ContainerStatusBadge, DESTINATION_LABEL, NeedsDetailsBadge, containerLabel, isShipping } from '../shared/poMeta'
 import { ContainerOverview } from './detail/ContainerOverview'
 import { Fact } from './detail/Panel'
 import { CONTAINER_ROUTES } from './routes'
@@ -57,6 +57,7 @@ export const ContainerDetailScreen: React.FC<{ containerId: number }> = ({ conta
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="font-mono text-xl font-bold text-text-primary sm:text-2xl">{containerLabel(container)}</h1>
               <ContainerStatusBadge status={container.status} />
+              {container.needsDetails && <NeedsDetailsBadge />}
               <StatusBadge label={DESTINATION_LABEL[container.destination]} tone="neutral" />
             </div>
             <p className="text-sm text-text-muted">{container.containerNumber ? `${container.containerNo} · ` : 'No container number yet · '}one packaging list per container</p>

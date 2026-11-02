@@ -57,12 +57,14 @@ export function useContainerActions() {
     const delivered = container.status === 'DELIVERED'
     return [
       ...(onPage ? [] : [{ key: 'view', label: 'View container', onSelect: () => router.push(containerHref(container.id)) }]),
-      ...(canWrite ? [{ key: 'edit', label: 'Edit container', onSelect: () => setEditing(container), disabled: delivered, disabledReason: 'Delivered containers cannot change' }] : []),
+      ...(canWrite
+        ? [{ key: 'edit', label: container.needsDetails ? 'Add container details' : 'Edit container', onSelect: () => setEditing(container), disabled: delivered, disabledReason: 'Delivered containers cannot change' }]
+        : []),
       ...(canAssign
         ? [
             {
               key: 'list',
-              label: lists.length ? `Packaging lists (${lists.length})` : 'Add packaging list',
+              label: lists.length ? `Packaging lists (${lists.length})` : 'Attach packaging list',
               onSelect: () => setChangingList(container),
               disabled: !permissions.canChangeList,
               disabledReason: 'Lists can be added or removed only while the container is booked',

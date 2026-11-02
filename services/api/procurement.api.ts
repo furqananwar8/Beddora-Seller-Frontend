@@ -630,6 +630,8 @@ export interface ContainerItem {
   deliveredAt: string | null
   updatedAt: string
   permissions: ContainerPermissions
+  /** A placeholder made from a packaging list's request: no container number, bill of lading or ETD yet. */
+  needsDetails: boolean
   /** The packaging lists it carries (several; each list in one container only). */
   packagingLists: Array<{ id: number; plNo: string; suppliers: Array<{ id: number; name: string }>; units: number; cbm: number }>
   /** Every PO packed into it, across its lists. */
@@ -786,17 +788,6 @@ export interface ContainerBody {
   portOfArrival: string | null
   currency: PoCurrency
   expectedUpdatedAt?: string
-}
-
-/** An empty container a list can go into. */
-export interface AssignableContainer {
-  id: number
-  containerNo: string
-  containerNumber: string | null
-  destination: PoDestination
-  etd: string | null
-  billOfLading: string | null
-  status: ContainerStatus
 }
 
 /* ─────────────── Price analysis ─────────────── */
@@ -1212,11 +1203,6 @@ export const procurementApi = baseApi.injectEndpoints({
       query: (destination) => ({ url: '/procurement/containers/ports', params: { destination } }),
       transformResponse: unwrap,
     }),
-    getAssignableContainers: b.query<AssignableContainer[], { destination: PoDestination; includeId?: number }>({
-      query: (params) => ({ url: '/procurement/containers/assignable', params }),
-      transformResponse: unwrap,
-      providesTags: ['ProcurementContainers'],
-    }),
     createContainer: b.mutation<ContainerItem, ContainerBody>({
       query: (body) => ({ url: '/procurement/containers', method: 'POST', body }),
       transformResponse: unwrap,
@@ -1224,6 +1210,12 @@ export const procurementApi = baseApi.injectEndpoints({
     }),
     updateContainer: b.mutation<ContainerItem, { id: number; body: ContainerBody }>({
       query: ({ id, body }) => ({ url: `/procurement/containers/${id}`, method: 'PUT', body }),
+      transformResponse: unwrap,
+      invalidatesTags: ['ProcurementContainers', 'ProcurementPackagingLists', 'ProcurementPurchaseOrders'],
+    }),
+    /** A packaging list asks for a container: a placeholder takes the list and the container team is notified. */
+    requestContainer: b.mutation<ContainerItem, { packagingListId: number }>({
+      query: (body) => ({ url: '/procurement/containers/request', method: 'POST', body }),
       transformResponse: unwrap,
       invalidatesTags: ['ProcurementContainers', 'ProcurementPackagingLists', 'ProcurementPurchaseOrders'],
     }),
@@ -1359,9 +1351,9 @@ export const {
   useGetContainerDetailQuery,
   useUploadContainerDocumentsMutation,
   useGetContainerPortsQuery,
-  useGetAssignableContainersQuery,
   useCreateContainerMutation,
   useUpdateContainerMutation,
+  useRequestContainerMutation,
   useAddContainerPackagingListMutation,
   useRemoveContainerPackagingListMutation,
   useMarkContainerDeliveredMutation,

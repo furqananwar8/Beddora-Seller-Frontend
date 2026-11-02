@@ -119,6 +119,9 @@ export const containerLabel = (container: { containerNo: string; containerNumber
 
 export const ContainerStatusBadge: React.FC<{ status: ContainerStatus }> = ({ status }) => <StatusBadge label={CONTAINER_STATUS_META[status].label} tone={CONTAINER_STATUS_META[status].tone} />
 
+/** A placeholder container made from a packaging list's request, waiting for its number, bill of lading and dates. */
+export const NeedsDetailsBadge: React.FC = () => <StatusBadge label="NEEDS DETAILS" tone="warning" />
+
 /** Status labels are UPPERCASE across Procurement and Finance; these match the payment request / payment process ones. */
 export const PURCHASE_INVOICE_STATUS_META: Record<PurchaseInvoiceStatus, { label: string; tone: StatusTone }> = {
   DRAFT: { label: 'DRAFT', tone: 'neutral' },
