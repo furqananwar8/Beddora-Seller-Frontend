@@ -1,15 +1,13 @@
 'use client'
 
-import React, { useMemo } from 'react'
-import { Controller, useForm, useWatch } from 'react-hook-form'
+import React from 'react'
+import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { FormActions } from '@/components/form-actions/FormActions'
 import { FormField, fieldClass } from '@/components/form-field/FormField'
-import { SearchableSelect } from '@/components/searchable-select/SearchableSelect'
 import { Button } from '@/design-system/buttons'
 import { Modal } from '@/design-system/modals'
-import { SegmentedToggle } from '@/components/segmented-toggle/SegmentedToggle'
-import { useGetManagerChannelSkusQuery, useGetManagerChannelsQuery, type ChannelSkuOption as SkuOption, type ProductManager } from '@/services/api/productManagers.api'
+import type { ProductManager } from '@/services/api/productManagers.api'
 import { emptyProductManagerValues, productManagerFormValues, productManagerSchema, type ProductManagerFormValues } from './productManagerSchema'
 import { useSaveProductManager } from './useSaveProductManager'
 
@@ -22,7 +20,7 @@ interface ProductManagerDialogProps {
   onSaved?: (manager: ProductManager) => void
 }
 
-/** Adds or edits a product manager, their channel and the SKUs they look after on it. */
+/** Adds or edits a product manager. Their products are assigned afterwards, from the manager's row actions. */
 export const ProductManagerDialog: React.FC<ProductManagerDialogProps> = (props) => (
   <Modal isOpen={props.isOpen} onClose={props.onClose} title={props.manager ? 'Edit manager' : 'Add manager'} size="md">
     {props.isOpen && <DialogForm key={props.manager?.id ?? 'new'} {...props} />}
@@ -33,25 +31,12 @@ const DialogForm: React.FC<ProductManagerDialogProps> = ({ manager, onClose, onS
   const save = useSaveProductManager(manager ?? undefined)
   const {
     register,
-    control,
     handleSubmit,
-    setValue,
     formState: { errors, isSubmitting },
   } = useForm<ProductManagerFormValues>({
     resolver: zodResolver(productManagerSchema),
     defaultValues: manager ? productManagerFormValues(manager) : emptyProductManagerValues,
   })
-
-  const channel = useWatch({ control, name: 'channel' })
-  const { data: channels = [] } = useGetManagerChannelsQuery()
-  const { data: skuOptions = [], isFetching } = useGetManagerChannelSkusQuery(channel, { skip: !channel })
-
-  // SKUs already assigned stay pickable even when the channel no longer lists them
-  const options = useMemo(() => {
-    const known = new Set(skuOptions.map((option) => option.sku))
-    const kept = manager?.channel === channel ? manager.skus : []
-    return [...skuOptions, ...kept.filter((sku) => !known.has(sku)).map((sku): SkuOption => ({ sku, title: '' }))]
-  }, [skuOptions, manager, channel])
 
   const submit = handleSubmit(async (values) => {
     const saved = await save(values)
@@ -70,56 +55,6 @@ const DialogForm: React.FC<ProductManagerDialogProps> = ({ manager, onClose, onS
           <input id="pm-email" type="email" autoComplete="off" placeholder="name@beddora.ca" className={fieldClass(errors.email?.message)} {...register('email')} />
         </FormField>
       </div>
-
-      <FormField label="Channel" required error={errors.channel?.message}>
-        <Controller
-          control={control}
-          name="channel"
-          render={({ field }) => (
-            <SegmentedToggle<string>
-              ariaLabel="Channel"
-              value={field.value}
-              options={channels.map(({ id, name }) => ({ value: id, label: name }))}
-              onChange={(next) => {
-                // Another channel lists other SKUs, so the picked ones go
-                if (next !== field.value) setValue('skus', [])
-                field.onChange(next)
-              }}
-            />
-          )}
-        />
-      </FormField>
-
-      <FormField label="Products" htmlFor="pm-skus" required error={errors.skus?.message} hint="SKUs on this channel the manager looks after. Their sales and ACoS are taken from these SKUs only.">
-        <Controller
-          control={control}
-          name="skus"
-          render={({ field }) => (
-            <SearchableSelect<SkuOption>
-              id="pm-skus"
-              multiple
-              options={options}
-              value={options.filter((option) => field.value.includes(option.sku))}
-              onChange={(picked) => field.onChange(picked.map((option) => option.sku))}
-              getKey={(option) => option.sku}
-              getLabel={(option) => (option.title ? `${option.sku} · ${option.title}` : option.sku)}
-              renderOption={(option) => (
-                <span className="flex min-w-0 flex-col">
-                  <span className="truncate font-medium">{option.sku}</span>
-                  {option.title && <span className="truncate text-xs text-text-muted">{option.title}</span>}
-                </span>
-              )}
-              renderValue={(picked) => (picked.length === 1 ? picked[0].sku : `${picked.length} products`)}
-              loading={isFetching}
-              searchable
-              placeholder="Select products"
-              searchPlaceholder="Search by SKU or title..."
-              emptyText={isFetching ? 'Loading products...' : 'Nothing matches.'}
-              error={errors.skus?.message}
-            />
-          )}
-        />
-      </FormField>
 
       <FormActions>
         <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>

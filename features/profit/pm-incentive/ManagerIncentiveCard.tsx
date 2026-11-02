@@ -6,7 +6,7 @@ import { NumericInput } from '@/components/form-field/NumericInput'
 import { Badge } from '@/design-system/badges'
 import { Button } from '@/design-system/buttons'
 import { SelectShell } from '@/features/finance/shared/SelectShell'
-import type { ProductManager } from '@/services/api/productManagers.api'
+import { skusOn, type ProductManager } from '@/services/api/productManagers.api'
 import { cn } from '@/utils/cn'
 import { formatAmount, formatPkr, formatUsd } from './format'
 import type { ManagerPayout } from './plan/incentiveCalculator'
@@ -96,7 +96,7 @@ export const ManagerIncentiveCard: React.FC<ManagerIncentiveCardProps> = ({ mana
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        <FormField label="Monthly sales (USD)" htmlFor="pm-sales" className="col-span-2" hint={selected ? `From ${sales.activeSkus} of ${selected.skus.length} managed SKUs with activity this month` : undefined}>
+        <FormField label="Monthly sales (USD)" htmlFor="pm-sales" className="col-span-2" hint={selected ? `From ${sales.activeSkus} of ${skusOn(selected, 'amazon').length} managed Amazon SKUs with activity this month` : undefined}>
           <ReadOnlyValue id="pm-sales" value={loading ? 'Loading…' : formatUsd(sales.salesUsd)} />
         </FormField>
         <FormField label="ACoS (%)" htmlFor="pm-acos" hint={loading ? undefined : `Ad spend ${formatUsd(sales.adSpendUsd)}`}>

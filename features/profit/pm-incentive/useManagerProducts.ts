@@ -3,7 +3,7 @@ import { endOfMonth, format, parse } from 'date-fns'
 import type { MonthValue } from '@/components/month-picker/MonthPicker'
 import { useGetAccountsQuery } from '@/services/api/accounts.api'
 import { useGetProfitByProductQuery, type ProductProfitBreakdown } from '@/services/api/profit.api'
-import type { ProductManager } from '@/services/api/productManagers.api'
+import { skusOn, type ProductManager } from '@/services/api/productManagers.api'
 import { useAppSelector } from '@/store/hooks'
 import { ALL_MARKETPLACES } from '@/utils/profitDashboard.util'
 
@@ -63,7 +63,7 @@ export function useManagerSales(month: MonthValue, managers: ProductManager[]) {
   const salesByManager = useMemo(() => {
     const bySku = new Map<string, ProductProfitBreakdown[]>()
     for (const row of rows) bySku.set(row.sku, [...(bySku.get(row.sku) ?? []), row])
-    return new Map(managers.map((manager) => [manager.id, salesOf(manager.skus.flatMap((sku) => bySku.get(sku) ?? []))]))
+    return new Map(managers.map((manager) => [manager.id, salesOf(skusOn(manager, 'amazon').flatMap((sku) => bySku.get(sku) ?? []))]))
   }, [rows, managers])
 
   return { salesByManager, isFetching, isError }
