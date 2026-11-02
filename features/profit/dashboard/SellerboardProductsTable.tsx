@@ -106,6 +106,9 @@ type BuiltInSortColumn =
   | 'margin'
   | 'roi'
   | 'bsr'
+  | 'storageFee'
+  | 'netAfterStorage'
+  | 'tacos'
 
 type SortDirection = 'asc' | 'desc'
 
@@ -113,6 +116,15 @@ type ProductWithChildren = ProductProfitBreakdown & {
   children?: ProductProfitBreakdown[]
   marketplace?: string
 }
+
+/** Estimated storage (monthly + long-term): shown, never deducted from gross or net profit. */
+const storageFeeOf = (product: ProductProfitBreakdown) => Number(product.estimatedStorageFee || 0) + Number(product.longTermStorageFee || 0)
+
+/** Net profit once the estimated storage cost is taken out (display only). */
+const netAfterStorageOf = (product: ProductProfitBreakdown) => (product.netProfit || 0) - storageFeeOf(product)
+
+/** Ads as a percentage of sales. */
+const tacosOf = (product: ProductProfitBreakdown) => (product.salesRevenue ? (Math.abs(product.advertisingCost || 0) / product.salesRevenue) * 100 : 0)
 
 /* ──────────────────────────────────────────────────────
  * Tooltip Information Map
@@ -173,7 +185,7 @@ const COLUMN_TOOLTIPS: Record<
     note: 'Profit directly generated from product operations before indirect expenses.',
   },
   netProfit: {
-    title: 'Net Profit',
+    title: 'Net Profit (before storage)',
     formula: 'Gross Profit - Indirect Expenses',
     note: 'Final profit remaining after deducting all direct and indirect expenses.',
   },
@@ -191,6 +203,21 @@ const COLUMN_TOOLTIPS: Record<
     title: 'Best Sellers Rank',
     formula: 'Amazon Category Sales Rank',
     note: 'Current or historical rank position in primary category.',
+  },
+  storageFee: {
+    title: 'Storage Fee (estimated)',
+    formula: 'Estimated monthly storage + long-term storage',
+    note: 'Shown for reference only: not deducted from gross or net profit.',
+  },
+  netAfterStorage: {
+    title: 'Net Profit After Storage',
+    formula: 'Net Profit - Storage Fee (estimated)',
+    note: 'What is left once the estimated storage cost is taken out.',
+  },
+  tacos: {
+    title: 'Total Advertising Cost of Sales (TACOS)',
+    formula: '(Ads / Sales Revenue) × 100',
+    note: 'Share of sales spent on advertising.',
   },
   info: {
     title: 'Detailed Financial Audit',
@@ -636,6 +663,18 @@ export const SellerboardProductsTable: React.FC<
             aVal = 0
             bVal = 0
             break
+          case 'storageFee':
+            aVal = storageFeeOf(a)
+            bVal = storageFeeOf(b)
+            break
+          case 'netAfterStorage':
+            aVal = netAfterStorageOf(a)
+            bVal = netAfterStorageOf(b)
+            break
+          case 'tacos':
+            aVal = tacosOf(a)
+            bVal = tacosOf(b)
+            break
         }
 
         if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1
@@ -753,6 +792,11 @@ export const SellerboardProductsTable: React.FC<
               />
             </TableCell>
 
+            {/* Sales */}
+            <TableCell className="text-right font-medium whitespace-nowrap px-4 py-3">
+              {formatCurrency(product.salesRevenue || 0)}
+            </TableCell>
+
             {/* Units */}
             <TableCell className="text-right whitespace-nowrap px-4 py-3">
               {formatNumber(product.unitsSold || 0, 0)}
@@ -774,29 +818,14 @@ export const SellerboardProductsTable: React.FC<
               )}
             </TableCell>
 
-            {/* Sales */}
-            <TableCell className="text-right font-medium whitespace-nowrap px-4 py-3">
-              {formatCurrency(product.salesRevenue || 0)}
-            </TableCell>
-
-            {/* Promo */}
-            <TableCell className="text-right whitespace-nowrap px-4 py-3">
-              {formatCurrency(Math.abs(product.promoRebates || 0))}
-            </TableCell>
-
-            {/* Ads */}
-            <TableCell className="text-right text-danger-600 whitespace-nowrap px-4 py-3">
-              -{formatCurrency(Math.abs(product.advertisingCost || 0))}
-            </TableCell>
-
             {/* Refund Cost */}
             <TableCell className="text-right whitespace-nowrap px-4 py-3">
               {formatCurrency(Math.abs(product.refundCost || 0))}
             </TableCell>
 
-            {/* Amazon Fees */}
-            <TableCell className="text-right text-danger-600 whitespace-nowrap px-4 py-3">
-              -{formatCurrency(Math.abs(product.totalFees || 0))}
+            {/* Promo */}
+            <TableCell className="text-right whitespace-nowrap px-4 py-3">
+              {formatCurrency(Math.abs(product.promoRebates || 0))}
             </TableCell>
 
             {/* COGS */}
@@ -809,14 +838,39 @@ export const SellerboardProductsTable: React.FC<
               {formatCurrency(product.grossProfit || 0)}
             </TableCell>
 
+            {/* Amazon Fees */}
+            <TableCell className="text-right text-danger-600 whitespace-nowrap px-4 py-3">
+              -{formatCurrency(Math.abs(product.totalFees || 0))}
+            </TableCell>
+
+            {/* Ads */}
+            <TableCell className="text-right text-danger-600 whitespace-nowrap px-4 py-3">
+              -{formatCurrency(Math.abs(product.advertisingCost || 0))}
+            </TableCell>
+
             {/* Net Profit */}
             <TableCell className={`text-right font-semibold whitespace-nowrap px-4 py-3 ${profitTone(product.netProfit)}`}>
               {formatCurrency(product.netProfit || 0)}
             </TableCell>
 
+            {/* Storage Fee: estimated, shown only (not deducted from gross or net profit) */}
+            <TableCell className="text-right text-warning-600 whitespace-nowrap px-4 py-3">
+              {formatCurrency(storageFeeOf(product))}
+            </TableCell>
+
+            {/* Net Profit After Storage */}
+            <TableCell className={`text-right whitespace-nowrap px-4 py-3 ${profitTone(netAfterStorageOf(product))}`}>
+              {formatCurrency(netAfterStorageOf(product))}
+            </TableCell>
+
             {/* Margin */}
             <TableCell className={`text-right whitespace-nowrap px-4 py-3 ${lossTone(product.margin)}`}>
               {formatPercentage(product.margin || 0)}
+            </TableCell>
+
+            {/* TACOS */}
+            <TableCell className="text-right whitespace-nowrap px-4 py-3">
+              {formatPercentage(tacosOf(product))}
             </TableCell>
 
             {/* ROI */}
@@ -961,6 +1015,18 @@ export const SellerboardProductsTable: React.FC<
                   <HeaderTooltip columnKey="name" />
                 </TableHead>
 
+                {/* Sales Column */}
+                <TableHead
+                  className="sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[130px] py-3 px-4 border-b border-border align-middle"
+                  onClick={() => handleSort('sales')}
+                >
+                  <div className="flex items-center justify-end gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
+                    <span>Sales</span>
+                    <SortIcon column="sales" />
+                  </div>
+                  <HeaderTooltip columnKey="sales" />
+                </TableHead>
+
                 {/* Units Sold Column */}
                 <TableHead
                   className="sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[120px] py-3 px-4 border-b border-border align-middle"
@@ -979,46 +1045,10 @@ export const SellerboardProductsTable: React.FC<
                   onClick={() => handleSort('refunds')}
                 >
                   <div className="flex items-center justify-end gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
-                    <span>Refunds</span>
+                    <span>Refund Units</span>
                     <SortIcon column="refunds" />
                   </div>
                   <HeaderTooltip columnKey="refunds" />
-                </TableHead>
-
-                {/* Sales Column */}
-                <TableHead
-                  className="sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[130px] py-3 px-4 border-b border-border align-middle"
-                  onClick={() => handleSort('sales')}
-                >
-                  <div className="flex items-center justify-end gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
-                    <span>Sales</span>
-                    <SortIcon column="sales" />
-                  </div>
-                  <HeaderTooltip columnKey="sales" />
-                </TableHead>
-
-                {/* Promo Column */}
-                <TableHead
-                  className="sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[120px] py-3 px-4 border-b border-border align-middle"
-                  onClick={() => handleSort('promo')}
-                >
-                  <div className="flex items-center justify-end gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
-                    <span>Promo</span>
-                    <SortIcon column="promo" />
-                  </div>
-                  <HeaderTooltip columnKey="promo" />
-                </TableHead>
-
-                {/* Ads Column */}
-                <TableHead
-                  className="sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[130px] py-3 px-4 border-b border-border align-middle"
-                  onClick={() => handleSort('ads')}
-                >
-                  <div className="flex items-center justify-end gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
-                    <span>Ads</span>
-                    <SortIcon column="ads" />
-                  </div>
-                  <HeaderTooltip columnKey="ads" />
                 </TableHead>
 
                 {/* Refund Cost Column */}
@@ -1033,16 +1063,16 @@ export const SellerboardProductsTable: React.FC<
                   <HeaderTooltip columnKey="refundCost" />
                 </TableHead>
 
-                {/* Amazon Fees Column */}
+                {/* Promo Column */}
                 <TableHead
-                  className="sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[140px] py-3 px-4 border-b border-border align-middle"
-                  onClick={() => handleSort('amazonFees')}
+                  className="sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[120px] py-3 px-4 border-b border-border align-middle"
+                  onClick={() => handleSort('promo')}
                 >
                   <div className="flex items-center justify-end gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
-                    <span>Amazon Fees</span>
-                    <SortIcon column="amazonFees" />
+                    <span>Promo</span>
+                    <SortIcon column="promo" />
                   </div>
-                  <HeaderTooltip columnKey="amazonFees" />
+                  <HeaderTooltip columnKey="promo" />
                 </TableHead>
 
                 {/* COGS Column */}
@@ -1069,16 +1099,64 @@ export const SellerboardProductsTable: React.FC<
                   <HeaderTooltip columnKey="grossProfit" />
                 </TableHead>
 
+                {/* Amazon Fees Column */}
+                <TableHead
+                  className="sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[140px] py-3 px-4 border-b border-border align-middle"
+                  onClick={() => handleSort('amazonFees')}
+                >
+                  <div className="flex items-center justify-end gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
+                    <span>Amazon Fees</span>
+                    <SortIcon column="amazonFees" />
+                  </div>
+                  <HeaderTooltip columnKey="amazonFees" />
+                </TableHead>
+
+                {/* Ads Column */}
+                <TableHead
+                  className="sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[130px] py-3 px-4 border-b border-border align-middle"
+                  onClick={() => handleSort('ads')}
+                >
+                  <div className="flex items-center justify-end gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
+                    <span>Ads</span>
+                    <SortIcon column="ads" />
+                  </div>
+                  <HeaderTooltip columnKey="ads" />
+                </TableHead>
+
                 {/* Net Profit Column */}
                 <TableHead
                   className="sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[130px] py-3 px-4 border-b border-border align-middle"
                   onClick={() => handleSort('netProfit')}
                 >
                   <div className="flex items-center justify-end gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
-                    <span>Net Profit</span>
+                    <span>Net Profit Before Storage</span>
                     <SortIcon column="netProfit" />
                   </div>
                   <HeaderTooltip columnKey="netProfit" />
+                </TableHead>
+
+                {/* Storage Fee Column */}
+                <TableHead
+                  className="sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[130px] py-3 px-4 border-b border-border align-middle"
+                  onClick={() => handleSort('storageFee')}
+                >
+                  <div className="flex items-center justify-end gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
+                    <span>Storage Fee</span>
+                    <SortIcon column="storageFee" />
+                  </div>
+                  <HeaderTooltip columnKey="storageFee" />
+                </TableHead>
+
+                {/* Net Profit After Storage Column */}
+                <TableHead
+                  className="sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[170px] py-3 px-4 border-b border-border align-middle"
+                  onClick={() => handleSort('netAfterStorage')}
+                >
+                  <div className="flex items-center justify-end gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
+                    <span>Net Profit After Storage</span>
+                    <SortIcon column="netAfterStorage" />
+                  </div>
+                  <HeaderTooltip columnKey="netAfterStorage" />
                 </TableHead>
 
                 {/* Margin Column */}
@@ -1091,6 +1169,18 @@ export const SellerboardProductsTable: React.FC<
                     <SortIcon column="margin" />
                   </div>
                   <HeaderTooltip columnKey="margin" />
+                </TableHead>
+
+                {/* TACOS Column */}
+                <TableHead
+                  className="sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[100px] py-3 px-4 border-b border-border align-middle"
+                  onClick={() => handleSort('tacos')}
+                >
+                  <div className="flex items-center justify-end gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
+                    <span>TACOS</span>
+                    <SortIcon column="tacos" />
+                  </div>
+                  <HeaderTooltip columnKey="tacos" />
                 </TableHead>
 
                 {/* ROI Column */}
