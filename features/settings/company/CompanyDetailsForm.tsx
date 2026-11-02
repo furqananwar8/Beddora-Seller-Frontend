@@ -21,17 +21,18 @@ const schema = z.object({
   email: z.union([z.literal(''), z.string().trim().email('Enter a valid email').max(160)]),
   /** Optional; once digits are typed they must make a real number for the picked country. */
   phone: z.custom<PhoneValue>().refine((phone) => !phone.number || isValidPhone(phone), 'Enter a valid phone number for this country'),
+  taxNumber: z.string().trim().max(40, 'GST/HST number is too long'),
 })
 
 type Values = z.infer<typeof schema>
 
-const EMPTY: Values = { name: '', address: '', email: '', phone: EMPTY_PHONE }
+const EMPTY: Values = { name: '', address: '', email: '', phone: EMPTY_PHONE, taxNumber: '' }
 
-const toValues = (details: CompanyDetails): Values => ({ ...details, phone: fromInternational(details.phone, details.phoneCountry) })
+const toValues = (details: CompanyDetails): Values => ({ ...details, phone: fromInternational(details.phone, details.phoneCountry), taxNumber: details.taxNumber ?? '' })
 
 const toBody = ({ phone, ...values }: Values): CompanyDetails => ({ ...values, phoneCountry: phone.number ? phone.country : '', phone: toInternational(phone) })
 
-/** Settings > Company: the name, address and contact printed as the letterhead on purchase order PDFs. */
+/** Settings > Company: the name, address and contact printed as the letterhead on purchase order PDFs and order invoices. */
 export const CompanyDetailsForm: React.FC = () => {
   const ability = useAppAbility()
   const canEdit = ability.can('write', 'settings:company')
@@ -67,7 +68,7 @@ export const CompanyDetailsForm: React.FC = () => {
     <Card>
       <CardHeader>
         <CardTitle>Company details</CardTitle>
-        <CardDescription>Printed as the letterhead on purchase order PDFs. Changes apply to the next PDF you download.</CardDescription>
+        <CardDescription>Printed as the letterhead on purchase order PDFs and order invoices. Changes apply to the next PDF you download.</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={submit} noValidate className="space-y-4">
@@ -93,6 +94,14 @@ export const CompanyDetailsForm: React.FC = () => {
               />
             </FormField>
           </div>
+          <Input
+            label="GST/HST number"
+            placeholder="754911220RT0001"
+            helperText="Printed on order tax invoices."
+            error={errors.taxNumber?.message}
+            disabled={!canEdit}
+            {...register('taxNumber')}
+          />
           {canEdit && (
             <div className="flex justify-end gap-2">
               <Button type="button" variant="outline" disabled={!isDirty || saving} onClick={() => data && reset(toValues(data))}>

@@ -366,6 +366,8 @@ export interface ChannelOrderBooking {
 export interface ChannelOrderListItem extends ChannelOrderRef {
   channelLabel: string
   marketLabel: string
+  /** ISO country of the market, for its flag. */
+  marketCountry: string | null
   customerOrderId: string | null
   orderDate: string
   /** The channel's wording, e.g. "Acknowledged". */

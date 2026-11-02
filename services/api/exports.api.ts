@@ -20,7 +20,8 @@ export type ExportReport =
   | "inventory-aging"
   | "cashflow-planning"
   | "sku-mapping"
-  | "warehouse-inventory";
+  | "warehouse-inventory"
+  | "order-invoice-pdf";
 
 export interface ExportRequest {
   report: ExportReport;

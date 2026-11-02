@@ -11,6 +11,8 @@ export interface CompanyDetails {
   phoneCountry: string
   /** International form, e.g. `+14165550100`. */
   phone: string
+  /** GST/HST registration number, printed on tax invoices; '' when not set. */
+  taxNumber: string
 }
 
 export const companyDetailsApi = baseApi.injectEndpoints({

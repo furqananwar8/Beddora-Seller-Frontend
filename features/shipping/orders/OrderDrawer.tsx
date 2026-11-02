@@ -30,7 +30,8 @@ const ChannelPackage: React.FC<{ tracking: ChannelTracking; index: number; count
           {[count > 1 && `Package ${index + 1} of ${count}`, tracking.service && tracking.carrier, tracking.shippedAt && `Shipped ${shortDateTime(tracking.shippedAt)}`].filter(Boolean).join(' · ')}
         </div>
       </div>
-      {tracking.status && <StatusBadge label={titleCase(tracking.status)} tone="success" />}
+      {/* only a carrier's status: the channel's "SHIPPED" just means the seller confirmed shipment */}
+      {tracking.events?.length && tracking.status ? <StatusBadge label={titleCase(tracking.status)} tone={STATUS_TONE[tracking.events[0].status]} /> : null}
     </div>
     <div className="text-sm">
       <TrackingNumber value={tracking.trackingNumber} url={tracking.trackingUrl} />
@@ -99,11 +100,15 @@ const OrderSummary: React.FC<{ order: ChannelOrderListItem }> = ({ order }) => {
 }
 
 /** The buyer as the channel shares them today: name, contact and ship-to address. */
-const Customer: React.FC<{ customer: ShipAddress | null; note: string | null }> = ({ customer, note }) => {
+const Customer: React.FC<{ customer: ShipAddress | null; note: string | null; channelLabel: string }> = ({ customer, note, channelLabel }) => {
   if (!customer) return <p className="text-sm text-text-muted">{note ?? 'The channel did not share the customer.'}</p>
   const street = [customer.address1, customer.address2].filter(Boolean).join(', ')
   const place = [customer.city, [customer.province, customer.postalCode].filter(Boolean).join(' '), customer.country].filter(Boolean).join(', ')
+  // channels can share only part of the customer (Amazon: city and postal code without the restricted-data role)
+  const withheld = [!customer.name && 'name', !street && 'street address', !customer.phone && 'phone'].filter(Boolean)
   return (
+    <>
+    {withheld.length > 0 && <p className="mb-3 text-xs text-text-muted">{channelLabel} didn&apos;t share the customer&apos;s {withheld.join(', ')}.</p>}
     <DrawerDetails>
       <Detail label="Name">{customer.name || '—'}</Detail>
       {customer.company && <Detail label="Company">{customer.company}</Detail>}
@@ -121,48 +126,63 @@ const Customer: React.FC<{ customer: ShipAddress | null; note: string | null }> 
         <span className="block text-xs text-text-muted">{customer.residential ? 'Residential' : 'Commercial'}</span>
       </Detail>
     </DrawerDetails>
+    </>
   )
 }
 
 /** Each SKU with its quantity, unit price and tax. */
 const OrderItems: React.FC<{ order: ChannelOrderListItem }> = ({ order }) => (
-  <table className="w-full table-fixed text-sm">
-    {/* fixed widths keep the money columns in the drawer; the SKU column takes the rest and truncates */}
-    <colgroup>
-      <col />
-      <col className="w-12" />
-      <col className="w-24" />
-      <col className="w-20" />
-    </colgroup>
-    <thead>
-      <tr>
-        <th className={HEAD}>SKU</th>
-        <th className={`${HEAD} text-right`}>Qty</th>
-        <th className={`${HEAD} text-right`}>Unit price</th>
-        <th className={`${HEAD} text-right`}>Tax</th>
-      </tr>
-    </thead>
-    <tbody>
-      {order.lines.map((line) => (
-        <tr key={line.lineNumber} className="border-t border-border align-top">
-          <td className="py-2 pr-3">
-            <span className="block truncate font-mono text-xs" title={line.sku}>
-              {line.sku}
-            </span>
-            {line.productName && (
-              <span className="block truncate text-xs text-text-muted" title={line.productName}>
-                {line.productName}
-              </span>
-            )}
-          </td>
-          <td className={NUM}>{line.quantity}</td>
-          <td className={NUM}>{amount(line.unitPrice, line.currency ?? order.currency)}</td>
-          <td className={NUM}>{amount(line.tax, line.currency ?? order.currency)}</td>
+  // nothing is cut: rows wider than the drawer scroll sideways
+  <div className="-mx-5 overflow-x-auto px-5">
+    <table className="min-w-full text-sm">
+      <thead>
+        <tr>
+          <th className={`${HEAD} pr-6`}>SKU</th>
+          <th className={`${HEAD} pl-3 text-right`}>Qty</th>
+          <th className={`${HEAD} pl-6 text-right`}>Unit price</th>
+          <th className={`${HEAD} pl-6 text-right`}>Tax</th>
         </tr>
-      ))}
-    </tbody>
-  </table>
+      </thead>
+      <tbody>
+        {order.lines.map((line) => (
+          <tr key={line.lineNumber} className="border-t border-border align-top">
+            {/* globals.css caps table cells at 300px (200px with whitespace-nowrap): this one shows the full name */}
+            <td className="!max-w-none py-2 pr-6">
+              <span className="block whitespace-nowrap font-mono text-xs">{line.sku}</span>
+              {line.productName && <span className="block whitespace-nowrap text-xs text-text-muted">{line.productName}</span>}
+            </td>
+            <td className={`${NUM} pl-3`}>{line.quantity}</td>
+            <td className={`${NUM} pl-6`}>{amount(line.unitPrice, line.currency ?? order.currency)}</td>
+            <td className={`${NUM} pl-6`}>{amount(line.tax, line.currency ?? order.currency)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
 )
+
+/**
+ * The carrier's latest scan: our booking's newest stored event, else the newest one a tracker read for the
+ * channel's first package. Nothing for orders that haven't shipped.
+ */
+const LatestTracking: React.FC<{ order: ChannelOrderListItem }> = ({ order }) => {
+  const event = order.booking?.latestEvent ?? order.tracking.find((pkg) => pkg.events?.length)?.events?.[0] ?? null
+  const shipped = order.booking !== null || order.tracking.length > 0
+  if (!shipped) return null
+  return (
+    <div className="flex flex-wrap items-center gap-2 text-xs">
+      <span className="text-text-muted">Tracking</span>
+      {event ? (
+        <>
+          <StatusBadge label={event.statusLabel} tone={STATUS_TONE[event.status]} />
+          <span className="text-text-muted">{[event.description, event.location, shortDateTime(event.occurredAt)].filter(Boolean).join(' · ')}</span>
+        </>
+      ) : (
+        <span className="text-text-muted">No carrier scans yet</span>
+      )}
+    </div>
+  )
+}
 
 /** What the order still needs, in a sentence. */
 const NEXT_STEP: Record<ChannelOrderListItem['fulfillment'], string> = {
@@ -178,7 +198,8 @@ const NEXT_STEP: Record<ChannelOrderListItem['fulfillment'], string> = {
  * (Get rates). Opened from Get details in a row's actions on the Orders list.
  */
 export const OrderDrawer: React.FC<OrderDrawerProps> = ({ order: ref, canWrite, onClose }) => {
-  const { data, isLoading, isError } = useGetChannelOrderQuery(ref ?? { channel: 'walmart', market: '', orderId: '' }, { skip: ref === null })
+  // currentData, not data: data keeps the previously opened order while this one loads
+  const { currentData: data, isFetching, isError } = useGetChannelOrderQuery(ref ?? { channel: 'walmart', market: '', orderId: '' }, { skip: ref === null })
   const order = data?.order
 
   return (
@@ -187,7 +208,7 @@ export const OrderDrawer: React.FC<OrderDrawerProps> = ({ order: ref, canWrite, 
       title={ref?.orderId ?? 'Order'}
       subtitle={order && `${order.channelLabel} · ${order.marketLabel} · Ordered ${shortDateTime(order.orderDate)}`}
       onClose={onClose}
-      state={isLoading ? 'loading' : isError || !order ? 'error' : 'ready'}
+      state={!order && isFetching ? 'loading' : isError || !order ? 'error' : 'ready'}
       errorMessage="Could not load this order."
     >
       {order && (
@@ -196,8 +217,8 @@ export const OrderDrawer: React.FC<OrderDrawerProps> = ({ order: ref, canWrite, 
             <div className="flex flex-wrap items-center gap-2">
               <ChannelBadge channel={order.channel} />
               <StatusBadge label={FULFILLMENT_META[order.fulfillment].label} tone={FULFILLMENT_META[order.fulfillment].tone} />
-              <span className="text-xs text-text-muted">{order.channelLabel} status: {titleCase(order.channelStatus)}</span>
             </div>
+            <LatestTracking order={order} />
             {NEXT_STEP[order.fulfillment] && <p className="text-sm text-text-muted">{NEXT_STEP[order.fulfillment]}</p>}
             {order.fulfillment === 'TO_BOOK' && canWrite && (
               <Link href={bookOrderHref(order)} className="ds-button ds-button-primary ds-button-sm inline-flex">
@@ -211,7 +232,7 @@ export const OrderDrawer: React.FC<OrderDrawerProps> = ({ order: ref, canWrite, 
           </Section>
 
           <Section title="Customer">
-            <Customer customer={data.shipTo} note={data.shipToError} />
+            <Customer customer={data.shipTo} note={data.shipToError} channelLabel={order.channelLabel} />
           </Section>
 
           {order.booking && (
