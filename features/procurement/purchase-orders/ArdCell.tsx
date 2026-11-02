@@ -31,7 +31,7 @@ export const ArdCell: React.FC<{ row: PurchaseOrderListItem; canWrite: boolean }
       value={day(row.ard)}
       onChange={(value) => void save(value)}
       min={row.productionDate ? day(row.productionDate) : undefined}
-      placeholder="Set ARD"
+      placeholder="Select Date"
       disabled={isLoading}
       className="min-w-[9.5rem]"
     />
