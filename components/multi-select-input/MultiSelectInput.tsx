@@ -155,10 +155,12 @@ export const MultiSelectInput: React.FC<
      * when Apply Filters is pressed.
      */
     if (allSelected) {
-      if (minSelected > 0) {
-        return
-      }
-      onChange([])
+      /*
+       * With a minimum, "unselect everything" keeps the first
+       * `minSelected` options, so the user can then tick the
+       * ones they want instead of unticking the rest one by one.
+       */
+      onChange(allIds.slice(0, minSelected))
       return
     }
 

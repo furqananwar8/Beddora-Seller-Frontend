@@ -24,11 +24,13 @@ interface ChannelMultiSelectProps {
   /** Text before the dots on the trigger, e.g. "Channel:". */
   prefix?: string
   className?: string
+  /** Channels that must stay selected; 0 lets the user clear them all. Defaults to 1. */
+  minSelected?: number
 }
 
 const NO_EXTRA_OPTIONS: MultiSelectOption[] = []
 
-/** The shared multi-select, configured with channel dots and sync lines. At least one option stays selected. */
+/** The shared multi-select, configured with channel dots and sync lines. By default at least one option stays selected. */
 export const ChannelMultiSelect: React.FC<ChannelMultiSelectProps> = ({
   channels,
   connections,
@@ -38,6 +40,7 @@ export const ChannelMultiSelect: React.FC<ChannelMultiSelectProps> = ({
   footer,
   prefix,
   className,
+  minSelected = 1,
 }) => {
   const options = useMemo<MultiSelectOption[]>(
     () => [
@@ -81,7 +84,7 @@ export const ChannelMultiSelect: React.FC<ChannelMultiSelectProps> = ({
       options={options}
       value={value}
       onChange={onChange}
-      minSelected={1}
+      minSelected={minSelected}
       renderValue={renderValue}
       footer={footer}
       className={className}

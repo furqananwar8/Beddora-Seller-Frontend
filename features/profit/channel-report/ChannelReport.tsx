@@ -313,6 +313,7 @@ export const ChannelReport: React.FC = () => {
                 connections={connections}
                 value={draftChannels}
                 onChange={setDraftChannels}
+                minSelected={0}
               />
             </div>
           }
