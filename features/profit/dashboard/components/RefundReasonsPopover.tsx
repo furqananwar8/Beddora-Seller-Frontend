@@ -28,6 +28,8 @@ interface RefundReasonsPopoverProps {
 
 const WIDTH = 360
 const GAP = 8
+/** The panel's tallest usual height, to decide whether it fits under the count */
+const PANEL_HEIGHT = 440
 
 /** Refunds with no reported return yet keep green (as Sellerboard shows them); reasons take the other chart colours. */
 const PENDING_COLOR = ChartPalette.success
@@ -58,7 +60,9 @@ export function RefundReasonsPopover({ product, scope, anchor, onClose }: Refund
   if (!anchorRect) return null
 
   const left = Math.min(Math.max(8, anchorRect.left + anchorRect.width / 2 - WIDTH / 2), window.innerWidth - WIDTH - 8)
-  const top = Math.min(anchorRect.bottom + GAP, window.innerHeight - 440)
+  // Opens under the count; with no room below it opens above, so it always stays attached to its row
+  const opensAbove = anchorRect.bottom + GAP + PANEL_HEIGHT > window.innerHeight && anchorRect.top - GAP - PANEL_HEIGHT > 0
+  const vertical = opensAbove ? { bottom: window.innerHeight - anchorRect.top + GAP } : { top: anchorRect.bottom + GAP }
 
   let reasonIndex = 0
   const slices = (data?.reasons ?? []).map((reason) => ({
@@ -74,7 +78,7 @@ export function RefundReasonsPopover({ product, scope, anchor, onClose }: Refund
       role="dialog"
       aria-label={`Refunds of ${title}`}
       className="fixed z-50 bg-surface border border-border rounded-lg shadow-2xl"
-      style={{ left, top: Math.max(8, top), width: WIDTH }}
+      style={{ left, ...vertical, width: WIDTH }}
     >
       <div className="flex items-start gap-3 px-4 py-3 border-b border-border">
         {product.imageUrl && (
