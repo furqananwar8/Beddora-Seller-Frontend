@@ -560,7 +560,7 @@ export const SellerboardProductsTable: React.FC<
       currency: string
     } | null>(null)
 
-    const [refundTarget, setRefundTarget] = useState<{ product: ProductProfitBreakdown; anchorRect: DOMRect } | null>(null)
+    const [refundTarget, setRefundTarget] = useState<{ product: ProductProfitBreakdown; anchor: HTMLElement } | null>(null)
     const closeRefunds = useCallback(() => setRefundTarget(null), [])
 
     const toggleRow = useCallback((sku: string) => {
@@ -702,7 +702,7 @@ export const SellerboardProductsTable: React.FC<
     )
     const { data: fbaStock } = useGetFbaStockQuery({ skus: pageSkus, marketplace: fbaStockScope?.marketplace }, { skip: pageSkus.length === 0 })
     const fbaStockBySku = useMemo(() => new Map((fbaStock ?? []).map((row) => [row.sku, row])), [fbaStock])
-    const [fbaTarget, setFbaTarget] = useState<{ stock: FbaStockSummary; cogsRate: number | null; anchorRect: DOMRect } | null>(null)
+    const [fbaTarget, setFbaTarget] = useState<{ stock: FbaStockSummary; cogsRate: number | null; anchor: HTMLElement } | null>(null)
     const closeFbaStock = useCallback(() => setFbaTarget(null), [])
 
     const SortIcon: React.FC<{ column: SortColumn }> = ({ column }) => (
@@ -783,9 +783,9 @@ export const SellerboardProductsTable: React.FC<
                 fbaStock={(product.children?.length ?? 0) === 0 ? (fbaStockBySku.get(product.sku) ?? null) : null}
                 onFbaStockClick={
                   fbaStockScope
-                    ? (anchorRect) => {
+                    ? (anchor) => {
                         const stock = fbaStockBySku.get(product.sku)
-                        if (stock) setFbaTarget({ stock, cogsRate: product.cogsRate ?? null, anchorRect })
+                        if (stock) setFbaTarget({ stock, cogsRate: product.cogsRate ?? null, anchor })
                       }
                     : undefined
                 }
@@ -807,7 +807,7 @@ export const SellerboardProductsTable: React.FC<
               {refundCount > 0 && refundReasonsScope ? (
                 <button
                   type="button"
-                  onClick={(e) => setRefundTarget({ product, anchorRect: e.currentTarget.getBoundingClientRect() })}
+                  onClick={(e) => setRefundTarget({ product, anchor: e.currentTarget })}
                   className="text-primary-600 hover:text-primary-700 hover:underline"
                   aria-label={`Refunds by reason for ${product.sku}`}
                 >
@@ -947,13 +947,13 @@ export const SellerboardProductsTable: React.FC<
           </div>
         )}
 
-        {fbaTarget && <FbaStockPopover stock={fbaTarget.stock} cogsRate={fbaTarget.cogsRate} anchorRect={fbaTarget.anchorRect} onClose={closeFbaStock} />}
+        {fbaTarget && <FbaStockPopover stock={fbaTarget.stock} cogsRate={fbaTarget.cogsRate} anchor={fbaTarget.anchor} onClose={closeFbaStock} />}
 
         {refundTarget && refundReasonsScope && (
           <RefundReasonsPopover
             product={refundTarget.product}
             scope={refundReasonsScope}
-            anchorRect={refundTarget.anchorRect}
+            anchor={refundTarget.anchor}
             onClose={closeRefunds}
           />
         )}

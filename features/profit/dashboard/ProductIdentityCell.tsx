@@ -37,7 +37,7 @@ interface ProductIdentityCellProps {
   showUnitStats?: boolean
   /** The row's FBA stock; when given with `onFbaStockClick`, an "FBA stock: N" link opens its details. */
   fbaStock?: { fbaStock: number; regions: number; daysUntilNextOrder?: number | null } | null
-  onFbaStockClick?: (anchorRect: DOMRect) => void
+  onFbaStockClick?: (anchor: HTMLElement) => void
   /** The report's currency (CAD, USD...): price and COGS show its symbol, e.g. C$. */
   currency?: string
 }
@@ -123,7 +123,7 @@ export function ProductIdentityCell({ product, isChild = false, isExpanded = fal
         type="button"
         onClick={(event) => {
           event.stopPropagation()
-          onFbaStockClick(event.currentTarget.getBoundingClientRect())
+          onFbaStockClick(event.currentTarget)
         }}
         className={`inline-flex items-center gap-1 hover:text-primary-600 hover:underline ${isReorderSoon(fbaStock) ? 'text-warning-600' : ''}`}
         aria-label={`FBA stock details for ${product.sku}`}

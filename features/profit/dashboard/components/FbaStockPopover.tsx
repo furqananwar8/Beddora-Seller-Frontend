@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useRef } from 'react'
+import { useAnchoredRect } from '@/hooks/useAnchoredRect'
 import { useDismiss } from '@/hooks/useDismiss'
 import type { FbaStockSummary } from '@/services/api/inventoryPlanner.api'
 import { formatCurrency, formatNumber } from '@/utils/format'
@@ -9,7 +10,8 @@ interface FbaStockPopoverProps {
   stock: FbaStockSummary
   /** COGS per unit, to value the FBA stock; unknown when null. */
   cogsRate?: number | null
-  anchorRect: DOMRect
+  /** The clicked "FBA stock": the popover follows it as the table scrolls. */
+  anchor: HTMLElement
   onClose: () => void
 }
 
@@ -33,11 +35,14 @@ const Metric: React.FC<{ label: string; children: React.ReactNode }> = ({ label,
 
 /**
  * A SKU's FBA stock picture: how long it lasts, when to reorder, how fast it sells, what it is worth, and what is
- * reserved, inbound or still on order. Opens under the clicked "FBA stock"; closes on an outside click or Escape.
+ * reserved, inbound or still on order. Opens under the clicked "FBA stock" and moves with it; hidden while its row
+ * is scrolled out of the table, closed on an outside click or Escape.
  */
-export function FbaStockPopover({ stock, cogsRate, anchorRect, onClose }: FbaStockPopoverProps) {
+export function FbaStockPopover({ stock, cogsRate, anchor, onClose }: FbaStockPopoverProps) {
   const panelRef = useRef<HTMLDivElement>(null)
   useDismiss(panelRef, onClose)
+  const anchorRect = useAnchoredRect(anchor)
+  if (!anchorRect) return null
 
   const left = Math.min(Math.max(8, anchorRect.left), window.innerWidth - WIDTH - 8)
   const top = Math.min(anchorRect.bottom + GAP, window.innerHeight - 220)

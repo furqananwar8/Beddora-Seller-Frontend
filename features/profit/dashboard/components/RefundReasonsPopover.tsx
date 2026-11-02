@@ -7,6 +7,7 @@ import { ChartPalette } from '@/design-system/charts/ChartPalette'
 import { Spinner } from '@/design-system/loaders'
 import { ProductProfitBreakdown, useGetRefundReasonsQuery } from '@/services/api/profit.api'
 import { formatNumber } from '@/utils/format'
+import { useAnchoredRect } from '@/hooks/useAnchoredRect'
 import { useDismiss } from '@/hooks/useDismiss'
 
 /** The date range and marketplaces the products table shows: the refunds counted in it. */
@@ -19,7 +20,8 @@ export interface RefundReasonsScope {
 interface RefundReasonsPopoverProps {
   product: ProductProfitBreakdown
   scope: RefundReasonsScope
-  anchorRect: DOMRect
+  /** The clicked refund count: the popover follows it as the table scrolls. */
+  anchor: HTMLElement
   onClose: () => void
 }
 
@@ -32,9 +34,10 @@ const REASON_COLORS = [ChartPalette.danger, ChartPalette.warning, ChartPalette.a
 
 /**
  * A product's refunds by return reason: a donut of the refunded units and a legend of each reason, its status and
- * the customers' comments. Opens under the clicked refund count; closes on an outside click or Escape.
+ * the customers' comments. Opens under the clicked refund count and moves with it; hidden while its row is scrolled
+ * out of the table, closed on an outside click or Escape.
  */
-export function RefundReasonsPopover({ product, scope, anchorRect, onClose }: RefundReasonsPopoverProps) {
+export function RefundReasonsPopover({ product, scope, anchor, onClose }: RefundReasonsPopoverProps) {
   const panelRef = useRef<HTMLDivElement>(null)
 
   // A parent or group row counts its children's refunds
@@ -45,6 +48,8 @@ export function RefundReasonsPopover({ product, scope, anchorRect, onClose }: Re
   )
 
   useDismiss(panelRef, onClose)
+  const anchorRect = useAnchoredRect(anchor)
+  if (!anchorRect) return null
 
   const left = Math.min(Math.max(8, anchorRect.left + anchorRect.width / 2 - WIDTH / 2), window.innerWidth - WIDTH - 8)
   const top = Math.min(anchorRect.bottom + GAP, window.innerHeight - 440)
