@@ -36,7 +36,7 @@ const DEFAULT_FILTERS: Filters = { container: 'ALL' }
 const CONTAINER_OPTIONS: Array<{ value: ContainerFilter; label: string }> = [
   { value: 'ALL', label: 'All' },
   { value: 'ASSIGNED', label: 'Assigned' },
-  { value: 'NONE', label: 'No container' },
+  { value: 'NONE', label: 'Unassigned container' },
 ]
 
 const qty = (value: number) => value.toLocaleString('en-CA')
