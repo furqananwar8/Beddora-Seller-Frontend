@@ -74,6 +74,9 @@ import MapTab from './MapTab'
 import PLTab from './PLTab'
 import TrendsTab from './TrendsTab'
 
+/** The "Profit Overview" banner above the tiles is hidden; its code is kept. */
+const SHOW_OVERVIEW_BANNER = false
+
 const CUSTOM_RANGE_STORAGE_KEY = 'profit_custom_tile_range'
 
 const MARKETPLACE_CURRENCY_MAP: Record<any, any> = {
@@ -708,8 +711,8 @@ export const ProfitDashboardScreen: React.FC = () => {
 
         {activeTab === 'tiles' && (
           <>
-            {/* Loading skeleton */}
-            {isFetchingActive && (
+            {/* Loading skeleton of the overview banner: hidden along with the banner */}
+            {SHOW_OVERVIEW_BANNER && isFetchingActive && (
               <div className="bg-surface-secondary border border-border rounded-xl p-6 mb-6 animate-pulse">
                 <div className="h-6 bg-border rounded w-1/3 mb-4" />
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 items-center">
@@ -720,8 +723,8 @@ export const ProfitDashboardScreen: React.FC = () => {
               </div>
             )}
 
-            {/* Overview banner */}
-            {activeSummaryData?.summary && !isFetchingActive && (
+            {/* Overview banner: hidden for now (flip SHOW_OVERVIEW_BANNER to bring it back) */}
+            {SHOW_OVERVIEW_BANNER && activeSummaryData?.summary && !isFetchingActive && (
               <ProfitOverviewBanner
                 title={`Profit Overview (${currentPreset.label})`}
                 totalRevenue={activeSummaryData.summary.totalRevenue}
@@ -793,7 +796,8 @@ export const ProfitDashboardScreen: React.FC = () => {
               })}
             </div>
 
-            {/* Products table */}
+            {/* Products table: only once every period card has its data */}
+            {!periodCardsData.some((period) => period.isFetching) && (
             <Card className="overflow-visible">
               <CardContent className="p-0">
                 <div className="flex items-center justify-between px-6 pt-4 pb-2 border-b border-border flex-wrap gap-3">
@@ -863,11 +867,12 @@ export const ProfitDashboardScreen: React.FC = () => {
                 </div>
               </CardContent>
             </Card>
+            )}
           </>
         )}
 
         {/* ════════════════════════════════ */}
-        {/* P&L TAB                          */}
+        {/* P&L TAB                         */}
         {/* ════════════════════════════════ */}
 
         {activeTab === 'pnl' && (
