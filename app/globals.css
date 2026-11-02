@@ -395,9 +395,9 @@
   }
 
   /* Sticky column styles - prevent overlapping when scrolling */
-  .ds-table th.sticky,
+  .ds-table th.sticky[class*='left-'],
   .ds-table td.sticky,
-  table th.sticky,
+  table th.sticky[class*='left-'],
   table td.sticky {
     position: sticky !important;
     left: 0 !important;
@@ -412,8 +412,8 @@
     z-index: 30 !important;
   }
 
-  /* The header cell above a sticky first column: every header cell is sticky (and pinned left) at z-30,
-     so the corner sits above them and the other headers slide under it while scrolling sideways */
+  /* Only a header that opts in with a `left-*` class is pinned left (the corner above a sticky first column);
+     every other header just sticks to the top, so headers never stack on each other when scrolling sideways */
   .ds-table th.sticky-corner,
   table th.sticky-corner {
     z-index: 40 !important;
