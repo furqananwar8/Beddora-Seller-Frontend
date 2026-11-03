@@ -93,7 +93,7 @@ export const RatesStep: React.FC<RatesStepProps> = ({ stream, incoterm, selected
         }
         aside={
           <div className="flex items-center gap-2">
-            <span className="text-xs text-text-muted">Sort by</span>
+            <span className="text-sm font-medium text-text-muted">Sort by</span>
             <SearchableSelect<(typeof RATE_SORTS)[number]>
               id="rate-sort"
               ariaLabel="Sort rates"
@@ -103,7 +103,8 @@ export const RatesStep: React.FC<RatesStepProps> = ({ stream, incoterm, selected
               options={RATE_SORTS}
               getKey={(option) => option.value}
               getLabel={(option) => option.label}
-              className="w-60"
+              className="w-64"
+              triggerClassName="h-11 text-base font-medium"
             />
           </div>
         }

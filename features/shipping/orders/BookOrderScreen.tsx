@@ -11,7 +11,7 @@ import { defaultShipFrom, SHIP_TO_KEYS, ShipFromSection, ShipToSection, useAddre
 import { BookingConfirmed } from '../create/BookingConfirmed'
 import { BookingStep } from '../create/BookingStep'
 import { RatesStep } from '../create/RatesStep'
-import { draftReducer, INITIAL_DRAFT, type WizardStep } from '../create/shipmentDraft'
+import { draftReducer, newDraft, type WizardStep } from '../create/shipmentDraft'
 import { isCrossBorder, shipmentErrors, type FieldErrors } from '../create/shipmentRules'
 import { ShipmentStep } from '../create/ShipmentStep'
 import { useDraftRates } from '../create/useDraftRates'
@@ -44,7 +44,7 @@ export const BookOrderScreen: React.FC = () => {
   const orderRef = useOrderRef()
   const { data: detail, isLoading, isError } = useGetChannelOrderQuery(orderRef ?? { channel: 'walmart', market: '', orderId: '' }, { skip: !orderRef })
   const { data: addresses = [], isLoading: loadingAddresses } = useGetShipFromOptionsQuery()
-  const [draft, dispatch] = useReducer(draftReducer, INITIAL_DRAFT)
+  const [draft, dispatch] = useReducer(draftReducer, undefined, newDraft)
   const [loaded, setLoaded] = useState(false)
   const [booked, setBooked] = useState<ParcelShipmentDto | null>(null)
 

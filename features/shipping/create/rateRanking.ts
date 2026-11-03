@@ -3,8 +3,8 @@ import type { Rate, RateTag } from '../types'
 export type RateSort = 'PRICE' | 'TIME'
 
 export const RATE_SORTS: Array<{ value: RateSort; label: string }> = [
-  { value: 'PRICE', label: 'Total price: low → high' },
-  { value: 'TIME', label: 'Delivery time: fastest first' },
+  { value: 'PRICE', label: 'Total Price' },
+  { value: 'TIME', label: 'Delivery Time' },
 ]
 
 export const TAG_LABEL: Record<RateTag, string> = { CHEAPEST: 'Cheapest', FASTEST: 'Fastest', BEST_VALUE: 'Best value' }

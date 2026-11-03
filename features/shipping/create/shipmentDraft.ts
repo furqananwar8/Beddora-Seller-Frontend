@@ -1,3 +1,4 @@
+import { format } from 'date-fns'
 import type { AddressValue } from '@/components/address-fields/AddressFields'
 import { EMPTY_PHONE, type PhoneValue } from '@/components/phone-field/PhoneField'
 import { cmTo, convertLength, convertWeight, kgTo } from '@/features/procurement/shared/units'
@@ -80,7 +81,11 @@ export const EMPTY_SHIP_TO: ShipToDraft = {
   residential: true,
 }
 
-export const INITIAL_DRAFT: ShipmentDraft = {
+/**
+ * A blank shipment. Pickup is the default handover, so it starts with today's date (the earliest the picker allows);
+ * built per draft so the date is never a stale one from an old page load.
+ */
+export const newDraft = (): ShipmentDraft => ({
   step: 0,
   shipFromId: '',
   shipTo: EMPTY_SHIP_TO,
@@ -90,15 +95,15 @@ export const INITIAL_DRAFT: ShipmentDraft = {
   pkg: { length: '', width: '', height: '', weight: '' },
   pkgEdited: [],
   incoterm: 'DDP',
-  handover: 'DROP_OFF',
-  pickupDate: '',
+  handover: 'PICKUP',
+  pickupDate: format(new Date(), 'yyyy-MM-dd'),
   signature: false,
   insurance: '',
   reference: '',
   selectedRateId: null,
   labelFormat: null,
   revision: 0,
-}
+})
 
 /** A typed number, or null when blank or not a number. */
 export const numberOf = (value: string): number | null => {
@@ -223,7 +228,7 @@ export function draftReducer(draft: ShipmentDraft, action: DraftAction): Shipmen
     case 'setLabelFormat':
       return { ...draft, labelFormat: action.format }
     case 'reset':
-      return INITIAL_DRAFT
+      return newDraft()
     case 'load':
       return syncPackage({ ...action.draft, selectedRateId: null, revision: draft.revision + 1 })
     default: {

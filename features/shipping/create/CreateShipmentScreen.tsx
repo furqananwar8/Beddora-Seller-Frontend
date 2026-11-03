@@ -12,7 +12,7 @@ import { AddressStep, defaultShipFrom } from './AddressStep'
 import { BookingConfirmed } from './BookingConfirmed'
 import { BookingStep } from './BookingStep'
 import { RatesStep } from './RatesStep'
-import { draftReducer, INITIAL_DRAFT, UNITS, type WizardStep } from './shipmentDraft'
+import { draftReducer, newDraft, UNITS, type WizardStep } from './shipmentDraft'
 import { isCrossBorder, shipmentErrors } from './shipmentRules'
 import { ShipmentStep } from './ShipmentStep'
 import { useDraftRates } from './useDraftRates'
@@ -25,7 +25,7 @@ import { CREATE_STEPS, WizardStepper } from './WizardStepper'
 export const CreateShipmentScreen: React.FC = () => {
   const router = useRouter()
   const canWrite = useAppAbility().can('write', 'shipping:parcels')
-  const [draft, dispatch] = useReducer(draftReducer, INITIAL_DRAFT)
+  const [draft, dispatch] = useReducer(draftReducer, undefined, newDraft)
   const [booked, setBooked] = useState<ParcelShipmentDto | null>(null)
   const { data: addresses = [], isLoading: loadingAddresses } = useGetShipFromOptionsQuery()
   const shipFrom = addresses.find((address) => address.id === draft.shipFromId)

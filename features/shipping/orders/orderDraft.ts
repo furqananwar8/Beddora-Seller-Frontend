@@ -1,5 +1,5 @@
 import { fromInternational } from '@/components/phone-field/PhoneField'
-import { customsFromProduct, EMPTY_SHIP_TO, INITIAL_DRAFT, type PickedProduct, type ShipmentDraft, type ShipToDraft } from '../create/shipmentDraft'
+import { customsFromProduct, EMPTY_SHIP_TO, newDraft, type PickedProduct, type ShipmentDraft, type ShipToDraft } from '../create/shipmentDraft'
 import type { ChannelOrderDetail, ChannelOrderDetailLine, ShipAddress, ShippingProduct } from '../types'
 
 /** The stand-in for a SKU not mapped to our products (see `isUnmapped`): nothing known but its name and SKU. */
@@ -61,7 +61,7 @@ export function draftFromOrder(detail: ChannelOrderDetail, shipFromId: string): 
   })
   const products = [...picked.values()]
   return {
-    ...INITIAL_DRAFT,
+    ...newDraft(),
     step: 1,
     shipFromId,
     shipTo: shipToFrom(detail.shipTo),
