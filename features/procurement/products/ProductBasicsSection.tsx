@@ -57,16 +57,20 @@ export const ProductBasicsSection: React.FC<ProductBasicsSectionProps> = ({ form
           />
         </FormField>
 
-        <FormField label="Fabric / material" htmlFor="product-material" error={errors.material?.message} hint="Default for new variations">
+        <FormField label="Fabric / material" htmlFor="product-material" error={errors.material?.message} hint="Default for new variations. Size, packaging and weight are set on each variation">
           <input id="product-material" autoComplete="off" className={fieldClass(errors.material?.message)} disabled={readOnly} {...register('material')} />
         </FormField>
 
-        <FormField label="Packaging" htmlFor="product-packaging" error={errors.packaging?.message} hint="Default for new variations">
-          <input id="product-packaging" autoComplete="off" className={fieldClass(errors.packaging?.message)} disabled={readOnly} {...register('packaging')} />
-        </FormField>
-
-        <FormField label="Size" htmlFor="product-size-name" error={errors.sizeName?.message}>
-          <input id="product-size-name" autoComplete="off" className={fieldClass(errors.sizeName?.message)} disabled={readOnly} {...register('sizeName')} />
+        <FormField label="HS code (optional)" htmlFor="product-hs-code" error={errors.hsCode?.message} hint="Customs tariff code. Every variation starts from it and can be changed per SKU">
+          <input
+            id="product-hs-code"
+            autoComplete="off"
+            inputMode="numeric"
+            placeholder="6302.21.00"
+            className={fieldClass(errors.hsCode?.message)}
+            disabled={readOnly}
+            {...register('hsCode')}
+          />
         </FormField>
 
         <FormField label="Photo (optional)" className="sm:col-span-2">

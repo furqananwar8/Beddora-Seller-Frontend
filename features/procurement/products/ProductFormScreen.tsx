@@ -21,7 +21,6 @@ import {
 } from '@/services/api/procurement.api'
 import { applyServerIssues } from '@/utils/apiErrors'
 import { ProductBasicsSection } from './ProductBasicsSection'
-import { ProductShippingSection } from './ProductShippingSection'
 import { emptyProductValues, fromFamily, newVariation, productFormSchema, toProductBody, type ProductFormValues } from './productForm'
 import { VariationsSection } from './VariationsSection'
 
@@ -164,7 +163,6 @@ export const ProductFormScreen: React.FC<ProductFormScreenProps> = ({ productId 
         )}
 
         <ProductBasicsSection form={form} product={editing} photo={photo} onPhotoChange={setPhoto} readOnly={readOnly} />
-        <ProductShippingSection form={form} readOnly={readOnly} />
         <VariationsSection
           form={form}
           productId={editing?.id}

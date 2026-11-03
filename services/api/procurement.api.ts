@@ -42,13 +42,20 @@ export interface PoProduct {
   packaging: string | null
   /** Free text such as "Medium" or "750 ml". */
   sizeName: string | null
+  /** Customs tariff code; a variation starts from its master's and may differ per SKU. */
+  hsCode: string | null
   description: string | null
   category: CategoryRef | null
   weightKg: number | null
   weightUnit: WeightUnit
+  /** The individually packed unit's L × W × H. */
   lengthCm: number | null
   widthCm: number | null
   heightCm: number | null
+  /** The dimensions the supplier states for the product (variations only). */
+  supplierLengthCm: number | null
+  supplierWidthCm: number | null
+  supplierHeightCm: number | null
   dimensionUnit: LengthUnit
   cbm: number | null
   /** Variations only: the barcode, null when none was given. */
@@ -95,6 +102,9 @@ export interface DimensionInput {
   length: number | null
   width: number | null
   height: number | null
+  supplierLength: number | null
+  supplierWidth: number | null
+  supplierHeight: number | null
   dimensionUnit: LengthUnit
   cbm: number | null
 }
@@ -103,6 +113,7 @@ interface VariantInput {
   material: string | null
   packaging: string | null
   sizeName: string | null
+  hsCode: string | null
   description: string | null
 }
 
@@ -930,6 +941,11 @@ export const procurementApi = baseApi.injectEndpoints({
       query: (id) => ({ url: `/procurement/products/${id}/archive`, method: 'POST' }),
       invalidatesTags: ['ProcurementProducts'],
     }),
+    /** Deletes for good; refused (409) while a purchase order, packaging list or invoice uses the product. */
+    deletePoProduct: b.mutation<void, number>({
+      query: (id) => ({ url: `/procurement/products/${id}`, method: 'DELETE' }),
+      invalidatesTags: ['ProcurementProducts'],
+    }),
     uploadPoProductPhoto: b.mutation<void, { id: number; file: File }>({
       query: ({ id, file }) => {
         const body = new FormData()
@@ -1301,6 +1317,7 @@ export const {
   useCreatePoProductMutation,
   useUpdatePoProductMutation,
   useArchivePoProductMutation,
+  useDeletePoProductMutation,
   useUploadPoProductPhotoMutation,
   useRemovePoProductPhotoMutation,
   useGetPoCategoriesQuery,

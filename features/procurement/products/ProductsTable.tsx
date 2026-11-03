@@ -20,17 +20,25 @@ export interface ProductRowActions {
   onAddVariation: (row: PoProductListItem) => void
   onDuplicate: (row: PoProductListItem) => void
   onArchive: (row: Row) => void
+  onDelete: (row: Row) => void
 }
 
 function actionsFor(row: Row, actions: ProductRowActions): RowActionItem[] {
   const edit: RowActionItem = { key: 'edit', label: actions.canWrite ? 'Edit product' : 'View product', onSelect: () => actions.onEdit(row) }
   if (!actions.canWrite) return [edit]
-  if (!isListItem(row)) return [edit, { key: 'archive', label: 'Archive variation', tone: 'danger', onSelect: () => actions.onArchive(row) }]
+  if (!isListItem(row)) {
+    return [
+      edit,
+      { key: 'archive', label: 'Archive variation', tone: 'danger', onSelect: () => actions.onArchive(row) },
+      { key: 'delete', label: 'Delete variation', tone: 'danger', onSelect: () => actions.onDelete(row) },
+    ]
+  }
   return [
     edit,
     { key: 'variation', label: 'Add variation', onSelect: () => actions.onAddVariation(row) },
     { key: 'duplicate', label: 'Duplicate', onSelect: () => actions.onDuplicate(row) },
     { key: 'archive', label: 'Archive', tone: 'danger', onSelect: () => actions.onArchive(row) },
+    { key: 'delete', label: 'Delete', tone: 'danger', onSelect: () => actions.onDelete(row) },
   ]
 }
 
@@ -75,13 +83,15 @@ function columns(actions: ProductRowActions): TreeColumn<Row>[] {
     { key: 'size', header: 'Size', render: (row) => row.sizeName ?? '—' },
     { key: 'packaging', header: 'Packaging', className: 'min-w-[120px]', render: (row) => row.packaging ?? '—' },
     { key: 'category', header: 'Category', render: (row) => row.category?.name ?? '—' },
-    { key: 'weight', header: 'Weight', render: (row) => <span className="whitespace-nowrap">{formatWeight(row.weightKg, row.weightUnit)}</span> },
+    { key: 'weight', header: 'Weight', className: 'whitespace-nowrap', render: (row) => <span className="whitespace-nowrap">{formatWeight(row.weightKg, row.weightUnit)}</span> },
     {
       key: 'dims',
       header: 'L × W × H',
+      // Without a width the header wraps one letter per line when the table is squeezed
+      className: 'min-w-[130px] whitespace-nowrap',
       render: (row) => <span className="whitespace-nowrap">{formatDimensions(row.lengthCm, row.widthCm, row.heightCm, row.dimensionUnit)}</span>,
     },
-    { key: 'cbm', header: 'CBM', render: (row) => <span className="font-mono text-xs">{formatCbm(row.cbm)}</span> },
+    { key: 'cbm', header: 'CBM', className: 'whitespace-nowrap', render: (row) => <span className="font-mono text-xs">{formatCbm(row.cbm)}</span> },
     { key: 'actions', header: 'Actions', render: (row) => <RowActionsMenu label={row.ref} items={actionsFor(row, actions)} /> },
   ]
 }

@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import type { CategoryRef, LengthUnit, PoProduct, PoProductFamily, ProductBody, VariationBody, WeightUnit } from '@/services/api/procurement.api'
-import { cbmOf, cmTo, kgTo } from '../shared/units'
+import { cbmOf, cmTo, convertLength, kgTo } from '../shared/units'
 
 /* ─────────────── Field helpers ─────────────── */
 
@@ -20,24 +20,47 @@ export const skuField = z
 
 const weightShape = { weight: optionalNumber('Weight') }
 
-/** Variation dimensions as typed. `cbmTouched` = the user overrode the derived CBM. */
-const dimensionShape = {
-  length: optionalNumber('Length'),
-  width: optionalNumber('Width'),
-  height: optionalNumber('Height'),
-  cbm: z.string().trim().refine((value) => value === '' || (Number.isFinite(Number(value)) && Number(value) >= 0), 'CBM must be a number'),
-  cbmTouched: z.boolean(),
+/** Customs tariff code: 6 to 12 digits, with or without dots, dashes or spaces (same rule as the server). Optional. */
+export const hsCodeField = z
+  .string()
+  .trim()
+  .max(20, 'HS code is too long')
+  .refine((value) => {
+    if (value === '') return true
+    const digits = value.replace(/\D/g, '').length
+    return /^[0-9][0-9.\-\s]*$/.test(value) && digits >= 6 && digits <= 12
+  }, 'HS code is 6 to 12 digits, e.g. 6302.21.00')
+
+/** `10x20x30`, `10 x 20 x 30`, `10×20×30` or `10*20*30` as [10, 20, 30]; null when blank or not three numbers above 0. */
+export function parseDimensions(text: string): [number, number, number] | null {
+  const parts = text.trim().split(/\s*[x\u00d7*]\s*/i)
+  if (parts.length !== 3) return null
+  const numbers = parts.map((part) => (part === '' ? Number.NaN : Number(part)))
+  return numbers.every((value) => Number.isFinite(value) && value > 0) ? (numbers as [number, number, number]) : null
 }
 
-type Dimensions = { length: string; width: string; height: string }
+export const formatDimensionsText = (length: number, width: number, height: number): string => `${length}x${width}x${height}`
 
-/** All three of L, W and H, or none. */
-function dimensionsTogether(values: Dimensions, ctx: z.RefinementCtx, prefix: (string | number)[] = []) {
-  const given = [values.length, values.width, values.height].filter((part) => part.trim() !== '').length
-  if (given === 0 || given === 3) return
-  for (const key of ['length', 'width', 'height'] as const) {
-    if (values[key].trim() === '') ctx.addIssue({ code: 'custom', path: [...prefix, key], message: 'Enter L, W and H together' })
-  }
+/** The same text in the other unit (10x20x30 cm is 3.94x7.87x11.81 in); text that is not L x W x H stays as typed. */
+export function convertDimensionsText(text: string, from: LengthUnit, to: LengthUnit): string {
+  const dims = parseDimensions(text)
+  return dims ? formatDimensionsText(...(dims.map((value) => convertLength(value, from, to)) as [number, number, number])) : text
+}
+
+/** One dimension box: blank, or three numbers (L x W x H) such as 10x20x30. */
+const dimensionsText = z
+  .string()
+  .trim()
+  .refine((value) => value === '' || parseDimensions(value) !== null, 'Enter three numbers like 10x20x30 (L x W x H)')
+
+/** Variation dimensions as typed. `cbmTouched` = the user overrode the derived CBM. */
+const dimensionShape = {
+  /** The individually packed unit, L x W x H in the variation's own unit. */
+  dimensions: dimensionsText,
+  /** What the supplier states for the product, same format and unit. */
+  supplierDimensions: dimensionsText,
+  cbm: z.string().trim().refine((value) => value === '' || (Number.isFinite(Number(value)) && Number(value) >= 0), 'CBM must be a number'),
+  cbmTouched: z.boolean(),
 }
 
 /* ─────────────── Schema ─────────────── */
@@ -54,6 +77,8 @@ export const variationSchema = z.object({
   material: z.string().trim().max(120, 'Too long'),
   packaging: z.string().trim().max(120, 'Too long'),
   sizeName: z.string().trim().max(60, 'Too long'),
+  /** Starts from the master's HS code (see useHsCodeSync) and may be changed per SKU. */
+  hsCode: hsCodeField,
   description: z.string().trim().max(2000, 'Description is too long'),
   /** Optional barcode: UPC-A, or an 8/13/14-digit GTIN (same rule as the server). */
   upc: z
@@ -70,11 +95,11 @@ export const variationSchema = z.object({
     .string()
     .trim()
     .refine((value) => value === '' || (/^\d+$/.test(value) && Number(value) <= 10_000_000), 'Enter a whole number of units'),
-  /** "Same weight as master"; dimensions are always the variation's own. */
-  inheritsMaster: z.boolean(),
   ...weightShape,
-  /** The unit the variation's own weight is typed in (its own toggle, independent of the master's). */
+  /** The unit this variation's weight is typed in (its own toggle). */
   weightUnit: z.enum(['KG', 'LB']),
+  /** The unit this variation's L × W × H is typed in (its own toggle). */
+  dimensionUnit: z.enum(['CM', 'IN']),
   ...dimensionShape,
   hasPhoto: z.boolean(),
   removePhoto: z.boolean(),
@@ -85,20 +110,16 @@ export const productFormSchema = z
     name: nameField,
     sku: skuField,
     category: z.custom<CategoryRef | null>(),
+    /** Default material for new variations; size, packaging and weight belong to each variation. */
     material: z.string().trim().max(120, 'Too long'),
-    packaging: z.string().trim().max(120, 'Too long'),
-    sizeName: z.string().trim().max(60, 'Too long'),
+    /** Default HS code for the variations. */
+    hsCode: hsCodeField,
     description: z.string().trim().max(2000, 'Description is too long'),
-    weightUnit: z.enum(['KG', 'LB']),
-    /** The unit every variation's dimensions are typed in. */
-    dimensionUnit: z.enum(['CM', 'IN']),
-    ...weightShape,
     variations: z.array(variationSchema).max(100, 'At most 100 variations'),
     hasPhoto: z.boolean(),
     removePhoto: z.boolean(),
   })
   .superRefine((values, ctx) => {
-    values.variations.forEach((variation, index) => dimensionsTogether(variation, ctx, ['variations', index]))
     // The server checks other products; this catches a SKU typed twice in the same form
     const seen = new Set<string>()
     ;[{ sku: values.sku, path: ['sku'] }, ...values.variations.map((variation, index) => ({ sku: variation.sku, path: ['variations', index, 'sku'] }))].forEach(({ sku, path }) => {
@@ -114,41 +135,42 @@ export type VariationFormValues = z.infer<typeof variationSchema>
 
 /* ─────────────── Defaults ─────────────── */
 
-const blankDimensions = { length: '', width: '', height: '', cbm: '', cbmTouched: false }
+const blankDimensions = { dimensions: '', supplierDimensions: '', cbm: '', cbmTouched: false }
 
 export const emptyProductValues: ProductFormValues = {
   name: '',
   sku: '',
   category: null,
   material: '',
-  packaging: '',
-  sizeName: '',
+  hsCode: '',
   description: '',
-  weightUnit: 'KG',
-  dimensionUnit: 'CM',
-  weight: '',
   variations: [],
   hasPhoto: false,
   removePhoto: false,
 }
 
-/** A new variation row, prefilled from the master's defaults ("Same weight as master" on). */
-export function newVariation(master: Pick<ProductFormValues, 'material' | 'packaging' | 'weightUnit'>): VariationFormValues {
+/** A new variation row: the master's material as a default, and the units of the row above it (else KG and CM). */
+export function newVariation(
+  master: Pick<ProductFormValues, 'material' | 'hsCode'>,
+  units: Pick<VariationFormValues, 'weightUnit' | 'dimensionUnit'> = { weightUnit: 'KG', dimensionUnit: 'CM' }
+): VariationFormValues {
   return {
     clientKey: crypto.randomUUID(),
     variantName: '',
     sku: '',
     color: '',
     material: master.material,
-    packaging: master.packaging,
+    packaging: '',
     sizeName: '',
+    // A new variation starts from the master's HS code
+    hsCode: master.hsCode,
     description: '',
     upc: '',
     asin: '',
     reorderPoint: '',
-    inheritsMaster: true,
     weight: '',
-    weightUnit: master.weightUnit,
+    weightUnit: units.weightUnit,
+    dimensionUnit: units.dimensionUnit,
     ...blankDimensions,
     hasPhoto: false,
     removePhoto: false,
@@ -168,11 +190,10 @@ const customVariantName = (variation: Pick<VariationFormValues, 'variantName' | 
 }
 
 /** The CBM to show: the user's override, else L×W×H in the current unit, else blank. */
-export function derivedCbm(values: Dimensions & { cbm: string; cbmTouched: boolean }, unit: LengthUnit): string {
+export function derivedCbm(values: { dimensions: string; cbm: string; cbmTouched: boolean }, unit: LengthUnit): string {
   if (values.cbmTouched) return values.cbm
-  const [l, w, h] = [values.length, values.width, values.height].map(Number)
-  if (![values.length, values.width, values.height].every((part) => part.trim() !== '') || ![l, w, h].every((part) => part > 0)) return ''
-  return String(cbmOf(l, w, h, unit))
+  const dims = parseDimensions(values.dimensions)
+  return dims ? String(cbmOf(dims[0], dims[1], dims[2], unit)) : ''
 }
 
 /* ─────────────── API ⇄ form ─────────────── */
@@ -181,12 +202,22 @@ const num = (value: string): number | null => (value.trim() === '' ? null : Numb
 const text = (value: string): string | null => (value.trim() === '' ? null : value.trim())
 const shown = (value: number | null): string => (value === null ? '' : String(value))
 
-function dimensionsBody(values: Dimensions & { cbm: string; cbmTouched: boolean }, dimensionUnit: LengthUnit) {
-  return { length: num(values.length), width: num(values.width), height: num(values.height), dimensionUnit, cbm: num(derivedCbm(values, dimensionUnit)) }
+function dimensionsBody(values: { dimensions: string; supplierDimensions: string; cbm: string; cbmTouched: boolean }, dimensionUnit: LengthUnit) {
+  const own = parseDimensions(values.dimensions)
+  const supplier = parseDimensions(values.supplierDimensions)
+  return {
+    length: own?.[0] ?? null,
+    width: own?.[1] ?? null,
+    height: own?.[2] ?? null,
+    supplierLength: supplier?.[0] ?? null,
+    supplierWidth: supplier?.[1] ?? null,
+    supplierHeight: supplier?.[2] ?? null,
+    dimensionUnit,
+    cbm: num(derivedCbm(values, dimensionUnit)),
+  }
 }
 
 export function toProductBody(values: ProductFormValues, expectedUpdatedAt?: string): ProductBody {
-  const { weightUnit, dimensionUnit } = values
   const variations: VariationBody[] = values.variations.map((variation) => ({
     ...(variation.id !== undefined && { id: variation.id }),
     // Left as the auto-built name, it is not stored as custom, so it keeps following the master's name
@@ -196,15 +227,16 @@ export function toProductBody(values: ProductFormValues, expectedUpdatedAt?: str
     material: text(variation.material),
     packaging: text(variation.packaging),
     sizeName: text(variation.sizeName),
+    hsCode: text(variation.hsCode),
     description: text(variation.description),
     upc: text(variation.upc),
     asin: text(variation.asin),
     reorderPoint: num(variation.reorderPoint),
-    inheritsMaster: variation.inheritsMaster,
-    // Inheriting: the master's weight and unit are copied on save
-    weight: variation.inheritsMaster ? null : num(variation.weight),
-    weightUnit: variation.inheritsMaster ? weightUnit : variation.weightUnit,
-    ...dimensionsBody(variation, dimensionUnit),
+    // A variation always carries its own weight and units; the master has none to inherit
+    inheritsMaster: false,
+    weight: num(variation.weight),
+    weightUnit: variation.weightUnit,
+    ...dimensionsBody(variation, variation.dimensionUnit),
   }))
   return {
     name: values.name.trim(),
@@ -212,12 +244,13 @@ export function toProductBody(values: ProductFormValues, expectedUpdatedAt?: str
     categoryId: values.category?.id ?? null,
     color: null,
     material: text(values.material),
-    packaging: text(values.packaging),
-    sizeName: text(values.sizeName),
+    packaging: null,
+    sizeName: null,
+    hsCode: text(values.hsCode),
     description: text(values.description),
-    weight: num(values.weight),
-    weightUnit,
-    dimensionUnit,
+    weight: null,
+    weightUnit: 'KG',
+    dimensionUnit: 'CM',
     variations,
     ...(expectedUpdatedAt && { expectedUpdatedAt }),
   }
@@ -227,15 +260,15 @@ const weightValue = (row: PoProduct, weightUnit: WeightUnit) => (row.weightKg ==
 
 /** Saved dimensions back in the unit they were entered in. A stored CBM that differs from L×W×H was an override. */
 function dimensionValues(row: PoProduct, dimensionUnit: LengthUnit) {
-  const dims = {
-    length: row.lengthCm === null ? '' : shown(cmTo(row.lengthCm, dimensionUnit)),
-    width: row.widthCm === null ? '' : shown(cmTo(row.widthCm, dimensionUnit)),
-    height: row.heightCm === null ? '' : shown(cmTo(row.heightCm, dimensionUnit)),
-  }
-  const auto = derivedCbm({ ...dims, cbm: '', cbmTouched: false }, dimensionUnit)
+  const asText = (l: number | null, w: number | null, h: number | null) =>
+    l === null || w === null || h === null ? '' : formatDimensionsText(cmTo(l, dimensionUnit), cmTo(w, dimensionUnit), cmTo(h, dimensionUnit))
+  const dimensions = asText(row.lengthCm, row.widthCm, row.heightCm)
+  const supplierDimensions = asText(row.supplierLengthCm, row.supplierWidthCm, row.supplierHeightCm)
+  const auto = derivedCbm({ dimensions, cbm: '', cbmTouched: false }, dimensionUnit)
   const cbm = shown(row.cbm)
   return {
-    ...dims,
+    dimensions,
+    supplierDimensions,
     cbm,
     cbmTouched: cbm !== '' && (auto === '' || Math.abs(Number(auto) - Number(cbm)) > 0.000001),
   }
@@ -243,18 +276,13 @@ function dimensionValues(row: PoProduct, dimensionUnit: LengthUnit) {
 
 /** Form values for an existing family. `asCopy` blanks ids and SKUs (Duplicate); the name stays, and the server asks for a new one on save. */
 export function fromFamily(family: PoProductFamily, asCopy = false): ProductFormValues {
-  const { weightUnit, dimensionUnit } = family
   return {
     name: family.name,
     sku: asCopy ? '' : (family.sku ?? ''),
     category: family.category,
     material: family.material ?? '',
-    packaging: family.packaging ?? '',
-    sizeName: family.sizeName ?? '',
+    hsCode: family.hsCode ?? '',
     description: family.description ?? '',
-    weightUnit,
-    dimensionUnit,
-    weight: weightValue(family, weightUnit),
     hasPhoto: !asCopy && family.hasPhoto,
     removePhoto: false,
     variations: family.variations.map((variation) => ({
@@ -266,15 +294,17 @@ export function fromFamily(family: PoProductFamily, asCopy = false): ProductForm
       material: variation.material ?? '',
       packaging: variation.packaging ?? '',
       sizeName: variation.sizeName ?? '',
+      hsCode: variation.hsCode ?? '',
       description: variation.description ?? '',
       // A barcode identifies one item, so a copy starts without it (as with the SKU)
       upc: asCopy ? '' : (variation.upc ?? ''),
       asin: asCopy ? '' : (variation.asin ?? ''),
       reorderPoint: variation.reorderPoint === null ? '' : String(variation.reorderPoint),
-      inheritsMaster: variation.inheritsMaster,
-      weight: variation.inheritsMaster ? '' : weightValue(variation, variation.weightUnit),
-      weightUnit: variation.inheritsMaster ? weightUnit : variation.weightUnit,
-      ...dimensionValues(variation, dimensionUnit),
+      // Variations that followed the master's weight were saved with a copy of it, so every row shows its own
+      weight: weightValue(variation, variation.weightUnit),
+      weightUnit: variation.weightUnit,
+      dimensionUnit: variation.dimensionUnit,
+      ...dimensionValues(variation, variation.dimensionUnit),
       hasPhoto: !asCopy && variation.hasPhoto,
       removePhoto: false,
     })),

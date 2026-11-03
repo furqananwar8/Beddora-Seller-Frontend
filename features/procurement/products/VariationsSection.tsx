@@ -1,9 +1,8 @@
 'use client'
 
 import React, { useState } from 'react'
-import { Controller, UseFormReturn, useFieldArray, useWatch } from 'react-hook-form'
+import { UseFormReturn, useFieldArray, useWatch } from 'react-hook-form'
 import { fieldClass } from '@/components/form-field/FormField'
-import { NumericInput } from '@/components/form-field/NumericInput'
 import { SegmentedToggle } from '@/components/segmented-toggle/SegmentedToggle'
 import { Button } from '@/design-system/buttons'
 import { Card, CardContent, CardHeader, CardTitle } from '@/design-system/cards/Card'
@@ -12,9 +11,9 @@ import { cn } from '@/utils/cn'
 import { ColorSelect } from '../shared/ColorSelect'
 import { CbmField, LENGTH_UNITS, WeightField } from '../shared/MeasurementFields'
 import { PhotoField } from './PhotoField'
-import { derivedCbm, newVariation, type ProductFormValues } from './productForm'
-import { useUnitSwitch } from './ProductShippingSection'
+import { convertDimensionsText, derivedCbm, newVariation, type ProductFormValues } from './productForm'
 import { SkuInput } from './SkuInput'
+import { useHsCodeSync } from './useHsCodeSync'
 import { useVariantNameSync } from './useVariantNameSync'
 
 interface VariationsSectionProps {
@@ -27,10 +26,16 @@ interface VariationsSectionProps {
   readOnly: boolean
 }
 
-const HEAD = 'px-2 py-2 text-center text-xs font-semibold uppercase tracking-wide text-text-muted'
-// Cells sit at the top so a field's error under it grows the row downwards instead of lifting the fields
-const CELL = 'px-2 py-2 text-center align-top'
-const input = (error?: string) => cn(fieldClass(error), 'h-9 min-w-[7rem] py-1 text-sm')
+const input = (error?: string) => cn(fieldClass(error), 'h-9 py-1 text-sm')
+
+/** A labelled field, so every variation reads on its own. */
+const Field: React.FC<{ label: string; error?: string; note?: React.ReactNode; className?: string; children: React.ReactNode }> = ({ label, error, note, className, children }) => (
+  <div className={cn('min-w-0', className)}>
+    <p className="ds-input-label">{label}</p>
+    {children}
+    {error ? <p className="mt-1 text-xs text-danger-600">{error}</p> : note && <p className="mt-1 text-xs text-text-muted">{note}</p>}
+  </div>
+)
 
 const Readout: React.FC<{ label: string; value: string }> = ({ label, value }) => (
   <div className="min-w-0">
@@ -50,10 +55,19 @@ export const VariationsSection: React.FC<VariationsSectionProps> = ({ form, prod
   } = form
   const { fields, append, remove } = useFieldArray({ control, name: 'variations', keyName: 'fieldId' })
   const [open, setOpen] = useState<Set<string>>(new Set())
-  const [masterCategory, weightUnit, dimensionUnit, masterWeight] = useWatch({ control, name: ['category', 'weightUnit', 'dimensionUnit', 'weight'] })
+  const masterCategory = useWatch({ control, name: 'category' })
   const variations = useWatch({ control, name: 'variations' }) ?? []
   useVariantNameSync(form)
-  const { switchLength } = useUnitSwitch(form)
+  useHsCodeSync(form)
+
+  /** Flipping one row's unit re-expresses only that row's two dimension boxes. */
+  const switchLength = (index: number, unit: LengthUnit) => {
+    const row = getValues(`variations.${index}`)
+    if (row.dimensionUnit === unit) return
+    setValue(`variations.${index}.dimensionUnit`, unit, { shouldDirty: true })
+    setValue(`variations.${index}.dimensions`, convertDimensionsText(row.dimensions, row.dimensionUnit, unit), { shouldDirty: true })
+    setValue(`variations.${index}.supplierDimensions`, convertDimensionsText(row.supplierDimensions, row.dimensionUnit, unit), { shouldDirty: true })
+  }
 
   const toggle = (key: string) => setOpen((current) => {
     const next = new Set(current)
@@ -63,7 +77,9 @@ export const VariationsSection: React.FC<VariationsSectionProps> = ({ form, prod
   })
 
   const addRow = () => {
-    const row = newVariation(getValues())
+    // A new row starts in the units of the row above it, with the master's material and HS code
+    const last = getValues('variations').at(-1)
+    const row = newVariation(getValues(), last && { weightUnit: last.weightUnit, dimensionUnit: last.dimensionUnit })
     append(row, { shouldFocus: false })
     setOpen((current) => new Set(current).add(row.clientKey))
   }
@@ -79,192 +95,201 @@ export const VariationsSection: React.FC<VariationsSectionProps> = ({ form, prod
             {fields.length} linked to this master
           </span>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-text-muted">Dimensions in</span>
-          <SegmentedToggle<LengthUnit> ariaLabel="Dimension unit" value={dimensionUnit} options={LENGTH_UNITS} disabled={readOnly} onChange={switchLength} />
-          {!readOnly && (
-            <Button type="button" variant="outline" size="sm" onClick={addRow}>
-              + Add variation
-            </Button>
-          )}
-        </div>
+        {!readOnly && (
+          <Button type="button" variant="outline" size="sm" onClick={addRow}>
+            + Add variation
+          </Button>
+        )}
       </CardHeader>
       <CardContent className="p-0 sm:p-0">
         {fields.length === 0 ? (
           <p className="px-4 py-8 text-center text-sm text-text-muted">No variations. This product is ordered on its own SKU.</p>
         ) : (
-          <div className="ds-scroll-x">
-            <table className="min-w-full border-separate border-spacing-0 text-sm">
-              <thead className="bg-secondary-50">
-                <tr>
-                  <th className="w-8" aria-label="Expand" />
-                  <th className={cn(HEAD, 'min-w-[12rem]')}>Variant name</th>
-                  <th className={HEAD}>SKU</th>
-                  <th className={HEAD}>Color *</th>
-                  <th className={HEAD}>Material</th>
-                  <th className={HEAD}>Size</th>
-                  <th className={HEAD}>Packaging</th>
-                  <th className={cn(HEAD, 'min-w-[14rem]')}>L × W × H ({dimensionUnit.toLowerCase()})</th>
-                  <th className={HEAD}>CBM</th>
-                  <th className={HEAD} title="Category and weight follow the master; dimensions are the variation's own">Master weight</th>
-                  <th className="w-10" aria-label="Remove" />
-                </tr>
-              </thead>
-              <tbody>
-                {fields.map((field, index) => {
-                  const row = variations[index] ?? field
-                  const key = row.clientKey
-                  const expanded = open.has(key)
-                  const err = rowErrors?.[index]
-                  const dimsError = err?.length?.message ?? err?.width?.message ?? err?.height?.message
-                  const hasRowError = Boolean(err && Object.keys(err).length)
-                  return (
-                    <React.Fragment key={field.fieldId}>
-                      <tr className={cn('border-t border-border', hasRowError && 'bg-danger-50/40')}>
-                        <td className={CELL}>
-                          <button
-                            type="button"
-                            aria-expanded={expanded}
-                            aria-label={expanded ? 'Hide details' : 'Show details'}
-                            onClick={() => toggle(key)}
-                            className="mt-1.5 rounded p-1 text-text-muted hover:bg-secondary-100"
-                          >
-                            <svg className={cn('h-4 w-4 transition-transform', expanded && 'rotate-90')} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                            </svg>
-                          </button>
-                        </td>
-                        <td className={CELL}>
-                          <input
-                            aria-label="Variant name"
-                            autoComplete="off"
-                            placeholder="Name-Color-Size"
-                            className={cn(input(err?.variantName?.message), 'min-w-[15rem]')}
-                            disabled={readOnly}
-                            {...register(`variations.${index}.variantName`)}
-                          />
-                          {err?.variantName?.message && <p className="mt-1 text-left text-xs text-danger-600">{err.variantName.message}</p>}
-                        </td>
-                        <td className={CELL}>
-                          <SkuInput
-                            compact
-                            productId={productId}
-                            aria-label="SKU"
-                            error={err?.sku?.message}
-                            className="h-9 min-w-[9rem] py-1 text-sm"
-                            disabled={readOnly}
-                            onTaken={(sku) => setError(`variations.${index}.sku`, { type: 'server', message: `SKU ${sku} is already used by another product` })}
-                            {...register(`variations.${index}.sku`)}
-                          />
-                          {err?.sku?.message && <p className="mt-1 max-w-[12rem] text-left text-xs text-danger-600">{err.sku.message}</p>}
-                        </td>
-                        <td className={CELL}>
-                          <ColorSelect
-                            aria-label="Color"
-                            className="h-9 min-w-[9rem] py-1 text-sm"
-                            error={err?.color?.message}
-                            disabled={readOnly}
-                            value={row.color}
-                            onChange={(color) => setValue(`variations.${index}.color`, color, { shouldDirty: true, shouldValidate: true })}
-                          />
-                          {err?.color?.message && <p className="mt-1 text-left text-xs text-danger-600">{err.color.message}</p>}
-                        </td>
-                        <td className={CELL}>
-                          <input aria-label="Material" className={input(err?.material?.message)} disabled={readOnly} {...register(`variations.${index}.material`)} />
-                        </td>
-                        <td className={CELL}>
-                          <input aria-label="Size" placeholder="e.g. Large" className={input(err?.sizeName?.message)} disabled={readOnly} {...register(`variations.${index}.sizeName`)} />
-                        </td>
-                        <td className={CELL}>
-                          <input aria-label="Packaging" className={input(err?.packaging?.message)} disabled={readOnly} {...register(`variations.${index}.packaging`)} />
-                        </td>
-                        <td className={CELL}>
-                          <div className="flex items-center justify-center gap-1">
-                            {(['length', 'width', 'height'] as const).map((part, partIndex) => (
-                              <React.Fragment key={part}>
-                                {partIndex > 0 && <span className="text-text-muted" aria-hidden>×</span>}
-                                <NumericInput
-                                  decimal
-                                  aria-label={`${part[0].toUpperCase()}${part.slice(1)} in ${dimensionUnit.toLowerCase()}`}
-                                  className={cn(fieldClass(err?.[part]?.message), 'h-9 w-16 px-2 py-1 text-right text-sm tabular-nums')}
-                                  disabled={readOnly}
-                                  {...register(`variations.${index}.${part}`)}
-                                />
-                              </React.Fragment>
-                            ))}
-                          </div>
-                          {dimsError && <p className="mt-1 text-left text-xs text-danger-600">{dimsError}</p>}
-                        </td>
-                        <td className={cn(CELL, 'whitespace-nowrap font-mono text-xs leading-9 text-text-secondary')}>
-                          {derivedCbm({ length: row.length, width: row.width, height: row.height, cbm: row.cbm, cbmTouched: row.cbmTouched }, dimensionUnit) || '—'}
-                        </td>
-                        <td className={CELL}>
-                          <input
-                            type="checkbox"
-                            aria-label="Same weight as master"
-                            className="h-4 w-4 rounded"
-                            disabled={readOnly}
-                            {...register(`variations.${index}.inheritsMaster`, {
-                              // Unchecking opens the row so its own weight can be entered
-                              onChange: (event) => !event.target.checked && setOpen((current) => new Set(current).add(key)),
-                            })}
-                          />
-                        </td>
-                        <td className={CELL}>
-                          {!readOnly && (
-                            <button
-                              type="button"
-                              aria-label={`Remove variation ${row.sku || index + 1}`}
-                              onClick={() => {
-                                onPhotoChange(key, null)
-                                remove(index)
-                              }}
-                              className="rounded p-1.5 text-text-muted hover:bg-danger-50 hover:text-danger-600"
-                            >
-                              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.9 12.1A2 2 0 0116.1 21H7.9a2 2 0 01-2-1.9L5 7m5 4v6m4-6v6M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3M4 7h16" />
-                              </svg>
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                      {expanded && (
-                        <tr className="bg-secondary-50/60">
-                          <td />
-                          <td colSpan={10} className="px-2 pb-4 pt-2">
-                            <VariationDetails
-                              form={form}
-                              index={index}
-                              readOnly={readOnly}
-                              inherits={row.inheritsMaster}
-                              master={{ category: masterCategory?.name ?? '—', weight: masterWeight ? `${masterWeight} ${weightUnit.toLowerCase()}` : '—' }}
-                              dimensionUnit={dimensionUnit}
-                              photo={
-                                <PhotoField
-                                  compact
-                                  productId={row.id}
-                                  version={version}
-                                  hasSavedPhoto={row.hasPhoto}
-                                  removing={row.removePhoto}
-                                  onRemoveSaved={(removing) => setValue(`variations.${index}.removePhoto`, removing, { shouldDirty: true })}
-                                  file={photos.get(key) ?? null}
-                                  onFileChange={(file) => onPhotoChange(key, file)}
-                                  disabled={readOnly}
-                                />
-                              }
-                            />
-                          </td>
-                        </tr>
+          <div className="divide-y-8 divide-secondary-100">
+            {fields.map((field, index) => {
+              const row = variations[index] ?? field
+              const key = row.clientKey
+              const expanded = open.has(key)
+              const err = rowErrors?.[index]
+              const hasRowError = Boolean(err && Object.keys(err).length)
+              const unit = row.dimensionUnit.toLowerCase()
+              const cbmShown = derivedCbm({ dimensions: row.dimensions, cbm: row.cbm, cbmTouched: row.cbmTouched }, row.dimensionUnit)
+              return (
+                <div key={field.fieldId} className={cn('space-y-4 p-4', hasRowError && 'bg-danger-50/40')}>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="min-w-0 truncate text-sm font-semibold text-text-primary">
+                      Variation {index + 1}
+                      {row.variantName && <span className="ml-2 font-normal text-text-muted">{row.variantName}</span>}
+                    </p>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <button
+                        type="button"
+                        aria-expanded={expanded}
+                        onClick={() => toggle(key)}
+                        className="flex items-center gap-1 rounded px-2 py-1 text-xs font-medium text-primary-600 hover:bg-secondary-100"
+                      >
+                        <svg className={cn('h-3.5 w-3.5 transition-transform', expanded && 'rotate-90')} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                        {expanded ? 'Hide details' : 'More details'}
+                      </button>
+                      {!readOnly && (
+                        <button
+                          type="button"
+                          aria-label={`Remove variation ${row.sku || index + 1}`}
+                          onClick={() => {
+                            onPhotoChange(key, null)
+                            remove(index)
+                          }}
+                          className="rounded p-1.5 text-text-muted hover:bg-danger-50 hover:text-danger-600"
+                        >
+                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.9 12.1A2 2 0 0116.1 21H7.9a2 2 0 01-2-1.9L5 7m5 4v6m4-6v6M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3M4 7h16" />
+                          </svg>
+                        </button>
                       )}
-                    </React.Fragment>
-                  )
-                })}
-              </tbody>
-            </table>
+                    </div>
+                  </div>
+
+                  {/* Identity */}
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    <Field label="Variant name" error={err?.variantName?.message} className="sm:col-span-2">
+                      <input
+                        aria-label="Variant name"
+                        autoComplete="off"
+                        placeholder="Name-Color-Size"
+                        className={input(err?.variantName?.message)}
+                        disabled={readOnly}
+                        {...register(`variations.${index}.variantName`)}
+                      />
+                    </Field>
+                    <Field label="SKU" error={err?.sku?.message}>
+                      <SkuInput
+                        compact
+                        productId={productId}
+                        aria-label="SKU"
+                        error={err?.sku?.message}
+                        className="h-9 py-1 text-sm"
+                        disabled={readOnly}
+                        onTaken={(sku) => setError(`variations.${index}.sku`, { type: 'server', message: `SKU ${sku} is already used by another product` })}
+                        {...register(`variations.${index}.sku`)}
+                      />
+                    </Field>
+                    <Field label="Color *" error={err?.color?.message}>
+                      <ColorSelect
+                        aria-label="Color"
+                        className="h-9 py-1 text-sm"
+                        error={err?.color?.message}
+                        disabled={readOnly}
+                        value={row.color}
+                        onChange={(color) => setValue(`variations.${index}.color`, color, { shouldDirty: true, shouldValidate: true })}
+                      />
+                    </Field>
+                    <Field label="Size" error={err?.sizeName?.message}>
+                      <input aria-label="Size" placeholder="e.g. Large" className={input(err?.sizeName?.message)} disabled={readOnly} {...register(`variations.${index}.sizeName`)} />
+                    </Field>
+                    <Field label="Material" error={err?.material?.message}>
+                      <input aria-label="Material" className={input(err?.material?.message)} disabled={readOnly} {...register(`variations.${index}.material`)} />
+                    </Field>
+                    <Field label="Packaging" error={err?.packaging?.message}>
+                      <input aria-label="Packaging" className={input(err?.packaging?.message)} disabled={readOnly} {...register(`variations.${index}.packaging`)} />
+                    </Field>
+                    <Field label="HS code" error={err?.hsCode?.message} note="Starts from the master's; change it for this SKU if it differs">
+                      <input
+                        aria-label="HS code"
+                        autoComplete="off"
+                        inputMode="numeric"
+                        placeholder="6302.21.00"
+                        className={input(err?.hsCode?.message)}
+                        disabled={readOnly}
+                        {...register(`variations.${index}.hsCode`)}
+                      />
+                    </Field>
+                  </div>
+
+                  {/* Measurements: each variation has its own unit */}
+                  <div className="rounded-lg border border-border bg-secondary-50/60 p-3">
+                    <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">Dimensions and weight</p>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-text-muted">Dimensions in</span>
+                        <SegmentedToggle<LengthUnit>
+                          ariaLabel="Dimension unit"
+                          value={row.dimensionUnit}
+                          options={LENGTH_UNITS}
+                          disabled={readOnly}
+                          onChange={(next) => switchLength(index, next)}
+                        />
+                      </div>
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                      <Field label="Individual Product Dimensions (L × W × H)" error={err?.dimensions?.message} note={`Add as 10x20x30 (L × W × H) in ${unit}`}>
+                        <input
+                          aria-label="Individual Product Dimensions"
+                          autoComplete="off"
+                          placeholder="10x20x30"
+                          className={input(err?.dimensions?.message)}
+                          disabled={readOnly}
+                          {...register(`variations.${index}.dimensions`)}
+                        />
+                      </Field>
+                      <Field label="Supplier dimension (L × W × H)" error={err?.supplierDimensions?.message} note={`Add as 10x20x30 (L × W × H) in ${unit}`}>
+                        <input
+                          aria-label="Supplier dimension"
+                          autoComplete="off"
+                          placeholder="10x20x30"
+                          className={input(err?.supplierDimensions?.message)}
+                          disabled={readOnly}
+                          {...register(`variations.${index}.supplierDimensions`)}
+                        />
+                      </Field>
+                      <Readout label="CBM" value={cbmShown ? `${cbmShown} m³` : '—'} />
+                      {/* Its own KG / LB toggle; flipping it converts the typed weight */}
+                      <Field label="Weight" error={err?.weight?.message}>
+                        <WeightField
+                          id={`variation-${index}-weight`}
+                          value={row.weight}
+                          unit={row.weightUnit}
+                          onChange={(value) => setValue(`variations.${index}.weight`, value, { shouldDirty: true, shouldValidate: Boolean(err?.weight) })}
+                          onUnitChange={(next, converted) => {
+                            setValue(`variations.${index}.weightUnit`, next, { shouldDirty: true })
+                            setValue(`variations.${index}.weight`, converted, { shouldDirty: true })
+                          }}
+                          error={err?.weight?.message}
+                          disabled={readOnly}
+                        />
+                      </Field>
+                    </div>
+                  </div>
+
+                  {expanded && (
+                    <VariationDetails
+                      form={form}
+                      index={index}
+                      readOnly={readOnly}
+                      categoryName={masterCategory?.name ?? '—'}
+                      photo={
+                        <PhotoField
+                          compact
+                          productId={row.id}
+                          version={version}
+                          hasSavedPhoto={row.hasPhoto}
+                          removing={row.removePhoto}
+                          onRemoveSaved={(removing) => setValue(`variations.${index}.removePhoto`, removing, { shouldDirty: true })}
+                          file={photos.get(key) ?? null}
+                          onFileChange={(file) => onPhotoChange(key, file)}
+                          disabled={readOnly}
+                        />
+                      }
+                    />
+                  )}
+                </div>
+              )
+            })}
           </div>
         )}
         <p className="border-t border-border px-4 py-3 text-xs text-text-muted">
-          Fields marked * are mandatory. The category always comes from the master, and the weight does while “Master weight” is ticked; dimensions and CBM belong to each variation. Each variation is saved as its own product with its own ID and SKU, linked to this master.
+          Fields marked * are mandatory. The category always comes from the master; the HS code starts from it and can be changed per SKU. Size, packaging, weight, dimensions and CBM belong to each variation, each with its own units. Each variation is saved as its own product with its own ID and SKU, linked to this master.
         </p>
       </CardContent>
     </Card>
@@ -275,14 +300,12 @@ interface VariationDetailsProps {
   form: UseFormReturn<ProductFormValues>
   index: number
   readOnly: boolean
-  inherits: boolean
-  master: { category: string; weight: string }
-  dimensionUnit: LengthUnit
+  categoryName: string
   photo: React.ReactNode
 }
 
-/** The expanded row: category from the master, the master's or the variation's own weight, the CBM override, reorder point, description and photo. */
-const VariationDetails: React.FC<VariationDetailsProps> = ({ form, index, readOnly, inherits, master, dimensionUnit, photo }) => {
+/** More details: category from the master, the CBM override, UPC, ASIN, reorder point, description and photo. */
+const VariationDetails: React.FC<VariationDetailsProps> = ({ form, index, readOnly, categoryName, photo }) => {
   const {
     control,
     register,
@@ -290,46 +313,17 @@ const VariationDetails: React.FC<VariationDetailsProps> = ({ form, index, readOn
     formState: { errors },
   } = form
   const err = errors.variations?.[index]
-  const [length, width, height, cbm, cbmTouched, ownWeight, ownWeightUnit] = useWatch({
+  const [dimensions, cbm, cbmTouched, dimensionUnit] = useWatch({
     control,
-    name: [
-      `variations.${index}.length`,
-      `variations.${index}.width`,
-      `variations.${index}.height`,
-      `variations.${index}.cbm`,
-      `variations.${index}.cbmTouched`,
-      `variations.${index}.weight`,
-      `variations.${index}.weightUnit`,
-    ],
+    name: [`variations.${index}.dimensions`, `variations.${index}.cbm`, `variations.${index}.cbmTouched`, `variations.${index}.dimensionUnit`],
   })
-  const shownCbm = derivedCbm({ length, width, height, cbm, cbmTouched }, dimensionUnit)
+  const shownCbm = derivedCbm({ dimensions, cbm, cbmTouched }, dimensionUnit)
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[repeat(5,minmax(0,1fr))_minmax(0,2fr)_auto]">
-      <Readout label="Category" value={`${master.category} · master`} />
-      {inherits ? (
-        <Readout label="Weight" value={`${master.weight} · master`} />
-      ) : (
-        <div className="min-w-0">
-          <p className="ds-input-label">Weight</p>
-          {/* Its own KG / LB toggle; flipping it converts the typed weight */}
-          <WeightField
-            id={`variation-${index}-weight`}
-            value={ownWeight}
-            unit={ownWeightUnit}
-            onChange={(value) => setValue(`variations.${index}.weight`, value, { shouldDirty: true, shouldValidate: Boolean(err?.weight) })}
-            onUnitChange={(unit, converted) => {
-              setValue(`variations.${index}.weightUnit`, unit, { shouldDirty: true })
-              setValue(`variations.${index}.weight`, converted, { shouldDirty: true })
-            }}
-            error={err?.weight?.message}
-            disabled={readOnly}
-          />
-          {err?.weight?.message && <p className="mt-1 text-xs text-danger-600">{err.weight.message}</p>}
-        </div>
-      )}
+    <div className="grid gap-3 rounded-lg border border-border bg-secondary-50/60 p-3 sm:grid-cols-2 lg:grid-cols-4">
+      <Readout label="Category" value={`${categoryName} · master`} />
       <div className="min-w-0">
-        <p className="ds-input-label">CBM</p>
+        <p className="ds-input-label">CBM (override)</p>
         <CbmField
           id={`variation-${index}-cbm`}
           value={shownCbm}
@@ -346,24 +340,10 @@ const VariationDetails: React.FC<VariationDetailsProps> = ({ form, index, readOn
           disabled={readOnly}
         />
       </div>
-      <div className="min-w-0">
-        <label htmlFor={`variation-${index}-upc`} className="ds-input-label">
-          UPC <span className="font-normal text-text-muted">(optional)</span>
-        </label>
-        <input
-          id={`variation-${index}-upc`}
-          inputMode="numeric"
-          maxLength={14}
-          className={fieldClass(err?.upc?.message)}
-          disabled={readOnly}
-          {...register(`variations.${index}.upc`)}
-        />
-        {err?.upc?.message && <p className="mt-1 text-xs text-danger-600">{err.upc.message}</p>}
-      </div>
-      <div className="min-w-0">
-        <label htmlFor={`variation-${index}-asin`} className="ds-input-label">
-          ASIN <span className="font-normal text-text-muted">(optional)</span>
-        </label>
+      <Field label="UPC (optional)" error={err?.upc?.message}>
+        <input id={`variation-${index}-upc`} inputMode="numeric" maxLength={14} className={fieldClass(err?.upc?.message)} disabled={readOnly} {...register(`variations.${index}.upc`)} />
+      </Field>
+      <Field label="ASIN (optional)" error={err?.asin?.message}>
         <input
           id={`variation-${index}-asin`}
           maxLength={10}
@@ -372,12 +352,8 @@ const VariationDetails: React.FC<VariationDetailsProps> = ({ form, index, readOn
           disabled={readOnly}
           {...register(`variations.${index}.asin`)}
         />
-        {err?.asin?.message && <p className="mt-1 text-xs text-danger-600">{err.asin.message}</p>}
-      </div>
-      <div className="min-w-0">
-        <label htmlFor={`variation-${index}-reorder`} className="ds-input-label">
-          Reorder <span className="font-normal text-text-muted">(optional)</span>
-        </label>
+      </Field>
+      <Field label="Reorder (optional)" error={err?.reorderPoint?.message}>
         <input
           id={`variation-${index}-reorder`}
           type="number"
@@ -389,12 +365,10 @@ const VariationDetails: React.FC<VariationDetailsProps> = ({ form, index, readOn
           disabled={readOnly}
           {...register(`variations.${index}.reorderPoint`)}
         />
-        {err?.reorderPoint?.message && <p className="mt-1 text-xs text-danger-600">{err.reorderPoint.message}</p>}
-      </div>
-      <div className="min-w-0">
-        <p className="ds-input-label">Description</p>
+      </Field>
+      <Field label="Description" error={err?.description?.message} className="sm:col-span-2">
         <input aria-label="Description" className={fieldClass(err?.description?.message)} disabled={readOnly} {...register(`variations.${index}.description`)} />
-      </div>
+      </Field>
       <div className="min-w-0">
         <p className="ds-input-label">Photo</p>
         {photo}

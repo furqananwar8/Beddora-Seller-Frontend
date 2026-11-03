@@ -16,6 +16,7 @@ import { useApiFeedback } from '@/hooks/useApiFeedback'
 import { useAppAbility } from '@/hooks/useAppAbility'
 import {
   useArchivePoProductMutation,
+  useDeletePoProductMutation,
   useGetPoProductsQuery,
   useGetPoProductSummaryQuery,
   type CategoryRef,
@@ -74,6 +75,21 @@ export const ProductsScreen: React.FC = () => {
   const [managingCategories, setManagingCategories] = useState(false)
   const [archiving, setArchiving] = useState<PoProduct | null>(null)
   const [archive, { isLoading: archivingBusy }] = useArchivePoProductMutation()
+
+  const [deleting, setDeleting] = useState<PoProduct | null>(null)
+  const [deleteProduct, { isLoading: deletingBusy }] = useDeletePoProductMutation()
+
+  const confirmDelete = async () => {
+    if (!deleting) return
+    try {
+      await deleteProduct(deleting.id).unwrap()
+      success(`${deleting.ref} deleted`)
+      setDeleting(null)
+    } catch (error) {
+      // A product that purchase orders or packaging lists use is refused with the reason; the dialog stays open
+      failure(error, 'Could not delete the product')
+    }
+  }
 
   const confirmArchive = async () => {
     if (!archiving) return
@@ -180,6 +196,7 @@ export const ProductsScreen: React.FC = () => {
             onAddVariation={(row) => router.push(`${BASE}/${row.id}?addVariation=1`)}
             onDuplicate={(row) => router.push(`${BASE}/new?from=${row.id}`)}
             onArchive={setArchiving}
+            onDelete={setDeleting}
           />
         </div>
         {data && (
@@ -205,6 +222,26 @@ export const ProductsScreen: React.FC = () => {
         ) : (
           <p>
             <strong>{archiving?.name}</strong> and all of its variations will leave the product list and every product picker. Their SKUs stay reserved.
+          </p>
+        )}
+      </ConfirmDialog>
+
+      <ConfirmDialog
+        isOpen={deleting !== null}
+        title={deleting?.tag === 'VARIATION' ? 'Delete variation' : 'Delete product'}
+        confirmLabel="Delete"
+        tone="danger"
+        busy={deletingBusy}
+        onConfirm={confirmDelete}
+        onClose={() => setDeleting(null)}
+      >
+        {deleting?.tag === 'VARIATION' ? (
+          <p>
+            <strong>{deleting.variantName ?? deleting.ref}</strong> will be deleted permanently. This cannot be undone. A variation that is on a purchase order, packaging list or invoice cannot be deleted; archive it instead.
+          </p>
+        ) : (
+          <p>
+            <strong>{deleting?.name}</strong> and all of its variations will be deleted permanently. This cannot be undone. A product that is on a purchase order, packaging list or invoice cannot be deleted; archive it instead.
           </p>
         )}
       </ConfirmDialog>
