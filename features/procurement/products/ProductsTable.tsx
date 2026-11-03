@@ -26,7 +26,8 @@ export interface ProductRowActions {
 function actionsFor(row: Row, actions: ProductRowActions): RowActionItem[] {
   const edit: RowActionItem = { key: 'edit', label: actions.canWrite ? 'Edit product' : 'View product', onSelect: () => actions.onEdit(row) }
   if (!actions.canWrite) return [edit]
-  if (!isListItem(row)) {
+  // A variation row, whether nested under its parent or listed on its own by the Variations filter
+  if (row.tag === 'VARIATION' || !isListItem(row)) {
     return [
       edit,
       { key: 'archive', label: 'Archive variation', tone: 'danger', onSelect: () => actions.onArchive(row) },
