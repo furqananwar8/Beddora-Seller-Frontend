@@ -17,7 +17,6 @@ import {
 } from '@/services/api/finance.api'
 import { useDebounce } from '@/utils/debounce'
 import { safeFinanceReturnTo, withQueryParam } from '../payment-requests/requestDraftStore'
-import { formatPartnerNo } from '../shared/format'
 import { useFinanceFeedback } from '../shared/useFinanceFeedback'
 import { BasicDetailsSection } from './BasicDetailsSection'
 import { PaymentDetailsSection } from './PaymentDetailsSection'
@@ -163,7 +162,7 @@ export const PartnerForm: React.FC<PartnerFormProps> = ({ partner }) => {
         <div className="flex items-center gap-3">
           <h1 className="text-xl font-bold text-text-primary sm:text-2xl">Partner Profile</h1>
           <span className="rounded-full bg-secondary-100 px-2.5 py-0.5 font-mono text-xs text-text-secondary">
-            {partner ? formatPartnerNo(partner.id) : 'New'}
+            {partner ? partner.code : 'New'}
           </span>
         </div>
         {returnTo && !editing ? (
@@ -205,7 +204,7 @@ export const PartnerForm: React.FC<PartnerFormProps> = ({ partner }) => {
 
       <PaymentMethodDialog
         isOpen={dialogOpen}
-        subtitle={`${partner?.name ?? (name.trim() || 'New partner')} · ${partner ? formatPartnerNo(partner.id) : 'New'}`}
+        subtitle={`${partner?.name ?? (name.trim() || 'New partner')} · ${partner ? partner.code : 'New'}`}
         onClose={() => setDialogOpen(false)}
         onSubmit={addPaymentMethod}
         allowDocuments={editing}

@@ -45,6 +45,8 @@ export type PartnerType = 'VENDOR' | 'SUPPLIER'
 
 export interface PartnerListItem {
   id: number
+  /** The number people see and quote (`SP-0001`); `id` stays internal. */
+  code: string
   name: string
   type: PartnerType
   contactName: string | null
@@ -105,6 +107,7 @@ export interface BankProfileListParams {
 
 export interface PartnerDetail {
   id: number
+  code: string
   name: string
   type: PartnerType
   contactName: string | null

@@ -9,7 +9,7 @@ import { Spinner } from '@/design-system/loaders'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/design-system/tables'
 import type { PartnerListItem } from '@/services/api/finance.api'
 import { cn } from '@/utils/cn'
-import { formatDay, formatPartnerNo } from '../shared/format'
+import { formatDay } from '../shared/format'
 import { countryName } from './countries'
 import { partnerTypeLabel } from './partnerSchema'
 
@@ -99,7 +99,7 @@ export const PartnerTable: React.FC<PartnerTableProps> = ({ rows, isLoading, isF
                   <SelectionCheckbox label={`Select ${row.name}`} checked={selection.isSelected(row.id)} onChange={() => selection.toggle(row.id)} />
                 </TableCell>
               )}
-              <TableCell className={cn(CELL, 'font-mono text-text-muted')}>{formatPartnerNo(row.id)}</TableCell>
+              <TableCell className={cn(CELL, 'font-mono text-text-muted')}>{row.code}</TableCell>
               <TableCell className={cn(CELL, 'font-medium text-text-primary')}>{row.name}</TableCell>
               <TableCell className={CELL}>{partnerTypeLabel(row.type)}</TableCell>
               <TableCell className={CELL}>{row.contactName || '—'}</TableCell>

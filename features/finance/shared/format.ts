@@ -14,7 +14,6 @@ export const todayInputValue = (): string => new Date().toISOString().slice(0, 1
 const REFERENCE_OFFSET = 10000
 export const formatRequestNo = (id: number): string => `PR#${REFERENCE_OFFSET + id}`
 export const formatDocNo = (id: number): string => `PP#${REFERENCE_OFFSET + id}`
-export const formatPartnerNo = (id: number): string => `SP-${REFERENCE_OFFSET + id}`
 
 export function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
