@@ -7,6 +7,7 @@ import type { PoProduct, PoProductListItem } from '@/services/api/procurement.ap
 import { ProductPhoto } from '../shared/ProductPhoto'
 import { ProductTagBadge } from '../shared/ProductTagBadge'
 import { formatCbm, formatDimensions, formatSize, formatWeight } from '../shared/units'
+import { marketplaceLabel } from './productForm'
 
 type Row = PoProductListItem | PoProduct
 
@@ -72,6 +73,7 @@ function columns(actions: ProductRowActions): TreeColumn<Row>[] {
           '—'
         ),
     },
+    { key: 'marketplace', header: 'Marketplace', className: 'whitespace-nowrap', render: (row) => (row.tag === 'VARIATION' ? marketplaceLabel(row.marketplace) : '—') },
     { key: 'sku', header: 'SKU', render: (row) => <span className="whitespace-nowrap font-mono text-xs">{row.sku ?? '—'}</span> },
     { key: 'tag', header: 'Tag', render: (row) => <ProductTagBadge tag={row.tag} /> },
     {

@@ -66,6 +66,8 @@ export interface PoProduct {
   reorderPoint: number | null
   /** Variations only: units in one master carton. */
   unitsPerCarton: number | null
+  /** Variations only: the marketplace the SKU is for (CA, US, MX). */
+  marketplace: string | null
   inheritsMaster: boolean
   hasPhoto: boolean
   updatedAt: string
@@ -132,6 +134,8 @@ export interface VariationBody extends VariantInput, WeightInput, DimensionInput
   reorderPoint: number | null
   /** Units in one master carton: a whole number, 0 or more. */
   unitsPerCarton: number | null
+  /** The marketplace this SKU is for: CA, US or MX. */
+  marketplace: string | null
   color: string
   /** "Same weight as master". */
   inheritsMaster: boolean

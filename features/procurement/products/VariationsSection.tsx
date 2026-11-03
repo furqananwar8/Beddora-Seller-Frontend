@@ -11,7 +11,7 @@ import { cn } from '@/utils/cn'
 import { ColorSelect } from '../shared/ColorSelect'
 import { CbmField, LENGTH_UNITS, WeightField } from '../shared/MeasurementFields'
 import { PhotoField } from './PhotoField'
-import { convertDimensionsText, derivedCbm, newVariation, type ProductFormValues } from './productForm'
+import { convertDimensionsText, derivedCbm, MARKETPLACES, newVariation, type ProductFormValues } from './productForm'
 import { SkuInput } from './SkuInput'
 import { useHsCodeSync } from './useHsCodeSync'
 import { useVariantNameSync } from './useVariantNameSync'
@@ -31,7 +31,7 @@ const input = (error?: string) => cn(fieldClass(error), 'h-9 py-1 text-sm')
 /** A labelled field, so every variation reads on its own. */
 const Field: React.FC<{ label: string; error?: string; note?: React.ReactNode; className?: string; children: React.ReactNode }> = ({ label, error, note, className, children }) => (
   <div className={cn('min-w-0', className)}>
-    <p className="ds-input-label">{label}</p>
+    <p className="ds-input-label whitespace-nowrap">{label}</p>
     {children}
     {error ? <p className="mt-1 text-xs text-danger-600">{error}</p> : note && <p className="mt-1 text-xs text-text-muted">{note}</p>}
   </div>
@@ -163,6 +163,16 @@ export const VariationsSection: React.FC<VariationsSectionProps> = ({ form, prod
                         {...register(`variations.${index}.variantName`)}
                       />
                     </Field>
+                    <Field label="Marketplace" error={err?.marketplace?.message} note="Each marketplace has its own SKUs">
+                      <select aria-label="Marketplace" className={input(err?.marketplace?.message)} disabled={readOnly} {...register(`variations.${index}.marketplace`)}>
+                        <option value="">Select marketplace</option>
+                        {MARKETPLACES.map((market) => (
+                          <option key={market.value} value={market.value}>
+                            {market.label}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
                     <Field label="SKU" error={err?.sku?.message}>
                       <SkuInput
                         compact
@@ -222,8 +232,8 @@ export const VariationsSection: React.FC<VariationsSectionProps> = ({ form, prod
                         />
                       </div>
                     </div>
-                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                      <Field label="Individual Product Dimensions (L × W × H)" error={err?.dimensions?.message} note={`Add as 10x20x30 (L × W × H) in ${unit}`}>
+                    <div className="grid items-start gap-x-3 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
+                      <Field label="Individual Product Dimensions" error={err?.dimensions?.message} note={`Add as 10x20x30 (L × W × H) in ${unit}`}>
                         <input
                           aria-label="Individual Product Dimensions"
                           autoComplete="off"
@@ -248,7 +258,7 @@ export const VariationsSection: React.FC<VariationsSectionProps> = ({ form, prod
                           disabled={readOnly}
                         />
                       </Field>
-                      <Field label="Supplier dimension (L × W × H)" error={err?.supplierDimensions?.message} note={`Add as 10x20x30 (L × W × H) in ${unit}`}>
+                      <Field label="Supplier Dimensions" error={err?.supplierDimensions?.message} note={`Add as 10x20x30 (L × W × H) in ${unit}`}>
                         <input
                           aria-label="Supplier dimension"
                           autoComplete="off"
