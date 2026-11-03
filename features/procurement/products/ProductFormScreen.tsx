@@ -98,8 +98,9 @@ export const ProductFormScreen: React.FC<ProductFormScreenProps> = ({ productId 
       const id = variation.id ?? created[nextCreated++]?.id
       if (id === undefined) continue
       const file = variationPhotos.get(variation.clientKey)
-      if (file) await run(variation.sku || variation.color || 'a variation', () => uploadPhoto({ id, file }).unwrap())
-      else if (variation.removePhoto) await run(variation.sku || variation.color || 'a variation', () => removePhoto(id).unwrap())
+      const label = variation.skus.find((entry) => entry.sku)?.sku || variation.color || 'a variation'
+      if (file) await run(label, () => uploadPhoto({ id, file }).unwrap())
+      else if (variation.removePhoto) await run(label, () => removePhoto(id).unwrap())
     }
     return failed
   }

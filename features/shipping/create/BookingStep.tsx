@@ -1,6 +1,7 @@
 'use client'
 
-import React, { useEffect, useRef } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
+import { ConfirmDialog } from '@/components/confirm-dialog/ConfirmDialog'
 import { Alert } from '@/design-system/alerts'
 import { Button } from '@/design-system/buttons'
 import { useApiFeedback } from '@/hooks/useApiFeedback'
@@ -56,6 +57,8 @@ const ReviewItem: React.FC<{ label: string; onEdit?: () => void; children: React
 export const BookingStep: React.FC<BookingStepProps> = ({ draft, dispatch, shipFrom, rate, quoteId, onBooked, onQuoteExpired, order, onOrderNotBookable, editable = true }) => {
   const { failure, info } = useApiFeedback()
   const [book, { isLoading, error }] = useBookShipmentMutation()
+  // Booking buys postage, so the button only asks; the booking is made once it is confirmed in the dialog
+  const [confirming, setConfirming] = useState(false)
   const formats = useLabelFormats(rate.provider)
   const labelFormat = formats.some((option) => option.id === draft.labelFormat) ? draft.labelFormat : null
 
@@ -87,6 +90,11 @@ export const BookingStep: React.FC<BookingStepProps> = ({ draft, dispatch, shipF
         onOrderNotBookable()
       } else failure(err, 'Could not book the shipment')
     }
+  }
+
+  const confirmBooking = async () => {
+    await submit()
+    setConfirming(false)
   }
 
   const edit = (step: WizardStep) => () => dispatch({ type: 'goTo', step })
@@ -173,12 +181,28 @@ export const BookingStep: React.FC<BookingStepProps> = ({ draft, dispatch, shipF
               The booking did not go through. Trying again is safe: it won&apos;t book twice.
             </Alert>
           )}
-          <Button className="mt-4 w-full" onClick={() => void submit()} isLoading={isLoading} disabled={!labelFormat}>
+          <Button className="mt-4 w-full" onClick={() => setConfirming(true)} isLoading={isLoading} disabled={!labelFormat}>
             Book &amp; buy label · {money(rate.total, rate.currency)}
           </Button>
           <p className="mt-2 text-xs text-text-muted">Quotes are valid for 30 minutes; an expired one is fetched again automatically.</p>
         </SectionCard>
       </div>
+
+      <ConfirmDialog
+        isOpen={confirming}
+        title="Book this shipment?"
+        confirmLabel={`Yes, book · ${money(rate.total, rate.currency)}`}
+        busy={isLoading}
+        onConfirm={() => void confirmBooking()}
+        onClose={() => setConfirming(false)}
+      >
+        <p>
+          Are you sure you want to book <strong>{rate.serviceName}</strong> with {rate.providerLabel} for <strong>{money(rate.total, rate.currency)}</strong>? This buys the label and charges your carrier account.
+        </p>
+        <p className="mt-2 text-xs text-text-muted">
+          To {shipTo.name}, {shipTo.address.city} {shipTo.address.province}. Nothing is booked unless you confirm.
+        </p>
+      </ConfirmDialog>
 
       <WizardFooter
         start={

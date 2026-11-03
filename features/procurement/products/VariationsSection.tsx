@@ -11,7 +11,8 @@ import { cn } from '@/utils/cn'
 import { ColorSelect } from '../shared/ColorSelect'
 import { CbmField, LENGTH_UNITS, WeightField } from '../shared/MeasurementFields'
 import { PhotoField } from './PhotoField'
-import { convertDimensionsText, derivedCbm, MARKETPLACES, newVariation, type ProductFormValues } from './productForm'
+import { MarketplaceSkus } from './MarketplaceSkus'
+import { convertDimensionsText, derivedCbm, newVariation, type ProductFormValues } from './productForm'
 import { SkuInput } from './SkuInput'
 import { useHsCodeSync } from './useHsCodeSync'
 import { useVariantNameSync } from './useVariantNameSync'
@@ -136,7 +137,7 @@ export const VariationsSection: React.FC<VariationsSectionProps> = ({ form, prod
                       {!readOnly && (
                         <button
                           type="button"
-                          aria-label={`Remove variation ${row.sku || index + 1}`}
+                          aria-label={`Remove variation ${row.skus.find((entry) => entry.sku)?.sku || index + 1}`}
                           onClick={() => {
                             onPhotoChange(key, null)
                             remove(index)
@@ -153,7 +154,7 @@ export const VariationsSection: React.FC<VariationsSectionProps> = ({ form, prod
 
                   {/* Identity */}
                   <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                    <Field label="Variant name" error={err?.variantName?.message} className="sm:col-span-2">
+                    <Field label="Variant name *" error={err?.variantName?.message} className="sm:col-span-2">
                       <input
                         aria-label="Variant name"
                         autoComplete="off"
@@ -163,28 +164,7 @@ export const VariationsSection: React.FC<VariationsSectionProps> = ({ form, prod
                         {...register(`variations.${index}.variantName`)}
                       />
                     </Field>
-                    <Field label="Marketplace" error={err?.marketplace?.message} note="Each marketplace has its own SKUs">
-                      <select aria-label="Marketplace" className={input(err?.marketplace?.message)} disabled={readOnly} {...register(`variations.${index}.marketplace`)}>
-                        <option value="">Select marketplace</option>
-                        {MARKETPLACES.map((market) => (
-                          <option key={market.value} value={market.value}>
-                            {market.label}
-                          </option>
-                        ))}
-                      </select>
-                    </Field>
-                    <Field label="SKU" error={err?.sku?.message}>
-                      <SkuInput
-                        compact
-                        productId={productId}
-                        aria-label="SKU"
-                        error={err?.sku?.message}
-                        className="h-9 py-1 text-sm"
-                        disabled={readOnly}
-                        onTaken={(sku) => setError(`variations.${index}.sku`, { type: 'server', message: `SKU ${sku} is already used by another product` })}
-                        {...register(`variations.${index}.sku`)}
-                      />
-                    </Field>
+                    <MarketplaceSkus form={form} index={index} productId={productId} readOnly={readOnly} />
                     <Field label="Color *" error={err?.color?.message}>
                       <ColorSelect
                         aria-label="Color"
@@ -283,7 +263,23 @@ export const VariationsSection: React.FC<VariationsSectionProps> = ({ form, prod
                           {...register(`variations.${index}.unitsPerCarton`)}
                         />
                       </Field>
-                      <Readout label="CBM" value={cbmShown ? `${cbmShown} m³` : '—'} />
+                      <Field label="CBM">
+                        <CbmField
+                          id={`variation-${index}-cbm`}
+                          value={cbmShown}
+                          overridden={row.cbmTouched}
+                          onOverride={(value) => {
+                            setValue(`variations.${index}.cbm`, value, { shouldDirty: true })
+                            setValue(`variations.${index}.cbmTouched`, true)
+                          }}
+                          onUseCalculated={() => {
+                            setValue(`variations.${index}.cbmTouched`, false, { shouldDirty: true })
+                            setValue(`variations.${index}.cbm`, '')
+                          }}
+                          error={err?.cbm?.message}
+                          disabled={readOnly}
+                        />
+                      </Field>
                     </div>
                   </div>
 
@@ -329,42 +325,17 @@ interface VariationDetailsProps {
   photo: React.ReactNode
 }
 
-/** More details: category from the master, the CBM override, UPC, ASIN, reorder point, description and photo. */
+/** More details: category from the master, UPC, ASIN, reorder point, description and photo. */
 const VariationDetails: React.FC<VariationDetailsProps> = ({ form, index, readOnly, categoryName, photo }) => {
   const {
-    control,
     register,
-    setValue,
     formState: { errors },
   } = form
   const err = errors.variations?.[index]
-  const [dimensions, cbm, cbmTouched, dimensionUnit] = useWatch({
-    control,
-    name: [`variations.${index}.dimensions`, `variations.${index}.cbm`, `variations.${index}.cbmTouched`, `variations.${index}.dimensionUnit`],
-  })
-  const shownCbm = derivedCbm({ dimensions, cbm, cbmTouched }, dimensionUnit)
 
   return (
     <div className="grid gap-3 rounded-lg border border-border bg-secondary-50/60 p-3 sm:grid-cols-2 lg:grid-cols-4">
       <Readout label="Category" value={`${categoryName} · master`} />
-      <div className="min-w-0">
-        <p className="ds-input-label">CBM (override)</p>
-        <CbmField
-          id={`variation-${index}-cbm`}
-          value={shownCbm}
-          overridden={cbmTouched}
-          onOverride={(value) => {
-            setValue(`variations.${index}.cbm`, value, { shouldDirty: true })
-            setValue(`variations.${index}.cbmTouched`, true)
-          }}
-          onUseCalculated={() => {
-            setValue(`variations.${index}.cbmTouched`, false, { shouldDirty: true })
-            setValue(`variations.${index}.cbm`, '')
-          }}
-          error={err?.cbm?.message}
-          disabled={readOnly}
-        />
-      </div>
       <Field label="UPC (optional)" error={err?.upc?.message}>
         <input id={`variation-${index}-upc`} inputMode="numeric" maxLength={14} className={fieldClass(err?.upc?.message)} disabled={readOnly} {...register(`variations.${index}.upc`)} />
       </Field>

@@ -13,6 +13,12 @@ type Row = PoProductListItem | PoProduct
 
 const isListItem = (row: Row): row is PoProductListItem => 'variations' in row
 
+/** "Canada, USA": every marketplace the variation is sold in. */
+const marketplacesOf = (row: PoProduct): string => {
+  const codes = row.skus?.length ? [...new Set(row.skus.map((entry) => entry.marketplace))] : row.marketplace ? [row.marketplace] : []
+  return codes.length ? codes.map((code) => marketplaceLabel(code)).join(', ') : '—'
+}
+
 const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? '' : 's'}`
 
 /** A parent has no weight or size of its own: it shows how many of its listed variations have one, like "2 colors". */
@@ -77,8 +83,22 @@ function columns(actions: ProductRowActions): TreeColumn<Row>[] {
           '—'
         ),
     },
-    { key: 'marketplace', header: 'Marketplace', className: 'whitespace-nowrap', render: (row) => (row.tag === 'VARIATION' ? marketplaceLabel(row.marketplace) : '—') },
-    { key: 'sku', header: 'SKU', render: (row) => <span className="whitespace-nowrap font-mono text-xs">{row.sku ?? '—'}</span> },
+    {
+      key: 'marketplace',
+      header: 'Marketplace',
+      className: 'whitespace-nowrap',
+      render: (row) => (row.tag === 'VARIATION' ? marketplacesOf(row) : '—'),
+    },
+    {
+      key: 'sku',
+      header: 'SKU',
+      render: (row) => (
+        <span className="whitespace-nowrap font-mono text-xs">
+          {row.sku ?? '—'}
+          {(row.skus?.filter((entry) => entry.sku).length ?? 0) > 1 && <span className="ml-1 font-sans text-text-muted">+{row.skus.filter((entry) => entry.sku).length - 1}</span>}
+        </span>
+      ),
+    },
     { key: 'tag', header: 'Tag', render: (row) => <ProductTagBadge tag={row.tag} /> },
     {
       key: 'color',

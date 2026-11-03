@@ -80,8 +80,7 @@ export const variationSchema = z.object({
   /** Saved variation id; absent for a new row. */
   id: z.number().optional(),
   /** Rebuilt from name, color and size whenever one of them changes (see useVariantNameSync); editable in between. */
-  variantName: z.string().trim().max(200, 'Too long'),
-  sku: skuField,
+  variantName: z.string().trim().min(1, 'Variant name is required').max(200, 'Too long'),
   color: z.string().trim().min(1, 'Color is required').max(60, 'Color is too long'),
   material: z.string().trim().max(120, 'Too long'),
   packaging: z.string().trim().max(120, 'Too long'),
@@ -99,8 +98,18 @@ export const variationSchema = z.object({
     .string()
     .trim()
     .refine((value) => value === '' || /^[A-Za-z0-9]{10}$/.test(value), 'ASIN must be 10 letters or digits'),
-  /** Which marketplace this SKU is for; blank until picked. */
-  marketplace: z.enum(['', 'CA', 'US', 'MX']),
+  /**
+   * Every SKU of the variation, each for one marketplace: several marketplaces, several SKUs in each. A marketplace with a
+   * blank SKU is one the variation is sold in whose SKU is not known yet. Its first SKU is the one the rest of the app reads.
+   */
+  skus: z
+    .array(
+      z.object({
+        marketplace: z.enum(['CA', 'US', 'MX'], { message: 'Pick a marketplace' }),
+        sku: skuField,
+      })
+    )
+    .max(60, 'At most 60 SKUs'),
   /** Units in one master carton: a whole number, never negative. */
   unitsPerCarton: z
     .string()
@@ -137,12 +146,22 @@ export const productFormSchema = z
   })
   .superRefine((values, ctx) => {
     // The server checks other products; this catches a SKU typed twice in the same form
-    const seen = new Set<string>()
-    ;[{ sku: values.sku, path: ['sku'] }, ...values.variations.map((variation, index) => ({ sku: variation.sku, path: ['variations', index, 'sku'] }))].forEach(({ sku, path }) => {
-      const key = sku.trim().toUpperCase()
+    // A SKU belongs to one row (it may repeat for another marketplace of the same variation), and is listed once per marketplace
+    const owner = new Map<string, string>()
+    const claim = (raw: string, who: string, path: Array<string | number>, pairs?: Set<string>, marketplace?: string) => {
+      const key = raw.trim().toUpperCase()
       if (!key) return
-      if (seen.has(key)) ctx.addIssue({ code: 'custom', path, message: 'Used twice in this product' })
-      seen.add(key)
+      if (owner.has(key) && owner.get(key) !== who) ctx.addIssue({ code: 'custom', path, message: 'Used twice in this product' })
+      else owner.set(key, who)
+      if (pairs && marketplace) {
+        if (pairs.has(`${marketplace}|${key}`)) ctx.addIssue({ code: 'custom', path, message: 'Listed twice for this marketplace' })
+        pairs.add(`${marketplace}|${key}`)
+      }
+    }
+    claim(values.sku, 'master', ['sku'])
+    values.variations.forEach((variation, index) => {
+      const pairs = new Set<string>()
+      variation.skus.forEach((entry, entryIndex) => claim(entry.sku, `variation-${index}`, ['variations', index, 'skus', entryIndex, 'sku'], pairs, entry.marketplace))
     })
   })
 
@@ -167,17 +186,18 @@ export const emptyProductValues: ProductFormValues = {
 
 /** A new variation row: the master's material as a default, and the units of the row above it (else KG and CM). */
 export function newVariation(
-  master: Pick<ProductFormValues, 'material' | 'hsCode'>,
+  master: Pick<ProductFormValues, 'name' | 'material' | 'hsCode'>,
   units: Pick<VariationFormValues, 'weightUnit' | 'dimensionUnit'> = { weightUnit: 'KG', dimensionUnit: 'CM' }
 ): VariationFormValues {
   return {
     clientKey: crypto.randomUUID(),
-    variantName: '',
-    sku: '',
+    // Starts as the master's name; it becomes Name-Color-Size as the color and size are picked
+    variantName: master.name.trim(),
     color: '',
     material: master.material,
     packaging: '',
     sizeName: '',
+    skus: [],
     // A new variation starts from the master's HS code
     hsCode: master.hsCode,
     description: '',
@@ -185,7 +205,6 @@ export function newVariation(
     asin: '',
     reorderPoint: '',
     unitsPerCarton: '',
-    marketplace: '',
     weight: '',
     weightUnit: units.weightUnit,
     dimensionUnit: units.dimensionUnit,
@@ -200,12 +219,6 @@ export function newVariation(
 /** `Folding Side Table-Black-Medium`, built the same way the server builds it. */
 export const variantNameOf = (name: string, color: string, sizeName: string): string =>
   [name, color, sizeName].map((part) => part.trim()).filter(Boolean).join('-')
-
-/** The variant name to send: only a name that differs from the auto-built one counts as typed. */
-const customVariantName = (variation: Pick<VariationFormValues, 'variantName' | 'color' | 'sizeName'>, masterName: string): string | null => {
-  const typed = variation.variantName.trim()
-  return typed && typed !== variantNameOf(masterName, variation.color, variation.sizeName) ? typed : null
-}
 
 /** The CBM to show: the user's override, else L×W×H in the current unit, else blank. */
 export function derivedCbm(values: { dimensions: string; cbm: string; cbmTouched: boolean }, unit: LengthUnit): string {
@@ -235,12 +248,22 @@ function dimensionsBody(values: { dimensions: string; supplierDimensions: string
   }
 }
 
+/** A variation's SKUs as the API takes them: upper-cased, blank as null; the first one that has a SKU leads. */
+function skuEntries(variation: Pick<VariationFormValues, 'skus'>): Array<{ marketplace: string; sku: string | null }> {
+  const entries = variation.skus.map((entry) => ({ marketplace: entry.marketplace, sku: text(entry.sku)?.toUpperCase() ?? null }))
+  const lead = entries.findIndex((entry) => entry.sku)
+  return lead > 0 ? [entries[lead], ...entries.filter((_, index) => index !== lead)] : entries
+}
+
 export function toProductBody(values: ProductFormValues, expectedUpdatedAt?: string): ProductBody {
   const variations: VariationBody[] = values.variations.map((variation) => ({
     ...(variation.id !== undefined && { id: variation.id }),
-    // Left as the auto-built name, it is not stored as custom, so it keeps following the master's name
-    variantName: customVariantName(variation, values.name),
-    sku: text(variation.sku)?.toUpperCase() ?? null,
+    // The name is required, so it is always sent as it stands (auto-built unless edited)
+    variantName: variation.variantName.trim(),
+    // The first SKU and its marketplace are also sent on their own, for servers that read a single SKU
+    sku: skuEntries(variation)[0]?.sku ?? null,
+    marketplace: skuEntries(variation)[0]?.marketplace ?? null,
+    skus: skuEntries(variation),
     color: variation.color.trim(),
     material: text(variation.material),
     packaging: text(variation.packaging),
@@ -251,7 +274,6 @@ export function toProductBody(values: ProductFormValues, expectedUpdatedAt?: str
     asin: text(variation.asin),
     reorderPoint: num(variation.reorderPoint),
     unitsPerCarton: num(variation.unitsPerCarton),
-    marketplace: variation.marketplace || null,
     // A variation always carries its own weight and units; the master has none to inherit
     inheritsMaster: false,
     weight: num(variation.weight),
@@ -294,6 +316,13 @@ function dimensionValues(row: PoProduct, dimensionUnit: LengthUnit) {
   }
 }
 
+/** The SKU list of a saved variation; one saved before the list existed has a single SKU and marketplace. A copy keeps the marketplaces and drops the SKUs. */
+function skusFrom(variation: PoProduct, asCopy: boolean): VariationFormValues['skus'] {
+  const saved = variation.skus?.length ? variation.skus : variation.marketplace ? [{ marketplace: variation.marketplace, sku: variation.sku }] : variation.sku ? [{ marketplace: '', sku: variation.sku }] : []
+  // A SKU saved without a marketplace comes back blank for the user to assign one (the form asks for it)
+  return saved.map((entry) => ({ marketplace: entry.marketplace as VariationFormValues['skus'][number]['marketplace'], sku: asCopy ? '' : (entry.sku ?? '') }))
+}
+
 /** Form values for an existing family. `asCopy` blanks ids and SKUs (Duplicate); the name stays, and the server asks for a new one on save. */
 export function fromFamily(family: PoProductFamily, asCopy = false): ProductFormValues {
   return {
@@ -309,7 +338,7 @@ export function fromFamily(family: PoProductFamily, asCopy = false): ProductForm
       clientKey: crypto.randomUUID(),
       ...(asCopy ? {} : { id: variation.id }),
       variantName: variation.variantName ?? variantNameOf(family.name, variation.color ?? '', variation.sizeName ?? ''),
-      sku: asCopy ? '' : (variation.sku ?? ''),
+      skus: skusFrom(variation, asCopy),
       color: variation.color ?? '',
       material: variation.material ?? '',
       packaging: variation.packaging ?? '',
@@ -321,7 +350,6 @@ export function fromFamily(family: PoProductFamily, asCopy = false): ProductForm
       asin: asCopy ? '' : (variation.asin ?? ''),
       reorderPoint: variation.reorderPoint === null ? '' : String(variation.reorderPoint),
       unitsPerCarton: variation.unitsPerCarton === null ? '' : String(variation.unitsPerCarton),
-      marketplace: (variation.marketplace ?? '') as VariationFormValues['marketplace'],
       // Variations that followed the master's weight were saved with a copy of it, so every row shows its own
       weight: weightValue(variation, variation.weightUnit),
       weightUnit: variation.weightUnit,
