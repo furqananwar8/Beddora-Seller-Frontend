@@ -15,6 +15,10 @@ const isListItem = (row: Row): row is PoProductListItem => 'variations' in row
 
 const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? '' : 's'}`
 
+/** A parent has no weight or size of its own: it shows how many of its listed variations have one, like "2 colors". */
+const variationsWith = (row: Row, has: (variation: PoProduct) => boolean): number => (isListItem(row) ? row.variations.filter(has).length : 0)
+const summary = (count: number, word: string) => (count > 0 ? <span className="text-xs text-text-muted">{plural(count, word)}</span> : '—')
+
 export interface ProductRowActions {
   canWrite: boolean
   onEdit: (row: Row) => void
@@ -86,15 +90,27 @@ function columns(actions: ProductRowActions): TreeColumn<Row>[] {
     { key: 'size', header: 'Size', render: (row) => row.sizeName ?? '—' },
     { key: 'packaging', header: 'Packaging', className: 'min-w-[120px]', render: (row) => row.packaging ?? '—' },
     { key: 'category', header: 'Category', render: (row) => row.category?.name ?? '—' },
-    { key: 'weight', header: 'Weight', className: 'whitespace-nowrap', render: (row) => <span className="whitespace-nowrap">{formatWeight(row.weightKg, row.weightUnit)}</span> },
+    { key: 'weight', header: 'Weight', className: 'whitespace-nowrap', render: (row) =>
+        row.tag === 'PARENT' ? summary(variationsWith(row, (variation) => variation.weightKg !== null), 'weight') : <span className="whitespace-nowrap">{formatWeight(row.weightKg, row.weightUnit)}</span>,
+    },
     {
       key: 'dims',
       header: 'L × W × H',
       // Without a width the header wraps one letter per line when the table is squeezed
       className: 'min-w-[130px] whitespace-nowrap',
-      render: (row) => <span className="whitespace-nowrap">{formatDimensions(row.lengthCm, row.widthCm, row.heightCm, row.dimensionUnit)}</span>,
+      render: (row) =>
+        row.tag === 'PARENT' ? (
+          summary(variationsWith(row, (variation) => variation.lengthCm !== null && variation.widthCm !== null && variation.heightCm !== null), 'dimension')
+        ) : (
+          <span className="whitespace-nowrap">{formatDimensions(row.lengthCm, row.widthCm, row.heightCm, row.dimensionUnit)}</span>
+        ),
     },
-    { key: 'cbm', header: 'CBM', className: 'whitespace-nowrap', render: (row) => <span className="font-mono text-xs">{formatCbm(row.cbm)}</span> },
+    {
+      key: 'cbm',
+      header: 'CBM',
+      className: 'whitespace-nowrap',
+      render: (row) => (row.tag === 'PARENT' ? summary(variationsWith(row, (variation) => variation.cbm !== null), 'CBM') : <span className="font-mono text-xs">{formatCbm(row.cbm)}</span>),
+    },
     { key: 'actions', header: 'Actions', render: (row) => <RowActionsMenu label={row.ref} items={actionsFor(row, actions)} /> },
   ]
 }
@@ -109,6 +125,8 @@ interface ProductsTableProps extends ProductRowActions {
 
 export const ProductsTable: React.FC<ProductsTableProps> = ({ rows, isLoading, isError, filtered, ...actions }) => (
   <TreeTable<Row>
+    // The list sits in its own scrolling box; the table's own scroller would hold the sticky header in place
+    wrapperClassName="overflow-visible"
     columns={columns(actions)}
     rows={rows}
     getKey={(row) => row.id}

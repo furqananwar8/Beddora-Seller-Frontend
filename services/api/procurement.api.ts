@@ -87,6 +87,8 @@ export interface ProductListParams extends PageParams {
   categoryId?: number
   color?: string
   tag?: 'ALL' | ProductTag
+  /** Marketplace codes (CA, US, MX); leave out for every marketplace. */
+  marketplace?: string[]
 }
 
 export interface ProductSummary {
@@ -913,7 +915,10 @@ const csv = (values?: Array<string | number>) => (values && values.length ? valu
 export const procurementApi = baseApi.injectEndpoints({
   endpoints: (b) => ({
     getPoProducts: b.query<Page<PoProductListItem>, ProductListParams>({
-      query: ({ search, ...params }) => ({ url: '/procurement/products', params: { ...params, search: search || undefined } }),
+      query: ({ search, marketplace, ...params }) => ({
+        url: '/procurement/products',
+        params: { ...params, search: search || undefined, marketplace: marketplace?.length ? marketplace.join(',') : undefined },
+      }),
       providesTags: ['ProcurementProducts'],
     }),
     getPoProductSummary: b.query<ProductSummary, void>({

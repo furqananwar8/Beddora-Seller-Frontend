@@ -42,6 +42,8 @@ interface TreeTableProps<T> {
   /** `primary` fills the header with the brand colour (as on the finance reports); `plain` by default. */
   headerTone?: keyof typeof HEADER_TONE
   className?: string
+  /** Classes for the wrapper around the table: `overflow-visible` lets the sticky header follow a parent that scrolls it. */
+  wrapperClassName?: string
 }
 
 const CELL = 'text-center align-middle'
@@ -101,6 +103,7 @@ export function TreeTable<T>({
   errorText = 'Could not load the list.',
   headerTone = 'plain',
   className,
+  wrapperClassName,
 }: TreeTableProps<T>) {
   // Explicit toggles override the automatic state, so a user can still close an auto-opened row
   const [toggled, setToggled] = useState<Map<string | number, boolean>>(new Map())
@@ -116,7 +119,7 @@ export function TreeTable<T>({
   const columnStarts = headerGroups(columns).reduce<number[]>((starts, group, index, groups) => [...starts, index === 0 ? 0 : starts[index - 1] + groups[index - 1].span], [])
 
   return (
-    <Table className={cn('min-w-full', className)}>
+    <Table className={cn('min-w-full', className)} wrapperClassName={wrapperClassName}>
       <TableHeader className="sticky top-0 z-10 bg-surface shadow-sm">
         {grouped ? (
           <>

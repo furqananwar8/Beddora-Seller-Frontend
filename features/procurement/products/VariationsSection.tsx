@@ -232,8 +232,8 @@ export const VariationsSection: React.FC<VariationsSectionProps> = ({ form, prod
                         />
                       </div>
                     </div>
-                    <div className="grid items-start gap-x-3 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
-                      <Field label="Individual Product Dimensions" error={err?.dimensions?.message} note={`Add as 10x20x30 (L × W × H) in ${unit}`}>
+                    <div className="grid items-start gap-x-3 gap-y-4 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1.1fr)_minmax(0,1.6fr)]">
+                      <Field label="Individual Product Dimensions (L × W × H)" error={err?.dimensions?.message} note={`Add as 10x20x30 (L × W × H) in ${unit}`}>
                         <input
                           aria-label="Individual Product Dimensions"
                           autoComplete="off"
@@ -258,7 +258,7 @@ export const VariationsSection: React.FC<VariationsSectionProps> = ({ form, prod
                           disabled={readOnly}
                         />
                       </Field>
-                      <Field label="Supplier Dimensions" error={err?.supplierDimensions?.message} note={`Add as 10x20x30 (L × W × H) in ${unit}`}>
+                      <Field label="Supplier Dimensions (L × W × H)" error={err?.supplierDimensions?.message} note={`Add as 10x20x30 (L × W × H) in ${unit}`}>
                         <input
                           aria-label="Supplier dimension"
                           autoComplete="off"

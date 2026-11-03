@@ -10,6 +10,7 @@ import { FormField } from '@/components/form-field/FormField'
 import { Container } from '@/components/layout'
 import { PaginationFooter } from '@/components/pagination-footer/PaginationFooter'
 import { SearchableSelect } from '@/components/searchable-select/SearchableSelect'
+import { MultiSelectInput } from '@/components/multi-select-input/MultiSelectInput'
 import { SegmentedToggle } from '@/components/segmented-toggle/SegmentedToggle'
 import { Button } from '@/design-system/buttons'
 import { useApiFeedback } from '@/hooks/useApiFeedback'
@@ -27,6 +28,7 @@ import { cn } from '@/utils/cn'
 import { useDebounce } from '@/utils/debounce'
 import { CategorySelect } from '../shared/CategorySelect'
 import { CategoriesModal } from './CategoriesModal'
+import { MARKETPLACES } from './productForm'
 import { ProductsTable } from './ProductsTable'
 
 const BASE = '/dashboard/procurement/products'
@@ -44,9 +46,14 @@ interface Filters extends Record<string, unknown> {
   category: CategoryRef | null
   color: string | null
   tag: TagFilter
+  /** Marketplace codes; every marketplace picked means no filter. */
+  marketplaces: string[]
 }
 
-const DEFAULT_FILTERS: Filters = { category: null, color: null, tag: 'ALL' }
+const ALL_MARKETPLACE_CODES: string[] = MARKETPLACES.map((market) => market.value)
+const MARKETPLACE_OPTIONS = MARKETPLACES.map((market) => ({ id: market.value, name: market.label }))
+
+const DEFAULT_FILTERS: Filters = { category: null, color: null, tag: 'ALL', marketplaces: ALL_MARKETPLACE_CODES }
 
 const ALL_COLORS = 'All colors'
 
@@ -69,6 +76,8 @@ export const ProductsScreen: React.FC = () => {
     categoryId: applied.category?.id,
     color: applied.color ?? undefined,
     tag: applied.tag,
+    // Every marketplace (or none) picked is the same as not filtering
+    marketplace: applied.marketplaces.length > 0 && applied.marketplaces.length < ALL_MARKETPLACE_CODES.length ? applied.marketplaces : undefined,
   })
   const { data: summary } = useGetPoProductSummaryQuery()
 
@@ -168,6 +177,19 @@ export const ProductsScreen: React.FC = () => {
                 searchPlaceholder="Search colors..."
                 highlighted={filters.changed.has('color')}
               />
+            </FormField>
+          </FilterItem>
+          <FilterItem>
+            <FormField label="Marketplace">
+              {/* The same dropdown the settlement report filters marketplaces with */}
+              <div className={cn('rounded-lg', filters.changed.has('marketplaces') && 'ring-1 ring-primary-500')}>
+                <MultiSelectInput
+                  title="Marketplace"
+                  options={MARKETPLACE_OPTIONS}
+                  value={filters.draft.marketplaces}
+                  onChange={(value) => filters.setDraft('marketplaces', ALL_MARKETPLACE_CODES.filter((code) => value.includes(code)))}
+                />
+              </div>
             </FormField>
           </FilterItem>
           <FilterItem>
