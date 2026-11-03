@@ -64,7 +64,8 @@ const columnsFor = (targetMargin: number): ProductTableColumn<BreakEvenItem>[] =
     sortValue: (row) => (row.productTitle || row.sku || '').toLowerCase(),
     render: (row) => (
       <div className="flex justify-center">
-        <ProductIdentityCell product={row} />
+        {/* As on the Settlement Report: no unit stats line, the title on hover */}
+        <ProductIdentityCell product={row} titleInTooltip showUnitStats={false} />
       </div>
     ),
   },

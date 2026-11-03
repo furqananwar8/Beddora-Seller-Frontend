@@ -5,6 +5,8 @@ import { format, parseISO, subDays } from "date-fns";
 import { Search } from "lucide-react";
 
 import { PageHeader } from "@/components/layout";
+import { SegmentedToggle } from "@/components/segmented-toggle/SegmentedToggle";
+import { AmazonPricingScreen } from "@/features/breakeven/amazon/AmazonPricingScreen";
 import { MultiSelectInput } from "@/components/multi-select-input/MultiSelectInput";
 import DateRangePicker from "@/components/date-range-picker/DateRangePicker";
 import {
@@ -15,6 +17,7 @@ import {
 import { ApplyFiltersButton } from "@/features/profit/dashboard/components/ApplyFiltersButton";
 import { TableSearchInput } from "@/features/profit/dashboard/components/TableSearchInput";
 import { RowActionsMenu } from "@/components/row-actions-menu/RowActionsMenu";
+import { useAppAbility } from "@/hooks/useAppAbility";
 import { useReportExport } from "@/hooks/useReportExport";
 import { SellerboardProductsTable } from "@/features/profit/dashboard/SellerboardProductsTable";
 import {
@@ -95,7 +98,36 @@ const validMargin = (value: string) => {
     : DEFAULT_MARGIN;
 };
 
+type BreakevenTab = "period" | "amazon";
+
+const TABS = [
+  { value: "period" as const, label: "Period Analysis" },
+  { value: "amazon" as const, label: "Amazon" },
+];
+
 export default function BreakevenAnalysis() {
+  const [tab, setTab] = useState<BreakevenTab>("period");
+  // The Amazon tab has its own permission (breakeven-analysis.amazon); without it the page is the period analysis alone
+  const canSeeAmazon = useAppAbility().can("read", "breakeven-analysis:amazon");
+
+  return (
+    <>
+      {canSeeAmazon && (
+        <div className="px-6 pt-6">
+          <SegmentedToggle<BreakevenTab>
+            ariaLabel="Breakeven view"
+            options={TABS}
+            value={tab}
+            onChange={setTab}
+          />
+        </div>
+      )}
+      {tab === "amazon" && canSeeAmazon ? <AmazonPricingScreen /> : <PeriodAnalysis />}
+    </>
+  );
+}
+
+function PeriodAnalysis() {
   const [draft, setDraft] = useState<FilterState>(INITIAL_FILTERS);
   const [applied, setApplied] = useState<FilterState>(INITIAL_FILTERS);
   const [search, setSearch] = useState("");
