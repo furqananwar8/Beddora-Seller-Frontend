@@ -64,6 +64,8 @@ export interface PoProduct {
   asin: string | null
   /** Variations only: the stock level (units) at which to reorder. */
   reorderPoint: number | null
+  /** Variations only: units in one master carton. */
+  unitsPerCarton: number | null
   inheritsMaster: boolean
   hasPhoto: boolean
   updatedAt: string
@@ -128,6 +130,8 @@ export interface VariationBody extends VariantInput, WeightInput, DimensionInput
   asin: string | null
   /** Optional stock level (units) at which to reorder. */
   reorderPoint: number | null
+  /** Units in one master carton: a whole number, 0 or more. */
+  unitsPerCarton: number | null
   color: string
   /** "Same weight as master". */
   inheritsMaster: boolean

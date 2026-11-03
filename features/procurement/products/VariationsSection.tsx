@@ -233,19 +233,8 @@ export const VariationsSection: React.FC<VariationsSectionProps> = ({ form, prod
                           {...register(`variations.${index}.dimensions`)}
                         />
                       </Field>
-                      <Field label="Supplier dimension (L × W × H)" error={err?.supplierDimensions?.message} note={`Add as 10x20x30 (L × W × H) in ${unit}`}>
-                        <input
-                          aria-label="Supplier dimension"
-                          autoComplete="off"
-                          placeholder="10x20x30"
-                          className={input(err?.supplierDimensions?.message)}
-                          disabled={readOnly}
-                          {...register(`variations.${index}.supplierDimensions`)}
-                        />
-                      </Field>
-                      <Readout label="CBM" value={cbmShown ? `${cbmShown} m³` : '—'} />
                       {/* Its own KG / LB toggle; flipping it converts the typed weight */}
-                      <Field label="Weight" error={err?.weight?.message}>
+                      <Field label="Individual Product Weight" error={err?.weight?.message}>
                         <WeightField
                           id={`variation-${index}-weight`}
                           value={row.weight}
@@ -259,6 +248,32 @@ export const VariationsSection: React.FC<VariationsSectionProps> = ({ form, prod
                           disabled={readOnly}
                         />
                       </Field>
+                      <Field label="Supplier dimension (L × W × H)" error={err?.supplierDimensions?.message} note={`Add as 10x20x30 (L × W × H) in ${unit}`}>
+                        <input
+                          aria-label="Supplier dimension"
+                          autoComplete="off"
+                          placeholder="10x20x30"
+                          className={input(err?.supplierDimensions?.message)}
+                          disabled={readOnly}
+                          {...register(`variations.${index}.supplierDimensions`)}
+                        />
+                      </Field>
+                      <Field label="No. of units in master carton" error={err?.unitsPerCarton?.message} note="Whole number, 0 or more">
+                        <input
+                          aria-label="No. of units in master carton"
+                          type="number"
+                          inputMode="numeric"
+                          min={0}
+                          step={1}
+                          placeholder="e.g. 10"
+                          // a minus sign or exponent cannot be typed: the count is never negative
+                          onKeyDown={(event) => ['-', '+', 'e', 'E', '.'].includes(event.key) && event.preventDefault()}
+                          className={input(err?.unitsPerCarton?.message)}
+                          disabled={readOnly}
+                          {...register(`variations.${index}.unitsPerCarton`)}
+                        />
+                      </Field>
+                      <Readout label="CBM" value={cbmShown ? `${cbmShown} m³` : '—'} />
                     </div>
                   </div>
 

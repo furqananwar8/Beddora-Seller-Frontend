@@ -90,6 +90,11 @@ export const variationSchema = z.object({
     .string()
     .trim()
     .refine((value) => value === '' || /^[A-Za-z0-9]{10}$/.test(value), 'ASIN must be 10 letters or digits'),
+  /** Units in one master carton: a whole number, never negative. */
+  unitsPerCarton: z
+    .string()
+    .trim()
+    .refine((value) => value === '' || (/^\d+$/.test(value) && Number(value) <= 1_000_000), 'Enter a whole number, 0 or more'),
   /** Optional stock level (units) at which to reorder; whole number. */
   reorderPoint: z
     .string()
@@ -168,6 +173,7 @@ export function newVariation(
     upc: '',
     asin: '',
     reorderPoint: '',
+    unitsPerCarton: '',
     weight: '',
     weightUnit: units.weightUnit,
     dimensionUnit: units.dimensionUnit,
@@ -232,6 +238,7 @@ export function toProductBody(values: ProductFormValues, expectedUpdatedAt?: str
     upc: text(variation.upc),
     asin: text(variation.asin),
     reorderPoint: num(variation.reorderPoint),
+    unitsPerCarton: num(variation.unitsPerCarton),
     // A variation always carries its own weight and units; the master has none to inherit
     inheritsMaster: false,
     weight: num(variation.weight),
@@ -300,6 +307,7 @@ export function fromFamily(family: PoProductFamily, asCopy = false): ProductForm
       upc: asCopy ? '' : (variation.upc ?? ''),
       asin: asCopy ? '' : (variation.asin ?? ''),
       reorderPoint: variation.reorderPoint === null ? '' : String(variation.reorderPoint),
+      unitsPerCarton: variation.unitsPerCarton === null ? '' : String(variation.unitsPerCarton),
       // Variations that followed the master's weight were saved with a copy of it, so every row shows its own
       weight: weightValue(variation, variation.weightUnit),
       weightUnit: variation.weightUnit,
