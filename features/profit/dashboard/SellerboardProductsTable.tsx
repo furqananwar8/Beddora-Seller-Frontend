@@ -659,10 +659,13 @@ export const SellerboardProductsTable: React.FC<
             aVal = a.roi || 0
             bVal = b.roi || 0
             break
-          case 'bsr':
-            aVal = 0
-            bVal = 0
+          case 'bsr': {
+            // A lower number is a better rank; products without one always sort last
+            const unranked = sortDirection === 'asc' ? Number.POSITIVE_INFINITY : Number.NEGATIVE_INFINITY
+            aVal = a.salesRank ?? unranked
+            bVal = b.salesRank ?? unranked
             break
+          }
           case 'storageFee':
             aVal = storageFeeOf(a)
             bVal = storageFeeOf(b)
@@ -878,9 +881,16 @@ export const SellerboardProductsTable: React.FC<
               {formatPercentage(product.roi || 0)}
             </TableCell>
 
-            {/* BSR */}
+            {/* BSR: Amazon's Best Sellers Rank in the main category, with its name and the sub-category rank below */}
             <TableCell className="text-right whitespace-nowrap px-4 py-3">
-              <span className="text-text-muted">—</span>
+              {product.salesRank ? (
+                <div className="flex flex-col items-end leading-tight" title={[product.salesRankCategory && `#${product.salesRank.toLocaleString('en-US')} in ${product.salesRankCategory}`, product.salesSubRank && `#${product.salesSubRank.toLocaleString('en-US')} in ${product.salesSubRankCategory ?? 'sub-category'}`].filter(Boolean).join('\n')}>
+                  <span className="font-medium">#{product.salesRank.toLocaleString('en-US')}</span>
+                  {product.salesRankCategory && <span className="max-w-[140px] truncate text-[11px] text-text-muted">{product.salesRankCategory}</span>}
+                </div>
+              ) : (
+                <span className="text-text-muted">—</span>
+              )}
             </TableCell>
 
             {/* Info */}

@@ -128,6 +128,11 @@ export interface ProductProfitBreakdown {
   longTermStorageFee?: number
   /** Storage estimate of months not billed yet: shown beside the profit, not part of totalFees. */
   estimatedStorageFee?: number
+  /** Best Sellers Rank from Amazon's Catalog API: main category (and its name), then the most specific sub-category. Null when unranked. */
+  salesRank?: number | null
+  salesRankCategory?: string | null
+  salesSubRank?: number | null
+  salesSubRankCategory?: string | null
   fbaFees: number
   fbaFulfillmentFee: number
   salesTaxServiceFees: number
