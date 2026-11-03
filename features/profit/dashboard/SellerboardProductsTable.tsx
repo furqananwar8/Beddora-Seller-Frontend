@@ -979,7 +979,7 @@ export const SellerboardProductsTable: React.FC<
                       key={column.id}
                       style={{ minWidth: column.minWidth }}
                       className={cn(
-                        'sticky top-0 z-20 bg-surface py-3 px-4 border-b border-border align-middle',
+                        '!max-w-none sticky top-0 z-20 bg-surface py-3 px-4 border-b border-border align-middle',
                         column.sortValue && 'cursor-pointer hover:bg-surface-secondary',
                         column.align === 'left' && 'text-left',
                         column.align === 'center' && 'text-center',
@@ -1005,7 +1005,7 @@ export const SellerboardProductsTable: React.FC<
               <TableRow className="bg-surface h-12">
                 {/* Product Column */}
                 <TableHead
-                  className="sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-left min-w-[320px] py-3 px-4 border-b border-border align-middle"
+                  className="!max-w-none sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-left min-w-[320px] py-3 px-4 border-b border-border align-middle"
                   onClick={() => handleSort('name')}
                 >
                   <div className="flex items-center justify-start gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
@@ -1017,7 +1017,7 @@ export const SellerboardProductsTable: React.FC<
 
                 {/* Sales Column */}
                 <TableHead
-                  className="sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[130px] py-3 px-4 border-b border-border align-middle"
+                  className="!max-w-none sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[130px] py-3 px-4 border-b border-border align-middle"
                   onClick={() => handleSort('sales')}
                 >
                   <div className="flex items-center justify-end gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
@@ -1029,7 +1029,7 @@ export const SellerboardProductsTable: React.FC<
 
                 {/* Units Sold Column */}
                 <TableHead
-                  className="sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[120px] py-3 px-4 border-b border-border align-middle"
+                  className="!max-w-none sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[120px] py-3 px-4 border-b border-border align-middle"
                   onClick={() => handleSort('units')}
                 >
                   <div className="flex items-center justify-end gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
@@ -1041,7 +1041,7 @@ export const SellerboardProductsTable: React.FC<
 
                 {/* Refunds Column */}
                 <TableHead
-                  className="sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[110px] py-3 px-4 border-b border-border align-middle"
+                  className="!max-w-none sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[110px] py-3 px-4 border-b border-border align-middle"
                   onClick={() => handleSort('refunds')}
                 >
                   <div className="flex items-center justify-end gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
@@ -1053,7 +1053,7 @@ export const SellerboardProductsTable: React.FC<
 
                 {/* Refund Cost Column */}
                 <TableHead
-                  className="sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[140px] py-3 px-4 border-b border-border align-middle"
+                  className="!max-w-none sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[140px] py-3 px-4 border-b border-border align-middle"
                   onClick={() => handleSort('refundCost')}
                 >
                   <div className="flex items-center justify-end gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
@@ -1065,7 +1065,7 @@ export const SellerboardProductsTable: React.FC<
 
                 {/* Promo Column */}
                 <TableHead
-                  className="sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[120px] py-3 px-4 border-b border-border align-middle"
+                  className="!max-w-none sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[120px] py-3 px-4 border-b border-border align-middle"
                   onClick={() => handleSort('promo')}
                 >
                   <div className="flex items-center justify-end gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
@@ -1077,7 +1077,7 @@ export const SellerboardProductsTable: React.FC<
 
                 {/* COGS Column */}
                 <TableHead
-                  className="sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[140px] py-3 px-4 border-b border-border align-middle"
+                  className="!max-w-none sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[140px] py-3 px-4 border-b border-border align-middle"
                   onClick={() => handleSort('cogs')}
                 >
                   <div className="flex items-center justify-end gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
@@ -1089,7 +1089,7 @@ export const SellerboardProductsTable: React.FC<
 
                 {/* Gross Profit Column */}
                 <TableHead
-                  className="sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[130px] py-3 px-4 border-b border-border align-middle"
+                  className="!max-w-none sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[130px] py-3 px-4 border-b border-border align-middle"
                   onClick={() => handleSort('grossProfit')}
                 >
                   <div className="flex items-center justify-end gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
@@ -1101,7 +1101,7 @@ export const SellerboardProductsTable: React.FC<
 
                 {/* Amazon Fees Column */}
                 <TableHead
-                  className="sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[140px] py-3 px-4 border-b border-border align-middle"
+                  className="!max-w-none sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[140px] py-3 px-4 border-b border-border align-middle"
                   onClick={() => handleSort('amazonFees')}
                 >
                   <div className="flex items-center justify-end gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
@@ -1113,7 +1113,7 @@ export const SellerboardProductsTable: React.FC<
 
                 {/* Ads Column */}
                 <TableHead
-                  className="sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[130px] py-3 px-4 border-b border-border align-middle"
+                  className="!max-w-none sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[130px] py-3 px-4 border-b border-border align-middle"
                   onClick={() => handleSort('ads')}
                 >
                   <div className="flex items-center justify-end gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
@@ -1125,7 +1125,7 @@ export const SellerboardProductsTable: React.FC<
 
                 {/* Net Profit Column */}
                 <TableHead
-                  className="sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[130px] py-3 px-4 border-b border-border align-middle"
+                  className="!max-w-none sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[130px] py-3 px-4 border-b border-border align-middle"
                   onClick={() => handleSort('netProfit')}
                 >
                   <div className="flex items-center justify-end gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
@@ -1137,7 +1137,7 @@ export const SellerboardProductsTable: React.FC<
 
                 {/* Storage Fee Column */}
                 <TableHead
-                  className="sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[130px] py-3 px-4 border-b border-border align-middle"
+                  className="!max-w-none sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[130px] py-3 px-4 border-b border-border align-middle"
                   onClick={() => handleSort('storageFee')}
                 >
                   <div className="flex items-center justify-end gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
@@ -1149,7 +1149,7 @@ export const SellerboardProductsTable: React.FC<
 
                 {/* Net Profit After Storage Column */}
                 <TableHead
-                  className="sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[170px] py-3 px-4 border-b border-border align-middle"
+                  className="!max-w-none sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[170px] py-3 px-4 border-b border-border align-middle"
                   onClick={() => handleSort('netAfterStorage')}
                 >
                   <div className="flex items-center justify-end gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
@@ -1161,7 +1161,7 @@ export const SellerboardProductsTable: React.FC<
 
                 {/* Margin Column */}
                 <TableHead
-                  className="sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[110px] py-3 px-4 border-b border-border align-middle"
+                  className="!max-w-none sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[110px] py-3 px-4 border-b border-border align-middle"
                   onClick={() => handleSort('margin')}
                 >
                   <div className="flex items-center justify-end gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
@@ -1173,7 +1173,7 @@ export const SellerboardProductsTable: React.FC<
 
                 {/* TACOS Column */}
                 <TableHead
-                  className="sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[100px] py-3 px-4 border-b border-border align-middle"
+                  className="!max-w-none sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[100px] py-3 px-4 border-b border-border align-middle"
                   onClick={() => handleSort('tacos')}
                 >
                   <div className="flex items-center justify-end gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
@@ -1185,7 +1185,7 @@ export const SellerboardProductsTable: React.FC<
 
                 {/* ROI Column */}
                 <TableHead
-                  className="sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[110px] py-3 px-4 border-b border-border align-middle"
+                  className="!max-w-none sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[110px] py-3 px-4 border-b border-border align-middle"
                   onClick={() => handleSort('roi')}
                 >
                   <div className="flex items-center justify-end gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
@@ -1196,7 +1196,7 @@ export const SellerboardProductsTable: React.FC<
                 </TableHead>
 
                 {/* BSR Column */}
-                <TableHead className="sticky top-0 z-20 bg-surface group relative text-right min-w-[90px] py-3 px-4 border-b border-border align-middle">
+                <TableHead className="!max-w-none sticky top-0 z-20 bg-surface group relative text-right min-w-[90px] py-3 px-4 border-b border-border align-middle">
                   <div className="flex items-center justify-end gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
                     <span>BSR</span>
                   </div>
@@ -1204,7 +1204,7 @@ export const SellerboardProductsTable: React.FC<
                 </TableHead>
 
                 {/* Info Column */}
-                <TableHead className="sticky top-0 z-20 bg-surface group relative text-center min-w-[90px] py-3 px-4 border-b border-border align-middle">
+                <TableHead className="!max-w-none sticky top-0 z-20 bg-surface group relative text-center min-w-[90px] py-3 px-4 border-b border-border align-middle">
                   <div className="flex items-center justify-center gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
                     <span>Info</span>
                   </div>
