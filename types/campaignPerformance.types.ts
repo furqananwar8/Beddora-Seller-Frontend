@@ -79,3 +79,11 @@ export interface ParentKeywordsParams extends CampaignPerformancePeriod {
   page: number
   limit: number
 }
+
+/** The latest keyword and rank sync, as shown in Report Sync Management. */
+export interface CampaignSyncState {
+  status: 'idle' | 'running' | 'success' | 'error'
+  startDate: string | null
+  finishedAt: string | null
+  errorMessage: string | null
+}

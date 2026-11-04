@@ -3,10 +3,12 @@
 import React from 'react'
 import { useReportSyncManagement } from '@/hooks/user-report-sync-management'
 import { useChannelSyncManagement } from '@/hooks/use-channel-sync-management'
+import { useCampaignSyncManagement } from '@/hooks/use-campaign-sync-management'
 import { Spinner } from '@/design-system/loaders'
 import { useAppDispatch } from '@/store/hooks'
 import { addNotification } from '@/store/ui.slice'
 import { SyncManagementTable, type SyncTableRow } from '@/features/report-sync-management/SyncManagementTable'
+import { CAMPAIGN_SYNC_KEY, toCampaignSyncRow } from '@/features/report-sync-management/campaign-sync-row'
 import { CHANNEL_SYNC_GROUPS, toChannelSyncGroup } from '@/features/report-sync-management/channel-sync-groups'
 
 type SyncMode = 'live' | 'backfill'
@@ -40,6 +42,7 @@ export default function ReportSyncManagementPage() {
   const shopify = useChannelSyncManagement(CHANNEL_SYNC_GROUPS.shopify.channel)
   const wayfair = useChannelSyncManagement(CHANNEL_SYNC_GROUPS.wayfair.channel)
   const temu = useChannelSyncManagement(CHANNEL_SYNC_GROUPS.temu.channel)
+  const campaign = useCampaignSyncManagement()
   const channels = [
     { config: CHANNEL_SYNC_GROUPS.walmart, sync: walmart },
     { config: CHANNEL_SYNC_GROUPS.shopify, sync: shopify },
@@ -62,13 +65,13 @@ export default function ReportSyncManagementPage() {
     })
   )
 
-  const isSubmitting = amazon.isSubmitting || channels.some(({ sync }) => sync.isSubmitting)
-  const isBusy = isSubmitting || amazon.isLoading || amazon.isFetching || channels.some(({ sync }) => sync.isFetching)
+  const isSubmitting = amazon.isSubmitting || campaign.isSubmitting || channels.some(({ sync }) => sync.isSubmitting)
+  const isBusy = isSubmitting || amazon.isLoading || amazon.isFetching || campaign.isFetching || channels.some(({ sync }) => sync.isFetching)
   const busyText = isSubmitting ? 'Resetting queues and updating sync states...' : 'Loading sync states...'
 
   // Resets the selected rows of every group; each group calls its own API
   const handleApplyResetWithToast = async () => {
-    if (!amazon.hasSelection && !channels.some(({ sync }) => sync.hasSelection)) {
+    if (!amazon.hasSelection && !campaign.hasSelection && !channels.some(({ sync }) => sync.hasSelection)) {
       dispatch(addNotification({ message: 'Please select at least one row to reset.', type: 'error' }))
       return
     }
@@ -76,6 +79,7 @@ export default function ReportSyncManagementPage() {
     const resets = [
       amazon.hasSelection &&
         amazon.applyReset().then((res) => res?.message || 'Amazon reset completed. Active queues flushed and scheduler restarted.'),
+      campaign.hasSelection && campaign.applyReset().then((res) => res.message),
       ...channels.map(({ sync }) => sync.hasSelection && sync.applyReset().then((res) => res.message)),
     ].filter((reset): reset is Promise<string> => !!reset)
 
@@ -111,10 +115,12 @@ export default function ReportSyncManagementPage() {
           {
             id: 'amazon',
             title: 'Amazon',
-            rows: amazonRows,
-            selectionMap: amazon.selectionMap,
-            onToggle: amazon.toggleRowSelection,
-            onDateChange: amazon.updateRowDate,
+            // The Campaign Performance row belongs to Amazon but has its own selection and reset
+            rows: [...amazonRows, toCampaignSyncRow(campaign)],
+            selectionMap: { ...amazon.selectionMap, ...campaign.selectionMap },
+            onToggle: (key, defaultDate) =>
+              key === CAMPAIGN_SYNC_KEY ? campaign.toggleRowSelection(key, defaultDate) : amazon.toggleRowSelection(key, defaultDate),
+            onDateChange: (key, range) => (key === CAMPAIGN_SYNC_KEY ? campaign.updateRowDate(key, range) : amazon.updateRowDate(key, range)),
             isLoading: amazon.isLoading,
           },
           ...channels.map(({ config, sync }) => toChannelSyncGroup(config, sync)),

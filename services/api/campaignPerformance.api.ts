@@ -1,5 +1,5 @@
 import { baseApi } from './baseApi'
-import type { KeywordsResponse, ParentKeywordsParams, ParentSkuSummary, ParentsParams } from '@/types/campaignPerformance.types'
+import type { CampaignSyncState, KeywordsResponse, ParentKeywordsParams, ParentSkuSummary, ParentsParams } from '@/types/campaignPerformance.types'
 
 interface Envelope<T> {
   success: boolean
@@ -21,7 +21,19 @@ export const campaignPerformanceApi = baseApi.injectEndpoints({
       providesTags: ['CampaignPerformance'],
       transformResponse: (response: Envelope<KeywordsResponse>) => response.data,
     }),
+    /** Latest sync of the keywords and ranks, for Report Sync Management. */
+    getCampaignSyncState: builder.query<CampaignSyncState, void>({
+      query: () => '/campaign-performance/sync/state',
+      transformResponse: (response: Envelope<CampaignSyncState>) => response.data,
+      providesTags: ['ReportSyncManagement'],
+    }),
+    /** Starts the sync in the background: the ad keywords are read from `startDate` to yesterday. */
+    startCampaignSync: builder.mutation<{ message: string }, { startDate: string }>({
+      query: (body) => ({ url: '/campaign-performance/sync', method: 'POST', body }),
+      transformResponse: (response: { message: string }) => ({ message: response.message }),
+      invalidatesTags: ['CampaignPerformance', 'ReportSyncManagement'],
+    }),
   }),
 })
 
-export const { useGetCampaignParentsQuery, useGetParentKeywordsQuery } = campaignPerformanceApi
+export const { useGetCampaignParentsQuery, useGetParentKeywordsQuery, useGetCampaignSyncStateQuery, useStartCampaignSyncMutation } = campaignPerformanceApi
