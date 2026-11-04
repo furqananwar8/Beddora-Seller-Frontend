@@ -7,10 +7,11 @@ import { cn } from '@/utils/cn'
 import { formatCostCenterCode } from './costCenterCode'
 import { buildCostCenterTree, visibleRows } from './costCenterTree'
 import { LevelBadge } from './LevelBadge'
+import { EditCostCenterAction } from './EditCostCenterAction'
 import { RemoveCostCenterAction } from './RemoveCostCenterAction'
 
 /** Account code first, then Name (which grows and carries the indentation), Level and the remove action; fixed widths keep rows under the header. */
-const GRID = 'grid grid-cols-[minmax(9rem,14rem)_minmax(0,1fr)_5rem_2.5rem] items-center gap-4 px-4'
+const GRID = 'grid grid-cols-[minmax(9rem,14rem)_minmax(0,1fr)_5rem_5rem] items-center gap-4 px-4'
 const INDENT_REM = 1.5
 
 const Chevron: React.FC<{ open: boolean }> = ({ open }) => (
@@ -26,6 +27,10 @@ export const BranchDetail: React.FC<{ root: CostCenterRoot }> = ({ root }) => {
   const tree = useMemo(() => buildCostCenterTree(data ?? []), [data])
   const rows = useMemo(() => visibleRows(tree, collapsed), [tree, collapsed])
   const matched = useMemo(() => new Set(root.matchIds), [root.matchIds])
+
+  /** The names beside a node under the same parent, lower-cased: a name is unique among siblings. */
+  const siblingNames = (parentId: number | null, exceptId: number): ReadonlySet<string> =>
+    new Set((data ?? []).filter((other) => other.parentId === parentId && other.id !== exceptId).map((other) => other.name.toLowerCase()))
 
   const toggle = (id: number) =>
     setCollapsed((current) => {
@@ -89,7 +94,8 @@ export const BranchDetail: React.FC<{ root: CostCenterRoot }> = ({ root }) => {
               <span role="cell">
                 <LevelBadge level={node.level} />
               </span>
-              <span role="cell">
+              <span role="cell" className="flex items-center gap-1">
+                <EditCostCenterAction node={node} takenNames={siblingNames(node.parentId, node.id)} />
                 <RemoveCostCenterAction node={node} hasChildren={hasChildren} />
               </span>
             </div>
