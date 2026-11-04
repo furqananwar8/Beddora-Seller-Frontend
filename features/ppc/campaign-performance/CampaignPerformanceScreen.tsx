@@ -26,10 +26,14 @@ interface Filters extends Record<string, unknown> {
 
 const day = (date: Date) => format(date, 'yyyy-MM-dd')
 
-const defaultFilters = (): Filters => ({
-  range: { startDate: day(subDays(new Date(), 9)), endDate: day(new Date()) },
-  keyword: '',
-})
+/** The business day (Pacific): a browser ahead of it, such as one in Pakistan, would otherwise show tomorrow's empty column. */
+const BUSINESS_TIMEZONE = 'America/Los_Angeles'
+const businessToday = (): string => new Intl.DateTimeFormat('en-CA', { timeZone: BUSINESS_TIMEZONE }).format(new Date())
+
+const defaultFilters = (): Filters => {
+  const today = businessToday()
+  return { range: { startDate: day(subDays(parseISO(today), 9)), endDate: today }, keyword: '' }
+}
 
 /**
  * Campaign Performance: parent SKUs on the left; for the chosen parent, each tracked keyword with its campaign and
@@ -62,7 +66,10 @@ export const CampaignPerformanceScreen: React.FC = () => {
     { skip: !ready || !activeParent }
   )
 
-  const onRangeChange = (next: DateRangeValue) => {
+  const onRangeChange = (picked: DateRangeValue) => {
+    // Nothing newer than the business day exists yet, whatever the browser's own date says
+    const today = businessToday()
+    const next = picked.endDate && picked.endDate > today ? { ...picked, endDate: today, presetId: null } : picked
     if (next.startDate && next.endDate && differenceInCalendarDays(parseISO(next.endDate), parseISO(next.startDate)) + 1 > MAX_RANGE_DAYS) {
       info(`Campaign Performance covers at most ${MAX_RANGE_DAYS} days: the range ends ${day(subDays(parseISO(next.startDate), -(MAX_RANGE_DAYS - 1)))}.`)
       setDraft('range', { ...next, endDate: day(subDays(parseISO(next.startDate), -(MAX_RANGE_DAYS - 1))), presetId: null })
@@ -76,7 +83,7 @@ export const CampaignPerformanceScreen: React.FC = () => {
       <h1 className="mb-4 px-2 pb-1 pt-2 text-xl font-bold text-text-primary sm:text-2xl">Campaign Performance</h1>
 
       <div className="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-border bg-surface p-3 shadow-sm">
-        <DateRangePicker value={draft.range} onChange={onRangeChange} placeholder="Pick a date range" disableFutureDates triggerClassName="h-11 py-0" />
+        <DateRangePicker value={draft.range} onChange={onRangeChange} placeholder="Pick a date range" maxDate={parseISO(businessToday())} triggerClassName="h-11 py-0" />
         <label className="flex min-w-[220px] flex-1 items-center gap-2 h-11 rounded-lg border border-border px-3 text-sm text-text-muted focus-within:border-primary-500">
           <Search className="h-4 w-4 shrink-0" aria-hidden />
           <input

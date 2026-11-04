@@ -1,16 +1,32 @@
 'use client'
 
-import React, { useMemo } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { format, isToday, parseISO } from 'date-fns'
 import { formatCurrency } from '@/utils/format'
 import { cn } from '@/utils/cn'
 import type { KeywordRow, KeywordsResponse, SkuPerformance } from '@/types/campaignPerformance.types'
 import { DayCell } from './DayCell'
+import { MetricLabels } from './MetricLabels'
 
-const KEYWORD_COL = 'w-[230px] min-w-[230px]'
-const SPEND_COL = 'w-[150px] min-w-[150px]'
-const SKU_COL = 'w-[210px] min-w-[210px]'
-const DAY_COL = 'w-[92px] min-w-[92px]'
+/** The first four columns stay put while the day columns scroll behind them: each sticks at the sum of the widths before it. */
+const DAY_COL = ''
+
+/** Widths in px, for the fixed table layout: a column never grows with its content, so the sticky offsets stay exact. */
+const FIXED_COLUMN_WIDTHS = [170, 110, 170, 104]
+/** Left offset of each fixed column: the widths before it. */
+const STICKY_LEFT = FIXED_COLUMN_WIDTHS.map((_, index) => FIXED_COLUMN_WIDTHS.slice(0, index).reduce((sum, width) => sum + width, 0))
+const [KEYWORD_AT, SPEND_AT, SKU_AT, LABEL_AT] = STICKY_LEFT
+
+/**
+ * Pins a cell at `left`. Set inline: the global `table td.sticky` rule forces every such cell to `left: 0`, which piles
+ * the four fixed columns on top of each other.
+ */
+const stuckAt = (pinned: boolean, left: number): React.CSSProperties | undefined => (pinned ? { position: 'sticky', left } : undefined)
+
+/** Room the day columns need beside the fixed block before it is worth pinning (about two days). */
+const MIN_DAYS_BESIDE_FIXED = 2
+const FIXED_COLUMNS_WIDTH = FIXED_COLUMN_WIDTHS.reduce((sum, width) => sum + width, 0)
+const DAY_COLUMN_WIDTH = 92
 
 const HEAD = 'border-b border-r border-border bg-surface px-3 py-2 text-left align-top text-xs font-semibold text-text-primary'
 
@@ -28,8 +44,8 @@ const DayHeader: React.FC<{ day: string }> = ({ day }) => {
   )
 }
 
-const SkuCell: React.FC<{ sku: SkuPerformance }> = ({ sku }) => (
-  <td className={cn('border-b border-r border-border bg-surface px-3 py-2 align-top', SKU_COL)}>
+const SkuCell: React.FC<{ sku: SkuPerformance; pinned: boolean }> = ({ sku, pinned }) => (
+  <td className={cn('border-b border-r border-border bg-surface px-3 py-2 align-top', 'z-10')} style={stuckAt(pinned, SKU_AT)}>
     <div className="flex items-start gap-2">
       {sku.imageUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
@@ -46,9 +62,9 @@ const SkuCell: React.FC<{ sku: SkuPerformance }> = ({ sku }) => (
   </td>
 )
 
-const KeywordCells: React.FC<{ row: KeywordRow; rowSpan: number }> = ({ row, rowSpan }) => (
+const KeywordCells: React.FC<{ row: KeywordRow; rowSpan: number; pinned: boolean }> = ({ row, rowSpan, pinned }) => (
   <>
-    <td rowSpan={rowSpan} className={cn('border-b border-r border-border bg-surface px-3 py-2 align-top', KEYWORD_COL)}>
+    <td rowSpan={rowSpan} className={cn('border-b border-r border-border bg-surface px-3 py-2 align-top', 'z-10')} style={stuckAt(pinned, KEYWORD_AT)}>
       <div className="flex items-baseline justify-between gap-2">
         <span className="break-words text-sm font-semibold text-primary-600">{row.keyword}</span>
         {row.searchFrequency != null && (
@@ -58,7 +74,7 @@ const KeywordCells: React.FC<{ row: KeywordRow; rowSpan: number }> = ({ row, row
       {row.campaignName && <p className="mt-1 break-words text-[11px] font-medium text-text-primary">{row.campaignName}</p>}
       {row.adGroupName && <p className="break-words text-[11px] text-text-muted">{row.adGroupName}</p>}
     </td>
-    <td rowSpan={rowSpan} className={cn('border-b border-r border-border bg-surface px-3 py-2 align-top', SPEND_COL)}>
+    <td rowSpan={rowSpan} className={cn('border-b border-r border-border bg-surface px-3 py-2 align-top', 'z-10')} style={stuckAt(pinned, SPEND_AT)}>
       <p className="text-sm tabular-nums">
         <span className="font-semibold text-primary-600">{formatCurrency(row.spend)}</span>
         <span className="text-text-muted"> of {formatCurrency(row.budget)}</span>
@@ -75,22 +91,42 @@ const KeywordCells: React.FC<{ row: KeywordRow; rowSpan: number }> = ({ row, row
 export const KeywordGrid: React.FC<KeywordGridProps> = ({ data }) => {
   const { days, skus, items } = useMemo(() => data, [data])
 
+  // Pin the four fixed columns only when they leave room for days beside them; in a narrower pane they scroll as usual
+  const tableRef = useRef<HTMLTableElement>(null)
+  const [pinned, setPinned] = useState(true)
+  useEffect(() => {
+    const scroller = tableRef.current?.parentElement
+    if (!scroller || typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(() => setPinned(scroller.clientWidth >= FIXED_COLUMNS_WIDTH + MIN_DAYS_BESIDE_FIXED * DAY_COLUMN_WIDTH))
+    observer.observe(scroller)
+    return () => observer.disconnect()
+  }, [])
+
   return (
-    <table className="border-separate border-spacing-0 text-left">
+    <table ref={tableRef} className="table-fixed border-separate border-spacing-0 text-left" style={{ width: FIXED_COLUMNS_WIDTH + days.length * DAY_COLUMN_WIDTH }}>
+      <colgroup>
+        {FIXED_COLUMN_WIDTHS.map((width, index) => (
+          <col key={index} style={{ width }} />
+        ))}
+        {days.map((day) => (
+          <col key={day} style={{ width: DAY_COLUMN_WIDTH }} />
+        ))}
+      </colgroup>
       <thead className="sticky top-0 z-20">
         <tr>
-          <th className={cn(HEAD, KEYWORD_COL)}>
+          <th className={cn(HEAD, 'z-30')} style={stuckAt(pinned, KEYWORD_AT)}>
             Keyword
             <span className="block text-[10px] font-normal text-text-muted">Campaign · Search Frequency</span>
           </th>
-          <th className={cn(HEAD, SPEND_COL)}>
+          <th className={cn(HEAD, 'z-30')} style={stuckAt(pinned, SPEND_AT)}>
             Total Spend
             <span className="block text-[10px] font-normal text-text-muted">Budget · % Used</span>
           </th>
-          <th className={cn(HEAD, SKU_COL)}>
+          <th className={cn(HEAD, 'z-30')} style={stuckAt(pinned, SKU_AT)}>
             SKU / ASIN
             <span className="block text-[10px] font-normal text-text-muted">{skus.length} ASINs · Top 7d sales first</span>
           </th>
+          <th className={cn(HEAD, 'z-30')} style={stuckAt(pinned, LABEL_AT)} aria-label="Figures" />
           {days.map((day) => (
             <DayHeader key={day} day={day} />
           ))}
@@ -102,8 +138,11 @@ export const KeywordGrid: React.FC<KeywordGridProps> = ({ data }) => {
             const ranks = row.asins.find((entry) => entry.asin === sku.asin)?.ranks
             return (
               <tr key={`${row.id}-${sku.sku}`}>
-                {index === 0 && <KeywordCells row={row} rowSpan={skus.length} />}
-                <SkuCell sku={sku} />
+                {index === 0 && <KeywordCells row={row} rowSpan={skus.length} pinned={pinned} />}
+                <SkuCell sku={sku} pinned={pinned} />
+                <td className={cn('border-b border-r border-border bg-surface p-0 align-top', 'z-10')} style={stuckAt(pinned, LABEL_AT)}>
+                  <MetricLabels />
+                </td>
                 {days.map((day) => (
                   <td key={day} className={cn('border-b border-r border-border p-0 align-top', DAY_COL)}>
                     <DayCell rank={ranks?.[day]} metrics={sku.daily[day]} />
