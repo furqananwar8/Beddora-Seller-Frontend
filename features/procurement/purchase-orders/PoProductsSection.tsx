@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/design-system/cards/
 import type { PoProduct } from '@/services/api/procurement.api'
 import { cn } from '@/utils/cn'
 import { formatCurrency } from '@/utils/format'
+import { MarketplaceTags } from '../shared/MarketplaceTags'
 import { ProductPicker, productLabel } from '../shared/ProductPicker'
 import { ExpandToggle, ProductSpecs, useExpandedRows } from '../shared/ProductSpecs'
 import { ProductTagBadge } from '../shared/ProductTagBadge'
@@ -100,7 +101,12 @@ export const PoProductsSection: React.FC<PoProductsSectionProps> = ({ form, read
                         <td className={CELL}>
                           <ExpandToggle expanded={expanded} onToggle={() => toggle(product.id)} />
                         </td>
-                        <td className={cn(CELL, 'whitespace-nowrap font-mono text-xs')}>{product.ref}</td>
+                        <td className={cn(CELL, 'font-mono text-xs')}>
+                          <span className="flex items-center gap-2">
+                            <span className="whitespace-nowrap">{product.ref}</span>
+                            <MarketplaceTags product={product} />
+                          </span>
+                        </td>
                         <td className={CELL}>{productLabel(product)}</td>
                         <td className={CELL}>
                           <ProductTagBadge tag={product.tag} />

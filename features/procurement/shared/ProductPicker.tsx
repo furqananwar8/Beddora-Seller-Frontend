@@ -5,6 +5,7 @@ import { SearchableSelect } from '@/components/searchable-select/SearchableSelec
 import { useGetPoProductOptionsQuery, type PoProduct } from '@/services/api/procurement.api'
 import { useDebounce } from '@/utils/debounce'
 import { QuickProductModal } from '../products/QuickProductModal'
+import { MarketplaceTags } from './MarketplaceTags'
 import { ProductTagBadge } from './ProductTagBadge'
 
 interface ProductPickerProps {
@@ -21,11 +22,16 @@ interface ProductPickerProps {
 
 export const productLabel = (product: Pick<PoProduct, 'name' | 'variantName'>): string => product.variantName ?? product.name
 
-/** SKU, name and tag: one product option in every procurement product dropdown. */
+/** One product option in every procurement product dropdown: the whole SKU with its markets and tag, the name under it. */
 const ProductOption: React.FC<{ product: PoProduct; note?: React.ReactNode }> = ({ product, note }) => (
-  <span className="flex items-center gap-3">
-    <span className="w-28 shrink-0 truncate font-mono text-xs">{product.ref}</span>
-    <span className="min-w-0 flex-1 truncate">{productLabel(product)}</span>
+  <span className="flex items-start gap-3">
+    <span className="min-w-0 flex-1">
+      <span className="flex items-center gap-2">
+        <span className="break-all font-mono text-xs leading-tight">{product.ref}</span>
+        <MarketplaceTags product={product} />
+      </span>
+      <span className="mt-0.5 block break-words text-xs leading-tight text-text-secondary">{productLabel(product)}</span>
+    </span>
     <ProductTagBadge tag={product.tag} />
     {note && <span className="w-12 shrink-0 text-right text-xs text-text-muted">{note}</span>}
   </span>

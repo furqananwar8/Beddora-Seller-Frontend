@@ -125,7 +125,7 @@ export const PoFormScreen: React.FC<PoFormScreenProps> = ({ purchaseOrderId }) =
       }
     })()
 
-  const deleteDraft = async () => {
+  const deletePo = async () => {
     if (po && (await decisions.remove(po))) router.push(LIST)
   }
 
@@ -288,7 +288,7 @@ export const PoFormScreen: React.FC<PoFormScreenProps> = ({ purchaseOrderId }) =
         <FormActions>
           {po?.can.delete && (
             <Button type="button" variant="danger" className="sm:mr-auto" onClick={() => setConfirmDelete(true)} disabled={Boolean(saving)}>
-              Delete draft
+              Delete PO
             </Button>
           )}
           <Button type="button" variant="outline" onClick={() => router.push(LIST)} disabled={Boolean(saving)}>
@@ -314,14 +314,14 @@ export const PoFormScreen: React.FC<PoFormScreenProps> = ({ purchaseOrderId }) =
 
       <ConfirmDialog
         isOpen={confirmDelete}
-        title={`Delete ${po?.poNo ?? 'draft'}`}
-        confirmLabel="Delete draft"
+        title={`Delete ${po?.poNo ?? 'PO'}`}
+        confirmLabel="Delete PO"
         tone="danger"
         busy={decisions.busy?.action === 'delete'}
-        onConfirm={() => void deleteDraft()}
+        onConfirm={() => void deletePo()}
         onClose={() => setConfirmDelete(false)}
       >
-        <p>This draft is deleted for good, with its lines and timeline.</p>
+        <p>This PO is deleted for good, with its lines and timeline. A PO with a packaging list attached cannot be deleted.</p>
       </ConfirmDialog>
 
       <ConfirmDialog isOpen={confirmClose} title={`Close ${po?.poNo ?? 'PO'}`} confirmLabel="Close PO" tone="danger" busy={toggling} onConfirm={() => void changeOpen(false)} onClose={() => setConfirmClose(false)}>

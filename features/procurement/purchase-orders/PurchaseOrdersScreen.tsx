@@ -281,15 +281,15 @@ export const PurchaseOrdersScreen: React.FC = () => {
 
       <ConfirmDialog
         isOpen={deleting !== null}
-        title={`Delete ${deleting?.poNo ?? 'draft'}`}
-        confirmLabel="Delete draft"
+        title={`Delete ${deleting?.poNo ?? 'PO'}`}
+        confirmLabel="Delete PO"
         tone="danger"
         busy={decisions.busy?.action === 'delete'}
         onConfirm={async () => deleting && (await decisions.remove(deleting)) && setDeleting(null)}
         onClose={() => setDeleting(null)}
       >
         <p>
-          <strong>{deleting?.poNo}</strong> ({deleting?.supplier.name}) is a draft and is deleted for good, with its lines and timeline.
+          <strong>{deleting?.poNo}</strong> ({deleting?.supplier.name}) is deleted for good, with its lines and timeline. A PO with a packaging list attached cannot be deleted.
         </p>
       </ConfirmDialog>
 

@@ -847,6 +847,7 @@ export const ProfitSettlementReport: React.FC = () => {
             }
             data={getPeriodDetailData(selectedPeriodForDetails)}
             currency={appliedCurrency}
+            hiddenMetrics={['real-acos']}
           />
         )}
 

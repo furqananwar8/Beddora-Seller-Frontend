@@ -47,6 +47,8 @@ interface TileDetailsModalProps {
   renderBody?: (data: any) => React.ReactNode
   /** Extra header content under the date range (e.g. channel chips). */
   headerExtra?: React.ReactNode
+  /** Keys of built-in metric rows to leave out (e.g. `real-acos`). */
+  hiddenMetrics?: readonly string[]
 }
 
 // ============================================================
@@ -297,6 +299,7 @@ export const TileDetailsModal: React.FC<TileDetailsModalProps> = ({
   currency = 'CAD',
   renderBody,
   headerExtra,
+  hiddenMetrics,
 }) => {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
 
@@ -489,7 +492,7 @@ export const TileDetailsModal: React.FC<TileDetailsModalProps> = ({
 
       <div className="px-6 py-4 relative">
         <div className="space-y-0">
-          {metrics.map((metric) => (
+          {metrics.filter((metric) => !hiddenMetrics?.includes(metric.key)).map((metric) => (
             <React.Fragment key={metric.key}>
               <MetricRow
                 label={metric.label}
