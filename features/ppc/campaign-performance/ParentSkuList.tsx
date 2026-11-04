@@ -43,7 +43,7 @@ export const ParentSkuList: React.FC<ParentSkuListProps> = ({ parents, selected,
               onClick={() => onSelect(parent.parentSku)}
               className={cn(
                 'flex w-full items-start gap-2 rounded-md border px-2 py-2 text-left transition-colors',
-                selected === parent.parentSku ? 'border-primary-500 bg-primary-50' : 'border-transparent hover:bg-surface-hover'
+                selected === parent.parentSku ? 'border-slate-300 border-l-4 border-l-primary-500 bg-slate-100' : 'border-transparent hover:bg-slate-50'
               )}
             >
               {parent.imageUrl ? (
@@ -57,7 +57,7 @@ export const ParentSkuList: React.FC<ParentSkuListProps> = ({ parents, selected,
                 <span className="block truncate text-[10px] text-text-muted">
                   {parent.asin ?? '—'} · {parent.keywordCount} kw
                 </span>
-                <span className="mt-1 block h-1 overflow-hidden rounded-full bg-slate-200">
+                <span className={cn('mt-1 block h-1 overflow-hidden rounded-full', selected === parent.parentSku ? 'bg-white' : 'bg-slate-200')}>
                   <span className="block h-full rounded-full bg-primary-500" style={{ width: `${used}%` }} />
                 </span>
                 <span className="mt-0.5 block text-right text-[10px] tabular-nums text-text-muted">
