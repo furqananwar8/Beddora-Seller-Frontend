@@ -14,6 +14,12 @@ export function amazonProductUrl(asin: string, marketplace?: string | null): str
   return `https://www.${match?.domain ?? 'amazon.com'}/dp/${encodeURIComponent(asin)}`
 }
 
+/** Country codes of the picked marketplace ids, comma-separated for a query string; undefined when none is picked. */
+export const marketplaceCodesParam = (marketplaceIds: string[]): string | undefined => {
+  const codes = marketplaceIds.flatMap((id) => MARKETPLACES.find((marketplace) => marketplace.id === id)?.code ?? [])
+  return codes.length > 0 ? codes.join(',') : undefined
+}
+
 /** The country code (CA, US...) when exactly one marketplace is picked; undefined for none or several. */
 export const singleMarketplaceCode = (marketplaceIds: string[]): string | undefined =>
   marketplaceIds.length === 1 ? MARKETPLACES.find((marketplace) => marketplace.id === marketplaceIds[0])?.code : undefined

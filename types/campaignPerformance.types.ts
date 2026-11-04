@@ -5,7 +5,8 @@ export type KeywordRankStatus = 'RANKED' | 'NOT_IN_TOP' | 'NO_DATA'
 export interface CampaignPerformancePeriod {
   startDate: string
   endDate: string
-  marketplace?: string
+  /** Comma-separated country codes (CA,US,MX); omitted means every marketplace. */
+  marketplaces?: string
 }
 
 export interface ParentSkuSummary {

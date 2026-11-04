@@ -6,10 +6,12 @@ import { Search } from 'lucide-react'
 import DateRangePicker, { type DateRangeValue } from '@/components/date-range-picker/DateRangePicker'
 import { useStagedFilters } from '@/components/filter-bar/useStagedFilters'
 import { Container } from '@/components/layout'
+import { MultiSelectInput } from '@/components/multi-select-input/MultiSelectInput'
 import { PaginationFooter } from '@/components/pagination-footer/PaginationFooter'
 import { Button } from '@/design-system/buttons'
 import { useApiFeedback } from '@/hooks/useApiFeedback'
 import { useDebounce } from '@/hooks/useDebounce'
+import { MARKETPLACES, marketplaceCodesParam } from '@/utils/marketplaces'
 import { useGetCampaignParentsQuery, useGetParentKeywordsQuery } from '@/services/api/campaignPerformance.api'
 import { KeywordGrid } from './KeywordGrid'
 import { MetricLegend } from './MetricLegend'
@@ -22,6 +24,8 @@ const PAGE_SIZE = 50
 interface Filters extends Record<string, unknown> {
   range: DateRangeValue
   keyword: string
+  /** Marketplace ids as in the settlement report (Amazon.ca...); none means all. */
+  marketplaces: string[]
 }
 
 const day = (date: Date) => format(date, 'yyyy-MM-dd')
@@ -32,7 +36,7 @@ const businessToday = (): string => new Intl.DateTimeFormat('en-CA', { timeZone:
 
 const defaultFilters = (): Filters => {
   const today = businessToday()
-  return { range: { startDate: day(subDays(parseISO(today), 9)), endDate: today }, keyword: '' }
+  return { range: { startDate: day(subDays(parseISO(today), 9)), endDate: today }, keyword: '', marketplaces: [] }
 }
 
 /**
@@ -52,9 +56,10 @@ export const CampaignPerformanceScreen: React.FC = () => {
   const startDate = applied.range.startDate ?? ''
   const endDate = applied.range.endDate ?? ''
   const ready = Boolean(startDate && endDate)
+  const marketplaces = marketplaceCodesParam(applied.marketplaces)
 
   const { data: parents = [], isLoading: parentsLoading } = useGetCampaignParentsQuery(
-    { startDate, endDate, search: debouncedParentSearch || undefined },
+    { startDate, endDate, marketplaces, search: debouncedParentSearch || undefined },
     { skip: !ready }
   )
   const activeParent = selected ?? parents[0]?.parentSku ?? null
@@ -62,7 +67,7 @@ export const CampaignPerformanceScreen: React.FC = () => {
   useEffect(() => setPage(1), [activeParent, applied])
 
   const { data, isFetching, isError } = useGetParentKeywordsQuery(
-    { parentSku: activeParent ?? '', startDate, endDate, search: applied.keyword || undefined, page, limit: PAGE_SIZE },
+    { parentSku: activeParent ?? '', startDate, endDate, marketplaces, search: applied.keyword || undefined, page, limit: PAGE_SIZE },
     { skip: !ready || !activeParent }
   )
 
@@ -84,6 +89,9 @@ export const CampaignPerformanceScreen: React.FC = () => {
 
       <div className="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-border bg-surface p-3 shadow-sm">
         <DateRangePicker value={draft.range} onChange={onRangeChange} placeholder="Pick a date range" maxDate={parseISO(businessToday())} triggerClassName="h-11 py-0" />
+        <div className="min-w-[160px] shrink-0 [&>div>button]:h-11 [&>div>button]:py-0">
+          <MultiSelectInput title="Marketplace" options={MARKETPLACES} value={draft.marketplaces} onChange={(value) => setDraft('marketplaces', value)} />
+        </div>
         <label className="flex min-w-[220px] flex-1 items-center gap-2 h-11 rounded-lg border border-border px-3 text-sm text-text-muted focus-within:border-primary-500">
           <Search className="h-4 w-4 shrink-0" aria-hidden />
           <input
