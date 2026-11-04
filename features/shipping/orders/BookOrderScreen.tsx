@@ -1,27 +1,29 @@
 'use client'
 
-import React, { useEffect, useMemo, useReducer, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { FormProvider } from 'react-hook-form'
 import { Alert } from '@/design-system/alerts'
 import { Spinner } from '@/design-system/loaders'
+import { useApiFeedback } from '@/hooks/useApiFeedback'
 import { useAppAbility } from '@/hooks/useAppAbility'
 import { useGetChannelOrderQuery, useGetShipFromOptionsQuery } from '@/services/api/shipping.api'
-import { defaultShipFrom, SHIP_TO_KEYS, ShipFromSection, ShipToSection, useAddressErrors } from '../create/AddressStep'
+import { defaultShipFrom, ShipFromSection, ShipToSection } from '../create/AddressStep'
 import { BookingConfirmed } from '../create/BookingConfirmed'
 import { BookingStep } from '../create/BookingStep'
 import { RatesStep } from '../create/RatesStep'
-import { draftReducer, newDraft, type WizardStep } from '../create/shipmentDraft'
-import { isCrossBorder, shipmentErrors, type FieldErrors } from '../create/shipmentRules'
+import { isUnmapped, type WizardStep } from '../create/shipmentForm'
 import { ShipmentStep } from '../create/ShipmentStep'
-import { useDraftRates } from '../create/useDraftRates'
+import { useShipmentForm } from '../create/useShipmentForm'
 import { ORDER_STEPS, WizardStepper } from '../create/WizardStepper'
 import { FULFILLMENT_META, money, ORDERS_HREF } from '../shippingMeta'
 import type { ChannelId, ChannelOrderRef, ParcelShipmentDto } from '../types'
-import { draftFromOrder } from './orderDraft'
+import { valuesFromOrder } from './orderDraft'
 import { OrderSummaryCard } from './OrderSummaryCard'
 
 const CHANNELS: ChannelId[] = ['walmart', 'amazon', 'temu']
+const SKU_MAPPER_HREF = '/dashboard/inventory/sku-mapping'
 
 /** `?channel=walmart&market=US&orderId=…`, or null when incomplete. */
 function useOrderRef(): ChannelOrderRef | null {
@@ -33,10 +35,11 @@ function useOrderRef(): ChannelOrderRef | null {
 }
 
 /**
- * Shipping › Orders › Get rates: one channel order through Shipment Info › Rates › Booking. The draft is built from
- * the order and our products (SKU Mapper binding, else the same SKU): addresses, products, carton, customs. Shipment
- * Info always shows it all for review and edits, with anything still missing highlighted; rates are only fetched
- * when the user asks. Booking sends the order, so it is marked shipped.
+ * Shipping › Orders › Get rates: one channel order through Shipment Info › Rates › Booking. The form is filled
+ * from the order and our products (SKU Mapper binding, else the same SKU): ship-to from the customer, products,
+ * carton, customs (HS code from the product's category). Shipment Info always shows it all for review and edits,
+ * with anything still missing highlighted; rates are only fetched when the user asks. A SKU that isn't one of our
+ * products must be mapped first. Booking sends the order, so it is marked shipped.
  */
 export const BookOrderScreen: React.FC = () => {
   const router = useRouter()
@@ -44,23 +47,28 @@ export const BookOrderScreen: React.FC = () => {
   const orderRef = useOrderRef()
   const { data: detail, isLoading, isError } = useGetChannelOrderQuery(orderRef ?? { channel: 'walmart', market: '', orderId: '' }, { skip: !orderRef })
   const { data: addresses = [], isLoading: loadingAddresses } = useGetShipFromOptionsQuery()
-  const [draft, dispatch] = useReducer(draftReducer, undefined, newDraft)
+  const wizard = useShipmentForm(addresses)
+  const { load } = wizard
+  const { form, values, step, setStep, shipFrom, crossBorder, rate, stream } = wizard
   const [loaded, setLoaded] = useState(false)
   const [booked, setBooked] = useState<ParcelShipmentDto | null>(null)
+  const warned = useRef(false)
+  const { error: showError } = useApiFeedback()
 
-  const shipFrom = addresses.find((address) => address.id === draft.shipFromId)
-  const crossBorder = isCrossBorder(draft, shipFrom)
-  const addressErrors = useAddressErrors(draft)
-  const errors = useMemo<FieldErrors>(() => ({ ...addressErrors, ...shipmentErrors(draft, crossBorder) }), [addressErrors, draft, crossBorder])
-  // rates stream on entering the Rates step, and again after the details were edited
-  const { stream, rate, refetch } = useDraftRates(draft, dispatch, crossBorder)
-
-  // The draft is built once, when the order and the ship-from addresses are in
+  // The form is filled once, when the order and the ship-from addresses are in; step 1 is the first one shown
   useEffect(() => {
     if (loaded || !detail || loadingAddresses) return
-    dispatch({ type: 'load', draft: draftFromOrder(detail, defaultShipFrom(addresses)?.id ?? '') })
+    load(valuesFromOrder(detail, defaultShipFrom(addresses)?.id ?? ''), 1)
     setLoaded(true)
-  }, [loaded, detail, loadingAddresses, addresses])
+  }, [loaded, detail, loadingAddresses, addresses, load])
+
+  // SKUs that aren't one of our products (neither mapped in the SKU Mapper nor the same SKU) must be mapped before booking
+  const unmapped = values.products.filter(({ product }) => isUnmapped(product)).map(({ product }) => product.sku ?? product.name)
+  useEffect(() => {
+    if (!loaded || warned.current || unmapped.length === 0) return
+    warned.current = true
+    showError(`${unmapped.join(', ')} ${unmapped.length === 1 ? "isn't" : "aren't"} one of our products. Map it in the SKU Mapper before booking this order.`)
+  }, [loaded, unmapped, showError])
 
   const backToOrders = () => router.push(ORDERS_HREF)
 
@@ -84,69 +92,77 @@ export const BookOrderScreen: React.FC = () => {
       </Alert>
     )
 
-  // the order flow has no Address step: draft steps 1-3 are stepper steps 0-2
-  const step = Math.max(draft.step - 1, 0)
-  const shipToProblems = SHIP_TO_KEYS.map((key) => errors[key]).filter(Boolean)
-  const lane = crossBorder ? `${shipFrom?.countryCode} → ${draft.shipTo.address.country}` : null
+  // the order flow has no Address step: form steps 1-3 are stepper steps 0-2
+  const stepperStep = Math.max(step - 1, 0)
+  const blocked =
+    unmapped.length > 0 ? (
+      <>
+        Map {unmapped.join(', ')} in the{' '}
+        <Link href={SKU_MAPPER_HREF} className="underline">
+          SKU Mapper
+        </Link>{' '}
+        before booking
+      </>
+    ) : undefined
 
   return (
-    <>
+    <FormProvider {...form}>
       <h1 className="mb-4 text-xl font-bold text-text-primary sm:text-2xl">Book order {detail.order.orderId}</h1>
       <WizardStepper
         steps={ORDER_STEPS}
-        current={step}
-        summaries={[shipFrom && draft.shipTo.address.city ? `${shipFrom.city} → ${draft.shipTo.address.city}` : null, rate ? `${rate.serviceName} · ${money(rate.total, rate.currency)}` : null, null]}
-        onGoTo={(index) => dispatch({ type: 'goTo', step: (index + 1) as WizardStep })}
+        current={stepperStep}
+        summaries={[shipFrom && values.shipTo.address.city ? `${shipFrom.city} → ${values.shipTo.address.city}` : null, rate ? `${rate.serviceName} · ${money(rate.total, rate.currency)}` : null, null]}
+        onGoTo={(index) => setStep((index + 1) as WizardStep)}
       />
 
-      {draft.step === 1 && (
+      {step === 1 && (
         <div className="space-y-4">
           <OrderSummaryCard detail={detail} />
-          {detail.shipToError && <Alert variant="danger">{detail.shipToError}</Alert>}
-          {/* the channel's ship-to (in the order card above) is final; it is only typed in when the channel shared none */}
-          {detail.shipTo && shipToProblems.length > 0 && (
-            <Alert variant="danger">
-              {detail.order.channelLabel} didn&apos;t send everything carriers need for the ship-to address: {shipToProblems.join(', ')}.
-            </Alert>
-          )}
-          {detail.shipTo ? (
-            <ShipFromSection draft={draft} dispatch={dispatch} shown={errors} addresses={addresses} loadingAddresses={loadingAddresses} shipFrom={shipFrom} />
-          ) : (
-            <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
-              <ShipFromSection draft={draft} dispatch={dispatch} shown={errors} addresses={addresses} loadingAddresses={loadingAddresses} shipFrom={shipFrom} />
-              <ShipToSection draft={draft} dispatch={dispatch} shown={errors} />
-            </div>
-          )}
-          <ShipmentStep draft={draft} dispatch={dispatch} errors={errors} lane={lane} onBack={backToOrders} backLabel="Back to orders" />
+          {detail.shipToError && <Alert variant="danger">{detail.shipToError} Fill in the customer below.</Alert>}
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+            <ShipFromSection addresses={addresses} loadingAddresses={loadingAddresses} shipFrom={shipFrom} />
+            <ShipToSection />
+          </div>
+          <ShipmentStep
+            lane={crossBorder ? `${shipFrom?.countryCode} → ${values.shipTo.address.country}` : null}
+            errorCount={wizard.errorCount}
+            onUnitsChange={wizard.changeUnits}
+            blockedReason={blocked}
+            onGetRates={() => setStep(2)}
+            onBack={backToOrders}
+            backLabel="Back to orders"
+          />
         </div>
       )}
 
-      {draft.step === 2 && (
+      {step === 2 && (
         <RatesStep
           stream={stream}
-          incoterm={draft.incoterm}
-          selectedRateId={draft.selectedRateId}
-          onSelect={(rateId) => dispatch({ type: 'selectRate', rateId })}
-          onRetry={refetch}
-          onBack={() => dispatch({ type: 'goTo', step: 1 })}
-          onContinue={() => dispatch({ type: 'goTo', step: 3 })}
+          incoterm={values.incoterm}
+          selectedRateId={wizard.selectedRateId}
+          onSelect={wizard.setSelectedRateId}
+          onRetry={wizard.refetchRates}
+          onBack={() => setStep(1)}
+          onContinue={() => setStep(3)}
         />
       )}
 
-      {draft.step === 3 && shipFrom && rate && stream.quoteId && (
+      {step === 3 && shipFrom && rate && stream.quoteId && (
         <BookingStep
-          draft={draft}
-          dispatch={dispatch}
+          values={values}
+          labelFormat={wizard.labelFormat}
+          onLabelFormatChange={wizard.setLabelFormat}
+          onGoTo={setStep}
           shipFrom={shipFrom}
           rate={rate}
           quoteId={stream.quoteId}
           order={orderRef}
           editable={false}
           onBooked={setBooked}
-          onQuoteExpired={refetch}
+          onQuoteExpired={wizard.refetchRates}
           onOrderNotBookable={backToOrders}
         />
       )}
-    </>
+    </FormProvider>
   )
 }

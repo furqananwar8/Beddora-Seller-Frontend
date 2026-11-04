@@ -7,7 +7,7 @@ import { Button } from '@/design-system/buttons'
 import { cn } from '@/utils/cn'
 import { SectionCard } from '../shared/Card'
 import { money, PROVIDER_LABEL } from '../shippingMeta'
-import type { Incoterm, ProviderEvent, ProviderId, Rate, UnavailableService } from '../types'
+import type { Incoterm, ProviderEvent, Rate, UnavailableService } from '../types'
 import type { RateStream } from '../useRateStream'
 import { RATE_SORTS, sortRates, tagRates, type RateSort } from './rateRanking'
 import { RateRow, RateRowSkeleton } from './RateRow'
@@ -17,11 +17,15 @@ interface RatesStepProps {
   stream: RateStream
   incoterm: Incoterm
   selectedRateId: string | null
-  onSelect: (rateId: string) => void
+  /** A rate id; null when the picked rate is clicked again. */
+  onSelect: (rateId: string | null) => void
   onRetry: () => void
   onBack: () => void
   onContinue: () => void
 }
+
+/** One placeholder row kept below the rates that have arrived, until the last provider has answered. */
+const SKELETON_ROWS = 1
 
 const CHIP: Record<ProviderEvent['status'], string> = {
   loading: 'bg-sky-50 text-sky-700',
@@ -38,9 +42,33 @@ const ProviderChip: React.FC<{ event: ProviderEvent }> = ({ event }) => (
   </span>
 )
 
-/** Services a provider could not offer for this request, collapsed to one line until opened. */
+/** Shippo names a carrier account instead of a service: "Carrier account shippo_dpd_de_account doesn't…". */
+const ACCOUNT = /^Carrier account (S+) /
+
+interface UnavailableGroup {
+  reason: string
+  /** "Shippo · UPS", "Stallion Express · canada_post.regular", or the Shippo account. */
+  who: string[]
+}
+
+/** The unavailable services grouped by why, so one cause isn't listed twenty times. */
+function groupByReason(items: UnavailableService[]): UnavailableGroup[] {
+  const groups = new Map<string, UnavailableGroup>()
+  for (const item of items) {
+    const account = ACCOUNT.exec(item.reason)?.[1]
+    const reason = account ? item.reason.replace(ACCOUNT, 'A carrier account ') : item.reason
+    const who = account ?? [item.providerLabel, item.service].filter(Boolean).join(' · ')
+    const group = groups.get(reason) ?? { reason, who: [] }
+    group.who.push(account ? `${item.providerLabel} · ${who}` : who)
+    groups.set(reason, group)
+  }
+  return [...groups.values()].sort((a, b) => b.who.length - a.who.length)
+}
+
+/** Services a provider could not offer for this request, collapsed to one line until opened, then grouped by reason. */
 const UnavailableStrip: React.FC<{ items: UnavailableService[] }> = ({ items }) => {
   const [open, setOpen] = useState(false)
+  const groups = useMemo(() => groupByReason(items), [items])
   if (items.length === 0) return null
   return (
     <div className="rounded-lg border border-dashed border-border bg-secondary-50 px-3 py-2 text-sm">
@@ -49,15 +77,20 @@ const UnavailableStrip: React.FC<{ items: UnavailableService[] }> = ({ items }) 
           <b>
             {items.length} {items.length === 1 ? 'service' : 'services'} unavailable
           </b>
+          <span className="ml-2 text-xs text-text-muted">
+            {groups.length} {groups.length === 1 ? 'reason' : 'reasons'}
+          </span>
         </span>
         <span className="text-xs text-primary-600 underline">{open ? 'Hide' : 'Show'}</span>
       </button>
       {open && (
-        <ul className="mt-2 space-y-1 text-xs text-text-muted">
-          {items.map((item, index) => (
-            <li key={`${item.provider}-${item.service ?? ''}-${index}`}>
-              <b className="text-text-primary">{item.providerLabel}</b>
-              {item.service && ` · ${item.service}`} — {item.reason}
+        <ul className="mt-2 space-y-2 text-xs text-text-muted">
+          {groups.map((group) => (
+            <li key={group.reason}>
+              <b className="text-text-primary">
+                {group.reason} ({group.who.length})
+              </b>
+              <span className="block">{group.who.join(', ')}</span>
             </li>
           ))}
         </ul>
@@ -73,7 +106,6 @@ export const RatesStep: React.FC<RatesStepProps> = ({ stream, incoterm, selected
   // Tags compare the whole list, so they wait for the last provider
   const rates = useMemo(() => sortRates(done ? tagRates(stream.rates) : stream.rates, sort), [done, stream.rates, sort])
   const providers = Object.values(stream.providers) as ProviderEvent[]
-  const loading = providers.filter((event) => event.status === 'loading').map((event) => event.provider as ProviderId)
   const selected: Rate | undefined = rates.find((rate) => rate.rateId === selectedRateId)
   const streaming = stream.status === 'streaming'
 
@@ -125,12 +157,9 @@ export const RatesStep: React.FC<RatesStepProps> = ({ stream, incoterm, selected
 
         <div className="space-y-2">
           {rates.map((rate) => (
-            <RateRow key={rate.rateId} rate={rate} incoterm={incoterm} selected={rate.rateId === selectedRateId} onSelect={() => onSelect(rate.rateId)} />
+            <RateRow key={rate.rateId} rate={rate} incoterm={incoterm} selected={rate.rateId === selectedRateId} onSelect={() => onSelect(rate.rateId === selectedRateId ? null : rate.rateId)} />
           ))}
-          {loading.map((provider) => (
-            <RateRowSkeleton key={provider} provider={provider} />
-          ))}
-          {streaming && providers.length === 0 && <RateRowSkeleton provider="stallion" />}
+          {streaming && Array.from({ length: SKELETON_ROWS }, (_, index) => <RateRowSkeleton key={`skeleton-${index}`} />)}
           {done && rates.length === 0 && <p className="py-6 text-center text-sm text-text-muted">No provider offered a service for this shipment. Check the unavailable services below, or change the package or options.</p>}
           <UnavailableStrip items={stream.unavailable} />
         </div>

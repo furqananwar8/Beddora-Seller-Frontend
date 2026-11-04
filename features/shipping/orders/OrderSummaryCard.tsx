@@ -6,7 +6,7 @@ import type { ChannelOrderDetail } from '../types'
 
 /** The order being booked: channel, ids, where it goes and what is in it. */
 export const OrderSummaryCard: React.FC<{ detail: ChannelOrderDetail }> = ({ detail }) => {
-  const { order, shipTo } = detail
+  const { order } = detail
   return (
     <SectionCard
       title={
@@ -17,23 +17,8 @@ export const OrderSummaryCard: React.FC<{ detail: ChannelOrderDetail }> = ({ det
       }
       subtitle={`${order.channelLabel} ${order.marketLabel} · ${shortDateTime(order.orderDate)} · ${titleCase(order.channelStatus)}`}
     >
-      <div className="grid gap-4 text-sm sm:grid-cols-2">
-        <div>
-          <div className="text-xs text-text-muted">Ship to</div>
-          {shipTo ? (
-            <p className="leading-6">
-              <b>{shipTo.name}</b>
-              {shipTo.company && ` · ${shipTo.company}`}
-              <br />
-              {[shipTo.address1, shipTo.address2].filter(Boolean).join(', ')}
-              <br />
-              {shipTo.city} {shipTo.province} {shipTo.postalCode} · {shipTo.country}
-            </p>
-          ) : (
-            <p className="text-danger-600">{detail.shipToError ?? 'The channel gave no ship-to address'}</p>
-          )}
-          {order.customerOrderId && <p className="text-xs text-text-muted">Customer order {order.customerOrderId}</p>}
-        </div>
+      <div className="text-sm">
+        {order.customerOrderId && <p className="mb-2 text-xs text-text-muted">Customer order {order.customerOrderId}</p>}
         <div>
           <div className="text-xs text-text-muted">Items</div>
           <ul className="space-y-1">

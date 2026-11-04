@@ -11,16 +11,20 @@ import { useLabelFormats } from '../shared/useLabelFormats'
 import { CartonIllustration } from '../shared/CartonIllustration'
 import { SectionCard } from '../shared/Card'
 import { PriceBreakdownTable } from '../shared/PriceBreakdownTable'
-import { ProviderLogo } from '../shared/ProviderLogo'
+import { CarrierLogo } from '../shared/CarrierLogo'
 import { RadioCards } from '../shared/RadioCards'
-import { apiErrorCode, HANDOVER_META, INCOTERM_META, money, transitDays } from '../shippingMeta'
-import type { ChannelOrderRef, ParcelShipmentDto, Rate } from '../types'
-import { numberOf, UNITS, type DraftAction, type ShipmentDraft, type WizardStep } from './shipmentDraft'
+import { apiErrorCode, INCOTERM_META, money, transitDays } from '../shippingMeta'
+import type { ChannelOrderRef, LabelFormat, ParcelShipmentDto, Rate } from '../types'
+import { numberOf, UNITS, type WizardStep } from './shipmentForm'
+import type { ShipmentFormValues } from './shipmentSchema'
 import { WizardFooter } from './WizardFooter'
 
 interface BookingStepProps {
-  draft: ShipmentDraft
-  dispatch: React.Dispatch<DraftAction>
+  values: ShipmentFormValues
+  labelFormat: LabelFormat | null
+  onLabelFormatChange: (format: LabelFormat) => void
+  /** Back to a step (Edit links, Back to rates). */
+  onGoTo: (step: WizardStep) => void
   shipFrom: ShipFromOption
   rate: Rate
   quoteId: string
@@ -54,18 +58,18 @@ const ReviewItem: React.FC<{ label: string; onEdit?: () => void; children: React
 )
 
 /** Step 4: review, label format, price, and Book & buy label. */
-export const BookingStep: React.FC<BookingStepProps> = ({ draft, dispatch, shipFrom, rate, quoteId, onBooked, onQuoteExpired, order, onOrderNotBookable, editable = true }) => {
+export const BookingStep: React.FC<BookingStepProps> = ({ values, labelFormat: picked, onLabelFormatChange, onGoTo, shipFrom, rate, quoteId, onBooked, onQuoteExpired, order, onOrderNotBookable, editable = true }) => {
   const { failure, info } = useApiFeedback()
   const [book, { isLoading, error }] = useBookShipmentMutation()
   // Booking buys postage, so the button only asks; the booking is made once it is confirmed in the dialog
   const [confirming, setConfirming] = useState(false)
   const formats = useLabelFormats(rate.provider)
-  const labelFormat = formats.some((option) => option.id === draft.labelFormat) ? draft.labelFormat : null
+  const labelFormat = formats.some((option) => option.id === picked) ? picked : null
 
   // Default to the provider's first format until one is picked
   useEffect(() => {
-    if (!labelFormat && formats[0]) dispatch({ type: 'setLabelFormat', format: formats[0].id })
-  }, [labelFormat, formats, dispatch])
+    if (!labelFormat && formats[0]) onLabelFormatChange(formats[0].id)
+  }, [labelFormat, formats, onLabelFormatChange])
 
   // One key per attempt (quote, rate, format): a retry of the same attempt resends it, so it can't book twice
   const attempt = useRef<{ signature: string; key: string } | null>(null)
@@ -97,14 +101,14 @@ export const BookingStep: React.FC<BookingStepProps> = ({ draft, dispatch, shipF
     setConfirming(false)
   }
 
-  const edit = (step: WizardStep) => () => dispatch({ type: 'goTo', step })
+  const edit = (step: WizardStep) => () => onGoTo(step)
   const editTo = (step: WizardStep) => (editable ? edit(step) : undefined)
-  const units = UNITS[draft.units]
-  const pkg = draft.pkg
-  const unitCount = draft.products.reduce((sum, item) => sum + (numberOf(item.quantity) ?? 0), 0)
-  const declared = draft.products.reduce((sum, { product, quantity }) => sum + (numberOf(draft.customs[product.id]?.unitValue ?? '') ?? 0) * (numberOf(quantity) ?? 0), 0)
-  const declaredCurrency = draft.products[0] ? draft.customs[draft.products[0].product.id]?.currency : undefined
-  const { shipTo } = draft
+  const units = UNITS[values.units]
+  const pkg = values.pkg
+  const unitCount = values.products.reduce((sum, item) => sum + (numberOf(item.quantity) ?? 0), 0)
+  const declared = values.products.reduce((sum, { quantity, customs }) => sum + (numberOf(customs.unitValue) ?? 0) * (numberOf(quantity) ?? 0), 0)
+  const declaredCurrency = values.products[0]?.customs.currency
+  const { shipTo } = values
   const days = transitDays(rate)
 
   return (
@@ -131,17 +135,16 @@ export const BookingStep: React.FC<BookingStepProps> = ({ draft, dispatch, shipF
                       {pkg.length} × {pkg.width} × {pkg.height} {units.length.toLowerCase()} · {pkg.weight} {units.weight.toLowerCase()}
                     </b>
                     <span className="block text-xs text-text-muted">
-                      {unitCount} {unitCount === 1 ? 'unit' : 'units'} · {draft.products.length} {draft.products.length === 1 ? 'SKU' : 'SKUs'}
+                      {unitCount} {unitCount === 1 ? 'unit' : 'units'} · {values.products.length} {values.products.length === 1 ? 'SKU' : 'SKUs'}
                       {declared > 0 && declaredCurrency && ` · declared ${money(declared, declaredCurrency)}`}
                     </span>
                   </span>
                 </div>
               </ReviewItem>
               <ReviewItem label="Options" onEdit={editTo(1)}>
-                {draft.incoterm} ({INCOTERM_META[draft.incoterm].description.toLowerCase()}) · {HANDOVER_META[draft.handover].title}
-                {draft.handover === 'PICKUP' && ` ${draft.pickupDate}`}
+                {values.incoterm} ({INCOTERM_META[values.incoterm].description.toLowerCase()}) · Pickup {values.pickupDate}
                 <br />
-                {[draft.signature && 'Signature', draft.insurance && `Insurance CAD ${draft.insurance}`, draft.reference && `Ref ${draft.reference}`].filter(Boolean).join(' · ') || <span className="text-text-muted">No extras</span>}
+                {[values.signature && 'Signature', values.insurance && `Insurance CAD ${values.insurance}`, values.reference && `Ref ${values.reference}`].filter(Boolean).join(' · ') || <span className="text-text-muted">No extras</span>}
               </ReviewItem>
             </div>
           </SectionCard>
@@ -155,7 +158,7 @@ export const BookingStep: React.FC<BookingStepProps> = ({ draft, dispatch, shipF
                 ariaLabel="Label format"
                 options={formats.map((option) => ({ value: option.id, title: option.label, description: option.description }))}
                 value={labelFormat}
-                onChange={(format) => dispatch({ type: 'setLabelFormat', format })}
+                onChange={onLabelFormatChange}
               />
             )}
           </SectionCard>
@@ -164,7 +167,7 @@ export const BookingStep: React.FC<BookingStepProps> = ({ draft, dispatch, shipF
         <SectionCard
           title={
             <span className="flex items-center gap-3">
-              <ProviderLogo provider={rate.provider} />
+              <CarrierLogo carrier={rate.carrier} provider={rate.provider} />
               <span>
                 {rate.serviceName}
                 <span className="block text-xs font-normal text-text-muted">
@@ -175,7 +178,7 @@ export const BookingStep: React.FC<BookingStepProps> = ({ draft, dispatch, shipF
             </span>
           }
         >
-          <PriceBreakdownTable price={rate} incoterm={draft.incoterm} total={rate.total} currency={rate.currency} />
+          <PriceBreakdownTable price={rate} incoterm={values.incoterm} total={rate.total} currency={rate.currency} />
           {error !== undefined && !isQuoteExpired(error) && !isConflict(error, 'ORDER_NOT_BOOKABLE') && (
             <Alert variant="danger" className="mt-3">
               The booking did not go through. Trying again is safe: it won&apos;t book twice.

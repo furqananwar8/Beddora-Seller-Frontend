@@ -1,12 +1,18 @@
 import React from 'react'
-import { Check } from 'lucide-react'
+import { Check, Plane, Truck } from 'lucide-react'
 import { Button } from '@/design-system/buttons'
 import { Skeleton } from '@/design-system/loaders'
 import { cn } from '@/utils/cn'
+import { CarrierLogo } from '../shared/CarrierLogo'
 import { ProviderLogo } from '../shared/ProviderLogo'
 import { amount, money, PROVIDER_LABEL, shortDay, transitDays } from '../shippingMeta'
 import type { Incoterm, ProviderId, Rate } from '../types'
 import { TAG_LABEL } from './rateRanking'
+
+const MODE_META = {
+  GROUND: { label: 'Ground', Icon: Truck, className: 'bg-secondary-100 text-secondary-800' },
+  AIR: { label: 'Air', Icon: Plane, className: 'bg-sky-50 text-sky-700' },
+} as const
 
 const TAG_CLASS = { CHEAPEST: 'bg-success-50 text-success-700', FASTEST: 'bg-sky-50 text-sky-700', BEST_VALUE: 'bg-secondary-100 text-secondary-800' }
 const ROW = 'grid items-center gap-3 rounded-lg border px-3 py-3 sm:grid-cols-[40px_minmax(0,2.2fr)_minmax(0,1fr)_minmax(0,2fr)_minmax(0,1fr)_auto]'
@@ -47,10 +53,16 @@ export const RateRow: React.FC<RateRowProps> = ({ rate, incoterm, selected, onSe
   const days = transitDays(rate)
   return (
     <div className={cn(ROW, selected ? 'border-primary-500 bg-secondary-100 ring-1 ring-primary-500' : 'border-border')}>
-      <ProviderLogo provider={rate.provider} />
+      <CarrierLogo carrier={rate.carrier} provider={rate.provider} />
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="font-semibold text-text-primary">{rate.serviceName}</span>
+          {rate.mode && (
+            <span className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium', MODE_META[rate.mode].className)}>
+              {React.createElement(MODE_META[rate.mode].Icon, { className: 'h-3 w-3', 'aria-hidden': true })}
+              {MODE_META[rate.mode].label}
+            </span>
+          )}
           {rate.tags.map((tag) => (
             <span key={tag} className={cn('rounded-full px-2 py-0.5 text-xs font-medium', TAG_CLASS[tag])}>
               {TAG_LABEL[tag]}
@@ -90,10 +102,10 @@ export const RateRow: React.FC<RateRowProps> = ({ rate, incoterm, selected, onSe
   )
 }
 
-/** A provider still answering. */
-export const RateRowSkeleton: React.FC<{ provider: ProviderId }> = ({ provider }) => (
+/** A rate still to come: a placeholder row, with the answering provider's logo when one is named. */
+export const RateRowSkeleton: React.FC<{ provider?: ProviderId }> = ({ provider }) => (
   <div className={cn(ROW, 'border-dashed border-border')} aria-busy>
-    <ProviderLogo provider={provider} className="opacity-60" />
+    {provider ? <ProviderLogo provider={provider} className="opacity-60" /> : <Skeleton className="h-10 w-10 rounded-md" />}
     <div className="space-y-1.5">
       <Skeleton className="h-4 w-2/3" />
       <Skeleton className="h-3 w-1/3" />
@@ -104,6 +116,6 @@ export const RateRowSkeleton: React.FC<{ provider: ProviderId }> = ({ provider }
       <Skeleton className="h-3 w-2/3" />
     </div>
     <Skeleton className="h-5 w-20" />
-    <span className="text-xs text-text-muted">{PROVIDER_LABEL[provider]}…</span>
+    {provider ? <span className="text-xs text-text-muted">{PROVIDER_LABEL[provider]}…</span> : <Skeleton className="h-8 w-20 rounded-md" />}
   </div>
 )

@@ -7,6 +7,7 @@ import type { SavedShipFromAddress } from '@/features/inventory/shipments/types'
 
 export type ProviderId = 'stallion' | 'shippo' | 'uniuni' | 'fedex'
 export type Incoterm = 'DDP' | 'DAP' | 'DDU'
+export type TransportMode = 'GROUND' | 'AIR'
 export type Handover = 'DROP_OFF' | 'PICKUP'
 export type LabelFormat = 'pdf_4x6' | 'zpl_4x6' | 'pdf_letter'
 export type DocumentType = 'label' | 'commercial_invoice'
@@ -97,6 +98,13 @@ export interface ShipFromOption extends SavedShipFromAddress {
   missing: string[]
 }
 
+/** An HS code we ship under, for the customs lines' dropdown. */
+export interface HsCodeOption {
+  /** 10 digits. */
+  code: string
+  label: string
+}
+
 /* ─────────────── Config & products ─────────────── */
 
 export interface LabelFormatOption {
@@ -134,7 +142,8 @@ export interface ShippingProduct {
   height: number | null
   dimensionUnit: 'CM'
   description: string | null
-  /** From the last customs line booked for this SKU; null when never shipped. */
+  categoryName: string | null
+  /** The product's own HS code, else the last booked for it, else its category's default; null when none applies (the user picks one). */
   hsCode: string | null
   originCountry: string | null
   unitValue: number | null
@@ -165,6 +174,8 @@ export interface Rate {
   maxDays: number | null
   /** yyyy-mm-dd */
   estimatedDelivery: string | null
+  /** Ground or air, read from the service's name; null when it doesn't say. */
+  mode?: TransportMode | null
   tags: RateTag[]
 }
 

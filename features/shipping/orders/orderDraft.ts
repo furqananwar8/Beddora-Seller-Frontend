@@ -1,5 +1,6 @@
 import { fromInternational } from '@/components/phone-field/PhoneField'
-import { customsFromProduct, EMPTY_SHIP_TO, newDraft, type PickedProduct, type ShipmentDraft, type ShipToDraft } from '../create/shipmentDraft'
+import { customsFromProduct, EMPTY_SHIP_TO, newShipmentValues, productLine, type ProductLine, type ShipToValues } from '../create/shipmentForm'
+import type { ShipmentFormValues } from '../create/shipmentSchema'
 import type { ChannelOrderDetail, ChannelOrderDetailLine, ShipAddress, ShippingProduct } from '../types'
 
 /** The stand-in for a SKU not mapped to our products (see `isUnmapped`): nothing known but its name and SKU. */
@@ -17,13 +18,14 @@ const unmappedProduct = (line: ChannelOrderDetailLine, index: number): ShippingP
   height: null,
   dimensionUnit: 'CM',
   description: line.productName,
+  categoryName: null,
   hsCode: null,
   originCountry: null,
   unitValue: null,
   currency: null,
 })
 
-const shipToFrom = (address: ShipAddress | null): ShipToDraft =>
+const shipToFrom = (address: ShipAddress | null): ShipToValues =>
   address
     ? {
         name: address.name,
@@ -37,8 +39,8 @@ const shipToFrom = (address: ShipAddress | null): ShipToDraft =>
       }
     : EMPTY_SHIP_TO
 
-/** Customs from the product's last booking; without one, the value the customer paid on this order. */
-function customsFromOrder(product: ShippingProduct, detail: ChannelOrderDetail) {
+/** Customs from the product; without a value on record, what the customer paid for it on this order. */
+function customsFromOrder(product: ShippingProduct, detail: ChannelOrderDetail): ProductLine['customs'] {
   const customs = customsFromProduct(product)
   const line = detail.lines.find((candidate) => (candidate.product?.id ?? null) === (product.id > 0 ? product.id : null) && candidate.unitPrice != null)
   if (customs.unitValue || !line?.unitPrice) return customs
@@ -47,26 +49,24 @@ function customsFromOrder(product: ShippingProduct, detail: ChannelOrderDetail) 
 }
 
 /**
- * A channel order as a draft on the Shipment Info step, for review before rates: its ship-to, one product per mapped product (units = quantity ×
- * units per item, summed when a bundle repeats a product) and one stand-in per unmapped SKU. The reducer's `load`
- * fills the package from them.
+ * A channel order as the form's values, for review before rates: its ship-to (editable), one product per mapped
+ * product (units = quantity × units per item, summed when a bundle repeats a product) and one stand-in per
+ * unmapped SKU, which blocks booking until it is mapped. The package fills itself from the products.
  */
-export function draftFromOrder(detail: ChannelOrderDetail, shipFromId: string): ShipmentDraft {
-  const picked = new Map<number, PickedProduct>()
+export function valuesFromOrder(detail: ChannelOrderDetail, shipFromId: string): ShipmentFormValues {
+  const picked = new Map<number, ProductLine>()
   detail.lines.forEach((line, index) => {
     const product = line.product ?? unmappedProduct(line, index)
     const units = line.quantity * (line.product ? line.unitsPerItem : 1)
     const current = picked.get(product.id)
-    picked.set(product.id, { product, quantity: String((current ? Number(current.quantity) : 0) + units) })
+    const base = current ?? { ...productLine(product), customs: customsFromOrder(product, detail) }
+    picked.set(product.id, { ...base, quantity: String((current ? Number(current.quantity) : 0) + units) })
   })
-  const products = [...picked.values()]
   return {
-    ...newDraft(),
-    step: 1,
+    ...newShipmentValues(),
     shipFromId,
     shipTo: shipToFrom(detail.shipTo),
-    products,
-    customs: Object.fromEntries(products.map(({ product }) => [product.id, customsFromOrder(product, detail)])),
+    products: [...picked.values()],
     reference: (detail.order.customerOrderId ?? detail.order.orderId).slice(0, 50),
   }
 }

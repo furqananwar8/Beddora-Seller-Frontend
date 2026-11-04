@@ -13,7 +13,9 @@ export function useApiFeedback() {
   const dispatch = useAppDispatch()
   const success = useCallback((message: string) => dispatch(addNotification({ message, type: 'success' })), [dispatch])
   const failure = useCallback((error: unknown, fallback: string) => dispatch(addNotification({ message: apiErrorMessage(error, fallback), type: 'error' })), [dispatch])
+  /** An error toast with our own wording (no API error to read it from). */
+  const error = useCallback((message: string) => dispatch(addNotification({ message, type: 'error' })), [dispatch])
   /** Neutral heads-up, e.g. "someone else just approved this". */
   const info = useCallback((message: string) => dispatch(addNotification({ message, type: 'info' })), [dispatch])
-  return { success, failure, info }
+  return { success, failure, error, info }
 }

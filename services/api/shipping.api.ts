@@ -5,6 +5,7 @@ import type {
   ChannelOrderListItem,
   ChannelOrderListParams,
   ChannelOrderRef,
+  HsCodeOption,
   ParcelShipmentDto,
   ParcelShipmentListItem,
   ShipmentListParams,
@@ -34,6 +35,12 @@ export const shippingApi = baseApi.injectEndpoints({
       query: () => '/shipping/ship-from',
       transformResponse: (response: Envelope<ShipFromOption[]>) => unwrap(response),
       providesTags: ['ShipFromAddresses', 'Warehouses'],
+    }),
+    /** The HS codes we ship under (the Customs lines dropdown). */
+    getHsCodes: builder.query<HsCodeOption[], void>({
+      query: () => '/shipping/hs-codes',
+      transformResponse: (response: Envelope<HsCodeOption[]>) => unwrap(response),
+      keepUnusedDataFor: 3600,
     }),
     searchShippingProducts: builder.query<ShippingProduct[], { search: string; limit?: number }>({
       query: ({ search, limit = 20 }) => ({ url: '/shipping/products', params: { search: search || undefined, limit } }),
@@ -101,6 +108,7 @@ export const shippingApi = baseApi.injectEndpoints({
 export const {
   useGetShippingConfigQuery,
   useGetShipFromOptionsQuery,
+  useGetHsCodesQuery,
   useSearchShippingProductsQuery,
   useGetShipmentsQuery,
   useGetShipmentSummaryQuery,
