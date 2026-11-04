@@ -73,11 +73,11 @@ export const CampaignPerformanceScreen: React.FC = () => {
 
   return (
     <Container size="full" className="py-4 sm:py-6">
-      <h1 className="mb-3 px-1 text-xl font-bold text-text-primary sm:text-2xl">Campaign Performance</h1>
+      <h1 className="mb-4 px-2 pb-1 pt-2 text-xl font-bold text-text-primary sm:text-2xl">Campaign Performance</h1>
 
-      <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-border bg-surface p-2 shadow-sm">
-        <DateRangePicker value={draft.range} onChange={onRangeChange} placeholder="Pick a date range" disableFutureDates />
-        <label className="flex min-w-[220px] flex-1 items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm text-text-muted focus-within:border-primary-500">
+      <div className="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-border bg-surface p-3 shadow-sm">
+        <DateRangePicker value={draft.range} onChange={onRangeChange} placeholder="Pick a date range" disableFutureDates triggerClassName="h-11 py-0" />
+        <label className="flex min-w-[220px] flex-1 items-center gap-2 h-11 rounded-lg border border-border px-3 text-sm text-text-muted focus-within:border-primary-500">
           <Search className="h-4 w-4 shrink-0" aria-hidden />
           <input
             value={draft.keyword}
@@ -87,10 +87,10 @@ export const CampaignPerformanceScreen: React.FC = () => {
             className="min-w-0 flex-1 bg-transparent text-text-primary outline-none placeholder:text-text-muted"
           />
         </label>
-        <Button type="button" size="sm" className="h-10 px-5" disabled={changed.size === 0} onClick={apply}>
+        <Button type="button" size="sm" className="h-11 px-5" disabled={changed.size === 0} onClick={apply}>
           Apply
         </Button>
-        <Button type="button" variant="outline" size="sm" className="h-10 px-5" disabled={activeCount === 0} onClick={reset}>
+        <Button type="button" variant="outline" size="sm" className="h-11 px-5" disabled={activeCount === 0} onClick={reset}>
           Clear
         </Button>
       </div>
@@ -106,7 +106,7 @@ export const CampaignPerformanceScreen: React.FC = () => {
         />
 
         <section className="flex min-w-0 flex-1 flex-col rounded-lg border border-border bg-surface shadow-sm">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-3 py-2">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
             <h2 className="text-sm font-semibold text-text-primary">
               Keyword Rank History <span className="font-normal text-text-muted">(Latest First)</span>
               {data && <span className="font-normal text-text-muted"> · {data.days.length} days</span>}
