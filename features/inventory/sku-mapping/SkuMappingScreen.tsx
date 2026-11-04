@@ -59,8 +59,8 @@ export const SkuMappingScreen: React.FC = () => {
             onAdd={mapper.addRows}
             onRemove={mapper.removeKeys}
             onClear={mapper.clearGraph}
-            onLoadUnmapped={mapper.loadUnmapped}
-            loadingUnmapped={mapper.loadingUnmapped}
+            onLoadByStatus={mapper.loadByStatus}
+            loading={mapper.loadingUnmapped}
           />
           {!readOnly && <InternalSkuPicker bindTo={selectedRow?.sku ?? null} onPick={mapper.bindInternal} />}
           <div className="ml-auto flex min-w-0 items-center gap-3">

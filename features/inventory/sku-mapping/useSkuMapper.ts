@@ -1,8 +1,10 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useStagedFilters } from '@/components/filter-bar/useStagedFilters'
 import { useApiFeedback } from '@/hooks/useApiFeedback'
+import { useAppDispatch, useAppSelector } from '@/store/hooks'
+import { draftActed, filtersApplied, graphKeysSet } from '@/store/skuMapper.slice'
 import {
   useGetChannelSkusQuery,
   useGetSkuMappingOptionsQuery,
@@ -10,8 +12,9 @@ import {
   useSaveBindingsMutation,
   type ChannelSku,
   type InternalSku,
+  type MappingStatus,
 } from '@/services/api/skuMapping.api'
-import { EMPTY_DRAFT, componentsOf, draftReducer, pendingChanges, toBindingChanges } from './bindingDraft'
+import { componentsOf, pendingChanges, toBindingChanges, type DraftAction } from './bindingDraft'
 import { COMPACT_FROM, GRAPH_LIMIT, INITIAL_LOAD, type NodeStatus } from './constants'
 import { DEFAULT_SKU_MAPPING_FILTERS, scopeOf, type SkuMappingFilterValues } from './filters'
 
@@ -23,12 +26,16 @@ export function useSkuMapper() {
   const { success, failure, info } = useApiFeedback()
   const { data: channels = [] } = useGetSkuMappingOptionsQuery()
 
-  const [graphKeys, setGraphKeys] = useState<string[]>([])
-  const [draft, dispatch] = useReducer(draftReducer, EMPTY_DRAFT)
+  // Graph, draft and applied filters live in the store so they survive a visit to a binding's history
+  const appDispatch = useAppDispatch()
+  const { graphKeys, draft, filters: storedFilters } = useAppSelector((state) => state.skuMapper)
+  const setGraphKeys = useCallback((keys: string[]) => appDispatch(graphKeysSet(keys)), [appDispatch])
+  const dispatch = useCallback((action: DraftAction) => appDispatch(draftActed(action)), [appDispatch])
+  const rememberFilters = useCallback((applied: SkuMappingFilterValues) => appDispatch(filtersApplied(applied)), [appDispatch])
   /** A filter change that would drop unsaved edits, waiting for confirmation. */
   const [pendingFilters, setPendingFilters] = useState<SkuMappingFilterValues | null>(null)
 
-  const filters = useStagedFilters(DEFAULT_SKU_MAPPING_FILTERS)
+  const filters = useStagedFilters(DEFAULT_SKU_MAPPING_FILTERS, rememberFilters, storedFilters)
   const scope = useMemo(() => scopeOf(filters.applied), [filters.applied])
   const channel = channels.find((option) => option.id === scope.channel) ?? { id: scope.channel, name: scope.channel, marketplaces: [], fulfillments: [], referenceLabel: '' }
 
@@ -52,8 +59,8 @@ export function useSkuMapper() {
     const scopeKey = JSON.stringify(scope)
     if (!overview.data || seeded.current === scopeKey) return
     seeded.current = scopeKey
-    setGraphKeys((current) => (current.length > 0 ? current : overview.data!.data.map((row) => row.key)))
-  }, [overview.data, scope])
+    if (graphKeys.length === 0) setGraphKeys(overview.data.data.map((row) => row.key))
+  }, [overview.data, scope, graphKeys.length, setGraphKeys])
 
   const pending = useMemo(() => pendingChanges(draft, rows), [draft, rows])
   const dirty = pending.length > 0
@@ -87,25 +94,26 @@ export function useSkuMapper() {
   }
 
   const addRows = (added: ChannelSku[]) => {
-    setGraphKeys((current) => [...current, ...added.map((row) => row.key).filter((key) => !current.includes(key))].slice(0, GRAPH_LIMIT))
+    setGraphKeys([...graphKeys, ...added.map((row) => row.key).filter((key) => !graphKeys.includes(key))].slice(0, GRAPH_LIMIT))
     if (added.length === 1) dispatch({ type: 'select', key: added[0].key })
   }
   const removeKeys = (keys: string[]) => {
     const removing = keys.filter((key) => !locked.has(key))
-    setGraphKeys((current) => current.filter((key) => !removing.includes(key)))
+    setGraphKeys(graphKeys.filter((key) => !removing.includes(key)))
     dispatch({ type: 'remove', keys: removing })
   }
   const clearGraph = () => removeKeys(graphKeys)
 
-  const loadUnmapped = async () => {
+  /** Loads every SKU of the given status (all statuses when omitted) onto the graph, up to the graph limit. */
+  const loadByStatus = async (statuses?: MappingStatus[], label = 'matching') => {
     try {
-      const result = await fetchUnmapped({ ...scope, statuses: ['new', 'unmapped'], page: 1, limit: GRAPH_LIMIT }).unwrap()
+      const result = await fetchUnmapped({ ...scope, statuses, page: 1, limit: GRAPH_LIMIT }).unwrap()
       const free = GRAPH_LIMIT - graphKeys.length
       const fresh = result.data.filter((row) => !graphKeys.includes(row.key))
       addRows(fresh.slice(0, free))
-      if (fresh.length > free) info(`Graph limit reached (${GRAPH_LIMIT} SKUs): ${fresh.length - free} unmapped SKUs were not loaded.`)
+      if (fresh.length > free) info(`Graph limit reached (${GRAPH_LIMIT} SKUs): ${fresh.length - free} ${label} SKUs were not loaded.`)
     } catch (error) {
-      failure(error, 'Could not load the unmapped SKUs')
+      failure(error, `Could not load the ${label} SKUs`)
     }
   }
 
@@ -163,7 +171,7 @@ export function useSkuMapper() {
     addRows,
     removeKeys,
     clearGraph,
-    loadUnmapped,
+    loadByStatus,
     bindInternal,
     /** A line drawn from a channel SKU to an internal SKU binds exactly that pair (×1), whichever SKU is selected. */
     connect: (rowKey: string, productId: number) => {

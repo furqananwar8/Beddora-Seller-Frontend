@@ -24,8 +24,16 @@ interface ChannelSkuPickerProps {
   onAdd: (rows: ChannelSku[]) => void
   onRemove: (keys: string[]) => void
   onClear: () => void
-  onLoadUnmapped: () => void
-  loadingUnmapped: boolean
+  /** Loads every SKU of these statuses (all when undefined). */
+  onLoadByStatus: (statuses: MappingStatus[] | undefined, label: string) => void
+  loading: boolean
+}
+
+interface TabOption {
+  value: Tab
+  /** Short name used in the tab and in "Load all …". */
+  name: string
+  count: number | undefined
 }
 
 const describe = (row: ChannelSku) => {
@@ -34,7 +42,7 @@ const describe = (row: ChannelSku) => {
 }
 
 /** "Channel SKUs on graph": search, status tabs, tick to load a SKU with its internal nodes. */
-export const ChannelSkuPicker: React.FC<ChannelSkuPickerProps> = ({ scope, summary, channelLabel, onGraph, locked, onAdd, onRemove, onClear, onLoadUnmapped, loadingUnmapped }) => {
+export const ChannelSkuPicker: React.FC<ChannelSkuPickerProps> = ({ scope, summary, channelLabel, onGraph, locked, onAdd, onRemove, onClear, onLoadByStatus, loading }) => {
   const [search, setSearch] = useState('')
   const [tab, setTab] = useState<Tab>('all')
   const term = useDebounce(search.trim(), 300)
@@ -48,7 +56,6 @@ export const ChannelSkuPicker: React.FC<ChannelSkuPickerProps> = ({ scope, summa
 
   const onGraphKeys = new Set(onGraph.map((row) => row.key))
   const full = onGraph.length >= GRAPH_LIMIT
-  const unmapped = summary?.unmapped ?? 0
 
   const change = (next: ChannelSku[]) => {
     const nextKeys = new Set(next.map((row) => row.key))
@@ -58,12 +65,16 @@ export const ChannelSkuPicker: React.FC<ChannelSkuPickerProps> = ({ scope, summa
     if (removed.length > 0) onRemove(removed)
   }
 
-  const tabs: Array<{ value: Tab; label: string }> = [
-    { value: 'all', label: `All ${summary?.total ?? ''}`.trim() },
-    { value: 'mapped', label: `Mapped ${summary?.mapped ?? ''}`.trim() },
-    { value: 'unmapped', label: `Unmapped ${summary ? summary.unmapped - summary.new : ''}`.trim() },
-    { value: 'new', label: `New ${summary?.new ?? ''}`.trim() },
+  const tabOptions: TabOption[] = [
+    { value: 'all', name: 'All', count: summary?.total },
+    { value: 'mapped', name: 'Mapped', count: summary?.mapped },
+    { value: 'unmapped', name: 'Unmapped', count: summary ? summary.unmapped - summary.new : undefined },
+    { value: 'new', name: 'New', count: summary?.new },
   ]
+  const tabs = tabOptions.map(({ value, name, count }) => ({ value, label: `${name} ${count ?? ''}`.trim() }))
+  const active = tabOptions.find((option) => option.value === tab) ?? tabOptions[0]
+  const activeCount = active.count ?? 0
+  const loadLabel = tab === 'all' ? 'Load all SKUs' : `Load all ${active.name.toLowerCase()}`
 
   return (
     <SearchableSelect<ChannelSku>
@@ -103,23 +114,24 @@ export const ChannelSkuPicker: React.FC<ChannelSkuPickerProps> = ({ scope, summa
             options={tabs}
             className="grid w-full grid-cols-4 [&>button]:min-w-0 [&>button]:truncate [&>button]:px-1 [&>button]:text-xs"
           />
-          <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            size="sm"
+            className="w-full"
+            disabled={activeCount === 0 || full || loading}
+            onClick={() => {
+              onLoadByStatus(tab === 'all' ? undefined : [tab], active.name.toLowerCase())
+              close()
+            }}
+          >
+            {loadLabel} ({activeCount})
+          </Button>
+          <div className="grid grid-cols-2 gap-2">
             <Button type="button" variant="outline" size="sm" onClick={onClear} disabled={onGraph.length === 0}>
               Clear graph
             </Button>
-            <Button type="button" variant="outline" size="sm" className="ml-auto" onClick={close}>
+            <Button type="button" variant="outline" size="sm" onClick={close}>
               Done
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              disabled={unmapped === 0 || full || loadingUnmapped}
-              onClick={() => {
-                onLoadUnmapped()
-                close()
-              }}
-            >
-              Load all unmapped ({unmapped})
             </Button>
           </div>
         </div>

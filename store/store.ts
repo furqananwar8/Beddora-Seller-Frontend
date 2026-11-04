@@ -33,6 +33,7 @@ import reimbursementCasesReducer from './reimbursementCases.slice'
 import marketplacesReducer from './marketplaces.slice'
 import currenciesReducer from './currencies.slice'
 import amazonReducer from './amazon.slice'
+import skuMapperReducer from './skuMapper.slice'
 
 const rootReducer = combineReducers({
   [baseApi.reducerPath]: baseApi.reducer,
@@ -67,6 +68,7 @@ const rootReducer = combineReducers({
   marketplaces: marketplacesReducer,
   currencies: currenciesReducer,
   amazon: amazonReducer,
+  skuMapper: skuMapperReducer,
 })
 
 // Signing out must drop every cached API response: otherwise the next person to sign in on this browser
