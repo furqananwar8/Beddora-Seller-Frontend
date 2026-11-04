@@ -39,6 +39,7 @@ export const tagTypes = [
   'PPCOptimization',
   'PPCBulk',
   'PPCProfit',
+  'CampaignPerformance',
   'ListingAlerts',
   'BuyBoxAlerts',
   'FeeChangeAlerts',

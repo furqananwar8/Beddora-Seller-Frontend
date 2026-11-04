@@ -101,11 +101,18 @@ export default function DashboardLayout({
             icon: NavIcons.ppc,
             children: [
               {
-                label: 'Day Parting',
-                subject: 'ppc:dayparting',
+                label: 'Campaign Performance',
+                subject: 'ppc:campaign-performance',
                 action: 'read',
-                href: '/dayparting',
+                href: '/dashboard/ppc/campaign-performance',
               },
+              // Day Parting is kept (its pages and permission stay) but is out of the menu for now:
+              // {
+              //   label: 'Day Parting',
+              //   subject: 'ppc:dayparting',
+              //   action: 'read',
+              //   href: '/dayparting',
+              // },
             ],
           },
           {
