@@ -2,6 +2,7 @@
 
 import React, { useMemo, useState } from 'react'
 import { FILL_TOGGLE, FilterBar, FilterItem } from '@/components/filter-bar/FilterBar'
+import { FilterMultiSelect } from '@/components/filter-bar/FilterMultiSelect'
 import { useStagedFilters } from '@/components/filter-bar/useStagedFilters'
 import { FormField } from '@/components/form-field/FormField'
 import { Container } from '@/components/layout'
@@ -9,7 +10,7 @@ import { PaginationFooter } from '@/components/pagination-footer/PaginationFoote
 import { SegmentedToggle } from '@/components/segmented-toggle/SegmentedToggle'
 import { Button } from '@/design-system/buttons'
 import { useReportExport } from '@/hooks/useReportExport'
-import { useGetInventoryAgingQuery, type AgeFilter, type AgingMarketplace, type AgingSortColumn, type SortOrder } from '@/services/api/inventoryAging.api'
+import { useGetInventoryAgingQuery, type AgeFilter, type AgingSortColumn, type SortOrder } from '@/services/api/inventoryAging.api'
 import { cn } from '@/utils/cn'
 import { InventoryAgingTable } from './InventoryAgingTable'
 import { AGE_OPTIONS, defaultFilters, MARKETPLACE_OPTIONS } from './inventoryAgingFilters'
@@ -17,7 +18,7 @@ import { AGE_OPTIONS, defaultFilters, MARKETPLACE_OPTIONS } from './inventoryAgi
 const PAGE_SIZE = 25
 
 /**
- * Inventory Aging: Amazon's Inventory Age report (Manage Inventory Health, synced daily) for one marketplace, per
+ * Inventory Aging: Amazon's Inventory Age report (Manage Inventory Health, synced daily) per marketplace and
  * seller SKU, oldest stock first. Filters apply with the button.
  */
 export const InventoryAgingScreen: React.FC = () => {
@@ -36,7 +37,7 @@ export const InventoryAgingScreen: React.FC = () => {
   }
 
   const query = {
-    marketplace: applied.marketplace,
+    marketplaces: applied.marketplaces,
     age: applied.age,
     search: applied.search.trim(),
     sortBy: sort?.column,
@@ -85,14 +86,8 @@ export const InventoryAgingScreen: React.FC = () => {
             </FormField>
           </FilterItem>
           <FilterItem wide>
-            <FormField label="Marketplace">
-              <SegmentedToggle<AgingMarketplace>
-                ariaLabel="Marketplace"
-                value={draft.marketplace}
-                onChange={(value) => setDraft('marketplace', value)}
-                options={MARKETPLACE_OPTIONS}
-                className={cn(FILL_TOGGLE, changed.has('marketplace') && 'ring-1 ring-primary-500')}
-              />
+            <FormField label="Marketplace" htmlFor="ia-marketplace">
+              <FilterMultiSelect id="ia-marketplace" options={MARKETPLACE_OPTIONS} value={draft.marketplaces} onChange={(value) => setDraft('marketplaces', value)} anyLabel="All marketplaces" highlighted={changed.has('marketplaces')} />
             </FormField>
           </FilterItem>
           <FilterItem wide>
@@ -111,7 +106,7 @@ export const InventoryAgingScreen: React.FC = () => {
 
       <div className={cn('space-y-3', isFetching && !isLoading && 'opacity-70 transition-opacity')}>
         <InventoryAgingTable report={data} isLoading={isLoading} isError={isError} sort={sort} onSort={onSort} />
-        {data && data.totalRecords > 0 && <PaginationFooter page={data.page} pageSize={data.limit} totalItems={data.totalRecords} totalPages={data.totalPages} onPageChange={setPage} itemLabel="SKUs" />}
+        {data && data.totalRecords > 0 && <PaginationFooter page={data.page} pageSize={data.limit} totalItems={data.totalRecords} totalPages={data.totalPages} onPageChange={setPage} itemLabel="listings" />}
       </div>
     </Container>
   )

@@ -18,6 +18,8 @@ interface ManagedSyncJob {
   label: string
   /** Modes that have a start date worth resetting. */
   modes: SyncMode[]
+  /** False for snapshots of the present (no date window): a reset just runs them again. Default true. */
+  hasStartDate?: boolean
 }
 
 const BOTH_MODES: SyncMode[] = ['live', 'backfill']
@@ -32,6 +34,10 @@ const MANAGED_SYNC_JOBS: ManagedSyncJob[] = [
   { syncType: 'fba_long_term_storage_fee', label: 'Long-Term Storage Fees', modes: ['backfill'] },
   // Same one-month window: the backfill walks month by month to the current month.
   { syncType: 'fba_storage_fee', label: 'Monthly Storage Fees', modes: ['backfill'] },
+  // Inventory screens. Channel Inventory reads the FBA snapshot; Channel INVP reads the daily ledger (and the snapshot for today); Inventory Aging reads Inventory Health.
+  { syncType: 'fba_inventory', label: 'FBA Inventory (Channel Inventory)', modes: ['live'], hasStartDate: false },
+  { syncType: 'inventory_ledger_daily', label: 'Daily Inventory Ledger (Channel INVP)', modes: BOTH_MODES },
+  { syncType: 'fba_inventory_health', label: 'Inventory Health (Inventory Aging)', modes: ['live'], hasStartDate: false },
 ]
 
 export default function ReportSyncManagementPage() {
@@ -50,7 +56,7 @@ export default function ReportSyncManagementPage() {
     { config: CHANNEL_SYNC_GROUPS.temu, sync: temu },
   ]
 
-  const amazonRows: SyncTableRow[] = MANAGED_SYNC_JOBS.flatMap(({ syncType, label, modes }) =>
+  const amazonRows: SyncTableRow[] = MANAGED_SYNC_JOBS.flatMap(({ syncType, label, modes, hasStartDate = true }) =>
     modes.map((mode) => {
       const state = amazon.syncStates.find((s) => s.syncType === syncType && s.mode === mode)
       return {
@@ -60,7 +66,7 @@ export default function ReportSyncManagementPage() {
         status: state?.status || 'idle',
         errorMessage: state?.errorMessage,
         currentStart: state?.lastStartDate ?? null,
-        hasStartDate: true,
+        hasStartDate,
       }
     })
   )

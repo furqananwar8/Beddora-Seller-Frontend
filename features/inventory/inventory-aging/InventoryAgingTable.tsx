@@ -2,6 +2,7 @@
 
 import React from 'react'
 import { ArrowDownWideNarrow, ArrowUpDown, ArrowUpNarrowWide } from 'lucide-react'
+import { MarketplaceFlag } from '@/components/marketplace-flag/MarketPlaceFlag'
 import { Table, TABLE_STATUS_VIEWPORT, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow, TableStatusRow } from '@/design-system/tables'
 import type { AgingSortColumn, InventoryAgingReport, InventoryAgingRow, SortOrder } from '@/services/api/inventoryAging.api'
 import { cn } from '@/utils/cn'
@@ -55,7 +56,7 @@ const SortableHead: React.FC<SortableHeadProps> = ({ column, sort, onSort, class
   )
 }
 
-/** One row per seller SKU: units by how long they have sat at Amazon, beside what is sellable and what is reserved. */
+/** One row per seller SKU and marketplace: units by how long they have sat at Amazon, beside what is sellable and what is reserved. */
 export const InventoryAgingTable: React.FC<InventoryAgingTableProps> = ({ report, isLoading, isError, sort, onSort }) => {
   const buckets = report?.buckets ?? []
   const columns = IDENTITY_COLUMNS + buckets.length
@@ -98,15 +99,20 @@ export const InventoryAgingTable: React.FC<InventoryAgingTableProps> = ({ report
                 Could not load the inventory aging.
               </TableStatusRow>
             ) : !report?.snapshotDate ? (
-              <TableStatusRow colSpan={columns}>No Inventory Age report has synced for this marketplace yet.</TableStatusRow>
+              <TableStatusRow colSpan={columns}>No Inventory Age report has synced for the marketplaces picked yet.</TableStatusRow>
             ) : rows.length === 0 ? (
               <TableStatusRow colSpan={columns}>No SKU matches.</TableStatusRow>
             ) : (
               rows.map((row) => (
-                <TableRow key={row.sellerSku}>
+                <TableRow key={`${row.marketplace}:${row.sellerSku}`}>
                   <TableCell className={cn(STICKY, 'text-left align-middle')}>
-                    <p className="font-mono text-xs font-semibold text-text-primary">{row.sellerSku}</p>
-                    {row.productName && <p className="line-clamp-2 text-xs text-text-secondary">{row.productName}</p>}
+                    <div className="flex items-start gap-2">
+                      <MarketplaceFlag marketplace={row.marketplace} />
+                      <div>
+                        <p className="font-mono text-xs font-semibold text-text-primary">{row.sellerSku}</p>
+                        {row.productName && <p className="line-clamp-2 text-xs text-text-secondary">{row.productName}</p>}
+                      </div>
+                    </div>
                   </TableCell>
                   <TableCell className={cn(CELL, 'font-mono text-xs')}>{row.asin || '—'}</TableCell>
                   <TableCell className={cn(NUM, 'font-semibold')}>{row.available.toLocaleString()}</TableCell>
@@ -126,7 +132,7 @@ export const InventoryAgingTable: React.FC<InventoryAgingTableProps> = ({ report
           {report?.snapshotDate && rows.length > 0 && (
             <TableFooter>
               <TableRow className="border-t-2 border-border bg-secondary-100 [&>td]:bg-secondary-100">
-                <TableCell className={cn(STICKY, 'bg-secondary-100 text-left font-semibold')}>Total · {report.totalRecords.toLocaleString()} SKUs</TableCell>
+                <TableCell className={cn(STICKY, 'bg-secondary-100 text-left font-semibold')}>Total · {report.totalRecords.toLocaleString()} listings</TableCell>
                 <TableCell />
                 <TableCell className={cn(NUM, 'font-semibold')}>{report.totals.available.toLocaleString()}</TableCell>
                 <TableCell className={cn(NUM, 'font-semibold')}>{report.totals.reserved.toLocaleString()}</TableCell>

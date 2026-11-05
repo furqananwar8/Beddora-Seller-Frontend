@@ -1,5 +1,6 @@
 import { baseApi } from './baseApi'
 import { Page } from './finance.api'
+import { csv } from './queryParams'
 
 export type AgingMarketplace = 'CA' | 'US' | 'MX'
 /** Every SKU, or only those holding units older than 180 or 365 days. */
@@ -7,6 +8,8 @@ export type AgeFilter = 'all' | 'over-180' | 'over-365'
 export type AgeBucketKey = 'invAge0To90Days' | 'invAge91To180Days' | 'invAge181To270Days' | 'invAge271To365Days' | 'invAge365PlusDays'
 
 export interface InventoryAgingRow {
+  /** The marketplace whose snapshot the row is from: one SKU can be stocked in several. */
+  marketplace: AgingMarketplace
   sellerSku: string
   fnSku: string | null
   asin: string
@@ -19,8 +22,10 @@ export interface InventoryAgingRow {
 }
 
 export interface InventoryAgingReport extends Page<InventoryAgingRow> {
-  /** The Amazon snapshot shown (the latest for the marketplace); null before the first sync. */
+  /** The newest Amazon snapshot shown; null before the first sync. */
   snapshotDate: string | null
+  /** Each marketplace's latest snapshot day. */
+  snapshots: Partial<Record<AgingMarketplace, string>>
   /** The age columns in display order, as the server buckets them. */
   buckets: Array<{ key: AgeBucketKey; label: string }>
   /** Units per bucket over every SKU matching the filters, not only this page. */
@@ -32,7 +37,8 @@ export type AgingSortColumn = 'available' | 'reserved' | AgeBucketKey
 export type SortOrder = 'asc' | 'desc'
 
 export interface InventoryAgingParams {
-  marketplace: AgingMarketplace
+  /** Empty or omitted: every marketplace. */
+  marketplaces?: AgingMarketplace[]
   age: AgeFilter
   search?: string
   sortBy?: AgingSortColumn
@@ -44,7 +50,7 @@ export interface InventoryAgingParams {
 export const inventoryAgingApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getInventoryAging: builder.query<InventoryAgingReport, InventoryAgingParams>({
-      query: ({ search, ...rest }) => ({ url: '/inventory/inventory-aging', params: { ...rest, search: search || undefined } }),
+      query: ({ marketplaces, search, ...rest }) => ({ url: '/inventory/inventory-aging', params: { ...rest, marketplaces: csv(marketplaces), search: search || undefined } }),
       providesTags: ['Inventory'],
     }),
   }),
