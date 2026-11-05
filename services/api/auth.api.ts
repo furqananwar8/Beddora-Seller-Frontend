@@ -38,14 +38,8 @@ export interface LoginResponse {
     roles: string[]
   }
   permissions: Record<string, string>[]
-  accessToken: string
-  refreshToken?: string
   accountId?: string
   message: string
-}
-
-export interface RefreshTokenResponse {
-  accessToken: string
 }
 
 export interface ForgotPasswordRequest {
@@ -79,20 +73,10 @@ export const authApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ['Auth'],
     }),
-    refreshToken: builder.mutation<RefreshTokenResponse, void>({
+    logout: builder.mutation<{ message: string }, void>({
       query: () => ({
-        url: '/auth/refresh',
-        method: 'POST',
-        body: {},
-      }),
-      // Don't retry on failure - if refresh fails, user needs to login again
-      extraOptions: { maxRetries: 0 },
-    }),
-    logout: builder.mutation<{ message: string }, { refreshToken?: string } | undefined>({
-      query: (data) => ({
         url: '/auth/logout',
         method: 'POST',
-        body: data ? { refreshToken: data.refreshToken } : {},
       }),
       invalidatesTags: ['Auth'],
     }),
@@ -123,7 +107,6 @@ export const authApi = baseApi.injectEndpoints({
 export const {
   useRegisterMutation,
   useLoginMutation,
-  useRefreshTokenMutation,
   useLogoutMutation,
   useForgotPasswordMutation,
   useResetPasswordMutation,

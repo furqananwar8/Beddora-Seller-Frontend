@@ -1,18 +1,9 @@
 'use client'
 
-import React, { useEffect, useRef } from 'react'
+import React, { useEffect } from 'react'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
-import {
-  initializeAuth,
-  setCredentials,
-  updateAccessToken,
-  setLoading,
-  clearCredentials,
-} from '@/store/auth.slice'
-import {
-  useGetCurrentUserQuery,
-  useRefreshTokenMutation,
-} from '@/services/api/auth.api'
+import { setCredentials, setLoading, clearCredentials } from '@/store/auth.slice'
+import { useGetCurrentUserQuery } from '@/services/api/auth.api'
 import { useGetAccountsQuery } from '@/services/api/accounts.api'
 import { useGetMyPermissionsQuery } from '@/services/api/permissions.api'
 import { setAccounts, setActiveAccount } from '@/store/accounts.slice'
@@ -20,60 +11,27 @@ import { setPermissions } from '@/store/permissions.slice'
 
 /**
  * Auth initializer component
- * Loads user data, accounts, and permissions on app start
+ * Asks the server who the session cookie belongs to, then loads accounts and permissions.
  * Should be placed in the root layout
  */
 export const AuthInitializer: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const dispatch = useAppDispatch()
-  const accessToken = useAppSelector((state) => state.auth.accessToken)
   const accountId = useAppSelector((state) => state.auth.accountId)
-  const [refresh] = useRefreshTokenMutation()
-  const hasAttemptedRefresh = useRef(false)
-  const isInitialized = useRef(false)
+  const hasStoredUser = useAppSelector((state) => Boolean(state.auth.user))
 
-  // Initialize auth from localStorage (only once)
-  useEffect(() => {
-    if (!isInitialized.current) {
-      dispatch(setLoading(true))
-      dispatch(initializeAuth())
-      isInitialized.current = true
-    }
-  }, [dispatch])
-
-  // Attempt refresh on load if no access token (only once)
-  useEffect(() => {
-    if (accessToken) return
-    if (hasAttemptedRefresh.current) return
-
-    const doRefresh = async () => {
-      hasAttemptedRefresh.current = true
-      try {
-        dispatch(setLoading(true))
-        const result = await refresh().unwrap()
-        dispatch(updateAccessToken(result.accessToken))
-      } catch (error: any) {
-        dispatch(clearCredentials())
-        dispatch(setLoading(false))
-      }
-    }
-
-    void doRefresh()
-  }, [accessToken, refresh, dispatch])
-
-  // Load user data if authenticated
+  // The session cookie is the only credential: /auth/me answers 200 (logged in) or 401 (not)
   const {
     data: user,
-    error: userError,
+    isError: sessionMissing,
     isLoading: isLoadingUser,
-  } = useGetCurrentUserQuery(undefined, {
-    skip: !accessToken,
-  })
+  } = useGetCurrentUserQuery()
+  const isAuthenticated = Boolean(user)
 
   // Load accounts if authenticated
   const { data: accounts } = useGetAccountsQuery(undefined, {
-    skip: !accessToken,
+    skip: !isAuthenticated,
   })
 
   // Load permissions if authenticated
@@ -82,28 +40,21 @@ export const AuthInitializer: React.FC<{ children: React.ReactNode }> = ({
     error: permissionsError,
   } = useGetMyPermissionsQuery(
     { accountId: accountId || undefined },
-    { skip: !accessToken }
+    { skip: !isAuthenticated }
   )
 
-  // Update store when user data loads
+  // Mirror the session user into the store
   useEffect(() => {
-    if (user && accessToken) {
-      dispatch(
-        setCredentials({
-          user,
-          accessToken,
-          accountId: accountId || undefined,
-        })
-      )
+    if (user) {
+      dispatch(setCredentials({ user, accountId: accountId || undefined }))
       dispatch(setLoading(false))
-    } else if (accessToken && userError) {
-      dispatch(clearCredentials())
-      dispatch(setLoading(false))
-    } else if (accessToken && !user && !isLoadingUser) {
-      dispatch(clearCredentials())
+    } else if (sessionMissing) {
+      // clearCredentials resets the whole API cache (which refetches /auth/me), so only fire it
+      // when there is a user to drop, otherwise a logged-out visit would loop on 401.
+      if (hasStoredUser) dispatch(clearCredentials())
       dispatch(setLoading(false))
     }
-  }, [user, accessToken, accountId, dispatch, userError, isLoadingUser])
+  }, [user, sessionMissing, accountId, hasStoredUser, dispatch])
 
   // Update accounts in store
   useEffect(() => {

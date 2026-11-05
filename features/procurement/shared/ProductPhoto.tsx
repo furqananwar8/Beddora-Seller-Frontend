@@ -1,7 +1,6 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
-import { store } from '@/store/store'
 import { cn } from '@/utils/cn'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
@@ -16,8 +15,7 @@ function useProductPhotoUrl(productId: number | null, version: string, basePath:
     }
     let objectUrl: string | null = null
     let cancelled = false
-    const token = store.getState().auth?.accessToken
-    fetch(`${API_BASE_URL}${basePath}/${productId}/photo`, { headers: token ? { authorization: `Bearer ${token}` } : undefined, credentials: 'include' })
+    fetch(`${API_BASE_URL}${basePath}/${productId}/photo`, { credentials: 'include' })
       .then((response) => (response.ok ? response.blob() : null))
       .then((blob) => {
         if (cancelled || !blob) return

@@ -25,7 +25,6 @@ export function RouteGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
 
-  const accessToken = useAppSelector((state) => state.auth.accessToken)
   const user = useAppSelector((state) => state.auth.user)
   const isAuthLoading = useAppSelector((state) => state.auth.isLoading)
   
@@ -38,7 +37,7 @@ export function RouteGuard({ children }: { children: React.ReactNode }) {
 
   const [guardState, setGuardState] = useState<GuardState>('checking')
 
-  const isAuthenticated = Boolean(accessToken && user)
+  const isAuthenticated = Boolean(user)
   const isPublic = isPublicRoute(pathname)
 
   useEffect(() => {

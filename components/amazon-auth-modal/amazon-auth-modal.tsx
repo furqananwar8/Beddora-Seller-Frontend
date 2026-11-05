@@ -4,8 +4,6 @@ import AmazonIcon from '@/components/icons/amazon'
 import { Button } from '@/design-system/buttons'
 import { Loader2 } from 'lucide-react'
 import { useState } from 'react'
-import { useSelector } from 'react-redux'
-import { RootState } from '@/store/store'
 import { useAppDispatch } from '@/store/hooks'
 import { addNotification } from '@/store/ui.slice'
 
@@ -17,7 +15,6 @@ interface AmazonAuthModalProps {
 
 export function AmazonAuthModal({ isOpen, onSuccess, onPopupOpened }: AmazonAuthModalProps) {
   const [loading, setLoading] = useState(false)
-  const accessToken = useSelector((state: RootState) => state.auth.accessToken)
   const dispatch = useAppDispatch()
 
   if (!isOpen) return null
@@ -25,20 +22,10 @@ export function AmazonAuthModal({ isOpen, onSuccess, onPopupOpened }: AmazonAuth
   const handleLogin = async () => {
     console.log('[MODAL] handleLogin called')
 
-    if (!accessToken) {
-      dispatch(addNotification({
-        message: 'Not authenticated. Please log in first.',
-        type: 'error',
-      }))
-      return
-    }
-
     setLoading(true)
 
     try {
-      const res = await fetch('/api/auth/amazon/login', {
-        headers: { 'Authorization': `Bearer ${accessToken}` },
-      })
+      const res = await fetch('/api/auth/amazon/login', { credentials: 'include' })
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))

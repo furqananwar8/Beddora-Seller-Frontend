@@ -1,5 +1,3 @@
-import { store } from '@/store/store'
-
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
 
 /**
@@ -13,10 +11,9 @@ export interface ApiFileError {
 
 export const isApiFileError = (error: unknown): error is ApiFileError => typeof (error as ApiFileError | undefined)?.status === 'number'
 
-/** Fetches an API file with the user's token (for previews and downloads). `mimeType` re-types the blob for inline previews. */
+/** Fetches an API file with the session cookie (for previews and downloads). `mimeType` re-types the blob for inline previews. */
 export async function fetchApiBlob(path: string, mimeType?: string): Promise<Blob> {
-  const token = store.getState().auth?.accessToken
-  const response = await fetch(`${API_BASE_URL}${path}`, { headers: token ? { authorization: `Bearer ${token}` } : undefined, credentials: 'include' })
+  const response = await fetch(`${API_BASE_URL}${path}`, { credentials: 'include' })
   if (!response.ok) {
     const data = await response.json().catch(() => null)
     throw { status: response.status, data } satisfies ApiFileError
@@ -25,7 +22,7 @@ export async function fetchApiBlob(path: string, mimeType?: string): Promise<Blo
   return mimeType ? new Blob([blob], { type: mimeType }) : blob
 }
 
-/** Fetches an API file with the user's token and hands it to the browser as a download (PDFs, exports). */
+/** Fetches an API file with the session cookie and hands it to the browser as a download (PDFs, exports). */
 export async function downloadApiFile(path: string, fileName: string): Promise<void> {
   const url = URL.createObjectURL(await fetchApiBlob(path))
   const link = document.createElement('a')

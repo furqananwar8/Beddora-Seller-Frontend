@@ -7,10 +7,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'API base URL not configured' }, { status: 500 });
   }
 
-  // Forward the Authorization header from the client
-  const authHeader = req.headers.get('authorization');
-  if (!authHeader?.startsWith('Bearer ')) {
-    return NextResponse.json({ error: 'Missing authorization token' }, { status: 401 });
+  // Forward the session cookie from the client
+  const cookie = req.headers.get('cookie');
+  if (!cookie) {
+    return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   }
 
   try {
@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
       `${apiBase}/api/amazon/advertising/authorize`,
       {
         headers: {
-          'Authorization': authHeader,
+          cookie,
         },
       }
     );

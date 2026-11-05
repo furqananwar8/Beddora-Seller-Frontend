@@ -40,7 +40,6 @@ export default function DashboardLayout({
   const router = useRouter()
   const dispatch = useAppDispatch()
   const user = useAppSelector((state) => state.auth.user)
-  const refreshToken = useAppSelector((state) => state.auth.refreshToken)
   const [logout] = useLogoutMutation()
   const ability = useAppAbility()
 
@@ -536,14 +535,14 @@ export default function DashboardLayout({
 
   const handleLogout = React.useCallback(async () => {
     try {
-      await logout(refreshToken ? { refreshToken } : undefined).unwrap()
+      await logout().unwrap()
     } catch (error) {
       console.error('Logout error', error)
     } finally {
       dispatch(clearCredentials())
       router.push('/login')
     }
-  }, [dispatch, router, refreshToken, logout])
+  }, [dispatch, router, logout])
 
   return (
     <ProtectedRoute>

@@ -21,8 +21,6 @@ export default function GeneralSettingsPage() {
   const router = useRouter()
   const dispatch = useAppDispatch()
   
-  // Retrieve refreshToken from state to pass to the logout API
-  const refreshToken = useAppSelector((state) => state.auth.refreshToken)
 
   const [activeTab, setActiveTab] = useState<'security' | 'general'>('security')
   const [formData, setFormData] = useState(INITIAL_FORM_STATE)
@@ -80,7 +78,7 @@ export default function GeneralSettingsPage() {
       setTimeout(async () => {
         setIsLoggingOut(true)
         try {
-          await logout(refreshToken ? { refreshToken } : undefined).unwrap()
+          await logout().unwrap()
         } catch (logoutErr) {
           console.error('Logout error after password change:', logoutErr)
         } finally {

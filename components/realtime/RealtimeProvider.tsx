@@ -21,7 +21,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/a
  */
 export const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const dispatch = useAppDispatch()
-  const token = useAppSelector((state) => state.auth?.accessToken)
+  const isAuthenticated = useAppSelector((state) => Boolean(state.auth?.user))
   const handlers = useRef(new Map<string, Set<Handler>>())
 
   const subscribe = useCallback((topic: string, handler: Handler) => {
@@ -34,9 +34,9 @@ export const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, [])
 
   useEffect(() => {
-    if (!token) return
+    if (!isAuthenticated) return
 
-    const source = new EventSource(`${API_BASE_URL}/realtime/stream?topics=${Object.keys(REALTIME_TOPICS).join(',')}&token=${encodeURIComponent(token)}`)
+    const source = new EventSource(`${API_BASE_URL}/realtime/stream?topics=${Object.keys(REALTIME_TOPICS).join(',')}`, { withCredentials: true })
     const allTags = [...new Set(Object.values(REALTIME_TOPICS).flat())] as TagType[]
     let dropped = false
 
@@ -68,7 +68,7 @@ export const RealtimeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       listeners.forEach(([topic, listener]) => source.removeEventListener(topic, listener))
       source.close()
     }
-  }, [token, dispatch])
+  }, [isAuthenticated, dispatch])
 
   const value = useMemo(() => ({ subscribe }), [subscribe])
   return <RealtimeContext.Provider value={value}>{children}</RealtimeContext.Provider>

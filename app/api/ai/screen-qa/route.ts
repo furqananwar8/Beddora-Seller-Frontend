@@ -14,9 +14,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'API base URL not configured' }, { status: 500 })
   }
 
-  const authHeader = req.headers.get('authorization')
-  if (!authHeader?.startsWith('Bearer ')) {
-    return NextResponse.json({ error: 'Missing authorization token' }, { status: 401 })
+  const cookie = req.headers.get('cookie')
+  if (!cookie) {
+    return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
   }
 
   let upstream: Response
@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
     upstream = await fetch(backendUrl, {
       method: 'POST',
       headers: {
-        Authorization: authHeader,
+        cookie,
         'Content-Type': 'application/json',
         Accept: 'text/event-stream',
       },

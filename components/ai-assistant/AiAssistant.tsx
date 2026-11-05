@@ -90,7 +90,7 @@ export function AiAssistant() {
     const key = `${payload.screenInfo?.route}\n${payload.screenData ?? ''}`
     if (!payload.screenData || key === warmedRef.current) return
     warmedRef.current = key
-    streamScreenQa(payload, state.auth?.accessToken ?? null, () => {}, new AbortController().signal).catch(
+    streamScreenQa(payload, () => {}, new AbortController().signal).catch(
       () => {
         warmedRef.current = '' // let the next open retry
       }
@@ -138,7 +138,6 @@ export function AiAssistant() {
     try {
       await streamScreenQa(
         payload,
-        state.auth?.accessToken ?? null,
         (token) => patch((t) => ({ ...t, answer: t.answer + token })),
         controller.signal
       )

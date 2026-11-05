@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { EventSourceParserStream } from 'eventsource-parser/stream'
 import { API_BASE_URL } from '@/services/api/baseApi'
-import { store } from '@/store/store'
 import { serverIssues, type ServerIssue } from '@/utils/apiErrors'
 import type { ProviderEvent, ProviderId, Rate, RateStreamEvents, ShipmentRequest, UnavailableService } from './types'
 
@@ -66,11 +65,10 @@ export function useRateStream() {
       const abort = new AbortController()
       controller.current = abort
       setState({ ...IDLE, status: 'streaming' })
-      const token = store.getState().auth?.accessToken
       try {
         const response = await fetch(`${API_BASE_URL}/shipping/rates`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream', ...(token ? { authorization: `Bearer ${token}` } : {}) },
+          headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
           credentials: 'include',
           body: JSON.stringify(request),
           signal: abort.signal,

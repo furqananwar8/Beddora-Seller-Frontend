@@ -35,8 +35,6 @@ export const LoginForm: React.FC = () => {
       dispatch(
         setCredentials({
           user: result.user,
-          accessToken: result.accessToken,
-          refreshToken: result.refreshToken,
           accountId: result.accountId,
         })
       )

@@ -1,5 +1,6 @@
-import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react'
-import { RootState } from '@/store/store'
+import { createApi, fetchBaseQuery, type FetchArgs, type FetchBaseQueryError } from '@reduxjs/toolkit/query/react'
+import type { BaseQueryFn } from '@reduxjs/toolkit/query'
+import { clearCredentials } from '@/store/auth.slice'
 
 /**
  * Base API configuration for RTK Query
@@ -102,27 +103,33 @@ export type TagType = typeof tagTypes[number]
 // Base API URL - update this with your actual API endpoint
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
 
+// Authentication is the HttpOnly session cookie, so there is no token to attach.
+// Content-Type is left to RTK Query (FormData sets its own boundary).
+const rawBaseQuery = fetchBaseQuery({
+  baseUrl: API_BASE_URL,
+  credentials: 'include',
+})
+
+/** Endpoints where a 401 means "wrong credentials", not "session expired". */
+const CREDENTIAL_ENDPOINTS = ['/auth/login', '/auth/me']
+
+const isCredentialRequest = (args: string | FetchArgs): boolean => {
+  const url = typeof args === 'string' ? args : args.url
+  return CREDENTIAL_ENDPOINTS.some((endpoint) => url.startsWith(endpoint))
+}
+
+/** An expired or revoked session answers 401: drop the local user so RouteGuard sends them to login. */
+const baseQueryWithSessionExpiry: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQueryError> = async (args, api, extraOptions) => {
+  const result = await rawBaseQuery(args, api, extraOptions)
+  if (result.error?.status === 401 && !isCredentialRequest(args)) {
+    api.dispatch(clearCredentials())
+  }
+  return result
+}
+
 export const baseApi = createApi({
   reducerPath: 'api',
-  baseQuery: fetchBaseQuery({
-    baseUrl: API_BASE_URL,
-    credentials: 'include', // send cookies (for HttpOnly refresh token)
-    prepareHeaders: (headers, { getState }) => {
-      // Get token from Redux state (auth slice) with proper typing
-      const state = getState() as RootState
-      const token = state.auth?.accessToken
-
-      // Add authorization header if token exists
-      if (token) {
-        headers.set('authorization', `Bearer ${token}`)
-      }
-
-      // Note: Don't set Content-Type here - RTK Query will handle it automatically
-      // For FormData, browser will set Content-Type with boundary
-      // For JSON, RTK Query will stringify and set Content-Type
-      return headers
-    },
-  }),
+  baseQuery: baseQueryWithSessionExpiry,
   tagTypes,
   // Default cache time: 60 seconds (can be overridden per endpoint)
   // This ensures data is reused across navigations instead of refetching too often

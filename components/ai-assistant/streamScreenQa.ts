@@ -7,16 +7,13 @@ import type { ScreenQaPayload } from './collectScreenContext'
  */
 export async function streamScreenQa(
   payload: ScreenQaPayload,
-  accessToken: string | null,
   onToken: (token: string) => void,
   signal: AbortSignal
 ): Promise<void> {
   const res = await fetch('/api/ai/screen-qa', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-    },
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
     body: JSON.stringify(payload),
     signal,
   })
