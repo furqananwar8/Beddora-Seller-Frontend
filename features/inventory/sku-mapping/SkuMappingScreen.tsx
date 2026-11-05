@@ -62,7 +62,7 @@ export const SkuMappingScreen: React.FC = () => {
             onLoadByStatus={mapper.loadByStatus}
             loading={mapper.loadingUnmapped}
           />
-          {!readOnly && <InternalSkuPicker bindTo={selectedRow?.sku ?? null} onPick={mapper.bindInternal} />}
+          {!readOnly && <InternalSkuPicker bindTo={selectedRow?.sku ?? null} value={mapper.pickedInternal} onAdd={mapper.addInternal} onRemove={mapper.removeInternal} />}
           <div className="ml-auto flex min-w-0 items-center gap-3">
             <span className="hidden truncate text-sm text-text-muted xl:block">
               {readOnly ? 'View only: you can’t change bindings.' : selectedRow ? 'Press and drag from a channel SKU to an internal SKU to link them' : 'Select a channel SKU to start binding'}
@@ -111,14 +111,14 @@ export const SkuMappingScreen: React.FC = () => {
                 placed={mapper.draft.placed}
                 selected={mapper.draft.selected}
                 compact={mapper.compact}
-                actions={{ select: mapper.select, connect: mapper.connect, setQuantity: mapper.setQuantity, readOnly }}
+                actions={{ select: mapper.select, connect: mapper.connect, setQuantity: mapper.setQuantity, unbind: (productId) => mapper.removeInternal([productId]), readOnly }}
               />
             </div>
           )}
         </div>
 
         <div className="border-t border-border px-4 py-4">
-          <DeductionsPanel channel={channel.id} row={selectedRow} components={mapper.selectedComponents} readOnly={readOnly} onUnbind={mapper.unbind} />
+          <DeductionsPanel channel={channel.id} row={selectedRow} components={mapper.selectedComponents} readOnly={readOnly} />
         </div>
       </section>
 

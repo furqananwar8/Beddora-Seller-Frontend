@@ -8,23 +8,36 @@ import { useDebounce } from '@/utils/debounce'
 interface InternalSkuPickerProps {
   /** The selected channel SKU: picking binds to it ×1; without one the node is only placed. */
   bindTo: string | null
-  onPick: (internal: InternalSku) => void
+  /** Ticked: bound to the selected channel SKU, or only placed when none is selected. */
+  value: InternalSku[]
+  onAdd: (items: InternalSku[]) => void
+  onRemove: (productIds: number[]) => void
   disabled?: boolean
 }
 
 /** "+ Add internal SKU": Procurement products with a SKU, searchable, with warehouse on-hand. */
-export const InternalSkuPicker: React.FC<InternalSkuPickerProps> = ({ bindTo, onPick, disabled }) => {
+export const InternalSkuPicker: React.FC<InternalSkuPickerProps> = ({ bindTo, value, onAdd, onRemove, disabled }) => {
   const [search, setSearch] = useState('')
   const [open, setOpen] = useState(false)
   const term = useDebounce(search.trim(), 300)
   const { data = [], isFetching } = useGetInternalSkusQuery(term, { skip: !open })
 
+  const change = (next: InternalSku[]) => {
+    const before = new Set(value.map((item) => item.productId))
+    const after = new Set(next.map((item) => item.productId))
+    const added = next.filter((item) => !before.has(item.productId))
+    const removed = value.filter((item) => !after.has(item.productId)).map((item) => item.productId)
+    if (added.length > 0) onAdd(added)
+    if (removed.length > 0) onRemove(removed)
+  }
+
   return (
     <SearchableSelect<InternalSku>
-      ariaLabel="Add internal SKU"
-      className="w-full sm:w-56"
-      value={null}
-      onChange={onPick}
+      multiple
+      ariaLabel="Add internal SKUs"
+      className="w-full sm:w-[28rem]"
+      value={value}
+      onChange={change}
       options={data}
       getKey={(item) => item.productId}
       getLabel={(item) => item.sku}
@@ -33,7 +46,8 @@ export const InternalSkuPicker: React.FC<InternalSkuPickerProps> = ({ bindTo, on
       onOpenChange={setOpen}
       loading={isFetching}
       disabled={disabled}
-      placeholder="+ Add internal SKU"
+      placeholder="+ Add internal SKUs"
+      renderValue={(items) => `Internal SKUs · ${items.length}`}
       triggerClassName="text-text-primary [&>span]:text-text-primary"
       searchPlaceholder="Search internal SKU or product"
       emptyText="No internal SKU matches. Add a SKU to the product under Procurement > Products."
@@ -50,7 +64,7 @@ export const InternalSkuPicker: React.FC<InternalSkuPickerProps> = ({ bindTo, on
         <p className="px-2 py-1 text-xs text-text-muted">
           {bindTo ? (
             <>
-              Picking binds it to <span className="font-mono text-text-primary">{bindTo}</span> ×1
+              Ticking binds to <span className="font-mono text-text-primary">{bindTo}</span> ×1; unticking unbinds
             </>
           ) : (
             'Select a channel SKU to bind; otherwise the SKU is only placed on the graph.'

@@ -122,6 +122,13 @@ export function useSkuMapper() {
     else dispatch({ type: 'place', internal: internal as InternalSku })
   }
 
+  /** Ticking internal SKUs binds them to the selected channel SKU (or only places them when none is selected). */
+  const addInternal = (items: InternalSku[]) => items.forEach(bindInternal)
+  const removeInternal = (productIds: number[]) =>
+    productIds.forEach((productId) => (selectedRow ? dispatch({ type: 'unbind', row: selectedRow, productId }) : dispatch({ type: 'unplace', productId })))
+  /** What the internal picker shows as ticked: the selected SKU's components, else the placed ones. */
+  const pickedInternal: InternalSku[] = selectedRow ? componentsOf(draft, selectedRow).map((component) => ({ ...component, onHand: component.onHand ?? null })) : draft.placed
+
   /** Internal nodes the graph can bind by id: bound ones plus placed ones. */
   const internalById = useMemo(() => {
     const byId = new Map<number, Pick<InternalSku, 'productId' | 'sku' | 'name' | 'onHand'>>()
@@ -172,7 +179,9 @@ export function useSkuMapper() {
     removeKeys,
     clearGraph,
     loadByStatus,
-    bindInternal,
+    addInternal,
+    removeInternal,
+    pickedInternal,
     /** A line drawn from a channel SKU to an internal SKU binds exactly that pair (×1), whichever SKU is selected. */
     connect: (rowKey: string, productId: number) => {
       const row = rows.find((item) => item.key === rowKey)
@@ -180,7 +189,8 @@ export function useSkuMapper() {
       if (row && internal) dispatch({ type: 'bind', row, internal })
     },
     setQuantity: (row: ChannelSku, productId: number, quantity: number) => dispatch({ type: 'quantity', row, productId, quantity }),
-    unbind: (productId: number) => selectedRow && dispatch({ type: 'unbind', row: selectedRow, productId }),
+    /** Unbinds from the selected channel SKU; the internal node stays on the graph. */
+    unbind: removeInternal,
     discard: () => dispatch({ type: 'clearEdits' }),
     saveChanges,
   }

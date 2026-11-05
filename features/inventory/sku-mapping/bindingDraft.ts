@@ -18,6 +18,8 @@ export type DraftAction =
   | { type: 'quantity'; row: ChannelSku; productId: number; quantity: number }
   | { type: 'unbind'; row: ChannelSku; productId: number }
   | { type: 'place'; internal: InternalSku }
+  /** Takes a placed (unbound) internal SKU off the graph. */
+  | { type: 'unplace'; productId: number }
   | { type: 'remove'; keys: string[] }
   /** After a save or discard: edits go, the selection stays. */
   | { type: 'clearEdits' }
@@ -50,8 +52,16 @@ export function draftReducer(state: DraftState, action: DraftAction): DraftState
       const current = componentsOf(state, action.row)
       return withComponents(state, action.row, current.map((component) => (component.productId === action.productId ? { ...component, quantity: action.quantity } : component)))
     }
-    case 'unbind':
-      return withComponents(state, action.row, componentsOf(state, action.row).filter((component) => component.productId !== action.productId))
+    case 'unbind': {
+      const current = componentsOf(state, action.row)
+      const released = current.find((component) => component.productId === action.productId)
+      const next = withComponents(state, action.row, current.filter((component) => component.productId !== action.productId))
+      // The internal SKU stays on the graph, unbound, so it can be bound to another channel SKU
+      const keep = released && !state.placed.some((item) => item.productId === released.productId)
+      return keep ? { ...next, placed: [...state.placed, { productId: released.productId, sku: released.sku, name: released.name, onHand: released.onHand ?? null }] } : next
+    }
+    case 'unplace':
+      return { ...state, placed: state.placed.filter((item) => item.productId !== action.productId) }
     case 'place':
       return state.placed.some((item) => item.productId === action.internal.productId) ? state : { ...state, placed: [...state.placed, action.internal] }
     case 'remove': {
@@ -60,7 +70,8 @@ export function draftReducer(state: DraftState, action: DraftAction): DraftState
       return { ...state, overrides, selected: state.selected && removed.has(state.selected) ? null : state.selected }
     }
     case 'clearEdits':
-      return { ...EMPTY_DRAFT, selected: state.selected }
+      // Placed internal SKUs are part of the view, not an edit: they survive a save or discard
+      return { ...EMPTY_DRAFT, selected: state.selected, placed: state.placed }
     case 'reset':
       return EMPTY_DRAFT
   }

@@ -14,8 +14,8 @@ const stock = (onHand: number | null) => (onHand === null ? 'no stock record' : 
  * box (or by picking it in the internal SKU picker), so touching a SKU bound elsewhere changes nothing.
  */
 export const InternalSkuNode = memo(function InternalSkuNode({ data, dragging }: NodeProps<InternalNode>) {
-  const { readOnly } = useGraphActions()
-  const { sku, name, onHand, boundToSelected, compact } = data
+  const { readOnly, unbind } = useGraphActions()
+  const { productId, sku, name, onHand, boundToSelected, compact } = data
   const bound = boundToSelected !== null
 
   const hint = bound ? `Bound ×${boundToSelected} · ${stock(onHand)}` : stock(onHand)
@@ -44,7 +44,17 @@ export const InternalSkuNode = memo(function InternalSkuNode({ data, dragging }:
         <span className={cn('block truncate font-mono text-xs', bound ? 'text-text-primary' : 'text-text-secondary')}>{sku}</span>
         {!compact && <span className="block truncate text-xs text-text-muted">{hint}</span>}
       </span>
-      {compact && bound && <span className="shrink-0 text-xs text-text-muted">Bound ×{boundToSelected}</span>}
+      {compact && bound && <span className="shrink-0 text-xs text-text-muted">×{boundToSelected}</span>}
+      {bound && !readOnly && (
+        <button
+          type="button"
+          onClick={() => unbind(productId)}
+          title="Unbind from the selected channel SKU"
+          className="nodrag nopan pointer-events-auto relative shrink-0 rounded border border-border bg-surface px-2 py-0.5 text-xs font-medium text-danger-600 hover:border-danger-300 hover:bg-danger-50"
+        >
+          Unbind
+        </button>
+      )}
     </div>
   )
 })

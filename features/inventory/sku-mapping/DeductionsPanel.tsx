@@ -2,7 +2,6 @@
 
 import React from 'react'
 import Link from 'next/link'
-import { Button } from '@/design-system/buttons'
 import type { BindingComponent, ChannelSku } from '@/services/api/skuMapping.api'
 import { SKU_MAPPING_ROUTES } from './constants'
 
@@ -11,11 +10,10 @@ interface DeductionsPanelProps {
   row: ChannelSku | null
   components: BindingComponent[]
   readOnly: boolean
-  onUnbind: (productId: number) => void
 }
 
-/** "1 unit of <SKU> deducts": the selected channel SKU's components, with Unbind. */
-export const DeductionsPanel: React.FC<DeductionsPanelProps> = ({ channel, row, components, readOnly, onUnbind }) => {
+/** "1 unit of <SKU> deducts": the selected channel SKU's components, unbinding is done on the graph. */
+export const DeductionsPanel: React.FC<DeductionsPanelProps> = ({ channel, row, components, readOnly }) => {
   if (!row) {
     return <p className="rounded-md border border-dashed border-border px-4 py-3 text-sm text-text-muted">Select a channel SKU on the graph to see and edit what one unit of it deducts.</p>
   }
@@ -38,7 +36,7 @@ export const DeductionsPanel: React.FC<DeductionsPanelProps> = ({ channel, row, 
         </p>
       ) : (
         <>
-          {!readOnly && <p className="mt-1 text-xs text-text-muted">Edit a quantity by clicking its ×N badge on the graph.</p>}
+          {!readOnly && <p className="mt-1 text-xs text-text-muted">Edit a quantity by clicking its ×N badge on the graph; unbind from the SKU’s box.</p>}
           <ul className="mt-2 flex flex-wrap gap-2">
             {components.map((component) => (
               <li key={component.productId} className="flex items-center gap-4 rounded-md border border-border bg-surface py-1.5 pl-3 pr-1.5">
@@ -47,11 +45,6 @@ export const DeductionsPanel: React.FC<DeductionsPanelProps> = ({ channel, row, 
                   <span className="block max-w-[14rem] truncate text-xs text-text-muted">{component.name}</span>
                 </span>
                 <span className="text-sm font-semibold tabular-nums">×{component.quantity}</span>
-                {!readOnly && (
-                  <Button type="button" variant="outline" size="sm" className="text-danger-600 hover:border-danger-300 hover:bg-danger-50" onClick={() => onUnbind(component.productId)}>
-                    Unbind
-                  </Button>
-                )}
               </li>
             ))}
           </ul>
