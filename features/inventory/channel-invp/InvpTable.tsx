@@ -14,15 +14,52 @@ const STICKY = 'sticky left-0 bg-surface'
 
 const units = (value: number) => value.toLocaleString()
 const rate = (value: number) => value.toLocaleString(undefined, { maximumFractionDigits: 2 })
+const percent = (value: number) => `${value > 0 ? '+' : ''}${rate(value)}%`
+
+/** Keys a non-negative number never needs. */
+/** The potential input's border and padding, so the figures beside it end on the same line as its text. */
+const INPUT_INSET = 'pr-[5px]'
+
+const BLOCKED_KEYS = ['-', '+', 'e', 'E']
+
+/** The potential daily sale, editable: a non-negative number; emptied, it goes back to the computed one. */
+const PotentialInput: React.FC<{ productId: number; sku: string; value: number; edited: boolean; onChange: (productId: number, value: number | null) => void }> = ({ productId, sku, value, edited, onChange }) => {
+  const [draft, setDraft] = React.useState<string | null>(null)
+  return (
+    <input
+      type="number"
+      min={0}
+      step="any"
+      inputMode="decimal"
+      aria-label={`Potential daily sale of ${sku}`}
+      value={draft ?? String(value)}
+      onKeyDown={(event) => BLOCKED_KEYS.includes(event.key) && event.preventDefault()}
+      onChange={(event) => {
+        const text = event.target.value
+        const number = Number(text)
+        if (text !== '' && (!Number.isFinite(number) || number < 0)) return
+        setDraft(text)
+        onChange(productId, text === '' ? null : number)
+      }}
+      onBlur={() => setDraft(null)}
+      className={cn(
+        'h-5 w-14 rounded border border-border bg-transparent px-1 text-right text-xs tabular-nums text-text-primary',
+        'focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500',
+        '[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none',
+        edited && 'border-primary-500'
+      )}
+    />
+  )
+}
 
 /** Where a label and its figure sit on their line: apart at both ends, or together on the left or the right. */
 const ALIGN = { spread: 'justify-between gap-3', left: 'justify-start gap-1.5', right: 'justify-end gap-1.5' } as const
 
 /** A label and its figure on one line. */
-const Figure: React.FC<{ label: React.ReactNode; value: React.ReactNode; title?: string; strong?: boolean; align?: keyof typeof ALIGN }> = ({ label, value, title, strong, align = 'spread' }) => (
-  <div className={cn('flex items-center whitespace-nowrap', ALIGN[align])} title={title}>
+const Figure: React.FC<{ label: React.ReactNode; value: React.ReactNode; title?: string; strong?: boolean; align?: keyof typeof ALIGN; valueClassName?: string }> = ({ label, value, title, strong, align = 'spread', valueClassName }) => (
+  <div className={cn('flex items-center whitespace-nowrap text-xs', ALIGN[align])} title={title}>
     <span className="text-xs opacity-70">{label}</span>
-    <span className={cn('tabular-nums', strong && 'font-semibold')}>{value}</span>
+    <span className={cn('tabular-nums', strong && 'font-semibold', valueClassName)}>{value}</span>
   </div>
 )
 
@@ -40,9 +77,9 @@ const ProjectionCellView: React.FC<{ cell: InvpProjectionCell | undefined }> = (
   const meta = LEVEL_META[cell.level]
   return (
     <TableCell className={cn(WEEK, 'space-y-0.5 border-l border-border', meta.cell)} title={meta.label}>
-      <Figure label={<Boxes className="h-3.5 w-3.5" aria-label="Total inventory" />} value={units(cell.totalInventory)} title="Total inventory" strong align="right" />
-      <Figure label={<Container className="h-3.5 w-3.5" aria-label="In transit" />} value={units(cell.inTransit)} title="In transit: container units that set off this week" align="right" />
-      <Figure label={<CalendarDays className="h-3.5 w-3.5" aria-label="Days" />} value={<span className="text-[11px]">{cell.daysOfCover === null ? '∞' : cell.daysOfCover}</span>} title="Days this stock lasts at the daily sale" strong align="left" />
+      <Figure label={<Boxes className="h-3 w-3" aria-label="Total inventory" />} value={units(cell.totalInventory)} title="Total inventory" strong align="right" />
+      <Figure label={<Container className="h-3 w-3" aria-label="In transit" />} value={units(cell.inTransit)} title="In transit: container units that set off this week" align="right" />
+      <Figure label={<CalendarDays className="h-3 w-3" aria-label="Days" />} value={cell.daysOfCover === null ? '∞' : cell.daysOfCover} title="Days this stock lasts at the daily sale" strong align="left" />
     </TableCell>
   )
 }
@@ -51,13 +88,14 @@ interface InvpTableProps {
   report: InvpReport | undefined
   isLoading: boolean
   isError: boolean
+  onPotentialChange: (productId: number, value: number | null) => void
 }
 
 /**
  * Internal SKUs down the side with their live stock and sales rates, then the stock projected from today week by
  * week across, each cell coloured by how long the stock lasts against the 30-day clearance target.
  */
-export const InvpTable: React.FC<InvpTableProps> = ({ report, isLoading, isError }) => {
+export const InvpTable: React.FC<InvpTableProps> = ({ report, isLoading, isError, onPotentialChange }) => {
   const weeks = report?.weeks ?? []
   const columns = weeks.length + 2
 
@@ -71,7 +109,7 @@ export const InvpTable: React.FC<InvpTableProps> = ({ report, isLoading, isError
               <TableRow>
                 {/* sticky-corner (globals.css) lifts it above the other header cells, which slide under it */}
                 <TableHead className={cn(STICKY, 'sticky-corner min-w-[15rem]')}>SKU</TableHead>
-                <TableHead className="min-w-[11rem]">Daily sales</TableHead>
+                <TableHead className="min-w-[12rem]">Daily sales</TableHead>
                 {weeks.map((week, index) => (
                   <TableHead key={week} className={cn(WEEK, 'whitespace-nowrap text-right')}>
                     <div>{format(parseISO(week), 'dd MMM')}</div>
@@ -101,10 +139,11 @@ export const InvpTable: React.FC<InvpTableProps> = ({ report, isLoading, isError
                         <StockFigure icon={Truck} title="Shipping: on FBA / WFS shipments in transit" value={row.stock.shipping} />
                       </div>
                     </TableCell>
-                    <TableCell className="space-y-0.5 align-top text-sm">
-                      <Figure label="Daily sale" value={rate(row.sales.daily)} title="Units a day over the last 30 days" strong />
-                      <Figure label="Potential" value={rate(row.sales.potential)} title="Units sold ÷ days in stock" />
-                      <Figure label="Projected" value={rate(row.sales.projected)} title="Potential sale × (1 + growth rate)" />
+                    <TableCell className="space-y-0.5 align-top">
+                      <Figure label="Daily sale" value={units(row.sales.daily)} title="Units a day over the last 30 days, rounded" strong valueClassName={INPUT_INSET} />
+                      <Figure label="Potential" value={<PotentialInput productId={row.product.id} sku={row.product.sku} value={row.sales.potential} edited={row.sales.potentialEdited} onChange={onPotentialChange} />} title="Potential daily sale (sessions × unit session percentage ÷ 100); type to change it" />
+                      <Figure label="Growth" value={percent(row.sales.growth)} title="(This month's potential − last month's) ÷ last month's, or the growth typed in the filter" valueClassName={INPUT_INSET} />
+                      <Figure label="Projected" value={units(row.sales.projected)} title="Potential × (1 + growth), rounded" valueClassName={INPUT_INSET} />
                     </TableCell>
                     {weeks.map((week, index) => (
                       <ProjectionCellView key={week} cell={row.projection[index]} />

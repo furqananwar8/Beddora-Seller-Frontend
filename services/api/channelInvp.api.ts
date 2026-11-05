@@ -22,7 +22,7 @@ export interface InvpRow {
   product: { id: number; sku: string; name: string }
   asins: string[]
   stock: { warehouse: number; platform: number; shipping: number }
-  sales: { daily: number; potential: number; projected: number }
+  sales: { daily: number; potential: number; projected: number; growth: number; potentialEdited: boolean }
   projection: InvpProjectionCell[]
 }
 
@@ -36,11 +36,20 @@ export interface InvpParams {
   channel: InvpChannelFilter
   marketplaces?: InvpMarketplace[]
   search?: string
+  /** Growth in percent for every SKU; left out, each SKU's own month-on-month growth. */
+  growth?: number
+  /** Potential daily sale typed over a SKU's own, by product id. */
+  potentials?: Record<number, number>
   page: number
   limit: number
 }
 
-const params = ({ marketplaces, search, ...rest }: InvpParams) => ({ ...rest, marketplaces: csv(marketplaces), search: search || undefined })
+const params = ({ marketplaces, search, potentials, ...rest }: InvpParams) => ({
+  ...rest,
+  marketplaces: csv(marketplaces),
+  search: search || undefined,
+  potentials: csv(Object.entries(potentials ?? {}).map(([id, units]) => `${id}:${units}`)),
+})
 
 export const channelInvpApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useMemo, useState } from 'react'
+import React, { useCallback, useMemo, useState } from 'react'
 import { FILL_TOGGLE, FilterBar, FilterItem } from '@/components/filter-bar/FilterBar'
 import { FilterMultiSelect } from '@/components/filter-bar/FilterMultiSelect'
 import { useStagedFilters } from '@/components/filter-bar/useStagedFilters'
@@ -8,6 +8,7 @@ import { FormField } from '@/components/form-field/FormField'
 import { Container } from '@/components/layout'
 import { PaginationFooter } from '@/components/pagination-footer/PaginationFooter'
 import { Button } from '@/design-system/buttons'
+import { useDebounce } from '@/hooks/useDebounce'
 import { useReportExport } from '@/hooks/useReportExport'
 import { SegmentedToggle } from '@/components/segmented-toggle/SegmentedToggle'
 import { useGetChannelInvpQuery, type InvpChannelFilter } from '@/services/api/channelInvp.api'
@@ -28,8 +29,20 @@ export const ChannelInvpScreen: React.FC = () => {
   const [page, setPage] = useState(1)
   const filters = useStagedFilters(defaults, () => setPage(1))
   const { draft, setDraft, applied, changed } = filters
+  // Potentials typed into the table, by product id; the report recomputes from them
+  const [potentials, setPotentials] = useState<Record<number, number>>({})
+  const editPotential = useCallback((productId: number, value: number | null) => {
+    setPotentials((current) => {
+      const { [productId]: _removed, ...rest } = current
+      return value === null ? rest : { ...rest, [productId]: value }
+    })
+  }, [])
+  const debouncedPotentials = useDebounce(potentials, 400)
+  const growth = applied.growth.trim() === '' ? undefined : Number(applied.growth)
   const query = {
     channel: applied.channel,
+    growth: growth !== undefined && Number.isFinite(growth) ? growth : undefined,
+    potentials: debouncedPotentials,
     marketplaces: applied.marketplaces,
     search: applied.search.trim(),
     page,
@@ -81,11 +94,26 @@ export const ChannelInvpScreen: React.FC = () => {
               <FilterMultiSelect id="invp-marketplace" options={MARKETPLACE_OPTIONS} value={draft.marketplaces} onChange={(value) => setDraft('marketplaces', value)} anyLabel="All marketplaces" highlighted={changed.has('marketplaces')} />
             </FormField>
           </FilterItem>
+          <FilterItem>
+            <FormField label="Growth %" htmlFor="invp-growth">
+              <input
+                id="invp-growth"
+                type="number"
+                step="any"
+                inputMode="decimal"
+                value={draft.growth}
+                onChange={(event) => setDraft('growth', event.target.value)}
+                onKeyDown={(event) => event.key === 'Enter' && filters.apply()}
+                placeholder="Each SKU's own"
+                className={cn('ds-input ds-input-default rounded-lg', changed.has('growth') && 'border-primary-500 ring-1 ring-primary-500')}
+              />
+            </FormField>
+          </FilterItem>
         </FilterBar>
       </div>
 
       <div className={cn(isFetching && !isLoading && 'opacity-70 transition-opacity')}>
-        <InvpTable report={data} isLoading={isLoading} isError={isError} />
+        <InvpTable report={data} isLoading={isLoading} isError={isError} onPotentialChange={editPotential} />
         {data && data.totalRecords > 0 && (
           <PaginationFooter page={data.page} pageSize={data.limit} totalItems={data.totalRecords} totalPages={data.totalPages} onPageChange={setPage} itemLabel="SKUs" />
         )}

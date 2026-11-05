@@ -45,6 +45,8 @@ export interface InvpFilters extends Record<string, unknown> {
   channel: InvpChannelFilter
   search: string
   marketplaces: InvpMarketplace[]
+  /** Growth in percent as typed; empty means each SKU's own month-on-month growth. */
+  growth: string
 }
 
-export const defaultFilters = (): InvpFilters => ({ channel: 'all', search: '', marketplaces: [] })
+export const defaultFilters = (): InvpFilters => ({ channel: 'all', search: '', marketplaces: [], growth: '' })
