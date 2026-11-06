@@ -9,8 +9,10 @@ export interface GraphActions {
   /** Links an internal SKU to a channel SKU: the line drawn from the channel SKU's handle to it. */
   connect: (rowKey: string, productId: number) => void
   setQuantity: (row: ChannelSku, productId: number, quantity: number) => void
-  /** Unbinds an internal SKU from the selected channel SKU (the node stays on the graph). */
-  unbind: (productId: number) => void
+  /** Unbinds every internal SKU from one channel SKU (the internal nodes stay on the graph). */
+  unbindAll: (rowKey: string) => void
+  /** Removes an internal SKU from the graph. */
+  dismissInternal: (productId: number) => void
   readOnly: boolean
 }
 

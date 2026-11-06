@@ -17,6 +17,10 @@ export type DraftAction =
   | { type: 'bind'; row: ChannelSku; internal: Pick<BindingComponent, 'productId' | 'sku' | 'name' | 'onHand'> }
   | { type: 'quantity'; row: ChannelSku; productId: number; quantity: number }
   | { type: 'unbind'; row: ChannelSku; productId: number }
+  /** Unbinds every internal SKU from one channel SKU; the internal nodes stay on the graph. */
+  | { type: 'unbindAll'; row: ChannelSku }
+  /** Removes an internal SKU from the graph, unbinding it from the given (graph) channel SKUs. */
+  | { type: 'dismiss'; productId: number; rows: ChannelSku[] }
   | { type: 'place'; internal: InternalSku }
   /** Takes a placed (unbound) internal SKU off the graph. */
   | { type: 'unplace'; productId: number }
@@ -38,6 +42,16 @@ function withComponents(state: DraftState, row: ChannelSku, next: BindingCompone
   return { ...state, overrides: sameComponents(next, row.components) ? rest : { ...rest, [row.key]: next } }
 }
 
+/** Drops one component from a listing; the internal SKU stays on the graph, unbound, so it can be bound elsewhere. */
+function unbindOne(state: DraftState, row: ChannelSku, productId: number): DraftState {
+  const current = componentsOf(state, row)
+  const released = current.find((component) => component.productId === productId)
+  if (!released) return state
+  const next = withComponents(state, row, current.filter((component) => component.productId !== productId))
+  const keep = !state.placed.some((item) => item.productId === productId)
+  return keep ? { ...next, placed: [...state.placed, { productId, sku: released.sku, name: released.name, onHand: released.onHand ?? null }] } : next
+}
+
 export function draftReducer(state: DraftState, action: DraftAction): DraftState {
   switch (action.type) {
     case 'select':
@@ -52,13 +66,15 @@ export function draftReducer(state: DraftState, action: DraftAction): DraftState
       const current = componentsOf(state, action.row)
       return withComponents(state, action.row, current.map((component) => (component.productId === action.productId ? { ...component, quantity: action.quantity } : component)))
     }
-    case 'unbind': {
-      const current = componentsOf(state, action.row)
-      const released = current.find((component) => component.productId === action.productId)
-      const next = withComponents(state, action.row, current.filter((component) => component.productId !== action.productId))
-      // The internal SKU stays on the graph, unbound, so it can be bound to another channel SKU
-      const keep = released && !state.placed.some((item) => item.productId === released.productId)
-      return keep ? { ...next, placed: [...state.placed, { productId: released.productId, sku: released.sku, name: released.name, onHand: released.onHand ?? null }] } : next
+    case 'unbind':
+      return unbindOne(state, action.row, action.productId)
+    case 'unbindAll':
+      // Every child of this channel SKU is released; the internal nodes stay on the graph
+      return componentsOf(state, action.row).reduce((next, component) => unbindOne(next, action.row, component.productId), state)
+    case 'dismiss': {
+      // Takes the internal SKU off the graph: unbound from every channel SKU on it, and no longer placed
+      const released = action.rows.reduce((next, row) => unbindOne(next, row, action.productId), state)
+      return { ...released, placed: released.placed.filter((item) => item.productId !== action.productId) }
     }
     case 'unplace':
       return { ...state, placed: state.placed.filter((item) => item.productId !== action.productId) }

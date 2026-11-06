@@ -2,6 +2,7 @@
 
 import React, { memo } from 'react'
 import { Handle, Position, type NodeProps } from '@xyflow/react'
+import { X } from 'lucide-react'
 import { cn } from '@/utils/cn'
 import { useGraphActions } from './GraphActions'
 import type { InternalNode } from './graphLayout'
@@ -14,9 +15,10 @@ const stock = (onHand: number | null) => (onHand === null ? 'no stock record' : 
  * box (or by picking it in the internal SKU picker), so touching a SKU bound elsewhere changes nothing.
  */
 export const InternalSkuNode = memo(function InternalSkuNode({ data, dragging }: NodeProps<InternalNode>) {
-  const { readOnly, unbind } = useGraphActions()
-  const { productId, sku, name, onHand, boundToSelected, compact } = data
+  const { readOnly, dismissInternal } = useGraphActions()
+  const { productId, sku, name, onHand, boundToSelected, linkedCount, compact } = data
   const bound = boundToSelected !== null
+  const linked = linkedCount > 0
 
   const hint = bound ? `Bound ×${boundToSelected} · ${stock(onHand)}` : stock(onHand)
 
@@ -45,14 +47,15 @@ export const InternalSkuNode = memo(function InternalSkuNode({ data, dragging }:
         {!compact && <span className="block truncate text-xs text-text-muted">{hint}</span>}
       </span>
       {compact && bound && <span className="shrink-0 text-xs text-text-muted">×{boundToSelected}</span>}
-      {bound && !readOnly && (
+      {!readOnly && (
         <button
           type="button"
-          onClick={() => unbind(productId)}
-          title="Unbind from the selected channel SKU"
-          className="nodrag nopan pointer-events-auto relative shrink-0 rounded border border-border bg-surface px-2 py-0.5 text-xs font-medium text-danger-600 hover:border-danger-300 hover:bg-danger-50"
+          onClick={() => dismissInternal(productId)}
+          aria-label={`Remove ${sku} from the graph`}
+          title={linked ? 'Remove from the graph (also unbinds it from the channel SKUs shown)' : 'Remove from the graph'}
+          className="nodrag nopan pointer-events-auto relative shrink-0 rounded p-0.5 text-text-muted hover:bg-danger-50 hover:text-danger-600"
         >
-          Unbind
+          <X className="h-3.5 w-3.5" aria-hidden />
         </button>
       )}
     </div>

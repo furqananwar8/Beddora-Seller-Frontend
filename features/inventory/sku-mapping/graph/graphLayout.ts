@@ -22,6 +22,8 @@ export interface ChannelNodeData extends Record<string, unknown> {
   status: NodeStatus
   selected: boolean
   compact: boolean
+  /** How many internal SKUs are bound to it (the Unbind button shows only when there are some). */
+  boundCount: number
 }
 
 export interface InternalNodeData extends Record<string, unknown> {
@@ -31,7 +33,8 @@ export interface InternalNodeData extends Record<string, unknown> {
   onHand: number | null
   /** Quantity bound to the selected channel SKU, if any. */
   boundToSelected: number | null
-  /** Clicking binds it to the selected channel SKU. */
+  /** How many channel SKUs on the graph it is bound to. */
+  linkedCount: number
   compact: boolean
 }
 
@@ -87,9 +90,10 @@ export function layoutGraph({ rows, componentsOf, statusOf, placed, selected, co
   rows.forEach((row, index) => {
     const y = index * pitch
     const isSelected = row.key === selected
-    nodes.push({ id: `c:${row.key}`, type: 'channel', position: { x: 0, y }, data: { row, status: statusOf(row), selected: isSelected, compact }, ...FIXED })
+    const components = componentsOf(row)
+    nodes.push({ id: `c:${row.key}`, type: 'channel', position: { x: 0, y }, data: { row, status: statusOf(row), selected: isSelected, compact, boundCount: components.length }, ...FIXED })
 
-    for (const component of componentsOf(row)) {
+    for (const component of components) {
       const entry = internal.get(component.productId) ?? { component, ys: [] }
       if (entry.component.onHand == null && component.onHand != null) entry.component = component
       entry.ys.push(y)
@@ -148,6 +152,7 @@ export function layoutGraph({ rows, componentsOf, statusOf, placed, selected, co
         name: component.name,
         onHand: component.onHand ?? null,
         boundToSelected: selectedComponents.get(component.productId) ?? null,
+        linkedCount: internal.get(component.productId)?.ys.length ?? 0,
         compact,
       },
     })
