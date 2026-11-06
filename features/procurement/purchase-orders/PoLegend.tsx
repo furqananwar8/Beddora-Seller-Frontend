@@ -13,13 +13,21 @@ export const PoLegend: React.FC = () => (
         <Arrow label="submit" />
         <PoStatusBadge status="PENDING_APPROVAL" />
         <Arrow label="approve · locked" />
+        <PoStatusBadge status="APPROVED" />
+        <Arrow label="production date set" />
         <PoStatusBadge status="IN_PROGRESS" />
+        <Arrow label="packing" />
+        <PoStatusBadge status="PARTIALLY_PACKED" />
         <Arrow label="all units packed" />
-        <PoStatusBadge status="READY_TO_SHIP" />
+        <PoStatusBadge status="FULLY_PACKED" />
+        <Arrow label="list in container" />
+        <PoStatusBadge status="PARTIALLY_SHIPPED" />
+        <Arrow label="every list in a container" />
+        <PoStatusBadge status="FULLY_SHIPPED" />
       </div>
       <p className="mt-2 text-xs text-text-muted">
         Editable as a draft or while pending. A rejected PO goes back to draft with the approver’s reason and must be submitted again. Approved POs are locked until an
-        approver unlocks them; saving locks them again. Only drafts can be deleted.
+        approver unlocks them; saving locks them again. The production date is set once a PO is approved; the ARD once it is in production. Closing a PO before every unit has shipped marks it SHORT CLOSED. A closed PO cannot be edited.
       </p>
     </section>
     <section>

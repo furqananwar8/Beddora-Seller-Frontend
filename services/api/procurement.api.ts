@@ -161,8 +161,17 @@ export interface ProductBody extends VariantInput, WeightInput, Pick<DimensionIn
 
 export type PoDestination = 'US' | 'CA'
 export type PoCurrency = 'USD' | 'CAD'
-/** DRAFT (new, or sent back by a rejection) → PENDING_APPROVAL (submitted) → IN_PROGRESS (approved) → READY_TO_SHIP. */
-export type PoStatus = 'DRAFT' | 'PENDING_APPROVAL' | 'IN_PROGRESS' | 'READY_TO_SHIP'
+/** DRAFT (new, or sent back by a rejection) → PENDING_APPROVAL (submitted) → APPROVED → IN_PROGRESS (production date set, shown as IN PRODUCTION) → PARTIALLY_PACKED → FULLY_PACKED → PARTIALLY_SHIPPED → FULLY_SHIPPED; SHORT_CLOSED when closed before every unit was packed. */
+export type PoStatus =
+  | 'DRAFT'
+  | 'PENDING_APPROVAL'
+  | 'APPROVED'
+  | 'IN_PROGRESS'
+  | 'PARTIALLY_PACKED'
+  | 'FULLY_PACKED'
+  | 'SHORT_CLOSED'
+  | 'PARTIALLY_SHIPPED'
+  | 'FULLY_SHIPPED'
 export type EtdAlertLevel = 'OVERDUE' | 'SOON' | 'OK' | 'NONE'
 export type PaymentState = 'UNPAID' | 'PARTIALLY_PAID' | 'PAID'
 
@@ -198,6 +207,8 @@ export interface PurchaseOrderListItem {
   /** Sum of units x rate over the lines. */
   totalAmount: number
   packed: number
+  /** Packaging lists carrying this PO's units. */
+  packagingListCount: number
   status: PoStatus
   payment: PoPayment
   isOpen: boolean
@@ -279,7 +290,7 @@ export interface PurchaseOrderDetail {
   /** Set while an approver has unlocked this approved PO for editing; the next save locks it again. */
   unlockedAt: string | null
   unlockedBy: { id: number; name: string | null } | null
-  can: { edit: boolean; submit: boolean; delete: boolean; decide: boolean; unlock: boolean; lock: boolean; toggleOpen: boolean; createFromRemaining: boolean }
+  can: { edit: boolean; setProductionDate: boolean; setArd: boolean; submit: boolean; delete: boolean; decide: boolean; unlock: boolean; lock: boolean; toggleOpen: boolean; createFromRemaining: boolean }
 }
 
 export interface PurchaseOrderBody {
@@ -289,7 +300,6 @@ export interface PurchaseOrderBody {
   contactName: string | null
   destination: PoDestination
   currency: PoCurrency
-  productionDate: string | null
   etd: string
   lines: Array<{ productId: number; unitsOrdered: number; unitPrice: number }>
   sourcePurchaseOrderId?: number
@@ -1031,6 +1041,11 @@ export const procurementApi = baseApi.injectEndpoints({
       transformResponse: unwrap,
       invalidatesTags: ['ProcurementPurchaseOrders'],
     }),
+    setPurchaseOrderProductionDate: b.mutation<{ id: number; productionDate: string; status?: PoStatus }, { id: number; productionDate: string }>({
+      query: ({ id, productionDate }) => ({ url: `/procurement/purchase-orders/${id}/production-date`, method: 'PUT', body: { productionDate } }),
+      transformResponse: unwrap,
+      invalidatesTags: ['ProcurementPurchaseOrders'],
+    }),
     setPurchaseOrderOpen: b.mutation<PurchaseOrderDetail, { id: number; isOpen: boolean }>({
       query: ({ id, isOpen }) => ({ url: `/procurement/purchase-orders/${id}/open`, method: 'POST', body: { isOpen } }),
       transformResponse: unwrap,
@@ -1354,6 +1369,7 @@ export const {
   useCreateProcurementPurchaseOrderMutation,
   useUpdateProcurementPurchaseOrderMutation,
   useSetPurchaseOrderArdMutation,
+  useSetPurchaseOrderProductionDateMutation,
   useSetPurchaseOrderOpenMutation,
   useApprovePurchaseOrderMutation,
   useRejectPurchaseOrderMutation,

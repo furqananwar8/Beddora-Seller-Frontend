@@ -30,15 +30,11 @@ export const poFormSchema = z
     contactName: z.string().trim().max(150, 'Contact name is too long'),
     destination: z.enum(['US', 'CA']),
     currency: z.enum(['USD', 'CAD']),
-    productionDate: z.string(),
     etd: z.string().min(1, 'ERD is required'),
     lines: z.array(poLineSchema).min(1, 'Add at least one product'),
   })
   .superRefine((values, ctx) => {
     if (!values.supplier) ctx.addIssue({ code: 'custom', path: ['supplier'], message: 'Supplier is required' })
-    if (values.productionDate && values.etd && values.etd < values.productionDate) {
-      ctx.addIssue({ code: 'custom', path: ['etd'], message: 'ERD must be on or after the production date' })
-    }
     values.lines.forEach((line, index) => {
       if (line.maxUnits !== undefined && Number(line.unitsOrdered) > line.maxUnits) {
         ctx.addIssue({ code: 'custom', path: ['lines', index, 'unitsOrdered'], message: `Only ${line.maxUnits} left` })
@@ -61,7 +57,6 @@ export const emptyPoValues: PoFormValues = {
   contactName: '',
   destination: 'US',
   currency: 'USD',
-  productionDate: '',
   etd: '',
   lines: [],
 }
@@ -74,7 +69,6 @@ export function toPoBody(values: PoFormValues, extras: { sourcePurchaseOrderId?:
     contactName: values.contactName.trim() || null,
     destination: values.destination as PoDestination,
     currency: values.currency as PoCurrency,
-    productionDate: values.productionDate || null,
     etd: values.etd,
     lines: values.lines.map((line) => ({ productId: line.product.id, unitsOrdered: Number(line.unitsOrdered), unitPrice: Number(line.unitPrice) })),
     ...(extras.sourcePurchaseOrderId && { sourcePurchaseOrderId: extras.sourcePurchaseOrderId }),
@@ -89,7 +83,6 @@ export function fromDetail(po: PurchaseOrderDetail): PoFormValues {
     contactName: po.contactName ?? '',
     destination: po.destination,
     currency: po.currency,
-    productionDate: day(po.productionDate),
     etd: day(po.etd),
     lines: po.lines.map((line) => ({ product: line.product, unitsOrdered: String(line.unitsOrdered), unitPrice: line.unitPrice === null ? '' : String(line.unitPrice), allocated: line.allocated })),
   }

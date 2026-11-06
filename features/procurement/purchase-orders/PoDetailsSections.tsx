@@ -166,14 +166,14 @@ export const PoOrderDetailsSection: React.FC<SectionProps> = ({ form, readOnly }
     control,
     formState: { errors },
   } = form
-  const [etd, productionDate] = useWatch({ control, name: ['etd', 'productionDate'] })
+  const etd = useWatch({ control, name: 'etd' })
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>Order details</CardTitle>
       </CardHeader>
-      <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <FormField label="Destination" required hint="Drives the container's city list later">
           <Controller
             control={control}
@@ -188,13 +188,6 @@ export const PoOrderDetailsSection: React.FC<SectionProps> = ({ form, readOnly }
             render={({ field }) => <SegmentedToggle<PoCurrency> ariaLabel="Currency" value={field.value} onChange={field.onChange} options={CURRENCIES} disabled={readOnly} />}
           />
         </FormField>
-        <FormField label="Production date" htmlFor="po-production" error={errors.productionDate?.message}>
-          <Controller
-            control={control}
-            name="productionDate"
-            render={({ field }) => <SingleDatePicker id="po-production" value={field.value} onChange={field.onChange} placeholder="Select date" disabled={readOnly} />}
-          />
-        </FormField>
         <FormField
           label="ERD"
           htmlFor="po-etd"
@@ -206,16 +199,14 @@ export const PoOrderDetailsSection: React.FC<SectionProps> = ({ form, readOnly }
                 <EtdCountdown etd={etd} />
                 <span>Reminders from {formatCalendarDay(minusDays(etd, 10))} · daily if overdue</span>
               </span>
-            ) : (
-              'On or after the production date'
-            )
+            ) : undefined
           }
         >
           <Controller
             control={control}
             name="etd"
             render={({ field }) => (
-              <SingleDatePicker id="po-etd" value={field.value} onChange={field.onChange} min={productionDate || undefined} placeholder="Select date" error={errors.etd?.message} disabled={readOnly} />
+              <SingleDatePicker id="po-etd" value={field.value} onChange={field.onChange} placeholder="Select date" error={errors.etd?.message} disabled={readOnly} />
             )}
           />
         </FormField>

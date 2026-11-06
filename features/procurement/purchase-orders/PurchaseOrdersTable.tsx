@@ -6,15 +6,18 @@ import { Spinner } from '@/design-system/loaders'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/design-system/tables'
 import type { PurchaseOrderListItem } from '@/services/api/procurement.api'
 import { cn } from '@/utils/cn'
-import { formatCalendarDay, formatCurrency } from '@/utils/format'
+import { formatCurrency } from '@/utils/format'
 import { ArdCell } from './ArdCell'
+import { ProductionDateCell } from './ProductionDateCell'
 import { DESTINATION_LABEL, EtdBadge, OpenBadge, PaymentBadge, PoStatusBadge, canRequestPayment, isApprovedPo, isPackable } from '../shared/poMeta'
 
 const CELL = 'text-center align-middle'
-const COLUMNS = 15
+const COLUMNS = 16
 
 export interface PoRowActions {
   canWrite: boolean
+  /** Holds the PO edit permission: may edit a PO, set its production date and its ARD. */
+  canEdit: boolean
   /** Holds the PO approval permission. */
   canDecide: boolean
   /** May open Finance > Payment Requests. */
@@ -49,7 +52,8 @@ function actionsFor(row: PurchaseOrderListItem, actions: PoRowActions): RowActio
   const pending = row.status === 'PENDING_APPROVAL'
   const draft = row.status === 'DRAFT'
   const approved = isApprovedPo(row)
-  const editable = !approved || row.unlocked
+  const editable = row.isOpen && (!approved || row.unlocked)
+  const editLockedReason = !row.isOpen ? 'Closed POs cannot be edited. Reopen it to make changes.' : 'Approved POs are locked. An approver can unlock it for editing.'
   const items: RowActionItem[] = [
     { key: 'view', label: 'View purchase order', onSelect: () => actions.onOpen(row) },
     { key: 'pdf', label: actions.pdfBusy ? 'Preparing PDF…' : 'Download PDF', disabled: actions.pdfBusy, onSelect: () => actions.onDownloadPdf(row) },
@@ -67,17 +71,20 @@ function actionsFor(row: PurchaseOrderListItem, actions: PoRowActions): RowActio
       { key: 'reject', label: 'Reject with reason…', tone: 'danger', onSelect: () => actions.onReject(row) }
     )
   }
-  if (actions.canDecide && approved) {
+  if (actions.canDecide && approved && row.isOpen) {
     items.push(row.unlocked ? { key: 'lock', label: 'Lock PO', onSelect: () => actions.onLock(row) } : { key: 'unlock', label: 'Unlock for editing', onSelect: () => actions.onUnlock(row) })
   }
+  // Edit is hidden unless the user holds the PO edit permission
+  if (actions.canEdit) {
+    items.push({
+      key: 'edit',
+      label: editable ? 'Edit PO' : row.isOpen ? 'Edit PO · locked (approved)' : 'Edit PO · closed',
+      disabled: !editable,
+      disabledReason: editable ? undefined : editLockedReason,
+      onSelect: () => actions.onOpen(row),
+    })
+  }
   if (!actions.canWrite) return items
-  items.push({
-    key: 'edit',
-    label: editable ? 'Edit PO' : 'Edit PO · locked (approved)',
-    disabled: !editable,
-    disabledReason: editable ? undefined : 'Approved POs are locked. An approver can unlock it for editing.',
-    onSelect: () => actions.onOpen(row),
-  })
   if (draft) {
     items.push({ key: 'submit', label: row.rejectionReason ? 'Resubmit for approval' : 'Submit for approval', onSelect: () => actions.onSubmit(row) })
   }
@@ -119,17 +126,18 @@ export const PurchaseOrdersTable: React.FC<PurchaseOrdersTableProps> = ({ rows, 
         <TableHead className={CELL}>PO #</TableHead>
         <TableHead className={cn(CELL, 'min-w-[160px]')}>Supplier</TableHead>
         <TableHead className={CELL}>Dest. · Cur.</TableHead>
-        <TableHead className={CELL}>Production</TableHead>
         <TableHead className={cn(CELL, 'min-w-[150px]')}>ERD</TableHead>
         <TableHead className={cn(CELL, 'min-w-[160px]')}>ARD</TableHead>
+        <TableHead className={cn(CELL, 'min-w-[160px]')}>Production Date</TableHead>
         <TableHead className={CELL}>SKUs</TableHead>
         <TableHead className={CELL}>Units</TableHead>
         <TableHead className={CELL}>Amount</TableHead>
         <TableHead className={CELL}>Packed</TableHead>
+        <TableHead className={CELL}>PL</TableHead>
         <TableHead className={CELL}>Status</TableHead>
         <TableHead className={CELL}>Payment</TableHead>
         <TableHead className={CELL}>Payment requests</TableHead>
-        <TableHead className={CELL}>Open</TableHead>
+        <TableHead className={CELL}>Open / Close</TableHead>
         <TableHead className={CELL}>Actions</TableHead>
       </TableRow>
     </TableHeader>
@@ -161,18 +169,29 @@ export const PurchaseOrdersTable: React.FC<PurchaseOrdersTableProps> = ({ rows, 
             <TableCell className={cn(CELL, 'whitespace-nowrap')}>
               {DESTINATION_LABEL[row.destination]} · {row.currency}
             </TableCell>
-            <TableCell className={cn(CELL, 'whitespace-nowrap')}>{row.productionDate ? formatCalendarDay(row.productionDate) : '—'}</TableCell>
             <TableCell className={CELL}>
               <EtdBadge etd={row.etd} alert={row.etdAlert} />
             </TableCell>
             <TableCell className={CELL}>
-              <ArdCell row={row} canWrite={actions.canWrite} />
+              <ArdCell row={row} canEdit={actions.canEdit} />
+            </TableCell>
+            <TableCell className={CELL}>
+              <ProductionDateCell row={row} canEdit={actions.canEdit} />
             </TableCell>
             <TableCell className={cn(CELL, 'tabular-nums')}>{row.skuCount}</TableCell>
             <TableCell className={cn(CELL, 'tabular-nums')}>{row.units.toLocaleString('en-CA')}</TableCell>
             <TableCell className={cn(CELL, 'whitespace-nowrap tabular-nums')}>{formatCurrency(row.totalAmount, row.currency)}</TableCell>
             <TableCell className={CELL}>
               <PackedBar packed={row.packed} units={row.units} />
+            </TableCell>
+            <TableCell className={cn(CELL, 'tabular-nums')}>
+              {row.packagingListCount > 0 ? (
+                <button type="button" onClick={() => actions.onViewPackagingLists(row)} className="font-medium text-primary-600 underline-offset-2 hover:underline">
+                  {row.packagingListCount}
+                </button>
+              ) : (
+                0
+              )}
             </TableCell>
             <TableCell className={CELL}>
               <PoStatusBadge status={row.status} />
