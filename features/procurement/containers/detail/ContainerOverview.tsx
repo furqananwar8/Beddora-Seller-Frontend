@@ -4,7 +4,6 @@ import React from 'react'
 import { Spinner } from '@/design-system/loaders'
 import { useGetContainerDetailQuery, type ContainerDetail } from '@/services/api/procurement.api'
 import { DocumentsPanel } from './DocumentsPanel'
-import { LandedCostPanel } from './LandedCostPanel'
 import { PackedProductsPanel } from './PackedProductsPanel'
 import { PaymentRequestsPanel } from './PaymentRequestsPanel'
 import { PurchaseOrdersPanel } from './PurchaseOrdersPanel'
@@ -13,7 +12,6 @@ import { PurchaseOrdersPanel } from './PurchaseOrdersPanel'
 export const ContainerOverview: React.FC<{ container: ContainerDetail; canWrite: boolean }> = ({ container, canWrite }) => (
   <div className="flex flex-col gap-4">
     <PurchaseOrdersPanel container={container} />
-    <LandedCostPanel containerId={container.id} />
     <div className="grid gap-4 lg:grid-cols-3">
       <PaymentRequestsPanel container={container} />
       <DocumentsPanel container={container} canWrite={canWrite} />

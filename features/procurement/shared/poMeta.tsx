@@ -36,6 +36,7 @@ export const PO_STATUS_META: Record<PoStatus, { label: string; tone: StatusTone 
   SHORT_CLOSED: { label: 'SHORT CLOSED', tone: 'danger' },
   PARTIALLY_SHIPPED: { label: 'PARTIALLY SHIPPED', tone: 'info' },
   FULLY_SHIPPED: { label: 'FULLY SHIPPED', tone: 'success' },
+  RECEIVED: { label: 'RECEIVED', tone: 'success' },
 }
 
 export const PAYMENT_META: Record<PaymentState, { label: string; tone: StatusTone }> = {
@@ -120,8 +121,10 @@ export const CONTAINER_STATUS_META: Record<ContainerStatus, { label: string; ton
   ON_RAIL: { label: 'ON RAIL', tone: 'info', stage: 'shipping' },
   ON_BOARD: { label: 'ON BOARD', tone: 'info', stage: 'shipping' },
   ARRIVED_AT_PORT: { label: 'ARRIVAL AT PORT', tone: 'info', stage: 'shipping' },
+  CUSTOMS_CLEARED: { label: 'CUSTOMS CLEARED', tone: 'info', stage: 'shipping' },
+  OUT_FOR_DELIVERY: { label: 'OUT FOR DELIVERY', tone: 'info', stage: 'shipping' },
   DELIVERED: { label: 'DELIVERED', tone: 'success', stage: 'delivered' },
-  DELIVERED_AT_WAREHOUSE: { label: 'DELIVERED AT WAREHOUSE', tone: 'warning', stage: 'atWarehouse' },
+  DELIVERED_AT_WAREHOUSE: { label: 'DELIVERED TO WAREHOUSE', tone: 'warning', stage: 'atWarehouse' },
   GOODS_RECEIVED: { label: 'GOODS RECEIVED', tone: 'success', stage: 'received' },
 }
 

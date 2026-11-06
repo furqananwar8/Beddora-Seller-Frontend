@@ -13,6 +13,7 @@ const LABEL: Record<string, string> = {
   FULLY_PACKED: 'Fully packed',
   PARTIALLY_SHIPPED: 'Partially shipped',
   FULLY_SHIPPED: 'Fully shipped',
+  RECEIVED: 'Received at the warehouse',
   SHORT_CLOSED: 'Short closed',
   IN_PROGRESS: 'Back in production',
   IN_PRODUCTION: 'Production date set, in production',

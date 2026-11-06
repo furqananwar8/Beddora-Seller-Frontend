@@ -419,12 +419,6 @@ export const TileDetailsModal: React.FC<TileDetailsModalProps> = ({
       expandable: true,
     },
     {
-      key: 'indirect-expenses',
-      label: 'Indirect expenses',
-      value: formatCurrency(-totalExpenses, displayCurrency),
-      expandable: false,
-    },
-    {
       key: 'net-profit',
       label: 'Net profit before storage',
       value: formatCurrency(netProfit, displayCurrency),
@@ -466,12 +460,6 @@ export const TileDetailsModal: React.FC<TileDetailsModalProps> = ({
       key: 'estimated-payout',
       label: 'Estimated payout',
       value: formatCurrency(estimatedPayout, displayCurrency),
-      expandable: false,
-    },
-    {
-      key: 'real-acos',
-      label: 'Real ACOS',
-      value: formatPercentage(realACOS),
       expandable: false,
     },
     {

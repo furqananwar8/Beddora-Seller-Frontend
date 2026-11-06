@@ -172,6 +172,7 @@ export type PoStatus =
   | 'SHORT_CLOSED'
   | 'PARTIALLY_SHIPPED'
   | 'FULLY_SHIPPED'
+  | 'RECEIVED'
 export type EtdAlertLevel = 'OVERDUE' | 'SOON' | 'OK' | 'NONE'
 export type PaymentState = 'UNPAID' | 'PARTIALLY_PAID' | 'PAID'
 
@@ -592,7 +593,7 @@ export interface SkuLandedReport extends Page<SkuLandedRow> {
  * BOOKED: fully editable · IN_TRANSIT, ON_RAIL, ON_BOARD, ARRIVED_AT_PORT: only the ETA can change · DELIVERED ("Mark as
  * delivered" only) and DELIVERED_AT_WAREHOUSE (form): nothing else can change · GOODS_RECEIVED (Inbound Receiving only): final.
  */
-export type ContainerStatus = 'BOOKED' | 'IN_TRANSIT' | 'ON_RAIL' | 'ON_BOARD' | 'ARRIVED_AT_PORT' | 'DELIVERED' | 'DELIVERED_AT_WAREHOUSE' | 'GOODS_RECEIVED'
+export type ContainerStatus = 'BOOKED' | 'IN_TRANSIT' | 'ON_RAIL' | 'ON_BOARD' | 'ARRIVED_AT_PORT' | 'CUSTOMS_CLEARED' | 'OUT_FOR_DELIVERY' | 'DELIVERED' | 'DELIVERED_AT_WAREHOUSE' | 'GOODS_RECEIVED'
 
 /** Container form fields a status may lock. */
 export type ContainerField =
