@@ -8,7 +8,7 @@ import { useApiFeedback } from '@/hooks/useApiFeedback'
 import { useAppAbility } from '@/hooks/useAppAbility'
 import { useMarkContainerDeliveredMutation, type ContainerItem } from '@/services/api/procurement.api'
 import { downloadApiFile } from '@/utils/downloadFile'
-import { containerLabel } from '../shared/poMeta'
+import { containerLabel, isDeliveredStage } from '../shared/poMeta'
 import { PackagingListsModal } from './PackagingListsModal'
 import { ContainerFormModal } from './ContainerFormModal'
 import { CONTAINER_ROUTES } from './routes'
@@ -54,7 +54,7 @@ export function useContainerActions() {
   const actionsFor = (container: ContainerItem, { onPage = false } = {}): RowActionItem[] => {
     const { permissions } = container
     const lists = container.packagingLists
-    const delivered = container.status === 'DELIVERED'
+    const delivered = isDeliveredStage(container.status)
     return [
       ...(onPage ? [] : [{ key: 'view', label: 'View container', onSelect: () => router.push(containerHref(container.id)) }]),
       ...(canWrite

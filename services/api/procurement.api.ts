@@ -578,8 +578,11 @@ export interface SkuLandedReport extends Page<SkuLandedRow> {
 
 /* ─────────────── Containers ─────────────── */
 
-/** BOOKED: fully editable · IN_TRANSIT, ON_RAIL, ON_BOARD, ARRIVED_AT_PORT: only the ETA can change · DELIVERED ("Mark as delivered" only): nothing can change. */
-export type ContainerStatus = 'BOOKED' | 'IN_TRANSIT' | 'ON_RAIL' | 'ON_BOARD' | 'ARRIVED_AT_PORT' | 'DELIVERED'
+/**
+ * BOOKED: fully editable · IN_TRANSIT, ON_RAIL, ON_BOARD, ARRIVED_AT_PORT: only the ETA can change · DELIVERED ("Mark as
+ * delivered" only) and DELIVERED_AT_WAREHOUSE (form): nothing else can change · GOODS_RECEIVED (Inbound Receiving only): final.
+ */
+export type ContainerStatus = 'BOOKED' | 'IN_TRANSIT' | 'ON_RAIL' | 'ON_BOARD' | 'ARRIVED_AT_PORT' | 'DELIVERED' | 'DELIVERED_AT_WAREHOUSE' | 'GOODS_RECEIVED'
 
 /** Container form fields a status may lock. */
 export type ContainerField =
@@ -654,6 +657,8 @@ export interface ContainerItem {
   currency: PoCurrency
   deliveredAt: string | null
   updatedAt: string
+  /** Cartons short and damaged on arrival; null until Inbound Receiving is confirmed. */
+  receiving: { shortageCartons: number; damagedCartons: number } | null
   permissions: ContainerPermissions
   /** A placeholder made from a packaging list's request: no container number, bill of lading or ETD yet. */
   needsDetails: boolean

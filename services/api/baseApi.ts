@@ -88,6 +88,7 @@ export const tagTypes = [
   'ProcurementPurchaseInvoices',
   'ProcurementPackagingLists',
   'ProcurementContainers',
+  'InboundReceiving',
   'ProcurementPriceAnalysis',
   'Notifications',
   'SkuMapping',

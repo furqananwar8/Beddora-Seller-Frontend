@@ -44,6 +44,16 @@ export const ContainersScreen: React.FC = () => {
       className: 'min-w-[150px] text-left',
       render: (container) => <ContainerCell container={container} detail={skuSummary(container.lines.length, container.totals.units)} />,
     },
+    {
+      key: 'short',
+      header: 'Short',
+      render: (container) =>
+        container.receiving ? (
+          <Stack className="tabular-nums" top={<span className={cn(container.receiving.shortageCartons > 0 && 'font-semibold text-danger-600')}>{qty(container.receiving.shortageCartons)} ctn</span>} bottom={container.receiving.damagedCartons > 0 ? `${qty(container.receiving.damagedCartons)} damaged` : undefined} />
+        ) : (
+          <span className="text-text-muted">—</span>
+        ),
+    },
     { key: 'cbm', header: 'Total CBM', render: (container) => <span className="font-mono text-xs">{container.totals.cbm.toFixed(2)}</span> },
     { key: 'cartons', header: 'Cartons', render: (container) => <span className="tabular-nums">{qty(container.totals.cartons)}</span> },
     {

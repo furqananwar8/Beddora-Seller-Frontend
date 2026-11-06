@@ -97,7 +97,7 @@ export const isApprovedPo = (po: { status: PoStatus }): boolean => po.status ===
 export const isPackable = (po: { status: PoStatus; isOpen: boolean }): boolean => isApprovedPo(po) && po.isOpen
 
 /** Where a container is in its life: booked, on one of its shipping legs, or delivered. Mirrors the server's policy. */
-export type ContainerStage = 'booked' | 'shipping' | 'delivered'
+export type ContainerStage = 'booked' | 'shipping' | 'delivered' | 'atWarehouse' | 'received'
 
 /** In lifecycle order. Which statuses the form may set comes from the server (`permissions.statuses`). */
 export const CONTAINER_STATUS_META: Record<ContainerStatus, { label: string; tone: StatusTone; stage: ContainerStage }> = {
@@ -107,7 +107,12 @@ export const CONTAINER_STATUS_META: Record<ContainerStatus, { label: string; ton
   ON_BOARD: { label: 'ON BOARD', tone: 'info', stage: 'shipping' },
   ARRIVED_AT_PORT: { label: 'ARRIVAL AT PORT', tone: 'info', stage: 'shipping' },
   DELIVERED: { label: 'DELIVERED', tone: 'success', stage: 'delivered' },
+  DELIVERED_AT_WAREHOUSE: { label: 'DELIVERED AT WAREHOUSE', tone: 'warning', stage: 'atWarehouse' },
+  GOODS_RECEIVED: { label: 'GOODS RECEIVED', tone: 'success', stage: 'received' },
 }
+
+/** Statuses only Inbound Receiving can set: the container form never offers them. */
+export const isDeliveredStage = (status: ContainerStatus): boolean => ['delivered', 'atWarehouse', 'received'].includes(CONTAINER_STATUS_META[status].stage)
 
 export const CONTAINER_STATUSES = Object.keys(CONTAINER_STATUS_META) as ContainerStatus[]
 

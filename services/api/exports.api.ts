@@ -21,7 +21,8 @@ export type ExportReport =
   | "cashflow-planning"
   | "sku-mapping"
   | "warehouse-inventory"
-  | "order-invoice-pdf";
+  | "order-invoice-pdf"
+  | "inbound-receiving-pdf";
 
 export interface ExportRequest {
   report: ExportReport;
