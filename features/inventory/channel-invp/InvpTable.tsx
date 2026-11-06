@@ -140,7 +140,7 @@ export const InvpTable: React.FC<InvpTableProps> = ({ report, isLoading, isError
                     </TableCell>
                     <TableCell className="space-y-0.5 align-top">
                       <Figure label="Daily sale" value={units(row.sales.daily)} title="Units a day over the last 30 days, rounded" strong valueClassName={INPUT_INSET} />
-                      <Figure label="Potential" value={<PotentialInput productId={row.product.id} sku={row.product.sku} value={row.sales.potential} edited={row.sales.potentialEdited} onChange={onPotentialChange} />} title="Potential daily sale: units ordered ÷ (total days − out-of-stock days); type to change it" />
+                      <Figure label="Potential" value={<PotentialInput productId={row.product.id} sku={row.product.sku} value={row.sales.potential} edited={row.sales.potentialEdited} onChange={onPotentialChange} />} title="Potential daily sale: daily sessions × unit session percentage ÷ 100 (units ordered ÷ in-stock days where there is no traffic data yet); type to change it" />
                       <Figure label="Projected" value={units(row.sales.projected)} title="Potential × (1 + growth), rounded" valueClassName={INPUT_INSET} />
                     </TableCell>
                     {weeks.map((week, index) => (
