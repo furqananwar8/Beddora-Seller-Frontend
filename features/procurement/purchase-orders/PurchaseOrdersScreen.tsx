@@ -28,7 +28,8 @@ import {
 } from '@/services/api/procurement.api'
 import { cn } from '@/utils/cn'
 import { useDebounce } from '@/utils/debounce'
-import { DESTINATION_LABEL, PAYMENT_META, PO_STATUS_META, newPackagingListHref, newPaymentRequestHref, newPurchaseInvoiceHref, poPackagingListsHref } from '../shared/poMeta'
+import { DESTINATION_LABEL, PAYMENT_META, PO_STATUS_META, newPackagingListHref, newPaymentRequestHref, newPurchaseInvoiceHref } from '../shared/poMeta'
+import { PoPackagingListsModal } from '../shared/PoPackagingLists'
 import { PoPaymentRequestsModal } from '../shared/PoPaymentRequests'
 import { usePoPdfDownload } from '../shared/usePoPdfDownload'
 import { PoLegend } from './PoLegend'
@@ -82,6 +83,7 @@ export const PurchaseOrdersScreen: React.FC = () => {
   const router = useRouter()
   const ability = useAppAbility()
   const canWrite = ability.can('write', 'procurement:purchase-orders')
+  const canEdit = ability.can('write', 'procurement:purchase-orders.edit')
   const canDecide = ability.can('write', 'procurement:po-approval')
   const canViewPayments = ability.can('read', 'finance:payment-request')
   const canPack = ability.can('write', 'procurement:packaging-lists')
@@ -92,6 +94,7 @@ export const PurchaseOrdersScreen: React.FC = () => {
   const [approving, setApproving] = useState<PurchaseOrderListItem | null>(null)
   const [rejecting, setRejecting] = useState<PurchaseOrderListItem | null>(null)
   const [paymentsOf, setPaymentsOf] = useState<{ id: number; poNo: string } | null>(null)
+  const [listsOf, setListsOf] = useState<{ id: number; poNo: string } | null>(null)
   const [deleting, setDeleting] = useState<PurchaseOrderListItem | null>(null)
   const { success, failure } = useApiFeedback()
 
@@ -225,6 +228,7 @@ export const PurchaseOrdersScreen: React.FC = () => {
             isError={isError}
             filtered={filtered}
             canWrite={canWrite}
+            canEdit={canEdit}
             canDecide={canDecide}
             canViewPayments={canViewPayments}
             canPack={canPack}
@@ -233,7 +237,7 @@ export const PurchaseOrdersScreen: React.FC = () => {
             onCreatePaymentRequest={(row) => router.push(newPaymentRequestHref(row.id))}
             onCreatePurchaseInvoice={(row) => router.push(newPurchaseInvoiceHref(row.id))}
             onCreatePackagingList={(row) => router.push(newPackagingListHref(row.id))}
-            onViewPackagingLists={(row) => router.push(poPackagingListsHref(row.id))}
+            onViewPackagingLists={(row) => setListsOf({ id: row.id, poNo: row.poNo })}
             onViewPayments={(row) => setPaymentsOf({ id: row.id, poNo: row.poNo })}
             onDownloadPdf={(row) => pdf.download(row.id)}
             pdfBusy={pdf.isExporting}
@@ -305,6 +309,7 @@ export const PurchaseOrdersScreen: React.FC = () => {
         <p>A closed PO takes no new packaging lists or payments and stops ERD reminders. Units not packed yet can move to a new PO with “Create PO from remaining”.</p>
       </ConfirmDialog>
       <PoPaymentRequestsModal purchaseOrder={paymentsOf} onClose={() => setPaymentsOf(null)} />
+      <PoPackagingListsModal purchaseOrder={listsOf} onClose={() => setListsOf(null)} />
     </Container>
   )
 }

@@ -13,7 +13,7 @@ export const newPaymentRequestHref = (id: number): string => `/dashboard/finance
 
 /** A PO takes a new payment request while in progress, open and not yet paid in full. */
 export const canRequestPayment = (po: { status: PoStatus; isOpen: boolean; payment: PoPayment }): boolean =>
-  po.status === 'IN_PROGRESS' && po.isOpen && po.payment.status !== 'PAID'
+  po.status !== 'DRAFT' && po.status !== 'PENDING_APPROVAL' && po.isOpen && po.payment.status !== 'PAID'
 
 export const DESTINATION_LABEL: Record<PoDestination, string> = { US: 'USA', CA: 'CANADA' }
 
@@ -29,8 +29,13 @@ export const DESTINATION_ROW_TINT: Record<PoDestination, string> = {
 export const PO_STATUS_META: Record<PoStatus, { label: string; tone: StatusTone }> = {
   DRAFT: { label: 'DRAFT', tone: 'neutral' },
   PENDING_APPROVAL: { label: 'PENDING FOR APPROVAL', tone: 'warning' },
+  APPROVED: { label: 'APPROVED', tone: 'success' },
   IN_PROGRESS: { label: 'IN PRODUCTION', tone: 'info' },
-  READY_TO_SHIP: { label: 'READY TO SHIP', tone: 'success' },
+  PARTIALLY_PACKED: { label: 'PARTIALLY PACKED', tone: 'warning' },
+  FULLY_PACKED: { label: 'FULLY PACKED', tone: 'success' },
+  SHORT_CLOSED: { label: 'SHORT CLOSED', tone: 'danger' },
+  PARTIALLY_SHIPPED: { label: 'PARTIALLY SHIPPED', tone: 'info' },
+  FULLY_SHIPPED: { label: 'FULLY SHIPPED', tone: 'success' },
 }
 
 export const PAYMENT_META: Record<PaymentState, { label: string; tone: StatusTone }> = {
@@ -49,6 +54,15 @@ export const PaymentBadge: React.FC<{ payment: PoPayment; withPercent?: boolean 
     )}
   </span>
 )
+
+/** From the production date onward: the goods are being made. Mirrors the server's rule. */
+export const isInProduction = (po: { status: PoStatus }): boolean => po.status !== 'DRAFT' && po.status !== 'PENDING_APPROVAL' && po.status !== 'APPROVED'
+
+/** The production date can be set once the PO is approved, while it is open. Mirrors the server's rule. */
+export const canSetProductionDate = (po: { status: PoStatus; isOpen: boolean }): boolean => po.isOpen && isApprovedPo(po)
+
+/** The ARD can be set once the PO is in production, while it is open. Mirrors the server's rule. */
+export const canSetArd = (po: { status: PoStatus; isOpen: boolean }): boolean => po.isOpen && isInProduction(po)
 
 export const OpenBadge: React.FC<{ isOpen: boolean }> = ({ isOpen }) => <StatusBadge label={isOpen ? 'OPEN' : 'CLOSED'} tone={isOpen ? 'info' : 'neutral'} />
 
@@ -92,7 +106,7 @@ export const newPackagingListHref = (purchaseOrderId?: number): string =>
 
 /** A PO can be packed once approved and while open. */
 /** Approved POs: they can be packed, paid and shipped. Mirrors the server's rule. */
-export const isApprovedPo = (po: { status: PoStatus }): boolean => po.status === 'IN_PROGRESS' || po.status === 'READY_TO_SHIP'
+export const isApprovedPo = (po: { status: PoStatus }): boolean => po.status !== 'DRAFT' && po.status !== 'PENDING_APPROVAL'
 
 export const isPackable = (po: { status: PoStatus; isOpen: boolean }): boolean => isApprovedPo(po) && po.isOpen
 

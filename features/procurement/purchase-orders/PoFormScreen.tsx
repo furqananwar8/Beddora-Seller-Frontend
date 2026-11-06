@@ -36,7 +36,7 @@ import { usePoActions } from './usePoActions'
 
 const LIST = '/dashboard/procurement/purchase-orders'
 
-const FORM_FIELDS = new Set(['supplierId', 'contactName', 'destination', 'currency', 'productionDate', 'etd', 'lines'])
+const FORM_FIELDS = new Set(['supplierId', 'contactName', 'destination', 'currency', 'etd', 'lines'])
 /** Server field names onto form paths (`supplierId` is the `supplier` picker, line products are their rows). */
 const toFormField = (field: string) => (field === 'supplierId' ? 'supplier' : field.replace(/^lines\.(\d+)\.productId$/, 'lines.$1.unitsOrdered'))
 
