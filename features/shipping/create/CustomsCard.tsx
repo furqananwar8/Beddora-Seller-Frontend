@@ -5,12 +5,14 @@ import { Controller, useFormContext, useWatch } from 'react-hook-form'
 import { NumericInput } from '@/components/form-field/NumericInput'
 import { SegmentedToggle } from '@/components/segmented-toggle/SegmentedToggle'
 import { formatWeight } from '@/features/procurement/shared/units'
+import { cn } from '@/utils/cn'
 import { SectionCard } from '../shared/Card'
-import { HsCodeSelect } from '../shared/HsCodeSelect'
+import { formatHsCode, HsCodeSelect } from '../shared/HsCodeSelect'
+import { OrderSkuCell } from '../shared/OrderSkuCell'
 import { OriginCountrySelect } from '../shared/OriginCountrySelect'
 import { numberField, shippingField } from '../shared/fieldStyles'
 import type { CustomsCurrency } from '../types'
-import { isFromProduct, isUnmapped, numberOf, UNITS } from './shipmentForm'
+import { isFromProduct, isLocked, numberOf, ORIGIN_COUNTRIES, UNITS } from './shipmentForm'
 import { countErrors } from './shipmentRequest'
 import type { ShipmentFormValues } from './shipmentSchema'
 
@@ -20,16 +22,24 @@ interface CustomsCardProps {
 }
 
 const HEAD = 'px-2 py-2 text-left text-xs font-medium uppercase tracking-wide text-text-muted'
-const CELL = 'px-2 py-2 align-top text-sm'
+const CELL = 'px-2 py-2 align-middle text-sm'
 const CURRENCIES: Array<{ value: CustomsCurrency; label: string }> = [
   { value: 'USD', label: 'USD' },
   { value: 'CAD', label: 'CAD' },
 ]
 
-const Message: React.FC<{ error?: string; hint?: string }> = ({ error, hint }) =>
-  error ? <p className="mt-1 text-xs text-danger-600">{error}</p> : hint ? <p className="mt-1 text-xs text-text-muted">{hint}</p> : null
+/** A value the order or product gives that can't be edited; red when it is empty, since that blocks the rates. */
+const Locked: React.FC<{ value: string; invalid?: boolean; className?: string }> = ({ value, invalid, className }) => (
+  <span title={value} className={cn('block text-sm', invalid ? 'text-danger-600' : 'text-text-primary', className)}>
+    {value || '—'}
+  </span>
+)
 
-/** One customs line per product, prefilled from the product (HS code from its category); required only cross-border. */
+/**
+ * One customs line per product, prefilled from the order and the product; required only cross-border. On a
+ * channel order the description, unit value and currency come from the order and are read-only, as are the HS code
+ * and origin when the product has them (else they are picked). Invalid fields are marked; the toast names them.
+ */
 export const CustomsCard: React.FC<CustomsCardProps> = ({ lane }) => {
   const {
     register,
@@ -53,7 +63,7 @@ export const CustomsCard: React.FC<CustomsCardProps> = ({ lane }) => {
       aside={customsErrors > 0 && <span className="rounded-full bg-danger-50 px-2.5 py-0.5 text-xs font-medium text-danger-700">{customsErrors} {customsErrors === 1 ? 'field needs' : 'fields need'} attention</span>}
     >
       {products.length === 0 ? (
-        <p className="text-sm text-text-muted">Pick a product: its customs line is added here.</p>
+        <p className="text-sm text-text-muted">Once a product is in the parcel, its customs line is added here.</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full min-w-[900px]">
@@ -69,52 +79,71 @@ export const CustomsCard: React.FC<CustomsCardProps> = ({ lane }) => {
               </tr>
             </thead>
             <tbody>
-              {products.map(({ product, quantity, customs }, index) => {
+              {products.map((line, index) => {
+                const { product, quantity, customs, sources } = line
                 const base = `products.${index}.customs` as const
                 const e = errors.products?.[index]?.customs
                 const auto = (field: keyof typeof customs) => isFromProduct(product, customs, field)
-                const hsPrefilled = Boolean(customs.hsCode) && customs.hsCode === product.hsCode
-                const weight = numberOf(quantity) ?? 0
+                const locked = (field: keyof typeof customs) => isLocked(line, field)
+                const units_ = numberOf(quantity) ?? 0
                 return (
                   <tr key={product.id} className="border-b border-border last:border-0">
-                    <td className={`${CELL} min-w-[200px]`}>
-                      <input aria-label="Description" className={shippingField(e?.description?.message, auto('description'))} {...register(`${base}.description`)} />
-                      <Message error={e?.description?.message} hint={isUnmapped(product) ? 'Map this SKU in the SKU Mapper to prefill next time' : undefined} />
+                    <td className={`${CELL} min-w-[200px] max-w-[280px]`}>
+                      {locked('description') ? (
+                        <Locked value={customs.description} invalid={Boolean(e?.description)} className="line-clamp-2" />
+                      ) : (
+                        <input aria-label="Description" className={shippingField(e?.description?.message, auto('description'))} {...register(`${base}.description`)} />
+                      )}
                     </td>
-                    <td className={`${CELL} whitespace-nowrap pt-4 font-mono text-xs`}>{product.sku ?? '—'}</td>
-                    <td className={`${CELL} pt-4 tabular-nums`}>{quantity || '—'}</td>
+                    <td className={`${CELL} font-mono text-xs`}>
+                      {sources?.length ? <OrderSkuCell sources={sources} internalSku={product.sku} units={units_} /> : <span className="whitespace-nowrap">{product.sku ?? '—'}</span>}
+                    </td>
+                    <td className={`${CELL} tabular-nums`}>{quantity || '—'}</td>
                     <td className={`${CELL} min-w-[190px]`}>
-                      <div className="flex gap-1">
-                        <Controller
-                          control={control}
-                          name={`${base}.unitValue`}
-                          render={({ field }) => <NumericInput aria-label="Unit value" decimal value={field.value} onChange={(event) => field.onChange(event.target.value)} onBlur={field.onBlur} className={numberField(e?.unitValue?.message, auto('unitValue'))} />}
-                        />
-                        <Controller
-                          control={control}
-                          name={`${base}.currency`}
-                          render={({ field }) => <SegmentedToggle ariaLabel="Currency" value={field.value} onChange={field.onChange} options={CURRENCIES} variant="primary" className="[&>button]:px-2" />}
-                        />
+                      <div className="flex items-center gap-2">
+                        {locked('unitValue') ? (
+                          <Locked value={customs.unitValue} invalid={Boolean(e?.unitValue)} className="tabular-nums" />
+                        ) : (
+                          <Controller
+                            control={control}
+                            name={`${base}.unitValue`}
+                            render={({ field }) => <NumericInput aria-label="Unit value" decimal value={field.value} onChange={(event) => field.onChange(event.target.value)} onBlur={field.onBlur} className={numberField(e?.unitValue?.message, auto('unitValue'))} />}
+                          />
+                        )}
+                        {locked('currency') ? (
+                          <span className="text-xs font-medium text-text-muted">{customs.currency}</span>
+                        ) : (
+                          <Controller
+                            control={control}
+                            name={`${base}.currency`}
+                            render={({ field }) => <SegmentedToggle ariaLabel="Currency" value={field.value} onChange={field.onChange} options={CURRENCIES} variant="primary" className="[&>button]:px-2" />}
+                          />
+                        )}
                       </div>
-                      <Message error={e?.unitValue?.message} />
                     </td>
                     <td className={`${CELL} min-w-[220px]`}>
-                      <Controller
-                        control={control}
-                        name={`${base}.hsCode`}
-                        render={({ field }) => <HsCodeSelect id={`hs-${product.id}`} ariaLabel="HS code" value={field.value} onChange={field.onChange} error={e?.hsCode?.message} prefilled={hsPrefilled} />}
-                      />
-                      <Message error={e?.hsCode?.message} hint={!customs.hsCode ? `No code for ${product.categoryName ?? 'this product'}: pick one` : hsPrefilled ? undefined : product.categoryName ? `Default for ${product.categoryName}` : undefined} />
+                      {locked('hsCode') ? (
+                        <Locked value={formatHsCode(customs.hsCode)} className="font-mono text-xs" />
+                      ) : (
+                        <Controller
+                          control={control}
+                          name={`${base}.hsCode`}
+                          render={({ field }) => <HsCodeSelect id={`hs-${product.id}`} ariaLabel="HS code" value={field.value} onChange={field.onChange} error={e?.hsCode?.message} prefilled={Boolean(customs.hsCode) && customs.hsCode === product.hsCode} />}
+                        />
+                      )}
                     </td>
                     <td className={`${CELL} min-w-[200px]`}>
-                      <Controller
-                        control={control}
-                        name={`${base}.originCountry`}
-                        render={({ field }) => <OriginCountrySelect id={`origin-${product.id}`} ariaLabel="Country of origin" value={field.value} onChange={field.onChange} error={e?.originCountry?.message} prefilled={auto('originCountry')} />}
-                      />
-                      <Message error={e?.originCountry?.message} />
+                      {locked('originCountry') ? (
+                        <Locked value={ORIGIN_COUNTRIES.find((country) => country.code === customs.originCountry)?.name ?? customs.originCountry} />
+                      ) : (
+                        <Controller
+                          control={control}
+                          name={`${base}.originCountry`}
+                          render={({ field }) => <OriginCountrySelect id={`origin-${product.id}`} ariaLabel="Country of origin" value={field.value} onChange={field.onChange} error={e?.originCountry?.message} prefilled={auto('originCountry')} />}
+                        />
+                      )}
                     </td>
-                    <td className={`${CELL} whitespace-nowrap pt-4`}>{product.weight === null ? '—' : formatWeight(product.weight * weight, UNITS[units].weight)}</td>
+                    <td className={`${CELL} whitespace-nowrap`}>{product.weight === null ? '—' : formatWeight(product.weight * units_, UNITS[units].weight)}</td>
                   </tr>
                 )
               })}

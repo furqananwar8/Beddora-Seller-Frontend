@@ -3,10 +3,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useForm, useWatch, type Resolver } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { useApiFeedback } from '@/hooks/useApiFeedback'
 import { useGetProvincesQuery } from '@/services/api/geo.api'
 import type { LabelFormat, ShipFromOption } from '../types'
 import { convertPackageValue, newShipmentValues, PACKAGE_FIELDS, packageText, type UnitSystem, type WizardStep } from './shipmentForm'
-import { countErrors, toShipmentRequest } from './shipmentRequest'
+import { errorLabels, toShipmentRequest } from './shipmentRequest'
 import { ADDRESS_FIELDS, shipmentSchema, type Lane, type ShipmentFormValues } from './shipmentSchema'
 import { useDraftRates } from './useDraftRates'
 
@@ -86,10 +87,26 @@ export function useShipmentForm(addresses: ShipFromOption[]) {
     refetch()
   }, [refetch])
 
+  /**
+   * "Get rates": moves on to the rates only when nothing blocks it (the ship-from's gaps, `blockedReason` from the
+   * screen) and every field is valid. Otherwise says so in a toast; the invalid fields are marked on the form.
+   */
+  const { error: toastError } = useApiFeedback()
+  const goToRates = useCallback(
+    async (blockedReason?: string) => {
+      if (shipFrom?.missing.length) return toastError(`Can't ship from ${shipFrom.label} yet. Add: ${shipFrom.missing.join(', ')}`)
+      if (blockedReason) return toastError(blockedReason)
+      if (!(await trigger())) return toastError(`Fill the highlighted fields: ${errorLabels(form.formState.errors).join(', ')}`)
+      setStep(2)
+    },
+    [shipFrom, toastError, trigger, form.formState]
+  )
+
   /** Moves on from the Address step only when its fields are valid. */
   const continueFromAddress = useCallback(async () => {
     if (await trigger([...ADDRESS_FIELDS])) setStep(1)
-  }, [trigger])
+    else toastError(`Fill the highlighted fields: ${errorLabels(form.formState.errors).join(', ')}`)
+  }, [trigger, toastError, form.formState])
 
   /** Loads a prefilled draft (a channel order) and flags whatever it still lacks. */
   const load = useCallback(
@@ -120,9 +137,9 @@ export function useShipmentForm(addresses: ShipFromOption[]) {
     setLabelFormat,
     shipFrom,
     crossBorder,
-    errorCount: countErrors(formState.errors),
     changeUnits,
     continueFromAddress,
+    goToRates,
     load,
     startOver,
     stream,

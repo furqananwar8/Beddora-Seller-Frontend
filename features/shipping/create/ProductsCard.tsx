@@ -66,7 +66,6 @@ export const ProductsCard: React.FC = () => {
         emptyText="No product matches."
         error={listError}
       />
-      {listError && <p className="mt-1 text-xs text-danger-600">{listError}</p>}
 
       {fields.length > 0 && (
         <div className="mt-3 overflow-x-auto">
@@ -101,7 +100,6 @@ export const ProductsCard: React.FC = () => {
                         name={`products.${index}.quantity`}
                         render={({ field }) => <NumericInput aria-label={`Quantity of ${product.name}`} value={field.value} onChange={(event) => field.onChange(event.target.value)} onBlur={field.onBlur} className={numberField(error)} />}
                       />
-                      {error && <p className="mt-1 text-xs text-danger-600">{error}</p>}
                     </td>
                     <td className={`${CELL} whitespace-nowrap`}>{formatWeight(product.weight, UNITS[units].weight)}</td>
                     <td className={`${CELL} text-right`}>

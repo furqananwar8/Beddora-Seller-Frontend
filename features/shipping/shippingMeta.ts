@@ -6,6 +6,8 @@ export const SHIPPING_BASE = '/dashboard/shipping'
 export const BOOKINGS_HREF = `${SHIPPING_BASE}/bookings`
 export const CREATE_HREF = `${SHIPPING_BASE}/create`
 export const ORDERS_HREF = `${SHIPPING_BASE}/orders`
+/** Where a marketplace SKU is bound to one of our products. */
+export const SKU_MAPPER_HREF = '/dashboard/inventory/sku-mapping'
 /** Rates › Booking for one channel order. */
 export const bookOrderHref = ({ channel, market, orderId }: ChannelOrderRef) => `${ORDERS_HREF}/book?${new URLSearchParams({ channel, market, orderId }).toString()}`
 /** The Orders list searched for one order. */

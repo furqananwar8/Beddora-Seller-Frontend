@@ -2,7 +2,7 @@ import type { FieldErrors } from 'react-hook-form'
 import { toInternational } from '@/components/phone-field/PhoneField'
 import { kgTo } from '@/features/procurement/shared/units'
 import type { CustomsLine, ShipFromOption, ShipmentRequest } from '../types'
-import { isUnmapped, numberOf, UNITS } from './shipmentForm'
+import { numberOf, UNITS } from './shipmentForm'
 import type { ShipmentFormValues } from './shipmentSchema'
 
 export const isCrossBorder = (values: Pick<ShipmentFormValues, 'shipTo'>, from: ShipFromOption | undefined) =>
@@ -18,13 +18,49 @@ export function countErrors(errors: FieldErrors | undefined): number {
   }, 0)
 }
 
+const FIELD_LABEL: Record<string, string> = {
+  shipFromId: 'Ship from address',
+  name: 'Full name',
+  address1: 'Address line 1',
+  city: 'City',
+  postalCode: 'Postal code',
+  country: 'Country',
+  province: 'Province / state',
+  phone: 'Phone',
+  email: 'Email',
+  products: 'Products',
+  quantity: 'Quantity',
+  description: 'Description',
+  unitValue: 'Unit value',
+  hsCode: 'HS code',
+  originCountry: 'Country of origin',
+  length: 'Length',
+  width: 'Width',
+  height: 'Height',
+  weight: 'Weight',
+  pickupDate: 'Pickup date',
+  insurance: 'Insurance',
+  reference: 'Reference',
+}
+
+/** The names of the fields with an error, once each, in form order ("Full name", "Phone"): what a toast lists. */
+export function errorLabels(errors: FieldErrors | undefined, key = ''): string[] {
+  if (!errors) return []
+  const labels = Object.entries(errors).flatMap(([name, node]) => {
+    if (!node || typeof node !== 'object') return []
+    if ('message' in node && typeof node.message === 'string') return [FIELD_LABEL[name] ?? FIELD_LABEL[key] ?? name]
+    return errorLabels(node as FieldErrors, name)
+  })
+  return [...new Set(labels)]
+}
+
 /** The form as the rate request. Call once it is valid. */
 export function toShipmentRequest(values: ShipmentFormValues): ShipmentRequest {
   const { shipTo } = values
   const units = UNITS[values.units]
   const blank = (value: string) => value.trim() || null
   const items: CustomsLine[] = values.products.map(({ product, quantity, customs }) => ({
-    productId: isUnmapped(product) ? null : product.id,
+    productId: product.id,
     sku: product.sku,
     description: customs.description.trim(),
     quantity: numberOf(quantity) ?? 1,

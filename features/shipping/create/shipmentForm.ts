@@ -26,7 +26,10 @@ export const ORIGIN_COUNTRIES = [
   { code: 'US', name: 'United States' },
 ] as const
 export const DEFAULT_ORIGIN = 'CA'
-const isOrigin = (code: string | null | undefined): code is string => ORIGIN_COUNTRIES.some((country) => country.code === code)
+
+/** What the booking API accepts for a customs line's description; a marketplace title is cut to it. */
+export const CUSTOMS_DESCRIPTION_MAX = 120
+export const isOrigin = (code: string | null | undefined): code is string => ORIGIN_COUNTRIES.some((country) => country.code === code)
 
 export const EMPTY_SHIP_TO: ShipToValues = {
   name: '',
@@ -91,12 +94,6 @@ export function convertPackageValue(field: PackageField, value: string, from: Un
   return String(field === 'weight' ? convertWeight(parsed, UNITS[from].weight, UNITS[to].weight) : convertLength(parsed, UNITS[from].length, UNITS[to].length))
 }
 
-/**
- * A channel-order SKU not mapped to one of our products stands in as a product with a negative id and no data.
- * Booking waits until it is mapped, so it is never sent as a parcel line.
- */
-export const isUnmapped = (product: ShippingProduct) => product.id < 0
-
 /** A customs line prefilled from the product: its own HS code, else the last booked, else its category's; origin Canada unless the USA is on record. */
 export const customsFromProduct = (product: ShippingProduct): CustomsValues => ({
   description: product.description || [product.name, product.variantName].filter(Boolean).join(' — '),
@@ -122,5 +119,25 @@ export function isFromProduct(product: ShippingProduct, line: CustomsValues, fie
       return Boolean(product.originCountry) && line.originCountry === product.originCountry
     case 'currency':
       return product.currency !== null && line.currency === product.currency
+  }
+}
+
+/**
+ * Whether a customs value of a row built from a channel order can't be edited: the order gives the description,
+ * unit value and (when CAD or USD) currency; the product gives the HS code and origin when it has them. Rows
+ * picked by hand (no order lines behind them) are always editable.
+ */
+export function isLocked(line: ProductLine, field: keyof CustomsValues): boolean {
+  if (!line.sources?.length) return false
+  switch (field) {
+    case 'description':
+    case 'unitValue':
+      return true
+    case 'currency':
+      return line.sources.every((source) => source.currency !== null)
+    case 'hsCode':
+      return Boolean(line.product.hsCode)
+    case 'originCountry':
+      return isOrigin(line.product.originCountry)
   }
 }

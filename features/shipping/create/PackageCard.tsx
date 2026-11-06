@@ -50,7 +50,7 @@ export const PackageCard: React.FC<PackageCardProps> = ({ onUnitsChange }) => {
             {PACKAGE_FIELDS.map((field) => {
               const error = errors.pkg?.[field]?.message
               return (
-                <FormField key={field} label={`${LABEL[field]} (${(field === 'weight' ? unit.weight : unit.length).toLowerCase()})`} htmlFor={`pkg-${field}`} required error={error}>
+                <FormField key={field} label={`${LABEL[field]} (${(field === 'weight' ? unit.weight : unit.length).toLowerCase()})`} htmlFor={`pkg-${field}`} required>
                   <Controller
                     control={control}
                     name={`pkg.${field}`}

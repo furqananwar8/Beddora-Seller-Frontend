@@ -1,7 +1,19 @@
 import { z } from 'zod'
 import { isValidPhone } from '@/components/phone-field/PhoneField'
-import type { ShippingProduct } from '../types'
+import type { CustomsCurrency, ShippingProduct } from '../types'
+import { CUSTOMS_DESCRIPTION_MAX } from './shipmentForm'
 
+/** One channel order line behind a product row: the marketplace's SKU, and how many of our units one ordered item stands for. */
+export interface OrderLineSource {
+  sku: string
+  name: string
+  /** Ordered items on this line. */
+  items: number
+  /** Our units in one ordered item (bundles). */
+  unitsPerItem: number
+  /** The order's currency when it is CAD or USD, else null. */
+  currency: CustomsCurrency | null
+}
 /** What the lane the parcel travels needs: customs fields cross-border, a province where the country lists them. */
 export interface Lane {
   crossBorder: boolean
@@ -21,7 +33,7 @@ const positive = (message: string) => z.string().refine((value) => value.trim() 
 const customsSchema = (lane: Lane) =>
   z
     .object({
-      description: required('Description is required'),
+      description: required('Description is required').max(CUSTOMS_DESCRIPTION_MAX, `${CUSTOMS_DESCRIPTION_MAX} characters at most`),
       unitValue: positive('Unit value is required'),
       currency: z.enum(['CAD', 'USD']),
       hsCode: z.string().trim(),
@@ -39,6 +51,8 @@ const customsSchema = (lane: Lane) =>
 const productLineSchema = (lane: Lane) =>
   z.object({
     product: z.custom<ShippingProduct>(),
+    /** Set on rows built from a channel order: they show the marketplace's SKU and their order-given values are read-only. */
+    sources: z.array(z.custom<OrderLineSource>()).optional(),
     quantity: z.string().refine((value) => Number.isInteger(Number(value)) && Number(value) >= 1 && value.trim() !== '', 'Whole number, 1 or more'),
     customs: customsSchema(lane),
   })

@@ -34,7 +34,7 @@ export const shippingApi = baseApi.injectEndpoints({
     getShipFromOptions: builder.query<ShipFromOption[], void>({
       query: () => '/shipping/ship-from',
       transformResponse: (response: Envelope<ShipFromOption[]>) => unwrap(response),
-      providesTags: ['ShipFromAddresses', 'Warehouses'],
+      providesTags: ['ShipFromAddresses', 'Warehouses', 'CompanyDetails'],
     }),
     /** The HS codes we ship under (the Customs lines dropdown). */
     getHsCodes: builder.query<HsCodeOption[], void>({

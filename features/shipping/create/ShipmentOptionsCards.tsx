@@ -39,7 +39,7 @@ export const ShipmentOptionsCards: React.FC<ShipmentOptionsCardsProps> = ({ dest
       )}
 
       <SectionCard title="Pickup" subtitle="the carrier collects the parcel">
-        <FormField label="Pickup date" htmlFor="pickup-date" required error={errors.pickupDate?.message}>
+        <FormField label="Pickup date" htmlFor="pickup-date" required>
           <Controller
             control={control}
             name="pickupDate"
@@ -54,14 +54,14 @@ export const ShipmentOptionsCards: React.FC<ShipmentOptionsCardsProps> = ({ dest
             <input type="checkbox" className="h-4 w-4 accent-primary-600" {...register('signature')} />
             Signature required
           </label>
-          <FormField label="Insurance (CAD)" htmlFor="insurance" error={errors.insurance?.message} hint="Leave blank for none">
+          <FormField label="Insurance (CAD)" htmlFor="insurance" hint="Leave blank for none">
             <Controller
               control={control}
               name="insurance"
               render={({ field }) => <NumericInput id="insurance" decimal value={field.value} onChange={(event) => field.onChange(event.target.value)} onBlur={field.onBlur} placeholder="0.00" className={numberField(errors.insurance?.message)} />}
             />
           </FormField>
-          <FormField label="Reference" htmlFor="reference" error={errors.reference?.message} hint="Marketplace order no.">
+          <FormField label="Reference" htmlFor="reference" hint="Marketplace order no.">
             <input id="reference" maxLength={50} placeholder="e.g. SHOP-#10482" className={shippingField(errors.reference?.message)} {...register('reference')} />
           </FormField>
         </div>

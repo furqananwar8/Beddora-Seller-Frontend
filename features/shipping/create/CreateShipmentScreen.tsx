@@ -12,6 +12,7 @@ import type { ParcelShipmentDto } from '../types'
 import { AddressStep, defaultShipFrom } from './AddressStep'
 import { BookingConfirmed } from './BookingConfirmed'
 import { BookingStep } from './BookingStep'
+import { ProductsCard } from './ProductsCard'
 import { RatesStep } from './RatesStep'
 import { UNITS, type WizardStep } from './shipmentForm'
 import { ShipmentStep } from './ShipmentStep'
@@ -67,9 +68,9 @@ export const CreateShipmentScreen: React.FC = () => {
       {step === 1 && (
         <ShipmentStep
           lane={crossBorder ? `${shipFrom?.countryCode} → ${values.shipTo.address.country}` : null}
-          errorCount={wizard.errorCount}
+          products={<ProductsCard />}
           onUnitsChange={wizard.changeUnits}
-          onGetRates={() => setStep(2)}
+          onGetRates={() => void wizard.goToRates()}
           onBack={() => setStep(0)}
         />
       )}

@@ -1,16 +1,16 @@
 'use client'
 
-import React from 'react'
+import React, { useState } from 'react'
 import Link from 'next/link'
 import { Controller, useFormContext } from 'react-hook-form'
 import { AddressFields } from '@/components/address-fields/AddressFields'
 import { FormField, fieldClass } from '@/components/form-field/FormField'
 import { PhoneField } from '@/components/phone-field/PhoneField'
 import { SearchableSelect } from '@/components/searchable-select/SearchableSelect'
-import { SegmentedToggle } from '@/components/segmented-toggle/SegmentedToggle'
 import { Button } from '@/design-system/buttons'
 import type { ShipFromOption } from '../types'
 import { SectionCard } from '../shared/Card'
+import { ShipFromFixModal } from '../shared/ShipFromFixModal'
 import { isCrossBorder } from './shipmentRequest'
 import type { ShipmentFormValues } from './shipmentSchema'
 import { WizardFooter } from './WizardFooter'
@@ -23,11 +23,6 @@ interface AddressStepProps {
   /** Validates the address fields and moves on when they are fine. */
   onContinue: () => void
 }
-
-const RESIDENTIAL_OPTIONS = [
-  { value: 'RESIDENTIAL' as const, label: 'Residential' },
-  { value: 'BUSINESS' as const, label: 'Business' },
-]
 
 /** The ship-from picked up front: the first warehouse, else the default saved address, else the only option. */
 export const defaultShipFrom = (options: ShipFromOption[]): ShipFromOption | undefined =>
@@ -57,10 +52,12 @@ export const ShipFromSection: React.FC<{ addresses: ShipFromOption[]; loadingAdd
     control,
     formState: { errors },
   } = useFormContext<ShipmentFormValues>()
+  const [fixing, setFixing] = useState(false)
+  // Invalid is marked on the field; what is wrong is said in a toast when the user moves on
   const error = errors.shipFromId?.message
   return (
     <SectionCard title="Ship from" subtitle="saved addresses and warehouses">
-      <FormField label="Address" htmlFor="ship-from" required error={error}>
+      <FormField label="Address" htmlFor="ship-from" required>
         <Controller
           control={control}
           name="shipFromId"
@@ -82,6 +79,12 @@ export const ShipFromSection: React.FC<{ addresses: ShipFromOption[]; loadingAdd
         />
       </FormField>
       {shipFrom && <ShipFromCard address={shipFrom} />}
+      {shipFrom && shipFrom.fix.length > 0 && (
+        <Button variant="outline" size="sm" className="mt-3" onClick={() => setFixing(true)}>
+          Complete ship-from details
+        </Button>
+      )}
+      <ShipFromFixModal address={fixing ? (shipFrom ?? null) : null} onClose={() => setFixing(false)} />
       <p className="mt-3 text-xs text-text-muted">
         Manage them in{' '}
         <Link href="/dashboard/settings/addresses" className="text-primary-600 hover:underline">
@@ -96,7 +99,7 @@ export const ShipFromSection: React.FC<{ addresses: ShipFromOption[]; loadingAdd
   )
 }
 
-/** The customer's address, phone and email, residential or business; prefilled from a channel order. */
+/** The customer's (residential) address, phone and email; prefilled from a channel order. Invalid fields are only marked: the toast on submit names them. */
 export const ShipToSection: React.FC = () => {
   const {
     register,
@@ -107,27 +110,15 @@ export const ShipToSection: React.FC = () => {
   } = useFormContext<ShipmentFormValues>()
   const e = errors.shipTo
   return (
-    <SectionCard
-      title="Ship to"
-      subtitle="customer"
-      aside={
-        <Controller
-          control={control}
-          name="shipTo.residential"
-          render={({ field }) => (
-            <SegmentedToggle ariaLabel="Residential or business address" value={field.value ? 'RESIDENTIAL' : 'BUSINESS'} onChange={(value) => field.onChange(value === 'RESIDENTIAL')} options={RESIDENTIAL_OPTIONS} />
-          )}
-        />
-      }
-    >
+    <SectionCard title="Ship to" subtitle="customer">
       <div className="grid gap-3 sm:grid-cols-2">
-        <FormField label="Full name" htmlFor="ship-to-name" required error={e?.name?.message}>
+        <FormField label="Full name" htmlFor="ship-to-name" required>
           <input id="ship-to-name" autoComplete="off" className={fieldClass(e?.name?.message)} {...register('shipTo.name')} />
         </FormField>
         <FormField label="Company" htmlFor="ship-to-company">
           <input id="ship-to-company" autoComplete="off" placeholder="Optional" className={fieldClass()} {...register('shipTo.company')} />
         </FormField>
-        <FormField label="Address line 1" htmlFor="ship-to-address1" required error={e?.address1?.message}>
+        <FormField label="Address line 1" htmlFor="ship-to-address1" required>
           <input id="ship-to-address1" autoComplete="off" className={fieldClass(e?.address1?.message)} {...register('shipTo.address1')} />
         </FormField>
         <FormField label="Address line 2" htmlFor="ship-to-address2">
@@ -146,14 +137,15 @@ export const ShipToSection: React.FC = () => {
                 if (address.country !== field.value.country && (!phone.country || phone.country === field.value.country)) setValue('shipTo.phone', { ...phone, country: address.country }, { shouldValidate: true })
                 field.onChange(address)
               }}
+              quietErrors
               errors={{ country: e?.address?.country?.message, province: e?.address?.province?.message, city: e?.address?.city?.message, postalCode: e?.address?.postalCode?.message }}
             />
           )}
         />
-        <FormField label="Phone" htmlFor="ship-to-phone-number" required error={e?.phone?.message} hint="The calling code follows the country">
+        <FormField label="Phone" htmlFor="ship-to-phone-number" required hint="The calling code follows the country">
           <Controller control={control} name="shipTo.phone" render={({ field }) => <PhoneField idPrefix="ship-to-phone" value={field.value} onChange={field.onChange} error={e?.phone?.message} />} />
         </FormField>
-        <FormField label="Email" htmlFor="ship-to-email" error={e?.email?.message} hint="Used for carrier delivery notifications">
+        <FormField label="Email" htmlFor="ship-to-email" hint="Used for carrier delivery notifications">
           <input id="ship-to-email" autoComplete="off" className={fieldClass(e?.email?.message)} {...register('shipTo.email')} />
         </FormField>
       </div>
@@ -163,12 +155,8 @@ export const ShipToSection: React.FC = () => {
 
 /** Step 1: where the parcel ships from (saved addresses) and to (the customer). Errors show once Continue is pressed. */
 export const AddressStep: React.FC<AddressStepProps> = ({ addresses, loadingAddresses, shipFrom, onCancel, onContinue }) => {
-  const {
-    watch,
-    formState: { errors },
-  } = useFormContext<ShipmentFormValues>()
+  const { watch } = useFormContext<ShipmentFormValues>()
   const shipTo = watch('shipTo')
-  const problems = Object.keys(errors).length
 
   return (
     <>
@@ -190,7 +178,6 @@ export const AddressStep: React.FC<AddressStepProps> = ({ addresses, loadingAddr
             Cancel
           </Button>
         }
-        hint={problems > 0 ? 'Fill the highlighted fields to continue' : undefined}
       >
         <Button onClick={onContinue}>Continue to Shipment Info</Button>
       </WizardFooter>

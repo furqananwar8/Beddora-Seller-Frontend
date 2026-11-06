@@ -1,30 +1,9 @@
 import { fromInternational } from '@/components/phone-field/PhoneField'
-import { customsFromProduct, EMPTY_SHIP_TO, newShipmentValues, productLine, type ProductLine, type ShipToValues } from '../create/shipmentForm'
-import type { ShipmentFormValues } from '../create/shipmentSchema'
-import type { ChannelOrderDetail, ChannelOrderDetailLine, ShipAddress, ShippingProduct } from '../types'
+import { CUSTOMS_DESCRIPTION_MAX, customsFromProduct, EMPTY_SHIP_TO, isOrigin, newShipmentValues, type ProductLine, type ShipToValues } from '../create/shipmentForm'
+import type { OrderLineSource, ShipmentFormValues } from '../create/shipmentSchema'
+import type { ChannelOrderDetail, ChannelOrderDetailLine, CustomsCurrency, ShipAddress } from '../types'
 
-/** The stand-in for a SKU not mapped to our products (see `isUnmapped`): nothing known but its name and SKU. */
-const unmappedProduct = (line: ChannelOrderDetailLine, index: number): ShippingProduct => ({
-  id: -(index + 1),
-  sku: line.sku,
-  name: line.productName,
-  variantName: null,
-  upc: null,
-  hasPhoto: false,
-  weight: null,
-  weightUnit: 'KG',
-  length: null,
-  width: null,
-  height: null,
-  dimensionUnit: 'CM',
-  description: line.productName,
-  categoryName: null,
-  hsCode: null,
-  originCountry: null,
-  unitValue: null,
-  currency: null,
-})
-
+/** Ship-to addresses are always residential: marketplace parcels go to the buyer's door. */
 const shipToFrom = (address: ShipAddress | null): ShipToValues =>
   address
     ? {
@@ -35,38 +14,54 @@ const shipToFrom = (address: ShipAddress | null): ShipToValues =>
         email: address.email ?? '',
         address: { country: address.country, province: address.province, city: address.city, postalCode: address.postalCode },
         phone: fromInternational(address.phone, address.country),
-        residential: address.residential,
+        residential: true,
       }
     : EMPTY_SHIP_TO
 
-/** Customs from the product; without a value on record, what the customer paid for it on this order. */
-function customsFromOrder(product: ShippingProduct, detail: ChannelOrderDetail): ProductLine['customs'] {
-  const customs = customsFromProduct(product)
-  const line = detail.lines.find((candidate) => (candidate.product?.id ?? null) === (product.id > 0 ? product.id : null) && candidate.unitPrice != null)
-  if (customs.unitValue || !line?.unitPrice) return customs
-  const currency = line.currency === 'CAD' || line.currency === 'USD' ? line.currency : customs.currency
-  return { ...customs, unitValue: String(line.unitPrice), currency }
+const currencyOf = (line: ChannelOrderDetailLine): CustomsCurrency | null => (line.currency === 'CAD' || line.currency === 'USD' ? line.currency : null)
+
+/** The order's lines that aren't mapped to one of our products: they must be mapped in the SKU Mapper before booking. */
+export const unmappedLines = (detail: ChannelOrderDetail): ChannelOrderDetailLine[] => {
+  const seen = new Set<string>()
+  return detail.lines.filter((line) => !line.product && !seen.has(line.sku) && seen.add(line.sku))
 }
 
 /**
- * A channel order as the form's values, for review before rates: its ship-to (editable), one product per mapped
- * product (units = quantity × units per item, summed when a bundle repeats a product) and one stand-in per
- * unmapped SKU, which blocks booking until it is mapped. The package fills itself from the products.
+ * A mapped order line's customs: what the order says (its title, the price paid per unit and currency), the
+ * product's HS code and origin when it has them (else left empty to be picked: no guessing the country).
+ */
+function customsFromOrder(line: ChannelOrderDetailLine): ProductLine['customs'] {
+  const product = line.product!
+  const fromProduct = customsFromProduct(product)
+  return {
+    description: (line.productName || fromProduct.description).slice(0, CUSTOMS_DESCRIPTION_MAX).trimEnd(),
+    unitValue: line.unitPrice != null ? String(line.unitPrice) : fromProduct.unitValue,
+    currency: currencyOf(line) ?? fromProduct.currency,
+    hsCode: product.hsCode ?? '',
+    originCountry: isOrigin(product.originCountry) ? product.originCountry : '',
+  }
+}
+
+/**
+ * A channel order as the form's values, for review before rates: its ship-to (editable) and one row per product
+ * the order's SKUs map to (units = ordered items × our units per item, summed when several lines map to the same
+ * product). SKUs with no mapping aren't rows; see `unmappedLines`. The package fills itself from the products.
  */
 export function valuesFromOrder(detail: ChannelOrderDetail, shipFromId: string): ShipmentFormValues {
-  const picked = new Map<number, ProductLine>()
-  detail.lines.forEach((line, index) => {
-    const product = line.product ?? unmappedProduct(line, index)
-    const units = line.quantity * (line.product ? line.unitsPerItem : 1)
-    const current = picked.get(product.id)
-    const base = current ?? { ...productLine(product), customs: customsFromOrder(product, detail) }
-    picked.set(product.id, { ...base, quantity: String((current ? Number(current.quantity) : 0) + units) })
-  })
+  const rows = new Map<number, ProductLine>()
+  for (const line of detail.lines) {
+    if (!line.product) continue
+    const source: OrderLineSource = { sku: line.sku, name: line.productName, items: line.quantity, unitsPerItem: line.unitsPerItem, currency: currencyOf(line) }
+    const units = line.quantity * line.unitsPerItem
+    const row = rows.get(line.product.id)
+    if (row) rows.set(line.product.id, { ...row, quantity: String(Number(row.quantity) + units), sources: [...(row.sources ?? []), source] })
+    else rows.set(line.product.id, { product: line.product, quantity: String(units), customs: customsFromOrder(line), sources: [source] })
+  }
   return {
     ...newShipmentValues(),
     shipFromId,
     shipTo: shipToFrom(detail.shipTo),
-    products: [...picked.values()],
+    products: [...rows.values()],
     reference: (detail.order.customerOrderId ?? detail.order.orderId).slice(0, 50),
   }
 }

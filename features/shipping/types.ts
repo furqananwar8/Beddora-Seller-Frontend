@@ -96,7 +96,12 @@ export interface ShipFromOption extends SavedShipFromAddress {
   kind: 'address' | 'warehouse'
   /** What carriers need that the place lacks, and where to add it; such a place can't be quoted. */
   missing: string[]
+  /** The same gaps as fields the screen can fill in place. */
+  fix: ShipFromFix[]
 }
+
+/** A ship-from detail carriers need: the company's name or phone (Settings › Company), or a warehouse's postal code. */
+export type ShipFromFix = 'companyName' | 'companyPhone' | 'postalCode'
 
 /** An HS code we ship under, for the customs lines' dropdown. */
 export interface HsCodeOption {

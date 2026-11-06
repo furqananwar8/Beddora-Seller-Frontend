@@ -20,6 +20,8 @@ interface AddressFieldsProps {
   value: AddressValue
   onChange: (next: AddressValue) => void
   errors?: AddressErrors
+  /** Mark the invalid fields (red border) without the message under them; the form reports them another way (a toast). */
+  quietErrors?: boolean
   disabled?: boolean
 }
 
@@ -39,7 +41,7 @@ export function useCitySearch(country: string, province?: string) {
  * the level above it, and changing a level clears the levels below it. The server checks
  * the same chain, so this is guidance, not the guard.
  */
-export const AddressFields: React.FC<AddressFieldsProps> = ({ idPrefix, value, onChange, errors = {}, disabled }) => {
+export const AddressFields: React.FC<AddressFieldsProps> = ({ idPrefix, value, onChange, errors = {}, quietErrors, disabled }) => {
   const { data: countries = [], isLoading: loadingCountries } = useGetCountriesQuery()
   const { data: provinceList, isFetching: loadingProvinces } = useGetProvincesQuery(value.country, { skip: !value.country })
   const provinces = provinceList?.provinces ?? []
@@ -53,10 +55,11 @@ export const AddressFields: React.FC<AddressFieldsProps> = ({ idPrefix, value, o
   const typedCity = !cityLocked && cityLookup.freeText
 
   const set = (patch: Partial<AddressValue>) => onChange({ ...value, ...patch })
+  const message = (field: keyof AddressValue) => (quietErrors ? undefined : errors[field])
 
   return (
     <>
-      <FormField label="Country" htmlFor={`${idPrefix}-country`} error={errors.country}>
+      <FormField label="Country" htmlFor={`${idPrefix}-country`} error={message('country')}>
         <SearchableSelect<GeoCountry>
           id={`${idPrefix}-country`}
           value={country ?? (value.country ? { code: value.country, name: value.country, currency: null } : null)}
@@ -75,7 +78,7 @@ export const AddressFields: React.FC<AddressFieldsProps> = ({ idPrefix, value, o
       <FormField
         label="Province / state"
         htmlFor={`${idPrefix}-province`}
-        error={errors.province}
+        error={message('province')}
         hint={value.country && !loadingProvinces && !needsProvince ? 'No provinces listed for this country' : undefined}
       >
         <SearchableSelect<GeoProvince>
@@ -93,7 +96,7 @@ export const AddressFields: React.FC<AddressFieldsProps> = ({ idPrefix, value, o
         />
       </FormField>
 
-      <FormField label="City" htmlFor={`${idPrefix}-city`} error={errors.city}>
+      <FormField label="City" htmlFor={`${idPrefix}-city`} error={message('city')}>
         {typedCity ? (
           <input
             id={`${idPrefix}-city`}
@@ -125,7 +128,7 @@ export const AddressFields: React.FC<AddressFieldsProps> = ({ idPrefix, value, o
       </FormField>
 
       {/* Free text: postal formats vary too much to check, and it does not depend on the country */}
-      <FormField label="Postal code" htmlFor={`${idPrefix}-postal`} error={errors.postalCode}>
+      <FormField label="Postal code" htmlFor={`${idPrefix}-postal`} error={message('postalCode')}>
         <input
           id={`${idPrefix}-postal`}
           autoComplete="off"

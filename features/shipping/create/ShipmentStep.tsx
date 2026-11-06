@@ -1,24 +1,22 @@
 'use client'
 
 import React from 'react'
-import { useFormContext } from 'react-hook-form'
+import { useFormContext, useWatch } from 'react-hook-form'
 import { Button } from '@/design-system/buttons'
 import { CustomsCard } from './CustomsCard'
 import { PackageCard } from './PackageCard'
-import { ProductsCard } from './ProductsCard'
 import type { UnitSystem } from './shipmentForm'
-import type { ShipmentFormValues } from './shipmentSchema'
 import { ShipmentOptionsCards } from './ShipmentOptionsCards'
 import { WizardFooter } from './WizardFooter'
+import type { ShipmentFormValues } from './shipmentSchema'
 
 interface ShipmentStepProps {
+  /** The products card: the catalogue picker (Create shipment) or the order's lines (Book order). */
+  products: React.ReactNode
   /** "CA → US" when cross-border, else null. */
   lane: string | null
-  /** Fields with an error, in the whole form. */
-  errorCount: number
   onUnitsChange: (units: UnitSystem) => void
-  /** Why booking can't go on regardless of the fields (e.g. an unmapped SKU); shown in the footer. */
-  blockedReason?: React.ReactNode
+  /** "Get rates" is always available; the screen's gate validates and toasts what is wrong. */
   onGetRates: () => void
   /** The footer's Back. */
   onBack: () => void
@@ -26,28 +24,17 @@ interface ShipmentStepProps {
 }
 
 /**
- * Step 2: products, the carton, customs lines and options. Required values the product master didn't supply are
- * flagged straight away, and "Get rates" waits until they are filled.
+ * Step 2: products, the carton, customs lines and options. Invalid fields are marked on the form and "Get rates"
+ * explains what is missing in a toast when pressed, instead of staying disabled.
  */
-export const ShipmentStep: React.FC<ShipmentStepProps> = ({ lane, errorCount, onUnitsChange, blockedReason, onGetRates, onBack, backLabel = 'Back' }) => {
-  const {
-    watch,
-    formState: { isValid },
-  } = useFormContext<ShipmentFormValues>()
-  const [products, country] = [watch('products'), watch('shipTo.address.country')]
-  const hint =
-    products.length === 0
-      ? 'Add a product to get rates'
-      : blockedReason
-        ? blockedReason
-        : !isValid
-          ? `Fill the ${errorCount || ''} highlighted ${errorCount === 1 ? 'field' : 'fields'} to get rates`.replace('  ', ' ')
-          : undefined
+export const ShipmentStep: React.FC<ShipmentStepProps> = ({ products, lane, onUnitsChange, onGetRates, onBack, backLabel = 'Back' }) => {
+  const { control } = useFormContext<ShipmentFormValues>()
+  const country = useWatch({ control, name: 'shipTo.address.country' })
 
   return (
     <div className="space-y-4">
       <div className="grid gap-4 xl:grid-cols-2">
-        <ProductsCard />
+        {products}
         <PackageCard onUnitsChange={onUnitsChange} />
       </div>
       <CustomsCard lane={lane} />
@@ -59,11 +46,8 @@ export const ShipmentStep: React.FC<ShipmentStepProps> = ({ lane, errorCount, on
             {backLabel}
           </Button>
         }
-        hint={hint && <span className="text-danger-600">{hint}</span>}
       >
-        <Button disabled={Boolean(hint)} onClick={onGetRates}>
-          Get rates
-        </Button>
+        <Button onClick={onGetRates}>Get rates</Button>
       </WizardFooter>
     </div>
   )
