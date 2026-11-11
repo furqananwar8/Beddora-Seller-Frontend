@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect } from 'react'
-import { useFieldArray, useForm } from 'react-hook-form'
+import { useFieldArray, useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Button } from '@/design-system/buttons'
@@ -22,13 +22,22 @@ const valuesOf = (detail: PaymentRequestDetail): FormValues => ({
   lines: detail.lines.map((line) => ({ id: line.id, costCenterId: line.costCenter ? String(line.costCenter.id) : '' })),
 })
 
-/** Admin only: re-books each amount of a request to another expense, whatever its status (paid or not). Amounts never change. */
+/**
+ * Admin only: re-books the amounts of a request to other expenses, whatever its status (paid or not). Amounts never
+ * change. A request split across several expenses lists one per amount, numbered like the request's summary, each
+ * showing what it is booked to now; only the ones picked differently are changed.
+ */
 export const ChangeExpenseDialog: React.FC<{ detail: PaymentRequestDetail; open: boolean; onClose: () => void }> = ({ detail, open, onClose }) => {
   const { success, failure } = useApiFeedback()
   const { data: costCenters, isFetching } = useGetLeafCostCentersQuery(undefined, { skip: !open })
   const [save, { isLoading }] = useChangePaymentRequestExpensesMutation()
   const { control, handleSubmit, reset } = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: valuesOf(detail) })
   const { fields } = useFieldArray({ control, name: 'lines' })
+  const picked = useWatch({ control, name: 'lines' })
+  const initial = valuesOf(detail).lines
+  const changedAt = (index: number) => picked?.[index]?.costCenterId !== initial[index]?.costCenterId
+  const anyChanged = initial.some((_, index) => changedAt(index))
+  const several = detail.lines.length > 1
 
   useEffect(() => {
     if (open) reset(valuesOf(detail))
@@ -47,13 +56,18 @@ export const ChangeExpenseDialog: React.FC<{ detail: PaymentRequestDetail; open:
   return (
     <Modal isOpen={open} onClose={onClose} title="Change expense" size="md" closeOnEscape={!isLoading} className="sm:overflow-visible">
       <form onSubmit={submit} className="flex flex-col gap-4">
-        <p className="text-sm text-text-muted">Moves the amounts of {formatRequestNo(detail.id)} to other expenses. Amounts and payment status stay as they are; the change is recorded on the timeline.</p>
+        <p className="text-sm text-text-muted">
+          Moves the amounts of {formatRequestNo(detail.id)} to other expenses. {several ? 'Pick a different expense only for the ones to change; the others stay as they are. ' : ''}Amounts and payment status stay as they are; the change is recorded on the timeline.
+        </p>
         {fields.map((field, index) => (
-          <div key={field.id} className="flex flex-col gap-1">
-            <p className="text-sm font-medium text-text-primary">
-              {detail.lines.length > 1 ? `Amount ${index + 1} · ` : ''}
-              {formatCurrencyAmount(detail.currency, detail.lines[index]?.amount ?? 0)}
-            </p>
+          <div key={field.id} className="flex flex-col gap-1 rounded-lg border border-border p-3">
+            <div className="flex items-baseline justify-between gap-2">
+              <p className="text-sm font-medium text-text-primary">
+                {several ? `Expense ${index + 1}` : 'Expense'} · {formatCurrencyAmount(detail.currency, detail.lines[index]?.amount ?? 0)}
+              </p>
+              {changedAt(index) && <span className="text-xs font-medium text-primary-600">Will change</span>}
+            </div>
+            <p className="text-xs text-text-muted">Now: {detail.lines[index]?.costCenter?.name ?? detail.expenseType.name}</p>
             <CostCenterField control={control} name={`lines.${index}.costCenterId`} options={costCenters} loading={isFetching} addHref={COST_CENTERS_HREF} />
           </div>
         ))}
@@ -61,7 +75,7 @@ export const ChangeExpenseDialog: React.FC<{ detail: PaymentRequestDetail; open:
           <Button type="button" variant="outline" onClick={onClose} disabled={isLoading}>
             Cancel
           </Button>
-          <Button type="submit" isLoading={isLoading}>
+          <Button type="submit" isLoading={isLoading} disabled={!anyChanged}>
             Save
           </Button>
         </div>
