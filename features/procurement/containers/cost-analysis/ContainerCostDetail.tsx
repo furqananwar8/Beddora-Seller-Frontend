@@ -42,7 +42,7 @@ const ExpenseChips: React.FC<{ container: ContainerCostItem }> = ({ container })
   const other = otherExpenses.approved + otherExpenses.pending
   const notes = [
     other > 0 && `${formatMoney(other)} paid against this container is booked to an L4 not mapped to any column`,
-    currencies.length > 1 && `Mixed currencies (${currencies.join(', ')}) are added as they are`,
+    currencies.length > 1 && `No exchange rate on file for some amounts in ${currencies.join(', ')}: they are added in the currency they were paid in`,
   ].filter((note): note is string => Boolean(note))
   return (
     <div className="flex flex-wrap gap-2.5 pt-1.5">

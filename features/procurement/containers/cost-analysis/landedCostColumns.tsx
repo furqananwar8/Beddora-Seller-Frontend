@@ -2,6 +2,7 @@ import React from 'react'
 import { formatCurrencyAmount } from '@/features/finance/shared/format'
 import type { ContainerCostDetail, CostTotals, SkuCostRow } from '@/services/api/procurement.api'
 import type { CostColumn } from './costColumns'
+import { OriginalAmount } from './OriginalAmount'
 
 /** A SKU of the container with the supplier of the PO it came on. */
 export interface LandedCostRow extends SkuCostRow {
@@ -24,7 +25,22 @@ export const landedCostColumns = (currency: string): CostColumn<LandedCostRow>[]
     { key: 'supplier', header: 'Supplier', align: 'left', cell: (row) => row.supplier },
     { key: 'units', header: 'Units', cell: (row) => qty(row.units), footer: (totals) => qty(totals.units) },
     { key: 'cbm', header: 'Total CBM', cell: (row) => row.cbm.toFixed(2), footer: (totals) => totals.cbm.toFixed(2) },
-    { key: 'fob', header: 'FOB amount', cell: (row) => money(row.cost.goods), footer: (totals) => money(totals.goods) },
+    {
+      key: 'fob',
+      header: 'FOB amount',
+      cell: (row) => (
+        <>
+          {money(row.cost.goods)}
+          <OriginalAmount amounts={row.cost.goodsOriginal} />
+        </>
+      ),
+      footer: (totals) => (
+        <>
+          {money(totals.goods)}
+          <OriginalAmount amounts={totals.goodsOriginal} />
+        </>
+      ),
+    },
     { key: 'allocated', header: 'Allocated exp', cell: (row) => money(allocated(row.cost)), footer: (totals) => money(allocated(totals)) },
     { key: 'landed', header: 'Final landed amount', cell: (row) => <span className="font-semibold">{money(row.cost.total)}</span>, footer: (totals) => money(totals.total) },
   ]

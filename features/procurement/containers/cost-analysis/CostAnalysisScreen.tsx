@@ -15,9 +15,17 @@ import { ContainerCell, skuSummary } from '../list/ContainerCell'
 import { ContainerFilterBar } from '../list/ContainerFilterBar'
 import { useContainerListState } from '../list/useContainerListState'
 import { ContainerCostDetail } from './ContainerCostDetail'
+import { mergeOriginals, OriginalAmount } from './OriginalAmount'
 import { CostMappingModal } from './CostMappingModal'
 
-const money = (container: ContainerCostItem, value: number) => <span className="whitespace-nowrap tabular-nums">{formatCurrencyAmount(container.currency, value)}</span>
+const money = (container: ContainerCostItem, value: number, original?: Record<string, number>) => (
+  <span className="whitespace-nowrap tabular-nums">
+    {formatCurrencyAmount(container.currency, value)}
+    <OriginalAmount amounts={original} />
+  </span>
+)
+/** What the container's expenses were before conversion: the invoices' additional expense and every expense column. */
+const expensesOriginal = (container: ContainerCostItem) => mergeOriginals(container.totals.additionalOriginal, ...Object.values(container.totals.costsOriginal ?? {}))
 const expensesOf = (container: ContainerCostItem) => container.totals.additionalExpense + Object.values(container.totals.costs).reduce((sum, value) => sum + value, 0)
 
 const COLUMNS: TreeColumn<ContainerCostItem>[] = [
@@ -28,8 +36,8 @@ const COLUMNS: TreeColumn<ContainerCostItem>[] = [
     render: (container) => <ContainerCell container={container} detail={skuSummary(container.skuCount, container.totals.units)} />,
   },
   { key: 'cbm', header: 'CBM', render: (container) => <span className="font-mono text-xs">{container.totals.cbm.toFixed(2)}</span> },
-  { key: 'goods', header: 'Goods (FOB)', render: (container) => money(container, container.totals.goods) },
-  { key: 'expenses', header: 'Expenses', render: (container) => money(container, expensesOf(container)) },
+  { key: 'goods', header: 'Goods (FOB)', render: (container) => money(container, container.totals.goods, container.totals.goodsOriginal) },
+  { key: 'expenses', header: 'Expenses', render: (container) => money(container, expensesOf(container), expensesOriginal(container)) },
   { key: 'total', header: 'Landed total', render: (container) => <span className="font-semibold">{money(container, container.totals.total)}</span> },
   { key: 'status', header: 'Status', render: (container) => <ContainerStatusBadge status={container.status} /> },
 ]

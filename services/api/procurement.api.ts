@@ -733,12 +733,18 @@ export interface ContainerParams extends PageParams {
 export type CostBucketKey = 'oceanFreight' | 'trucking' | 'customsDuties' | 'customsBrokerage' | 'penalties'
 export type CostBuckets = Record<CostBucketKey, number>
 
+/** What amounts that were converted into the container's currency were before, per original currency. */
+export type OriginalAmounts = Record<string, number>
+
 export interface CostTotals {
   units: number
   cbm: number
   goods: number
+  goodsOriginal: OriginalAmounts
   additionalExpense: number
+  additionalOriginal: OriginalAmounts
   costs: CostBuckets
+  costsOriginal: Record<CostBucketKey, OriginalAmounts>
   total: number
 }
 
@@ -803,7 +809,18 @@ export interface SkuCostRow {
   cbm: number
   netWeightKg: number
   grossWeightKg: number
-  cost: { fobPrice: number; goods: number; additionalExpense: number; costs: CostBuckets; total: number }
+  cost: {
+    fobPrice: number
+    /** The FOB price as quoted, when it was converted into the container's currency. */
+    fobOriginal: { amount: number; currency: string } | null
+    goods: number
+    goodsOriginal: OriginalAmounts
+    additionalExpense: number
+    additionalOriginal: OriginalAmounts
+    costs: CostBuckets
+    costsOriginal: Record<CostBucketKey, OriginalAmounts>
+    total: number
+  }
 }
 
 export interface ContainerCostDetail extends ContainerCostItem {
