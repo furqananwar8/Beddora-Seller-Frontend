@@ -13,6 +13,8 @@ interface CostTableProps<Row> {
   totals: CostTotals
 }
 
+/** Cells stay on one line (the table scrolls sideways) unless the column says it wraps. */
+const wrapOf = (column: Pick<CostColumn, 'wrap'>) => (column.wrap ? 'min-w-[14rem] whitespace-normal' : 'whitespace-nowrap')
 const alignOf = (column: Pick<CostColumn, 'align'>) => (column.align === 'left' ? 'text-left' : column.align === 'center' ? 'text-center' : 'text-right')
 
 /** A cost table driven by its columns: a row per item, and each column's footer read off the totals. */
@@ -34,7 +36,7 @@ export function CostTable<Row>({ columns, rows, rowKey, totals }: CostTableProps
           {rows.map((row) => (
             <TableRow key={rowKey(row)}>
               {columns.map((column) => (
-                <TableCell key={column.key} className={cn('whitespace-nowrap align-middle tabular-nums', alignOf(column))}>
+                <TableCell key={column.key} className={cn(wrapOf(column), 'align-middle tabular-nums', alignOf(column))}>
                   {column.cell(row)}
                 </TableCell>
               ))}
@@ -44,7 +46,7 @@ export function CostTable<Row>({ columns, rows, rowKey, totals }: CostTableProps
         <tfoot className="border-t-2 border-border bg-secondary-50 font-semibold">
           <TableRow>
             {columns.map((column) => (
-              <TableCell key={column.key} className={cn('whitespace-nowrap align-middle tabular-nums', alignOf(column))}>
+              <TableCell key={column.key} className={cn(wrapOf(column), 'align-middle tabular-nums', alignOf(column))}>
                 {column.footer?.(totals)}
               </TableCell>
             ))}

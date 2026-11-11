@@ -25,7 +25,7 @@ export const landedCostColumns = (currency: string): CostColumn<LandedCostRow>[]
   const money = (value: number) => formatCurrencyAmount(currency, value)
   return [
     { key: 'sku', header: 'SKU code', align: 'center', cell: (row) => <span className="font-mono font-semibold text-text-primary">{row.sku}</span>, footer: () => 'Total' },
-    { key: 'supplier', header: 'Supplier', align: 'center', cell: (row) => row.supplier },
+    { key: 'supplier', header: 'Supplier', align: 'center', wrap: true, cell: (row) => row.supplier },
     { key: 'units', header: 'Units', align: 'center', cell: (row) => qty(row.units), footer: (totals) => qty(totals.units) },
     { key: 'cbm', header: 'Total CBM', align: 'center', cell: (row) => row.cbm.toFixed(2), footer: (totals) => totals.cbm.toFixed(2) },
     {

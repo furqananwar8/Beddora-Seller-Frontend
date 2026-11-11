@@ -13,6 +13,8 @@ export interface CostColumn<Row = SkuCostRow> {
   header: string
   source?: string
   align?: 'left' | 'right' | 'center'
+  /** Lets a long value (a supplier name) wrap onto more lines instead of being cut off with an ellipsis. */
+  wrap?: boolean
   cell: (row: Row) => React.ReactNode
   footer?: (totals: CostTotals) => React.ReactNode
 }
