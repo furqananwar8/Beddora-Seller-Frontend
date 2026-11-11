@@ -58,7 +58,7 @@ export const PartnerTable: React.FC<PartnerTableProps> = ({ rows, isLoading, isF
             </TableHead>
           )}
           <TableHead className={HEAD}>ID</TableHead>
-          <TableHead className={cn(HEAD, 'min-w-[200px] text-left')}>Name</TableHead>
+          <TableHead className={cn(HEAD, 'min-w-[200px]')}>Name</TableHead>
           <TableHead className={HEAD}>Type</TableHead>
           <TableHead className={cn(HEAD, 'min-w-[140px]')}>Contact</TableHead>
           <TableHead className={cn(HEAD, 'min-w-[160px]')}>Location</TableHead>
@@ -101,7 +101,7 @@ export const PartnerTable: React.FC<PartnerTableProps> = ({ rows, isLoading, isF
                 </TableCell>
               )}
               <TableCell className={cn(CELL, 'font-mono text-text-muted')}>{row.code}</TableCell>
-              <TableCell className={cn(CELL, 'text-left font-medium text-text-primary')}>{toProperName(row.name)}</TableCell>
+              <TableCell className={cn(CELL, 'font-medium text-text-primary')}>{toProperName(row.name)}</TableCell>
               <TableCell className={CELL}>{partnerTypeLabel(row.type)}</TableCell>
               <TableCell className={CELL}>{row.contactName || '—'}</TableCell>
               <TableCell className={CELL}>{partnerLocation(row) || '—'}</TableCell>

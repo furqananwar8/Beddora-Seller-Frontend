@@ -12,7 +12,7 @@ export interface CostColumn<Row = SkuCostRow> {
   key: string
   header: string
   source?: string
-  align?: 'left' | 'right'
+  align?: 'left' | 'right' | 'center'
   cell: (row: Row) => React.ReactNode
   footer?: (totals: CostTotals) => React.ReactNode
 }

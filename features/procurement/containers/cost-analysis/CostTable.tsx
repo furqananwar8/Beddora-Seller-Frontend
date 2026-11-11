@@ -13,7 +13,7 @@ interface CostTableProps<Row> {
   totals: CostTotals
 }
 
-const alignOf = (column: Pick<CostColumn, 'align'>) => (column.align === 'left' ? 'text-left' : 'text-right')
+const alignOf = (column: Pick<CostColumn, 'align'>) => (column.align === 'left' ? 'text-left' : column.align === 'center' ? 'text-center' : 'text-right')
 
 /** A cost table driven by its columns: a row per item, and each column's footer read off the totals. */
 export function CostTable<Row>({ columns, rows, rowKey, totals }: CostTableProps<Row>) {
@@ -23,7 +23,7 @@ export function CostTable<Row>({ columns, rows, rowKey, totals }: CostTableProps
         <TableHeader>
           <TableRow>
             {columns.map((column) => (
-              <TableHead key={column.key} className={cn('whitespace-nowrap', alignOf(column))}>
+              <TableHead key={column.key} className={cn('whitespace-nowrap align-middle', alignOf(column))}>
                 {column.source && <span className="block text-[10px] font-normal uppercase tracking-wide text-text-muted">{column.source}</span>}
                 {column.header}
               </TableHead>
@@ -34,7 +34,7 @@ export function CostTable<Row>({ columns, rows, rowKey, totals }: CostTableProps
           {rows.map((row) => (
             <TableRow key={rowKey(row)}>
               {columns.map((column) => (
-                <TableCell key={column.key} className={cn('whitespace-nowrap tabular-nums', alignOf(column))}>
+                <TableCell key={column.key} className={cn('whitespace-nowrap align-middle tabular-nums', alignOf(column))}>
                   {column.cell(row)}
                 </TableCell>
               ))}
@@ -44,7 +44,7 @@ export function CostTable<Row>({ columns, rows, rowKey, totals }: CostTableProps
         <tfoot className="border-t-2 border-border bg-secondary-50 font-semibold">
           <TableRow>
             {columns.map((column) => (
-              <TableCell key={column.key} className={cn('whitespace-nowrap tabular-nums', alignOf(column))}>
+              <TableCell key={column.key} className={cn('whitespace-nowrap align-middle tabular-nums', alignOf(column))}>
                 {column.footer?.(totals)}
               </TableCell>
             ))}

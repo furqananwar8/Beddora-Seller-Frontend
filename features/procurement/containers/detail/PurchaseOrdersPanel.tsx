@@ -3,6 +3,7 @@
 import React from 'react'
 import Link from 'next/link'
 import type { ContainerDetail } from '@/services/api/procurement.api'
+import { toProperName } from '@/utils/format'
 import { formatCurrencyAmount } from '@/features/finance/shared/format'
 import { PaymentBadge } from '../../shared/poMeta'
 import { ViewPoPaymentRequests } from '../../shared/PoPaymentRequests'
@@ -13,6 +14,9 @@ const qty = (value: number) => value.toLocaleString('en-CA')
 const SUMMARY_ROWS = 3
 
 type ContainerPo = ContainerDetail['purchaseOrders'][number]
+
+/** The supplier with each word capitalised, whatever case it was saved in. */
+const supplierOf = (po: ContainerPo) => (po.supplier ? toProperName(po.supplier.name) : '—')
 
 /** Paid against the PO's price; falls back to what was requested when the PO has no rates. */
 function paidPercent(po: ContainerPo): number {
@@ -49,7 +53,7 @@ const Summary: React.FC<{ container: ContainerDetail }> = ({ container }) => {
                 </Link>
                 <PaymentBadge payment={po.payment} />
               </div>
-              <p className="truncate text-xs text-text-muted">{po.supplier?.name ?? '—'}</p>
+              <p className="truncate text-xs text-text-muted">{supplierOf(po)}</p>
               <PaidBar po={po} percent={percent} />
             </li>
           )
@@ -74,7 +78,7 @@ const Details: React.FC<{ container: ContainerDetail }> = ({ container }) => (
                 {po.poNo}
               </Link>
               <p className="text-xs text-text-muted">
-                {po.supplier?.name ?? '—'} · in{' '}
+                {supplierOf(po)} · in{' '}
                 {container.packagingLists
                   .filter((list) => container.lines.some((line) => line.purchaseOrderId === po.id && line.plNo === list.plNo))
                   .map((list, index) => (
