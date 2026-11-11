@@ -34,7 +34,6 @@ export const ShipmentOptionsCards: React.FC<ShipmentOptionsCardsProps> = ({ dest
       {crossBorder && (
         <SectionCard title="Duties & taxes" subtitle={`who pays at the ${destination || 'destination'} border`}>
           <Controller control={control} name="incoterm" render={({ field }) => <RadioCards name="incoterm" ariaLabel="Duties" options={INCOTERMS} value={field.value} onChange={field.onChange} />} />
-          <p className="mt-2 text-xs text-text-muted">Rates that can&apos;t honour the choice are shown as unavailable with the reason.</p>
         </SectionCard>
       )}
 

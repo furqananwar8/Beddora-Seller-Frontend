@@ -1,6 +1,7 @@
 'use client'
 
 import React from 'react'
+import { toProperName } from '@/utils/format'
 import { Modal } from '@/design-system/modals'
 import { Spinner } from '@/design-system/loaders'
 import { StatusBadge } from '@/components/status-badge/StatusBadge'
@@ -45,7 +46,7 @@ export const PaymentDetailModal: React.FC<PaymentDetailModalProps> = ({ docId, o
       ) : (
         <div className="max-h-[70vh] space-y-5 overflow-y-auto pr-1">
           <dl className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3">
-            <Item label="Partner">{data.request.partner.name}</Item>
+            <Item label="Partner">{toProperName(data.request.partner.name)}</Item>
             <Item label="Request">
               {formatRequestNo(data.request.id)} · {data.request.reference.value}
             </Item>

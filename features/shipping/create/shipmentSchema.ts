@@ -1,5 +1,4 @@
 import { z } from 'zod'
-import { isValidPhone } from '@/components/phone-field/PhoneField'
 import type { CustomsCurrency, ShippingProduct } from '../types'
 import { CUSTOMS_DESCRIPTION_MAX } from './shipmentForm'
 
@@ -71,10 +70,8 @@ const shipToSchema = (lane: Lane) =>
         city: required('City is required'),
         postalCode: required('Postal code is required'),
       }),
-      phone: z.object({ country: z.string(), number: z.string() }).superRefine((phone, ctx) => {
-        if (!phone.number) ctx.addIssue({ code: 'custom', message: 'Phone is required' })
-        else if (!isValidPhone(phone)) ctx.addIssue({ code: 'custom', message: 'Not a valid number for this country' })
-      }),
+      // Entered as given (it comes from the order, or is typed in when the marketplace withholds it): only required, not checked against a country's number plan
+      phone: z.object({ country: z.string(), number: z.string() }).refine((phone) => phone.number.trim() !== '', 'Phone is required'),
       residential: z.boolean(),
     })
     .superRefine((shipTo, ctx) => {

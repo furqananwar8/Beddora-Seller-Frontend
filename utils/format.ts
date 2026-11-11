@@ -65,3 +65,6 @@ export const formatMoneyIn = (amount: number, currency?: string): string => {
   const digits = Math.abs(amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
   return `${amount < 0 ? '-' : ''}${symbol} ${digits}`
 }
+
+/** `ACME trading CO` -> `Acme Trading Co`: each word starts with a capital, the rest lower case, whatever was typed. */
+export const toProperName = (value: string): string => value.toLowerCase().replace(/(^|[\s\-/(])(\p{L})/gu, (_match, lead: string, letter: string) => lead + letter.toUpperCase())

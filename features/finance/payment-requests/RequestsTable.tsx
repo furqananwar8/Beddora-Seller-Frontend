@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { StatusBadge } from '@/components/status-badge/StatusBadge'
 import type { PaymentRequestListItem } from '@/services/api/finance.api'
 import { cn } from '@/utils/cn'
+import { toProperName } from '@/utils/format'
 import { formatDay, formatMoney, requestReference } from '../shared/format'
 import { PAYMENT_STATE_META, paymentStateOf } from '../shared/paymentState'
 import { REQUEST_STATUS_META } from '../shared/statusMeta'
@@ -56,7 +57,7 @@ export const RequestsTable: React.FC<RequestsTableProps> = ({ rows, isLoading, i
       <TableHeader className="sticky top-0 z-10 bg-surface shadow-sm">
         <TableRow>
           <TableHead className={HEAD}>Payment #</TableHead>
-          <TableHead className={cn(HEAD, 'min-w-[180px]')}>Supplier / Partner name</TableHead>
+          <TableHead className={cn(HEAD, 'min-w-[180px] text-left')}>Supplier / Partner name</TableHead>
           <TableHead className={HEAD}>Amount</TableHead>
           <TableHead className={HEAD}>Remaining</TableHead>
           <TableHead className={HEAD}>Curr.</TableHead>
@@ -109,7 +110,7 @@ export const RequestsTable: React.FC<RequestsTableProps> = ({ rows, isLoading, i
                       Payment#{row.id}
                     </button>
                   </TableCell>
-                  <TableCell className={cn(CELL, 'font-medium text-text-primary')}>{row.partner.name}</TableCell>
+                  <TableCell className={cn(CELL, 'text-left font-medium text-text-primary')}>{toProperName(row.partner.name)}</TableCell>
                   <TableCell className={CELL}>{formatMoney(row.amount)}</TableCell>
                   <TableCell className={cn(CELL, row.payment && row.payment.remaining > 0 && 'font-medium text-danger-600')}>
                     {row.payment ? formatMoney(row.payment.remaining) : '-'}

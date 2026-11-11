@@ -4,6 +4,7 @@ import { countryLabel } from '../shared/countryLabel'
 import React, { useState } from 'react'
 import Link from 'next/link'
 import { Button } from '@/design-system/buttons'
+import { toProperName } from '@/utils/format'
 import { Modal } from '@/design-system/modals'
 import { Textarea } from '@/design-system/inputs'
 import { Spinner } from '@/design-system/loaders'
@@ -36,7 +37,7 @@ const PAYMENT_STATUS = {
 const Summary: React.FC<{ detail: PaymentRequestDetail }> = ({ detail }) => (
   <dl className="divide-y divide-border/50">
     <Row label="Partner">
-      {detail.partner.name} <span className="font-normal text-text-muted">({detail.partner.type === 'VENDOR' ? 'Vendor' : 'Supplier'})</span>
+      {toProperName(detail.partner.name)} <span className="font-normal text-text-muted">({detail.partner.type === 'VENDOR' ? 'Vendor' : 'Supplier'})</span>
     </Row>
     <Row label={detail.referenceType === 'PURCHASE_ORDER' ? 'Purchase order' : 'Invoice'}>
       {requestReference(detail)} · {formatDay(detail.invoiceDate)}

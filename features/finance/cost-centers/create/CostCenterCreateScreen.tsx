@@ -59,66 +59,69 @@ export const CostCenterCreateScreen: React.FC = () => {
   const removingUnder = removing ? pendingDescendants(state, removing.key).length : 0
 
   return (
-    <Container size="md" className="py-4 sm:py-8">
-      <div className="mb-4 flex flex-col items-start gap-3">
+    <>
+      {/* On the page's left edge, outside the centred form column */}
+      <div className="px-4 pt-4 sm:px-6 sm:pt-8 lg:px-8">
         <Button variant="outline" onClick={goBack}>
           {returnTo ? 'Back to the form' : 'Back to cost centers'}
         </Button>
-        <h1 className="text-lg font-bold text-text-primary sm:text-xl">Create cost center & hierarchy</h1>
       </div>
+      <Container size="md" className="pb-4 pt-4 sm:pb-8">
+        <h1 className="mb-4 text-lg font-bold text-text-primary sm:text-xl">Create cost center & hierarchy</h1>
 
-      <div className="rounded-lg border border-border bg-surface p-4 shadow-sm sm:p-6">
-        <p className="mb-2 text-sm text-text-muted">
-          Select or add an L1, then the levels below open up. Each new entry is added under the selection on the level above it.
-        </p>
+        <div className="rounded-lg border border-border bg-surface p-4 shadow-sm sm:p-6">
+          <p className="mb-2 text-sm text-text-muted">
+            Select or add an L1, then the levels below open up. Each new entry is added under the selection on the level above it.
+          </p>
 
-        {LEVELS.map((level) => (
-          <LevelRow
-            key={level}
-            level={level}
-            state={state}
-            onSelect={(option) => dispatch({ type: 'select', level, ref: option.ref })}
-            onAdd={(takenNames) => setNaming({ mode: 'add', level, takenNames })}
-            onEdit={(entry, takenNames) => setNaming({ mode: 'edit', entry, takenNames })}
-            onRemove={setRemoving}
-          />
-        ))}
+          {LEVELS.map((level) => (
+            <LevelRow
+              key={level}
+              level={level}
+              state={state}
+              onSelect={(option) => dispatch({ type: 'select', level, ref: option.ref })}
+              onAdd={(takenNames) => setNaming({ mode: 'add', level, takenNames })}
+              onEdit={(entry, takenNames) => setNaming({ mode: 'edit', entry, takenNames })}
+              onRemove={setRemoving}
+            />
+          ))}
 
-        <div className="mt-4 flex items-center justify-between gap-3">
-          <span className="text-sm text-text-muted">{state.entries.length ? `${state.entries.length} new, not saved yet` : 'Nothing new to save'}</span>
-          <Button onClick={submit} disabled={state.entries.length === 0} isLoading={saving}>
-            Submit
-          </Button>
+          <div className="mt-4 flex items-center justify-between gap-3">
+            <span className="text-sm text-text-muted">{state.entries.length ? `${state.entries.length} new, not saved yet` : 'Nothing new to save'}</span>
+            <Button onClick={submit} disabled={state.entries.length === 0} isLoading={saving}>
+              Submit
+            </Button>
+          </div>
         </div>
-      </div>
 
-      <CostCenterNameDialog
-        isOpen={naming !== null}
-        title={naming?.mode === 'edit' ? `Edit ${levelLabel(naming.entry.level)}` : `Add ${levelLabel(naming?.level ?? 1)}`}
-        context={naming?.mode === 'edit' ? placement(naming.entry.level, pathOf(state, naming.entry)) : naming ? placement(naming.level, addPath(naming.level)) : undefined}
-        initialName={naming?.mode === 'edit' ? naming.entry.name : ''}
-        submitLabel={naming?.mode === 'edit' ? 'Save' : 'Add'}
-        takenNames={naming?.takenNames ?? new Set()}
-        onSubmit={submitName}
-        onClose={() => setNaming(null)}
-      />
+        <CostCenterNameDialog
+          isOpen={naming !== null}
+          title={naming?.mode === 'edit' ? `Edit ${levelLabel(naming.entry.level)}` : `Add ${levelLabel(naming?.level ?? 1)}`}
+          context={naming?.mode === 'edit' ? placement(naming.entry.level, pathOf(state, naming.entry)) : naming ? placement(naming.level, addPath(naming.level)) : undefined}
+          initialName={naming?.mode === 'edit' ? naming.entry.name : ''}
+          submitLabel={naming?.mode === 'edit' ? 'Save' : 'Add'}
+          takenNames={naming?.takenNames ?? new Set()}
+          onSubmit={submitName}
+          onClose={() => setNaming(null)}
+        />
 
-      <ConfirmDialog
-        isOpen={removing !== null}
-        title={`Remove ${removing?.name ?? 'entry'}`}
-        confirmLabel="Remove"
-        tone="danger"
-        onConfirm={() => {
-          if (removing) dispatch({ type: 'remove', key: removing.key })
-          setRemoving(null)
-        }}
-        onClose={() => setRemoving(null)}
-      >
-        <p>
-          It has not been saved yet, so it is simply dropped
-          {removingUnder > 0 ? `, along with the ${removingUnder} new entr${removingUnder === 1 ? 'y' : 'ies'} added under it` : ''}.
-        </p>
-      </ConfirmDialog>
-    </Container>
+        <ConfirmDialog
+          isOpen={removing !== null}
+          title={`Remove ${removing?.name ?? 'entry'}`}
+          confirmLabel="Remove"
+          tone="danger"
+          onConfirm={() => {
+            if (removing) dispatch({ type: 'remove', key: removing.key })
+            setRemoving(null)
+          }}
+          onClose={() => setRemoving(null)}
+        >
+          <p>
+            It has not been saved yet, so it is simply dropped
+            {removingUnder > 0 ? `, along with the ${removingUnder} new entr${removingUnder === 1 ? 'y' : 'ies'} added under it` : ''}.
+          </p>
+        </ConfirmDialog>
+      </Container>
+    </>
   )
 }

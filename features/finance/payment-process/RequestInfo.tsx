@@ -1,6 +1,7 @@
 'use client'
 
 import React from 'react'
+import { toProperName } from '@/utils/format'
 import type { PaymentDocumentDetail } from '@/services/api/finance.api'
 import { formatRequestNo } from '../shared/format'
 import { DocumentChips } from '../shared/DocumentChips'
@@ -16,7 +17,7 @@ const Item: React.FC<{ label: string; children: React.ReactNode }> = ({ label, c
 export const RequestInfo: React.FC<{ request: PaymentDocumentDetail['request'] }> = ({ request }) => (
   <div className="space-y-3">
     <dl className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3">
-      <Item label="Partner">{request.partner.name}</Item>
+      <Item label="Partner">{toProperName(request.partner.name)}</Item>
       <Item label="Request">
         {formatRequestNo(request.id)} · {request.reference.value}
       </Item>

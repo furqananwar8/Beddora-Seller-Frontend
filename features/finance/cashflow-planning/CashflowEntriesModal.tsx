@@ -6,6 +6,7 @@ import { Modal } from '@/design-system/modals'
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/design-system/tables'
 import type { CashflowRow } from '@/services/api/finance.api'
 import { cn } from '@/utils/cn'
+import { toProperName } from '@/utils/format'
 import { formatCurrencyAmount, formatDay } from '../shared/format'
 import { PAYMENT_STATE_META } from './cashflowMeta'
 
@@ -39,7 +40,7 @@ export const CashflowEntriesModal: React.FC<CashflowEntriesModalProps> = ({ sele
         <TableHeader>
           <TableRow>
             <TableHead>Reference</TableHead>
-            <TableHead>Partner</TableHead>
+            <TableHead className="text-left">Partner</TableHead>
             <TableHead>Due date</TableHead>
             <TableHead>Amount</TableHead>
             <TableHead>Paid</TableHead>
@@ -56,7 +57,7 @@ export const CashflowEntriesModal: React.FC<CashflowEntriesModalProps> = ({ sele
                     {row.requestNo} · {row.invoiceRef}
                   </Link>
                 </TableCell>
-                <TableCell className={CENTER}>{row.partner.name}</TableCell>
+                <TableCell className="text-left">{toProperName(row.partner.name)}</TableCell>
                 <TableCell className={CENTER}>{formatDay(row.dueDate)}</TableCell>
                 <TableCell className={`${CENTER} tabular-nums`}>{formatCurrencyAmount(row.currency, row.amount)}</TableCell>
                 <TableCell className={`${CENTER} tabular-nums`}>{formatCurrencyAmount(row.currency, row.paidAmount)}</TableCell>

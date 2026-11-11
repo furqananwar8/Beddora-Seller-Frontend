@@ -1,6 +1,7 @@
 'use client'
 
 import React from 'react'
+import { toProperName } from '@/utils/format'
 import { StatusBadge } from '@/components/status-badge/StatusBadge'
 import { Modal } from '@/design-system/modals'
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/design-system/tables'
@@ -18,7 +19,7 @@ export interface AgingSelection {
 export const AgingEntriesModal: React.FC<{ selection: AgingSelection | null; onClose: () => void }> = ({ selection, onClose }) => {
   const entries = selection ? selection.row.entries.filter((entry) => entry.bucket === selection.bucket.key) : []
   const currency = selection?.row.currency ?? ''
-  const title = selection ? `${selection.row.partner.name} · ${AGING_GROUP_META[selection.bucket.group].prefix} ${selection.bucket.label} days` : undefined
+  const title = selection ? `${toProperName(selection.row.partner.name)} · ${AGING_GROUP_META[selection.bucket.group].prefix} ${selection.bucket.label} days` : undefined
 
   return (
     <Modal isOpen={selection !== null} onClose={onClose} title={title} size="xl">

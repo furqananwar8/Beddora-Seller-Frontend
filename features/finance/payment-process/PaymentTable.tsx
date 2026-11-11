@@ -8,6 +8,7 @@ import { Spinner } from '@/design-system/loaders'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/design-system/tables'
 import type { Page, PaymentDocumentListItem } from '@/services/api/finance.api'
 import { cn } from '@/utils/cn'
+import { toProperName } from '@/utils/format'
 import { formatCurrencyAmount, formatDocNo, formatRequestNo } from '../shared/format'
 import { PAYMENT_STATE_META, paymentStateOf } from '../shared/paymentState'
 import { DOC_STATUS_META } from '../shared/statusMeta'
@@ -39,7 +40,7 @@ export const PaymentTable: React.FC<PaymentTableProps> = ({ page, isLoading, isF
               <TableHead className={HEAD}>Doc #</TableHead>
               <TableHead className={HEAD}>Request</TableHead>
               <TableHead className={cn(HEAD, 'min-w-[130px]')}>Invoice / PO</TableHead>
-              <TableHead className={cn(HEAD, 'min-w-[160px]')}>Partner</TableHead>
+              <TableHead className={cn(HEAD, 'min-w-[160px] text-left')}>Partner</TableHead>
               <TableHead className={HEAD}>Amount</TableHead>
               <TableHead className={HEAD}>Paid</TableHead>
               <TableHead className={HEAD}>Balance</TableHead>
@@ -89,7 +90,7 @@ export const PaymentTable: React.FC<PaymentTableProps> = ({ page, isLoading, isF
                       <div className="break-words text-text-primary">{row.reference.value || '—'}</div>
                       {row.containerNo && <div className="break-words text-xs text-text-muted">{row.containerNo}</div>}
                     </TableCell>
-                    <TableCell className={CELL}>{row.partner.name}</TableCell>
+                    <TableCell className={cn(CELL, 'text-left')}>{toProperName(row.partner.name)}</TableCell>
                     <TableCell className={cn(CELL, 'whitespace-nowrap')}>{formatCurrencyAmount(row.currency, row.amount)}</TableCell>
                     <TableCell className={cn(CELL, 'whitespace-nowrap')}>{formatCurrencyAmount(row.currency, row.paidAmount)}</TableCell>
                     <TableCell className={cn(CELL, 'whitespace-nowrap font-medium')}>{formatCurrencyAmount(row.currency, row.balance)}</TableCell>

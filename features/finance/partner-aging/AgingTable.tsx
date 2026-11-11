@@ -4,6 +4,7 @@ import React from 'react'
 import { Table, TABLE_STATUS_VIEWPORT, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow, TableStatusRow } from '@/design-system/tables'
 import type { AgingBucket, AgingCell, PartnerAgingReport } from '@/services/api/finance.api'
 import { cn } from '@/utils/cn'
+import { toProperName } from '@/utils/format'
 import { formatMoney } from '../shared/format'
 import { AGING_GROUP_META, groupBuckets } from './agingMeta'
 import type { AgingSelection } from './AgingEntriesModal'
@@ -48,7 +49,7 @@ export const AgingTable: React.FC<AgingTableProps> = ({ report, isLoading, isErr
         <Table className="min-w-full" wrapperClassName="overflow-visible">
           <TableHeader className="sticky top-0 z-20 shadow-sm">
             <TableRow>
-              <TableHead rowSpan={2} className={PLAIN_HEAD}>
+              <TableHead rowSpan={2} className={cn(PLAIN_HEAD, 'min-w-[220px] text-left')}>
                 Vendor / Supplier
               </TableHead>
               <TableHead rowSpan={2} className={PLAIN_HEAD}>
@@ -83,7 +84,7 @@ export const AgingTable: React.FC<AgingTableProps> = ({ report, isLoading, isErr
             ) : (
               report.rows.map((row) => (
                 <TableRow key={`${row.partner.id}:${row.currency}`}>
-                  <TableCell className={cn(CELL, 'font-medium')}>{row.partner.name}</TableCell>
+                  <TableCell className={cn(CELL, 'text-left font-medium')}>{toProperName(row.partner.name)}</TableCell>
                   <TableCell className={CELL}>{row.currency}</TableCell>
                   {buckets.map((bucket) => (
                     <TableCell key={bucket.key} className={AMOUNT}>
