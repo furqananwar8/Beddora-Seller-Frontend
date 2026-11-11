@@ -426,7 +426,7 @@ export interface PaymentRequestDetail {
   documents: FinanceDocument[]
   events: TimelineEvent[]
   paymentDocument: { id: number; status: DocStatus; currency: string; amount: number; paidAmount: number; balance: number } | null
-  can: { edit: boolean; submit: boolean; withdraw: boolean; decide: boolean }
+  can: { edit: boolean; submit: boolean; withdraw: boolean; decide: boolean; changeExpense: boolean }
 }
 
 export interface PaymentRequestLine {
@@ -796,6 +796,13 @@ export const financeApi = baseApi.injectEndpoints({
       transformResponse: unwrap,
       invalidatesTags: ['FinanceRequests'],
     }),
+    /** Admin: books each line (id 0 = a request saved before lines existed) to another L4 expense, in any status. */
+    changePaymentRequestExpenses: b.mutation<PaymentRequestDetail, { id: number; lines: Array<{ id: number; costCenterId: number }> }>({
+      query: ({ id, lines }) => ({ url: `/finance/payment-requests/${id}/expense`, method: 'PATCH', body: { lines } }),
+      transformResponse: unwrap,
+      // The Payment Process screens show the request's expense too
+      invalidatesTags: ['FinanceRequests', 'FinanceProcess'],
+    }),
     approvePaymentRequest: b.mutation<PaymentRequestDetail, { id: number; note?: string }>({
       query: ({ id, note }) => ({ url: `/finance/payment-requests/${id}/approve`, method: 'POST', body: { note } }),
       transformResponse: unwrap,
@@ -927,6 +934,7 @@ export const {
   useRemoveRequestDocumentMutation,
   useSubmitPaymentRequestMutation,
   useWithdrawPaymentRequestMutation,
+  useChangePaymentRequestExpensesMutation,
   useApprovePaymentRequestMutation,
   useRejectPaymentRequestMutation,
   useGetPaymentDocumentsQuery,

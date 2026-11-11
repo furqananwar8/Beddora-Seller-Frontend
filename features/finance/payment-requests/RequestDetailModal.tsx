@@ -15,6 +15,7 @@ import { formatCurrencyAmount, formatDay, formatRequestNo, requestReference } fr
 import { REQUEST_STATUS_META } from '../shared/statusMeta'
 import { ApprovalTimeline } from './ApprovalTimeline'
 import { DocumentChips } from '../shared/DocumentChips'
+import { ChangeExpenseDialog } from './ChangeExpenseDialog'
 import { RejectDialog } from './RejectDialog'
 import { useRequestActions } from './useRequestActions'
 
@@ -99,6 +100,7 @@ const DetailBody: React.FC<DetailBodyProps> = ({ detail, onClose }) => {
   const actions = useRequestActions()
   const [note, setNote] = useState('')
   const [rejecting, setRejecting] = useState(false)
+  const [changingExpense, setChangingExpense] = useState(false)
   const meta = REQUEST_STATUS_META[detail.status]
   const { can } = detail
   const rejectedReason = detail.status === 'REJECTED' ? detail.decisionNote : null
@@ -138,6 +140,11 @@ const DetailBody: React.FC<DetailBodyProps> = ({ detail, onClose }) => {
                 Resubmit
               </Button>
             )}
+            {can.changeExpense && (
+              <Button size="sm" variant="outline" onClick={() => setChangingExpense(true)}>
+                Change expense
+              </Button>
+            )}
           </div>
           {detail.status === 'PENDING_APPROVAL' && !can.decide && (
             <p className="mt-3 text-xs text-text-muted">Once submitted the request is locked. Resubmit returns it to Draft so you can edit it and send it again.</p>
@@ -173,6 +180,7 @@ const DetailBody: React.FC<DetailBodyProps> = ({ detail, onClose }) => {
         </section>
       )}
 
+      <ChangeExpenseDialog detail={detail} open={changingExpense} onClose={() => setChangingExpense(false)} />
       <RejectDialog
         requestId={rejecting ? detail.id : null}
         submitting={actions.rejecting}

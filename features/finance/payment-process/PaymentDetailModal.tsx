@@ -5,6 +5,7 @@ import { toProperName } from '@/utils/format'
 import { Modal } from '@/design-system/modals'
 import { Spinner } from '@/design-system/loaders'
 import { StatusBadge } from '@/components/status-badge/StatusBadge'
+import { ChangeExpenseAction } from '../payment-requests/ChangeExpenseAction'
 import { useGetPaymentDocumentQuery } from '@/services/api/finance.api'
 import { formatCurrencyAmount, formatDocNo, formatRequestNo } from '../shared/format'
 import { DOC_STATUS_META } from '../shared/statusMeta'
@@ -19,9 +20,12 @@ const Item: React.FC<{ label: string; children: React.ReactNode }> = ({ label, c
   </div>
 )
 
-const Section: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
+const Section: React.FC<{ title: string; action?: React.ReactNode; children: React.ReactNode }> = ({ title, action, children }) => (
   <section>
-    <h3 className="mb-2 text-sm font-semibold text-text-primary">{title}</h3>
+    <div className="mb-2 flex items-center justify-between gap-2">
+      <h3 className="text-sm font-semibold text-text-primary">{title}</h3>
+      {action}
+    </div>
     {children}
   </section>
 )
@@ -63,7 +67,7 @@ export const PaymentDetailModal: React.FC<PaymentDetailModalProps> = ({ docId, o
             )}
           </dl>
 
-          <Section title="Request">
+          <Section title="Request" action={<ChangeExpenseAction requestId={data.request.id} />}>
             <RequestInfo request={data.request} />
           </Section>
 

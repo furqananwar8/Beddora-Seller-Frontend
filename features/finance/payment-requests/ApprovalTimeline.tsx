@@ -80,6 +80,11 @@ function toStep(event: TimelineEvent): Step {
       return { key: String(event.id), title: 'Rejected', sub: withNote(`by ${by} · ${when}`), glyph: '✕', tone: TONE.danger }
     case 'WITHDRAWN':
       return { key: String(event.id), title: 'Withdrawn', sub: `by ${by} · ${when}`, glyph: '↩', tone: TONE.neutral }
+    case 'EXPENSE_CHANGED': {
+      const changes = Array.isArray(event.payload?.changes) ? (event.payload.changes as Array<{ from: string | null; to: string | null }>) : []
+      const lines = [...changes.map((change) => `${change.from ?? '-'} → ${change.to ?? '-'}`), `by ${by} · ${when}`]
+      return { key: String(event.id), title: 'Expense changed', sub: lines.join('\n'), glyph: '✎', tone: TONE.info }
+    }
     case 'ON_HOLD':
       return { key: String(event.id), title: 'Put on hold', sub: `by ${by} · ${when}\nBack to draft for the creator to resubmit`, glyph: '⏸', tone: TONE.pending }
     case 'PARTIALLY_PAID':
