@@ -13,6 +13,17 @@ const NUM = cn(CELL, 'whitespace-nowrap tabular-nums')
 const STICKY = 'sticky left-0 bg-surface'
 const IDENTITY_COLUMNS = 3
 
+/** Header cells of the first row over the figure columns: a group's heading, or an ungrouped column's own header over both rows. */
+const TOP_HEADERS = (() => {
+  let offset = 0
+  return headerGroups(FIGURE_COLUMNS).map((group) => {
+    const column = FIGURE_COLUMNS[offset]
+    offset += group.span
+    return { ...group, column }
+  })
+})()
+const GROUPED_COLUMNS = FIGURE_COLUMNS.filter((column) => column.group)
+
 const figure = (column: FigureColumn, row: WarehouseInventoryRow) => {
   const value = column.value(row)
   if (value === null) return <span className="text-text-muted">—</span>
@@ -38,18 +49,24 @@ export const WarehouseInventoryTable: React.FC<WarehouseInventoryTableProps> = (
           <TableHeader className="sticky top-0 z-30 bg-surface shadow-sm">
             <TableRow>
               <TableHead colSpan={IDENTITY_COLUMNS} className={cn(STICKY, 'sticky-corner')} />
-              {headerGroups(FIGURE_COLUMNS).map((group, index) => (
-                <TableHead key={index} colSpan={group.span} className={cn('text-center', group.label && 'border-b border-border')}>
-                  {group.label}
-                </TableHead>
-              ))}
+              {TOP_HEADERS.map(({ label, span, column }) =>
+                label ? (
+                  <TableHead key={label} colSpan={span} className="border-b border-border text-center">
+                    {label}
+                  </TableHead>
+                ) : (
+                  <TableHead key={column.key} rowSpan={2} className="min-w-[6.5rem] whitespace-nowrap text-center align-middle">
+                    {column.label}
+                  </TableHead>
+                )
+              )}
             </TableRow>
             <TableRow>
               {/* sticky-corner (globals.css) lifts it above the other header cells, which slide under it */}
               <TableHead className={cn(STICKY, 'sticky-corner min-w-[14rem] text-center')}>SKU</TableHead>
               <TableHead className="min-w-[8rem] text-center">ASIN</TableHead>
               <TableHead className="min-w-[8rem] text-center">UPC</TableHead>
-              {FIGURE_COLUMNS.map((column) => (
+              {GROUPED_COLUMNS.map((column) => (
                 <TableHead key={column.key} className="min-w-[6.5rem] whitespace-nowrap text-center" title={untracked(column) ? 'Not tracked yet' : undefined}>
                   {column.label}
                 </TableHead>

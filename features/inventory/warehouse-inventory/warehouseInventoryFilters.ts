@@ -35,22 +35,25 @@ export interface FigureColumn {
   strong?: boolean
 }
 
-const stock = (source: StockColumn, label: string): FigureColumn => ({ key: source, label, source, value: (row) => row.stock[source] })
+const stock = (source: StockColumn, label: string, group: string): FigureColumn => ({ key: `${group}:${source}`, label, group, source, value: (row) => row.stock[source] })
 
-/** Every figure sits under one shared "Platforms inventory" heading. */
-const PLATFORMS_INVENTORY = 'Platforms inventory'
+const OUR_WAREHOUSE = 'Our Warehouse'
+const THIRD_PARTY = '3PL'
+const PLATFORM_INVENTORY = 'Platform Inventory'
 
-export const FIGURE_COLUMNS: FigureColumn[] = ([
-  stock('canada', 'Canada'),
-  stock('usa', 'USA'),
-  stock('thirdParty', '3PL warehouse'),
-  stock('own', 'Own'),
-  stock('returns', 'Return'),
-  stock('damaged', 'Damaged'),
+/**
+ * The column layout: where the stock sits (our own warehouse, the 3PL, the sales platforms), then the total
+ * available and what is on its way. The two totals have no group, so their header spans both header rows.
+ */
+export const FIGURE_COLUMNS: FigureColumn[] = [
+  stock('own', 'Canada', OUR_WAREHOUSE),
+  stock('returns', 'Return', OUR_WAREHOUSE),
+  stock('damaged', 'Damaged', OUR_WAREHOUSE),
+  stock('thirdParty', 'USA', THIRD_PARTY),
+  stock('canada', 'Canada', PLATFORM_INVENTORY),
+  stock('usa', 'USA', PLATFORM_INVENTORY),
   { key: 'totalAvailable', label: 'Total available units', value: (row) => row.totalAvailable, strong: true },
-  { key: 'inTransit', label: 'In-transit (container)', value: (row) => row.inTransit },
-  { key: 'totalPipeline', label: 'Total pipeline inventory', value: (row) => row.totalPipeline, strong: true },
-  { key: 'costCad', label: 'Cost (CAD)', money: 'CAD', value: (row) => row.costCad, strong: true },
-] satisfies FigureColumn[]).map((column) => ({ ...column, group: PLATFORMS_INVENTORY }))
+  { key: 'inTransit', label: 'Intransit', value: (row) => row.inTransit },
+]
 
 export { headerGroups } from '@/utils/headerGroups'

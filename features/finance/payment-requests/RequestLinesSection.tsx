@@ -30,6 +30,11 @@ interface RequestLinesSectionProps {
   onAddCostCenter: () => void
 }
 
+/** One column grid for the header row and every amount row, so currency sits over the amounts and the due date over the expenses. */
+const ROW_GRID = 'grid items-start gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_auto]'
+/** The width of the remove button, kept free on rows that have none. */
+const REMOVE_SLOT = <span className="hidden w-8 sm:block" />
+
 /** Currency and due date, then one or more amounts each booked to an expense (L4 cost center), their total, and remarks. */
 export const RequestLinesSection: React.FC<RequestLinesSectionProps> = ({
   control,
@@ -54,20 +59,21 @@ export const RequestLinesSection: React.FC<RequestLinesSectionProps> = ({
 
   return (
     <Section title="Amount & category" note={`split across up to ${MAX_REQUEST_LINES} expenses`}>
-      <div className="mb-4 grid gap-4 sm:grid-cols-[12rem_minmax(0,16rem)]">
+      <div className={`mb-4 ${ROW_GRID}`}>
         <FormField label="Currency" htmlFor="currency" required error={errors.currency?.message} hint={currencyLockedBy ?? undefined}>
           <SelectShell>
             <Select id="currency" className="appearance-none rounded-lg pr-9" disabled={currencyLockedBy !== null} options={[{ value: '', label: 'Select' }, ...currencyOptions]} {...register('currency')} />
           </SelectShell>
         </FormField>
         <DueDateField control={control} termDays={termDays} />
+        {REMOVE_SLOT}
       </div>
 
       <div className="space-y-3">
         {fields.map((field, index) => {
           const rowErrors = errors.lines?.[index]
           return (
-            <div key={field.key} className="grid items-start gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_auto]">
+            <div key={field.key} className={ROW_GRID}>
               <FormField label={several ? `Amount ${index + 1}` : 'Amount'} htmlFor={`lines.${index}.amount`} required error={rowErrors?.amount?.message}>
                 <Controller
                   control={control}
@@ -111,7 +117,7 @@ export const RequestLinesSection: React.FC<RequestLinesSectionProps> = ({
                   ×
                 </button>
               ) : (
-                <span className="hidden w-8 sm:block" />
+                REMOVE_SLOT
               )}
             </div>
           )
