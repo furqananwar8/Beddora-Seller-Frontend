@@ -8,15 +8,13 @@ import { PackedProductsPanel } from './PackedProductsPanel'
 import { PaymentRequestsPanel } from './PaymentRequestsPanel'
 import { PurchaseOrdersPanel } from './PurchaseOrdersPanel'
 
-/** A container's panels: PO > packaging list > payments, landed cost per SKU, then payment requests | documents | packed products. */
+/** A container's panels in one row, each a fixed-height summary with the full detail behind "More": purchase orders | payment requests | documents | packaging list. */
 export const ContainerOverview: React.FC<{ container: ContainerDetail; canWrite: boolean }> = ({ container, canWrite }) => (
-  <div className="flex flex-col gap-4">
+  <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
     <PurchaseOrdersPanel container={container} />
-    <div className="grid gap-4 lg:grid-cols-3">
-      <PaymentRequestsPanel container={container} />
-      <DocumentsPanel container={container} canWrite={canWrite} />
-      <PackedProductsPanel container={container} />
-    </div>
+    <PaymentRequestsPanel container={container} />
+    <DocumentsPanel container={container} canWrite={canWrite} />
+    <PackedProductsPanel container={container} />
   </div>
 )
 

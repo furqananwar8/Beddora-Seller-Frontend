@@ -57,9 +57,9 @@ export function ExpenseMappingModal<K extends string>({ open, onClose, descripti
         ) : (
           <div className="flex flex-col divide-y divide-border rounded-lg border border-border">
             {mapping.columns.map((column) => (
-              <div key={column.key} className="grid items-center gap-2 px-4 py-3 sm:grid-cols-[180px_1fr]">
-                <p className="text-sm font-semibold text-text-primary">{column.label}</p>
-                <div className="flex items-center gap-2">
+              <div key={column.key} className="grid items-center gap-2 px-4 py-3 sm:grid-cols-[180px_minmax(0,1fr)]">
+                <p className="break-words text-sm font-semibold text-text-primary">{column.label}</p>
+                <div className="flex min-w-0 items-start gap-2">
                   <div className="min-w-0 flex-1">
                     <CostCenterMultiSelect
                       id={`map-${column.key}`}

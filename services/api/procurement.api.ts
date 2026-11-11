@@ -665,6 +665,8 @@ export interface ContainerItem {
   portOfArrival: string | null
   /** The final landed cost its cost analysis shows (FOB plus allocated expenses); null while nothing is packed. */
   totalCost: number | null
+  /** The currency of `totalCost`: the destination's (goods priced in the other currency are converted into it). */
+  totalCostCurrency: PoCurrency
   currency: PoCurrency
   deliveredAt: string | null
   updatedAt: string

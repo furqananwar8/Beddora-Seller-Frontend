@@ -44,18 +44,28 @@ export const ContainersScreen: React.FC = () => {
       className: 'min-w-[150px] text-left',
       render: (container) => <ContainerCell container={container} detail={skuSummary(container.lines.length, container.totals.units)} />,
     },
-    {
-      key: 'short',
-      header: 'Short',
-      render: (container) =>
-        container.receiving ? (
-          <Stack className="tabular-nums" top={<span className={cn(container.receiving.shortageCartons > 0 && 'font-semibold text-danger-600')}>{qty(container.receiving.shortageCartons)} ctn</span>} bottom={container.receiving.damagedCartons > 0 ? `${qty(container.receiving.damagedCartons)} damaged` : undefined} />
-        ) : (
-          <span className="text-text-muted">—</span>
-        ),
-    },
     { key: 'cbm', header: 'Total CBM', render: (container) => <span className="font-mono text-xs">{container.totals.cbm.toFixed(2)}</span> },
-    { key: 'cartons', header: 'Cartons', render: (container) => <span className="tabular-nums">{qty(container.totals.cartons)}</span> },
+    {
+      key: 'cartons',
+      header: 'Cartons (Received / Short)',
+      render: (container) => {
+        const { cartons } = container.totals
+        // Before Inbound Receiving is confirmed only the packed cartons are known
+        if (!container.receiving) return <Stack className="tabular-nums" top={qty(cartons)} bottom="not received yet" />
+        const { shortageCartons, damagedCartons } = container.receiving
+        return (
+          <Stack
+            className="tabular-nums"
+            top={
+              <span>
+                {qty(cartons - shortageCartons)} / <span className={cn(shortageCartons > 0 && 'rounded bg-danger-50 px-1.5 py-0.5 font-semibold text-danger-600')}>{qty(shortageCartons)}</span>
+              </span>
+            }
+            bottom={damagedCartons > 0 ? `${qty(damagedCartons)} damaged` : undefined}
+          />
+        )
+      },
+    },
     {
       key: 'weight',
       header: 'Net / Gross wt',
@@ -73,7 +83,7 @@ export const ContainersScreen: React.FC = () => {
     {
       key: 'cost',
       header: 'Total cost',
-      render: (container) => <span className="whitespace-nowrap tabular-nums">{container.totalCost === null ? '—' : money(container.totalCost, container.currency)}</span>,
+      render: (container) => <span className="whitespace-nowrap tabular-nums">{container.totalCost === null ? '—' : money(container.totalCost, container.totalCostCurrency)}</span>,
     },
     {
       key: 'status',

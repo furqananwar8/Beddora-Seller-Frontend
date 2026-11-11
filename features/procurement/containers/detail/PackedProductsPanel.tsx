@@ -6,18 +6,35 @@ import Link from 'next/link'
 import type { ContainerDetail } from '@/services/api/procurement.api'
 import { supplierNames } from '../../shared/poMeta'
 import { formatDimensions } from '../../shared/units'
-import { Fact, Panel, PanelEmpty } from './Panel'
+import { ExpandablePanel, Fact, PanelEmpty } from './Panel'
 
 const qty = (value: number) => value.toLocaleString('en-CA')
 const kg = (value: number) => `${value.toLocaleString('en-CA', { maximumFractionDigits: 1 })} kg`
+/** How many SKUs the summary lists before the rest go behind "More". */
+const SUMMARY_ROWS = 3
 
-/** The packaging lists' products, one card per SKU with what is packed and how (cartons, carton size, CBM, weight). */
+/** The container's units, cartons and CBM in one strip. */
+const Totals: React.FC<{ container: ContainerDetail }> = ({ container }) => (
+  <div className="grid grid-cols-3 gap-2 rounded-lg bg-secondary-50 px-3 py-2">
+    <Fact label="Units">{qty(container.totals.units)}</Fact>
+    <Fact label="Cartons">{qty(container.totals.cartons)}</Fact>
+    <Fact label="CBM">{container.totals.cbm.toFixed(2)}</Fact>
+  </div>
+)
+
+/** The packaging lists' products: totals and the first SKUs by default, one card per SKU with how it is packed behind "More". */
 export const PackedProductsPanel: React.FC<{ container: ContainerDetail }> = ({ container }) => {
   const lists = container.packagingLists
+  const lines = container.lines
+  const shown = lines.slice(0, SUMMARY_ROWS)
+  const title = lists.length > 1 ? 'Packaging lists' : 'Packaging list'
+
   return (
-    <Panel
-      title={lists.length > 1 ? 'Packaging lists' : 'Packaging list'}
-      count={container.lines.length}
+    <ExpandablePanel
+      title={title}
+      count={lines.length}
+      modalTitle={title}
+      hasMore={lists.length > 0}
       action={
         lists.length ? (
           <span className="flex flex-wrap gap-2">
@@ -29,47 +46,60 @@ export const PackedProductsPanel: React.FC<{ container: ContainerDetail }> = ({ 
           </span>
         ) : null
       }
-    >
-      {lists.length === 0 ? (
-        <PanelEmpty>No packaging list yet.</PanelEmpty>
-      ) : (
-        <>
-          <div className="grid grid-cols-3 gap-2 rounded-lg bg-secondary-50 px-3 py-2">
-            <Fact label="Units">{qty(container.totals.units)}</Fact>
-            <Fact label="Cartons">{qty(container.totals.cartons)}</Fact>
-            <Fact label="CBM">{container.totals.cbm.toFixed(2)}</Fact>
-          </div>
-          <p className="text-xs text-text-muted">{supplierNames([...new Map(lists.flatMap((list) => list.suppliers).map((supplier) => [supplier.id, supplier])).values()])}</p>
-          <ul className="flex flex-col gap-2">
-            {container.lines.map((line) => (
-              <li key={`${line.purchaseOrderId}:${line.sku}`} className="rounded-lg border border-border p-3">
-                <div className="flex items-start justify-between gap-2">
+      summary={
+        lists.length === 0 ? (
+          <PanelEmpty>No packaging list yet.</PanelEmpty>
+        ) : (
+          <>
+            <Totals container={container} />
+            <ul className="flex flex-col divide-y divide-border">
+              {shown.map((line) => (
+                <li key={`${line.purchaseOrderId}:${line.sku}`} className="flex items-center justify-between gap-2 py-2">
                   <div className="min-w-0">
                     <p className="font-mono text-xs font-semibold text-text-primary">{line.sku}</p>
-                    <p className="truncate text-sm text-text-secondary">{line.name}</p>
+                    <p className="truncate text-xs text-text-muted">{line.name}</p>
                   </div>
-                  <span className="shrink-0 rounded-full bg-secondary-100 px-2 py-0.5 font-mono text-[11px] text-secondary-700">{line.poNo}</span>
-                </div>
-                <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
-                  <Fact label="Color">{line.color}</Fact>
-                  <Fact label="Size">{line.sizeName}</Fact>
-                  <Fact label="Units">
-                    {qty(line.units)} of {qty(line.ordered)}
-                  </Fact>
-                  <Fact label="Cartons">{qty(line.cartons)}</Fact>
-                  <Fact label="Carton L × W × H">{formatDimensions(line.carton.lengthCm, line.carton.widthCm, line.carton.heightCm, 'CM')}</Fact>
-                  <Fact label="CBM">{line.cbm.toFixed(2)}</Fact>
-                  <Fact label="Units / carton">{formatUnitsPerCarton(line.unitsPerCarton)}</Fact>
-                  <Fact label="CBM / piece">{formatCbmPerPiece(line.cbmPerPiece)}</Fact>
-                  <Fact label="Net / gross">
-                    {kg(line.netWeightKg)} / {kg(line.grossWeightKg)}
-                  </Fact>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </>
-      )}
-    </Panel>
+                  <span className="shrink-0 text-xs tabular-nums text-text-secondary">
+                    {qty(line.units)} units · {qty(line.cartons)} ctn
+                  </span>
+                </li>
+              ))}
+            </ul>
+            {lines.length > shown.length && <p className="text-xs text-text-muted">+ {lines.length - shown.length} more</p>}
+          </>
+        )
+      }
+    >
+      <Totals container={container} />
+      <p className="text-xs text-text-muted">{supplierNames([...new Map(lists.flatMap((list) => list.suppliers).map((supplier) => [supplier.id, supplier])).values()])}</p>
+      <ul className="flex flex-col gap-2">
+        {lines.map((line) => (
+          <li key={`${line.purchaseOrderId}:${line.sku}`} className="rounded-lg border border-border p-3">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="font-mono text-xs font-semibold text-text-primary">{line.sku}</p>
+                <p className="truncate text-sm text-text-secondary">{line.name}</p>
+              </div>
+              <span className="shrink-0 rounded-full bg-secondary-100 px-2 py-0.5 font-mono text-[11px] text-secondary-700">{line.poNo}</span>
+            </div>
+            <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
+              <Fact label="Color">{line.color}</Fact>
+              <Fact label="Size">{line.sizeName}</Fact>
+              <Fact label="Units">
+                {qty(line.units)} of {qty(line.ordered)}
+              </Fact>
+              <Fact label="Cartons">{qty(line.cartons)}</Fact>
+              <Fact label="Carton L × W × H">{formatDimensions(line.carton.lengthCm, line.carton.widthCm, line.carton.heightCm, 'CM')}</Fact>
+              <Fact label="CBM">{line.cbm.toFixed(2)}</Fact>
+              <Fact label="Units / carton">{formatUnitsPerCarton(line.unitsPerCarton)}</Fact>
+              <Fact label="CBM / piece">{formatCbmPerPiece(line.cbmPerPiece)}</Fact>
+              <Fact label="Net / gross">
+                {kg(line.netWeightKg)} / {kg(line.grossWeightKg)}
+              </Fact>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </ExpandablePanel>
   )
 }

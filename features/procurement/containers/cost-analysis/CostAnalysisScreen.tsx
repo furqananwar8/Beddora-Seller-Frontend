@@ -49,7 +49,7 @@ export const CostAnalysisScreen: React.FC = () => {
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold text-text-primary sm:text-2xl">Cost Analysis</h1>
-          <p className="text-sm text-text-muted">Landed cost per SKU: invoice price and expenses, plus freight, trucking and penalties by CBM, duties and brokerage by value</p>
+          <p className="text-sm text-text-muted">Landed cost per SKU: invoice price and expenses, plus freight and trucking by CBM, duties and brokerage by value</p>
         </div>
         <div className="ml-auto flex flex-wrap items-center gap-2">
           <Button type="button" size="sm" variant="outline" disabled={!data?.totalRecords || isExporting} onClick={() => void startExport('xlsx', exportFilters)}>
