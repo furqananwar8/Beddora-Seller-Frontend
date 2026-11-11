@@ -10,13 +10,13 @@ export const mergeOriginals = (...lists: Array<OriginalAmounts | undefined>): Or
 }
 
 /**
- * What a converted amount was before conversion, in brackets after it: "5,992.50 (USD 4,250.00)". Shows nothing
- * for an amount that was never converted.
+ * What a converted amount was before conversion, in brackets on a smaller line under it: "5,992.50" over
+ * "(USD 4,250.00)". Shows nothing for an amount that was never converted.
  */
 export const OriginalAmount: React.FC<{ amounts?: OriginalAmounts }> = ({ amounts }) => {
   const parts = Object.entries(amounts ?? {})
     .filter(([, amount]) => amount !== 0)
     .map(([currency, amount]) => formatCurrencyAmount(currency, amount))
   if (parts.length === 0) return null
-  return <span className="ml-1 text-text-muted">({parts.join(' + ')})</span>
+  return <span className="block text-[11px] font-normal leading-tight text-text-muted">({parts.join(' + ')})</span>
 }

@@ -52,7 +52,7 @@ const PACKING_COLUMNS: CostColumn[] = [
     cell: ({ cost }) => (
       <>
         {formatMoney(cost.fobPrice)}
-        {cost.fobOriginal && <span className="ml-1 text-text-muted">({formatCurrencyAmount(cost.fobOriginal.currency, cost.fobOriginal.amount)})</span>}
+        {cost.fobOriginal && <span className="block text-[11px] font-normal leading-tight text-text-muted">({formatCurrencyAmount(cost.fobOriginal.currency, cost.fobOriginal.amount)})</span>}
       </>
     ),
   },

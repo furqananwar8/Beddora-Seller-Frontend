@@ -19,10 +19,10 @@ import { mergeOriginals, OriginalAmount } from './OriginalAmount'
 import { CostMappingModal } from './CostMappingModal'
 
 const money = (container: ContainerCostItem, value: number, original?: Record<string, number>) => (
-  <span className="whitespace-nowrap tabular-nums">
+  <div className="whitespace-nowrap tabular-nums">
     {formatCurrencyAmount(container.currency, value)}
     <OriginalAmount amounts={original} />
-  </span>
+  </div>
 )
 /** What the container's expenses were before conversion: the invoices' additional expense and every expense column. */
 const expensesOriginal = (container: ContainerCostItem) => mergeOriginals(container.totals.additionalOriginal, ...Object.values(container.totals.costsOriginal ?? {}))
