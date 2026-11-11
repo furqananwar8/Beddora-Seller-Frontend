@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { cn } from '@/utils/cn'
 
 /**
@@ -60,7 +61,7 @@ export const Modal: React.FC<ModalProps> = ({
     return () => document.removeEventListener('keydown', handleEscape)
   }, [isOpen, closeOnEscape, onClose])
 
-  if (!isOpen) return null
+  if (!isOpen || typeof document === 'undefined') return null
 
   const sizes = {
     sm: 'max-w-md',
@@ -70,7 +71,9 @@ export const Modal: React.FC<ModalProps> = ({
   }
 
   
-  return (
+  // Rendered on the body: inside a row or a panel, its z-index would only count within that parent's stacking context
+  // and a later sibling could paint over the backdrop. React events still bubble through the tree it was declared in.
+  return createPortal(
     <div className="ds-modal-wrap" onClick={closeOnBackdropClick ? onClose : undefined} style={{ zIndex: 9999 }}>
       {/* Backdrop */}
       <div className="ds-modal-backdrop" style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }} />
@@ -104,7 +107,8 @@ export const Modal: React.FC<ModalProps> = ({
           </svg>
         </button>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 

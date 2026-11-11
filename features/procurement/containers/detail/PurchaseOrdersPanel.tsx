@@ -62,7 +62,7 @@ const Summary: React.FC<{ container: ContainerDetail }> = ({ container }) => {
 
 /** Every purchase order in the container with its price and what has been paid on it. */
 const Details: React.FC<{ container: ContainerDetail }> = ({ container }) => (
-  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+  <div className="grid gap-3">
     {container.purchaseOrders.map((po) => {
       const paid = po.payment.paidAmount
       const percent = paidPercent(po)
@@ -73,7 +73,7 @@ const Details: React.FC<{ container: ContainerDetail }> = ({ container }) => (
               <Link href={`/dashboard/procurement/purchase-orders/${po.id}`} className="font-mono text-sm font-semibold text-text-primary underline-offset-2 hover:underline">
                 {po.poNo}
               </Link>
-              <p className="truncate text-xs text-text-muted">
+              <p className="text-xs text-text-muted">
                 {po.supplier?.name ?? '—'} · in{' '}
                 {container.packagingLists
                   .filter((list) => container.lines.some((line) => line.purchaseOrderId === po.id && line.plNo === list.plNo))
@@ -89,7 +89,7 @@ const Details: React.FC<{ container: ContainerDetail }> = ({ container }) => (
             </div>
             <PaymentBadge payment={po.payment} />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <Fact label="PO price">{po.price?.amount != null ? formatCurrencyAmount(po.price.currency, po.price.amount) : 'No rates yet'}</Fact>
             <Fact label="Units here / ordered">
               {qty(po.units)} / {qty(po.price?.units ?? 0)}
