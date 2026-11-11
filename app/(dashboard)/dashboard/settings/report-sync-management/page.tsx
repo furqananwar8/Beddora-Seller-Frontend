@@ -30,6 +30,9 @@ const MANAGED_SYNC_JOBS: ManagedSyncJob[] = [
   { syncType: 'fees', label: 'Payment Report', modes: BOTH_MODES },
   { syncType: 'products', label: 'Products', modes: BOTH_MODES },
   { syncType: 'orders', label: 'Orders', modes: BOTH_MODES },
+  // Return reasons and customer comments behind the refunds: FBA returns (reason, disposition, comment) and seller-fulfilled returns (reason).
+  { syncType: 'fba_returns', label: 'FBA Returns (Refund Reasons)', modes: BOTH_MODES },
+  { syncType: 'refunds', label: 'Merchant Returns (Refund Reasons)', modes: BOTH_MODES },
   // Amazon builds this report over a rolling month, so only its backfill has a start date to move back.
   { syncType: 'fba_long_term_storage_fee', label: 'Long-Term Storage Fees', modes: ['backfill'] },
   // Same one-month window: the backfill walks month by month to the current month.
