@@ -42,6 +42,8 @@ interface BaseProps<T> {
   onOpenChange?: (open: boolean) => void
   className?: string
   triggerClassName?: string
+  /** Long picks wrap onto more lines and the trigger grows taller, instead of being cut off with an ellipsis. */
+  wrapValue?: boolean
   ariaLabel?: string
 }
 
@@ -95,6 +97,7 @@ export function SearchableSelect<T>(props: SearchableSelectProps<T>) {
     onOpenChange,
     className,
     triggerClassName,
+    wrapValue,
     ariaLabel,
   } = props
   // Ticking several keeps the menu open, so it gets a way to close other than clicking outside
@@ -197,12 +200,13 @@ export function SearchableSelect<T>(props: SearchableSelectProps<T>) {
         onClick={() => changeOpen(!open)}
         className={cn(
           'ds-input rounded-lg flex items-center justify-between text-left',
+          wrapValue && 'h-auto',
           error ? 'ds-input-error' : highlighted ? 'border-primary-500 ring-1 ring-primary-500' : 'ds-input-default',
           disabled && 'cursor-not-allowed bg-secondary-50 text-text-muted',
           triggerClassName
         )}
       >
-        <span className={cn('truncate', triggerText === null && 'text-text-muted')}>{triggerText ?? placeholder}</span>
+        <span className={cn(wrapValue ? 'min-w-0 whitespace-normal break-words' : 'truncate', triggerText === null && 'text-text-muted')}>{triggerText ?? placeholder}</span>
         <Chevron className="ml-2" />
       </button>
 
