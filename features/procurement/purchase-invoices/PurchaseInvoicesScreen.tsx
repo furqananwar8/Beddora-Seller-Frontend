@@ -12,20 +12,24 @@ import { PaginationFooter } from '@/components/pagination-footer/PaginationFoote
 import { ReasonDialog } from '@/components/reason-dialog/ReasonDialog'
 import { RowActionsMenu, type RowActionItem } from '@/components/row-actions-menu/RowActionsMenu'
 import { StatusBadge } from '@/components/status-badge/StatusBadge'
+import { Button } from '@/design-system/buttons'
 import { Spinner } from '@/design-system/loaders'
+import { useAppAbility } from '@/hooks/useAppAbility'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/design-system/tables'
 import { formatCurrencyAmount } from '@/features/finance/shared/format'
 import { useGetPurchaseInvoiceDestinationsQuery, useGetPurchaseInvoicesQuery, useGetPurchaseInvoiceSummaryQuery, type PurchaseInvoiceListItem, type PurchaseInvoiceStatus } from '@/services/api/procurement.api'
 import { cn } from '@/utils/cn'
 import { useDebounce } from '@/utils/debounce'
 import { formatCalendarDay } from '@/utils/format'
-import { PDF_STATUS_META, PURCHASE_INVOICES_URL, PURCHASE_INVOICE_STATUSES, PURCHASE_INVOICE_STATUS_META, PurchaseInvoiceStatusBadge, formatPoNo } from '../shared/poMeta'
+import { PDF_STATUS_META, PURCHASE_INVOICES_URL, isInvoiced, newPackagingListHref, newPaymentRequestForInvoiceHref, PURCHASE_INVOICE_STATUSES, PURCHASE_INVOICE_STATUS_META, PurchaseInvoiceStatusBadge, formatPoNo } from '../shared/poMeta'
+import { NewPurchaseInvoiceModal } from './NewPurchaseInvoiceModal'
+import { PiPaymentRequestsModal } from '../shared/PoPaymentRequests'
 import { PurchaseInvoiceDetailModal } from './PurchaseInvoiceDetailModal'
 import { usePurchaseInvoiceActions } from './usePurchaseInvoiceActions'
 
 const PAGE_SIZE = 20
 const CELL = 'text-center align-middle'
-const COLUMNS = 13
+const COLUMNS = 14
 
 interface Filters extends Record<string, unknown> {
   statuses: PurchaseInvoiceStatus[]
@@ -59,6 +63,14 @@ export const PurchaseInvoicesScreen: React.FC = () => {
   const { data: marketplaces } = useGetPurchaseInvoiceDestinationsQuery()
   const actions = usePurchaseInvoiceActions()
   const [rejecting, setRejecting] = useState<PurchaseInvoiceListItem | null>(null)
+  const [paymentsOf, setPaymentsOf] = useState<{ id: number; invoiceRef: string } | null>(null)
+  // Same gate as the purchase order table: reading Finance > Payment Requests
+  const ability = useAppAbility()
+  const canViewPayments = ability.can('read', 'finance:payment-request')
+  const canPack = ability.can('write', 'procurement:packaging-lists')
+  const canCreate = ability.can('write', 'procurement:purchase-invoices')
+  const canRequestPayments = ability.can('write', 'finance:payment-request')
+  const [creating, setCreating] = useState(false)
 
   const statusOptions = PURCHASE_INVOICE_STATUSES.map((value) => ({ value, label: `${PURCHASE_INVOICE_STATUS_META[value].label}${summary ? ` (${summary.byStatus[value]})` : ''}` }))
   /** `?open=` (from notifications and after saving) shows the invoice's details; closing drops it from the URL. */
@@ -73,6 +85,11 @@ export const PurchaseInvoicesScreen: React.FC = () => {
   const actionsFor = (row: PurchaseInvoiceListItem): RowActionItem[] => [
     { key: 'view', label: row.can.decide ? 'View & decide' : 'View details', onSelect: () => showDetails(row.id) },
     { key: 'pdf', label: row.pdfStatus === 'READY' ? 'Download PDF' : 'Download PDF · generating…', onSelect: () => void actions.downloadPdf(row) },
+    // Packing follows approved invoices: the list's SKUs and quantities come from them
+    ...(canPack && isInvoiced(row.status) ? [{ key: 'pack', label: 'Create packaging list', onSelect: () => router.push(newPackagingListHref(row.purchaseOrder.id)) }] : []),
+    // Only an approved invoice can be paid; the request opens with the invoice picked as what it pays
+    ...(canRequestPayments && (row.status === 'PAYMENT_PENDING' || row.status === 'PARTIALLY_PAID') ? [{ key: 'pay', label: 'Create payment request', onSelect: () => router.push(newPaymentRequestForInvoiceHref(row.id)) }] : []),
+    ...(canViewPayments ? [{ key: 'payments', label: `View payment requests (${row.paymentRequestCount})`, onSelect: () => setPaymentsOf({ id: row.id, invoiceRef: row.invoiceRef }) }] : []),
     ...(row.can.edit ? [{ key: 'edit', label: 'Edit invoice', onSelect: () => router.push(`${PURCHASE_INVOICES_URL}/new?edit=${row.id}`) }] : []),
     ...(row.can.submit ? [{ key: 'submit', label: row.status === 'REJECTED' ? 'Resubmit for approval' : 'Submit for approval', onSelect: () => void actions.submit(row) }] : []),
     ...(row.can.withdraw ? [{ key: 'withdraw', label: 'Withdraw to draft', onSelect: () => void actions.withdraw(row) }] : []),
@@ -104,8 +121,13 @@ export const PurchaseInvoicesScreen: React.FC = () => {
               </span>
             )}
           </div>
-          <p className="text-sm text-text-muted">Raised from a purchase order (Actions › Create purchase invoice). PDFs are generated in the background.</p>
+          <p className="text-sm text-text-muted">Raised from an approved purchase order. PDFs are generated in the background.</p>
         </div>
+        {canCreate && (
+          <Button type="button" size="sm" onClick={() => setCreating(true)}>
+            + Create purchase invoice
+          </Button>
+        )}
       </div>
 
       <div className="mb-4 rounded-lg border border-border bg-surface p-3 shadow-sm sm:p-4">
@@ -147,6 +169,7 @@ export const PurchaseInvoicesScreen: React.FC = () => {
                 <TableHead className={CELL}>Destination</TableHead>
                 <TableHead className={cn(CELL, 'min-w-[180px]')}>Expense</TableHead>
                 <TableHead className={CELL}>Amount</TableHead>
+                <TableHead className={CELL}>Payment requests</TableHead>
                 <TableHead className={cn(CELL, 'min-w-[170px]')}>Status</TableHead>
                 <TableHead className={CELL}>PDF</TableHead>
                 <TableHead className={cn(CELL, 'min-w-[140px]')}>Created by</TableHead>
@@ -186,6 +209,15 @@ export const PurchaseInvoicesScreen: React.FC = () => {
                     <TableCell className={cn(CELL, 'whitespace-nowrap')}>{destinationName(row.marketplaceId)}</TableCell>
                     <TableCell className={CELL}>{row.expenseType.name}</TableCell>
                     <TableCell className={cn(CELL, 'whitespace-nowrap tabular-nums')}>{formatCurrencyAmount(row.currency, row.amount)}</TableCell>
+                    <TableCell className={cn(CELL, 'tabular-nums')}>
+                      {canViewPayments && row.paymentRequestCount > 0 ? (
+                        <button type="button" onClick={() => setPaymentsOf({ id: row.id, invoiceRef: row.invoiceRef })} className="font-medium text-primary-600 underline-offset-2 hover:underline">
+                          {row.paymentRequestCount}
+                        </button>
+                      ) : (
+                        row.paymentRequestCount
+                      )}
+                    </TableCell>
                     <TableCell className={CELL}>
                       <span className="inline-flex flex-col items-center gap-0.5">
                         <PurchaseInvoiceStatusBadge status={row.status} />
@@ -209,6 +241,8 @@ export const PurchaseInvoicesScreen: React.FC = () => {
         {data && <PaginationFooter page={data.page} pageSize={data.limit} totalItems={data.totalRecords} totalPages={data.totalPages} onPageChange={setPage} itemLabel="purchase invoices" />}
       </div>
 
+      <NewPurchaseInvoiceModal isOpen={creating} onClose={() => setCreating(false)} />
+      <PiPaymentRequestsModal purchaseInvoice={paymentsOf} onClose={() => setPaymentsOf(null)} />
       <PurchaseInvoiceDetailModal invoiceId={openId ?? null} onClose={() => showDetails(null)} />
 
       <ReasonDialog

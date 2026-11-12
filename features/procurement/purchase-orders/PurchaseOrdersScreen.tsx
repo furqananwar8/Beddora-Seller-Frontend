@@ -28,7 +28,7 @@ import {
 } from '@/services/api/procurement.api'
 import { cn } from '@/utils/cn'
 import { useDebounce } from '@/utils/debounce'
-import { DESTINATION_LABEL, PAYMENT_META, PO_STATUS_META, newPackagingListHref, newPaymentRequestHref, newPurchaseInvoiceHref } from '../shared/poMeta'
+import { DESTINATION_LABEL, PAYMENT_META, PO_STATUS_META, newPaymentRequestHref, newPurchaseInvoiceHref } from '../shared/poMeta'
 import { PoPackagingListsModal } from '../shared/PoPackagingLists'
 import { PoPaymentRequestsModal } from '../shared/PoPaymentRequests'
 import { usePoPdfDownload } from '../shared/usePoPdfDownload'
@@ -86,7 +86,6 @@ export const PurchaseOrdersScreen: React.FC = () => {
   const canEdit = ability.can('write', 'procurement:purchase-orders.edit')
   const canDecide = ability.can('write', 'procurement:po-approval')
   const canViewPayments = ability.can('read', 'finance:payment-request')
-  const canPack = ability.can('write', 'procurement:packaging-lists')
   const canInvoice = ability.can('write', 'procurement:purchase-invoices')
   const canRequestPayments = ability.can('write', 'finance:payment-request')
   const pdf = usePoPdfDownload()
@@ -231,12 +230,10 @@ export const PurchaseOrdersScreen: React.FC = () => {
             canEdit={canEdit}
             canDecide={canDecide}
             canViewPayments={canViewPayments}
-            canPack={canPack}
             canInvoice={canInvoice}
             canRequestPayments={canRequestPayments}
             onCreatePaymentRequest={(row) => router.push(newPaymentRequestHref(row.id))}
             onCreatePurchaseInvoice={(row) => router.push(newPurchaseInvoiceHref(row.id))}
-            onCreatePackagingList={(row) => router.push(newPackagingListHref(row.id))}
             onViewPackagingLists={(row) => setListsOf({ id: row.id, poNo: row.poNo })}
             onViewPayments={(row) => setPaymentsOf({ id: row.id, poNo: row.poNo })}
             onDownloadPdf={(row) => pdf.download(row.id)}

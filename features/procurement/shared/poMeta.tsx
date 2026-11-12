@@ -11,6 +11,9 @@ export const formatPoNo = (id: number): string => `PO-${1000 + id}`
 /** New payment request against one PO: its supplier, currency and destination are preset and locked. */
 export const newPaymentRequestHref = (id: number): string => `/dashboard/finance/payment-request/new?purchaseOrderId=${id}`
 
+/** A payment request paying one purchase invoice, started with its supplier, number, date and expense. */
+export const newPaymentRequestForInvoiceHref = (purchaseInvoiceId: number): string => `/dashboard/finance/payment-request/new?purchaseInvoiceId=${purchaseInvoiceId}`
+
 /** A PO takes a new payment request while in progress, open and not yet paid in full. */
 export const canRequestPayment = (po: { status: PoStatus; isOpen: boolean; payment: PoPayment }): boolean =>
   po.status !== 'DRAFT' && po.status !== 'PENDING_APPROVAL' && po.isOpen && po.payment.status !== 'PAID'
@@ -153,6 +156,9 @@ export const PURCHASE_INVOICE_STATUS_META: Record<PurchaseInvoiceStatus, { label
   PARTIALLY_PAID: { label: 'PARTIALLY PAID', tone: 'warning' },
   PAID: { label: 'PAID', tone: 'success' },
 }
+
+/** Approved invoices (their status then follows what has been paid): the ones packaging lists are built from. */
+export const isInvoiced = (status: PurchaseInvoiceStatus): boolean => status === 'PAYMENT_PENDING' || status === 'PARTIALLY_PAID' || status === 'PAID'
 
 export const PURCHASE_INVOICE_STATUSES = Object.keys(PURCHASE_INVOICE_STATUS_META) as PurchaseInvoiceStatus[]
 

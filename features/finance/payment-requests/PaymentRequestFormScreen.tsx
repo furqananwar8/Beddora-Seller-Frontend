@@ -37,7 +37,7 @@ import {
   useSubmitPaymentRequestMutation,
   useUpdatePaymentRequestMutation,
 } from '@/services/api/finance.api'
-import { useGetProcurementPurchaseOrderQuery, type ContainerItem } from '@/services/api/procurement.api'
+import { useGetProcurementPurchaseOrderQuery, useGetPurchaseInvoiceQuery, type ContainerItem } from '@/services/api/procurement.api'
 import { FormField } from '../shared/FormField'
 import { FormSection as Section } from '../shared/FormSection'
 import { currencyOptions } from '../shared/currency'
@@ -73,6 +73,7 @@ import {
 const LIST_URL = '/dashboard/finance/payment-request'
 const NEW_URL = `${LIST_URL}/new`
 const PO_URL = '/dashboard/procurement/purchase-orders'
+const PURCHASE_INVOICES_URL = '/dashboard/procurement/purchase-invoices'
 
 const positiveParam = (value: string | null): number | null => {
   const parsed = Number(value)
@@ -100,7 +101,8 @@ const limitOf = (po: PayablePurchaseOrder): PoLimit => ({ currency: po.currency,
 /**
  * Raise or edit a payment request (`?edit=`). Opened from a purchase order (`?purchaseOrderId=`), it starts as a
  * request against that PO: its supplier, currency and destination, which then cannot change. Paying one of our
- * purchase invoices locks them the same way, to the invoice's.
+ * purchase invoices locks them the same way, to the invoice's. Opened from a purchase invoice (`?purchaseInvoiceId=`),
+ * it starts as a request paying that invoice: its supplier, number, date and expense are filled in.
  */
 export const PaymentRequestFormScreen: React.FC = () => {
   const router = useRouter()
@@ -110,6 +112,10 @@ export const PaymentRequestFormScreen: React.FC = () => {
   const newPartnerId = positiveParam(searchParams.get('partnerId'))
   /** Opened from a purchase order: prefill it, and "Back" returns there. */
   const fromPoId = editId === null ? positiveParam(searchParams.get('purchaseOrderId')) : null
+  /** Opened from a purchase invoice: prefill it as the invoice being paid, and "Back" returns there. */
+  const fromInvoiceId = editId === null ? positiveParam(searchParams.get('purchaseInvoiceId')) : null
+  /** Opened from a PO or an invoice: the partner and what is paid against are fixed by it. */
+  const presetLocked = fromPoId !== null || fromInvoiceId !== null
   const wantsRestore = newPartnerId !== null || searchParams.get('restore') === '1'
   // Peek (not take) so a dev double-mount cannot lose it; it is cleared once applied.
   const [draft] = useState(() => (wantsRestore ? peekRequestDraft() : null))
@@ -242,6 +248,23 @@ export const PaymentRequestFormScreen: React.FC = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [balancePoNo, poMatches, fromPo, fromSupplier])
+
+  // Opened from a purchase invoice: its supplier, then the invoice itself as the one being paid
+  const { data: fromInvoice } = useGetPurchaseInvoiceQuery(fromInvoiceId ?? 0, { skip: fromInvoiceId === null || draft !== null })
+  const { data: invoiceSupplier } = useGetPartnerQuery(fromInvoice?.partner.id ?? 0, { skip: !fromInvoice })
+  const appliedFromInvoice = useRef(false)
+  useEffect(() => {
+    if (!fromInvoice || !invoiceSupplier || !marketplaces || appliedFromInvoice.current) return
+    appliedFromInvoice.current = true
+    pickPartner(toPartnerOption(invoiceSupplier))
+    switchReference('INVOICE')
+    setValue('invoiceDate', toDateInputValue(fromInvoice.invoiceDate), { shouldDirty: true })
+    // The expense the invoice is booked to starts the first line
+    if (fromInvoice.costCenter) setValue('lines.0.costCenterId', String(fromInvoice.costCenter.id), { shouldDirty: true })
+    // Naming the invoice finds it among ours: its currency and destination then lock to it
+    pickInvoiceNo(fromInvoice.invoiceNo)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fromInvoice, invoiceSupplier, marketplaces])
 
   const returnHere = encodeURIComponent(editId ? withQueryParam(NEW_URL, 'edit', String(editId)) : NEW_URL)
   const addPartnerHref = `/dashboard/finance/partner-profile/new?returnTo=${returnHere}`
@@ -397,9 +420,9 @@ export const PaymentRequestFormScreen: React.FC = () => {
   const invoiceBlocked = (referenceType !== 'PURCHASE_ORDER' && Boolean(purchaseInvoice?.blockedReason)) || fromPoUnpayable
   const editBlocked = editId !== null && detail && !detail.can.edit
   const statusMeta = REQUEST_STATUS_META[detail?.status ?? 'DRAFT']
-  const backHref = fromPoId ? `${PO_URL}/${fromPoId}` : LIST_URL
+  const backHref = fromPoId ? `${PO_URL}/${fromPoId}` : fromInvoiceId ? PURCHASE_INVOICES_URL : LIST_URL
 
-  if (batchMode && editId === null && fromPoId === null) return <BatchPaymentRequestForm onExit={() => setBatchMode(false)} />
+  if (batchMode && editId === null && !presetLocked) return <BatchPaymentRequestForm onExit={() => setBatchMode(false)} />
 
   if (editId !== null && loadingDetail) {
     return (
@@ -435,12 +458,17 @@ export const PaymentRequestFormScreen: React.FC = () => {
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-xl font-bold text-text-primary sm:text-2xl">Payment Request Creation</h1>
           <StatusBadge label={requestId ? `${statusMeta.label} · ${formatRequestNo(requestId)}` : 'DRAFT'} tone={statusMeta.tone} />
+          {fromInvoice && (
+            <Link href={`${PURCHASE_INVOICES_URL}?open=${fromInvoice.id}`} className="text-sm font-medium text-primary-600 underline-offset-2 hover:underline">
+              {fromInvoice.invoiceRef}
+            </Link>
+          )}
           {fromPo && (
             <Link href={backHref} className="text-sm font-medium text-primary-600 underline-offset-2 hover:underline">
               {fromPo.poNo}
             </Link>
           )}
-          {editId === null && fromPoId === null && !requestId && <BatchModeToggle checked={false} onChange={setBatchMode} disabled={busy} />}
+          {editId === null && !presetLocked && !requestId && <BatchModeToggle checked={false} onChange={setBatchMode} disabled={busy} />}
         </div>
 
         <Section title="Partner" note="who is being paid">
@@ -452,7 +480,7 @@ export const PaymentRequestFormScreen: React.FC = () => {
               onSelect={pickPartner}
               addPartnerHref={addPartnerHref}
               onAddPartner={stashDraft}
-              disabled={fromPoId !== null}
+              disabled={presetLocked}
             />
           </FormField>
           {shownPartner && (
@@ -465,7 +493,7 @@ export const PaymentRequestFormScreen: React.FC = () => {
 
         <Section title={byPurchaseOrder ? 'Purchase order & shipment' : 'Invoice & shipment'}>
           <FormField label="Paying against" className="mb-4" hint={byPurchaseOrder ? 'Only approved, open purchase orders of this supplier with an amount left to pay are offered' : undefined}>
-            <SegmentedToggle<ReferenceType> ariaLabel="Paying against" value={referenceType} onChange={switchReference} options={REFERENCE_OPTIONS} disabled={fromPoId !== null} />
+            <SegmentedToggle<ReferenceType> ariaLabel="Paying against" value={referenceType} onChange={switchReference} options={REFERENCE_OPTIONS} disabled={presetLocked} />
           </FormField>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {byPurchaseOrder ? (
@@ -618,7 +646,7 @@ export const PaymentRequestFormScreen: React.FC = () => {
 
         <div className="flex flex-wrap items-center justify-end gap-2 pb-4">
           <Link href={backHref} className="mr-auto px-2 text-sm font-medium text-text-secondary hover:underline sm:mr-2">
-            {fromPoId ? 'Back' : 'Cancel'}
+            {fromPoId || fromInvoiceId ? 'Back' : 'Cancel'}
           </Link>
           <Button
             type="button"

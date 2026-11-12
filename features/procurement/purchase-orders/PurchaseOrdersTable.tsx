@@ -9,7 +9,7 @@ import { cn } from '@/utils/cn'
 import { formatCurrency } from '@/utils/format'
 import { ArdCell } from './ArdCell'
 import { ProductionDateCell } from './ProductionDateCell'
-import { DESTINATION_LABEL, EtdBadge, OpenBadge, PaymentBadge, PoStatusBadge, canRequestPayment, isApprovedPo, isPackable } from '../shared/poMeta'
+import { DESTINATION_LABEL, EtdBadge, OpenBadge, PaymentBadge, PoStatusBadge, canRequestPayment, isApprovedPo } from '../shared/poMeta'
 
 const CELL = 'text-center align-middle'
 const COLUMNS = 16
@@ -22,15 +22,12 @@ export interface PoRowActions {
   canDecide: boolean
   /** May open Finance > Payment Requests. */
   canViewPayments: boolean
-  /** May create packaging lists. */
-  canPack: boolean
   /** May raise purchase invoices. */
   canInvoice: boolean
   /** May raise payment requests. */
   canRequestPayments: boolean
   onCreatePaymentRequest: (row: PurchaseOrderListItem) => void
   onCreatePurchaseInvoice: (row: PurchaseOrderListItem) => void
-  onCreatePackagingList: (row: PurchaseOrderListItem) => void
   onViewPackagingLists: (row: PurchaseOrderListItem) => void
   onViewPayments: (row: PurchaseOrderListItem) => void
   onDownloadPdf: (row: PurchaseOrderListItem) => void
@@ -58,7 +55,6 @@ function actionsFor(row: PurchaseOrderListItem, actions: PoRowActions): RowActio
     { key: 'view', label: 'View purchase order', onSelect: () => actions.onOpen(row) },
     { key: 'pdf', label: actions.pdfBusy ? 'Preparing PDF…' : 'Download PDF', disabled: actions.pdfBusy, onSelect: () => actions.onDownloadPdf(row) },
   ]
-  if (actions.canPack && isPackable(row)) items.push({ key: 'pack', label: 'Create packaging list', onSelect: () => actions.onCreatePackagingList(row) })
   if (approved) items.push({ key: 'lists', label: 'View packaging lists', onSelect: () => actions.onViewPackagingLists(row) })
   if (actions.canInvoice && approved) items.push({ key: 'invoice', label: 'Create purchase invoice', onSelect: () => actions.onCreatePurchaseInvoice(row) })
   if (actions.canRequestPayments && canRequestPayment(row)) items.push({ key: 'pay', label: 'Create payment request', onSelect: () => actions.onCreatePaymentRequest(row) })
