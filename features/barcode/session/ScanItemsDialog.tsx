@@ -11,7 +11,7 @@ import { Spinner } from '@/design-system/loaders'
 import { Modal } from '@/design-system/modals'
 import { useApiFeedback } from '@/hooks/useApiFeedback'
 import { useGetScanSourceQuery, useStartScanSessionMutation, type ScanDirection } from '@/services/api/barcode.api'
-import { DIRECTION_META, sessionHref, type ScanTarget } from './scanSession'
+import { DIRECTION_META, conditionName, conditionsFor, inHint, isReceipt, sessionHref, type ScanTarget } from './scanSession'
 
 const schema = z.object({
   direction: z.enum(['IN', 'OUT']),
@@ -90,7 +90,7 @@ export function ScanItemsDialog({ target, onClose }: Props) {
                   <input type="radio" value={value} disabled={Boolean(reason)} className="mt-1" {...register('direction')} />
                   <span>
                     <span className="block text-sm font-medium text-text-primary">{DIRECTION_META[value].label}</span>
-                    <span className="block text-xs text-text-muted">{reason ?? DIRECTION_META[value].hint}</span>
+                    <span className="block text-xs text-text-muted">{reason ?? (value === 'IN' ? inHint(target.scenario) : DIRECTION_META[value].hint)}</span>
                   </span>
                 </label>
               )
@@ -99,9 +99,9 @@ export function ScanItemsDialog({ target, onClose }: Props) {
 
           {direction === 'IN' && (
             <Select
-              label="Condition of the returned items"
-              helperText="Sets where the units are added back. You can change it between scans."
-              options={info.conditions.map((c) => ({ value: c.value, label: c.label }))}
+              label={isReceipt(target.scenario) ? 'Condition of the received items' : 'Condition of the returned items'}
+              helperText="Sets where the units are added. You can change it between scans."
+              options={info.conditions.filter((c) => conditionsFor(target.scenario).includes(c.value)).map((c) => ({ value: c.value, label: conditionName(target.scenario, c.value, c.label) }))}
               {...register('condition')}
             />
           )}

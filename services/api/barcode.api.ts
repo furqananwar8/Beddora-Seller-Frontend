@@ -47,7 +47,7 @@ export interface NewBarcodeScan {
   scannedAt?: string
 }
 
-export type ScanScenario = 'FBA_WFS' | 'FBM_ORDER'
+export type ScanScenario = 'FBA_WFS' | 'FBM_ORDER' | 'CONTAINER'
 export type ScanDirection = 'IN' | 'OUT'
 export type ScanSessionStatus = 'IN_PROGRESS' | 'COMPLETED' | 'DISCARDED'
 /** The state a returned unit came back in; decides where its stock lands. */

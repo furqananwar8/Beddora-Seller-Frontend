@@ -8,6 +8,7 @@ import { PaginationFooter } from '@/components/pagination-footer/PaginationFoote
 import { RowActionsMenu } from '@/components/row-actions-menu/RowActionsMenu'
 import { SegmentedToggle } from '@/components/segmented-toggle/SegmentedToggle'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableStatusRow } from '@/design-system/tables'
+import { useScanItems } from '@/features/barcode/session/useScanItems'
 import { useAppAbility } from '@/hooks/useAppAbility'
 import { useGetReceivingListQuery, type ReceivingListItem, type ReceivingStatus } from '@/services/api/inboundReceiving.api'
 import { cn } from '@/utils/cn'
@@ -39,7 +40,10 @@ const Numbers: React.FC<{ values: string[] }> = ({ values }) =>
 export const InboundReceivingScreen: React.FC = () => {
   const fit = useFitToViewport<HTMLDivElement>()
   const router = useRouter()
-  const canWrite = useAppAbility().can('write', 'inventory:inbound-receiving')
+  const ability = useAppAbility()
+  const canWrite = ability.can('write', 'inventory:inbound-receiving')
+  const canScan = ability.can('write', 'barcode:scans')
+  const scanItems = useScanItems()
   const [page, setPage] = useState(1)
   const [status, setStatus] = useState<StatusFilter>('ALL')
   const [search, setSearch] = useState('')
@@ -137,6 +141,8 @@ export const InboundReceivingScreen: React.FC = () => {
                                 onSelect: () => router.push(RECEIVING_ROUTES.update(row.id)),
                                 ...(received || canWrite ? {} : { disabled: true, disabledReason: 'You cannot receive containers' }),
                               },
+                              // Scanning the container's units in is what puts them into inventory; confirming the receipt only records it
+                              ...(canScan ? [{ key: 'scan', label: 'Scan items', onSelect: () => scanItems.open({ scenario: 'CONTAINER', sourceId: String(row.id) }) }] : []),
                               { key: 'pdf', label: 'Download PDF', onSelect: () => setPrinting(row) },
                             ]}
                           />
@@ -155,6 +161,7 @@ export const InboundReceivingScreen: React.FC = () => {
       </div>
 
       <ReceivingPdfModal container={printing} onClose={() => setPrinting(null)} />
+      {scanItems.dialog}
     </Container>
   )
 }

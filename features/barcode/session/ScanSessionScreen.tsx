@@ -23,7 +23,7 @@ import {
   type ScanSession,
 } from '@/services/api/barcode.api'
 import { ScanFieldSource } from '../scanner/ScanFieldSource'
-import { DIRECTION_META, LINE_STATE_META, SCAN_STATE_META } from './scanSession'
+import { DIRECTION_META, LINE_STATE_META, SCAN_STATE_META, conditionName, conditionsFor, isReceipt } from './scanSession'
 
 /** Shorter than the server's lock TTL (60 s) so the lock never lapses while the screen is open. */
 const HEARTBEAT_MS = 20_000
@@ -85,7 +85,7 @@ export function ScanSessionScreen({ sessionId }: { sessionId: number }) {
   const end = async (confirmed: boolean) => {
     try {
       await endSession({ id: sessionId, confirmed }).unwrap()
-      feedback.success(session?.direction === 'IN' ? 'Returned units added to stock' : 'Stock updated')
+      feedback.success(session?.direction === 'IN' ? (session && isReceipt(session.scenario) ? 'Received units added to stock' : 'Returned units added to stock') : 'Stock updated')
       router.back()
     } catch (e) {
       const found = (e as { data?: { differences?: ScanDifferences } })?.data?.differences
@@ -127,7 +127,7 @@ export function ScanSessionScreen({ sessionId }: { sessionId: number }) {
                 helperText="Each scan keeps the condition it was scanned with. Damaged units go to the damaged bucket."
                 value={condition}
                 onChange={(event) => setCondition(event.target.value as ReturnCondition)}
-                options={CONDITIONS.map((value) => ({ value, label: conditionLabel(value) }))}
+                options={(session ? conditionsFor(session.scenario) : CONDITIONS).map((value) => ({ value, label: session && isReceipt(session.scenario) ? conditionName(session.scenario, value, conditionLabel(value)) : conditionLabel(value) }))}
               />
             )}
             <Input

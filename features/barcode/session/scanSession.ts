@@ -14,6 +14,12 @@ export const DIRECTION_META: Record<ScanDirection, { label: string; hint: string
   IN: { label: 'Inventory in', hint: 'Units are coming back: a return. Each unit is added back by its condition.', badge: 'success' },
 }
 
+/** A container's units come IN as received stock, not as a return: its wording and its two conditions. */
+export const isReceipt = (scenario: ScanScenario) => scenario === 'CONTAINER'
+export const inHint = (scenario: ScanScenario) => (isReceipt(scenario) ? 'Units are arriving: the container delivered to the warehouse. Each unit is added to inventory by its condition.' : DIRECTION_META.IN.hint)
+export const conditionsFor = (scenario: ScanScenario): ReturnCondition[] => (isReceipt(scenario) ? ['SELLABLE', 'DAMAGED'] : ['SELLABLE', 'NORMAL_RETURN', 'DAMAGED'])
+export const conditionName = (scenario: ScanScenario, value: ReturnCondition, fallback: string) => (isReceipt(scenario) ? (value === 'SELLABLE' ? 'Good' : 'Damaged') : fallback)
+
 export const LINE_STATE_META: Record<ScanLineState, { label: string; badge: NonNullable<BadgeProps['variant']> }> = {
   NOT_STARTED: { label: 'Not started', badge: 'secondary' },
   IN_PROGRESS: { label: 'In progress', badge: 'primary' },
