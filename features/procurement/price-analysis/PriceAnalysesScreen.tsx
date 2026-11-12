@@ -23,6 +23,7 @@ import { formatCalendarDay } from '@/utils/format'
 import { CategorySelect } from '../shared/CategorySelect'
 import { productLabel } from '../shared/ProductPicker'
 import { NewAnalysisModal } from './NewAnalysisModal'
+import { PriceHistoryModal } from './PriceHistoryModal'
 import { PRICE_ANALYSIS_LIST } from './PriceAnalysisScreen'
 
 const PAGE_SIZE = 20
@@ -82,9 +83,11 @@ export const PriceAnalysesScreen: React.FC = () => {
   })
   const rows = data?.data ?? []
   const [creating, setCreating] = useState(false)
+  const [timeline, setTimeline] = useState<PriceAnalysisListItem | null>(null)
 
   const actionsFor = (row: PriceAnalysisListItem) => [
     { key: 'open', label: canWrite ? 'Edit analysis' : 'View analysis', onSelect: () => router.push(priceAnalysisHref(row.product.id)) },
+    { key: 'timeline', label: 'Timeline', onSelect: () => setTimeline(row) },
   ]
 
   return (
@@ -222,6 +225,7 @@ export const PriceAnalysesScreen: React.FC = () => {
         {data && <PaginationFooter page={data.page} pageSize={data.limit} totalItems={data.totalRecords} totalPages={data.totalPages} onPageChange={setPage} itemLabel="analyses" />}
       </div>
 
+      <PriceHistoryModal productId={timeline?.product.id ?? null} productLabel={timeline ? `${timeline.product.ref} · ${productLabel(timeline.product)}` : ''} onClose={() => setTimeline(null)} />
       <NewAnalysisModal isOpen={creating} onClose={() => setCreating(false)} hrefFor={priceAnalysisHref} />
     </Container>
   )

@@ -61,6 +61,8 @@ export const PriceAnalysisScreen: React.FC<{ productId: number }> = ({ productId
   const [serverErrors, setServerErrors] = useState<Map<number, RowErrors>>(new Map())
   const [formError, setFormError] = useState<string | null>(null)
   const [triedSave, setTriedSave] = useState(false)
+  /** Set by a successful save so a Back button is offered; any further edit hides it again. */
+  const [justSaved, setJustSaved] = useState(false)
   const [approving, setApproving] = useState<QuoteRow | null>(null)
   const [rejecting, setRejecting] = useState<QuoteRow | null>(null)
   /** The saved version the edits started from: a save sends it, so a newer save by someone else is refused, not overwritten. */
@@ -145,6 +147,7 @@ export const PriceAnalysisScreen: React.FC<{ productId: number }> = ({ productId
     try {
       const saved = await save({ productId, body: toBody(form, loadedAt) }).unwrap()
       adopt(saved)
+      setJustSaved(true)
       if (!saved.analysis) success('Analysis removed')
       else success(hadApproval && !saved.analysis.approval ? 'Analysis saved · the approval was taken back and needs approving again' : `Analysis saved · ${saved.analysis.quotes.length} supplier${saved.analysis.quotes.length === 1 ? '' : 's'}`)
     } catch (caught) {
@@ -295,6 +298,11 @@ export const PriceAnalysisScreen: React.FC<{ productId: number }> = ({ productId
 
             {!readOnly && (
               <FormActions>
+                {justSaved && !dirty && (
+                  <Link href={PRICE_ANALYSIS_LIST} className="ds-button ds-button-outline">
+                    Back to price analyses
+                  </Link>
+                )}
                 <Button type="button" variant="outline" onClick={discard} disabled={!dirty || saving}>
                   Discard
                 </Button>
