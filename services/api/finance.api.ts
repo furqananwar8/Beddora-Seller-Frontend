@@ -434,10 +434,10 @@ export interface PaymentRequestDetail {
   gstAmount: number
   /** What is paid: `amount` plus GST when GST is exclusive, otherwise `amount`. */
   totalAmount: number
-  fxRate: number | null
-  fxRateAsOf: string | null
   /** Snapshot taken when the request was created: the reporting currency, that day's rate and the amount in it. */
   baseCurrency: string | null
+  fxRate: number | null
+  fxRateAsOf: string | null
   baseAmount: number | null
   /** Amounts and the L4 cost centers they are booked to; an invoice request may have several. */
   lines: PaymentRequestLine[]
@@ -469,10 +469,10 @@ export interface PaymentRequestLine {
   /** The GST % this amount was worked out at (null without GST). */
   gstRateId: number | null
   gstRate: number | null
-
-export interface ExpenseType {
   costCenter: CostCenterOption | null
 }
+
+export interface ExpenseType {
   id: number
   name: string
   sortOrder: number
@@ -739,10 +739,10 @@ export const financeApi = baseApi.injectEndpoints({
       invalidatesTags: ['GstRates'],
     }),
 
-      isApprover: boolean
-      canManageExpenseTypes: boolean
     /* approvers */
     getApproverStatus: b.query<{
+      isApprover: boolean
+      canManageExpenseTypes: boolean
       canManageApprovers: boolean
       canWritePartners: boolean
       canWriteBankProfiles: boolean
@@ -972,10 +972,10 @@ export const {
   useGetGstRateSettingsQuery,
   useCreateGstRateMutation,
   useDeleteGstRateMutation,
-  useGetApproverCandidatesQuery,
-  useAddApproverMutation,
   useGetApproverStatusQuery,
   useGetApproversQuery,
+  useGetApproverCandidatesQuery,
+  useAddApproverMutation,
   useRemoveApproverMutation,
   useGetPaymentRequestsQuery,
   useGetPaymentRequestSummaryQuery,
