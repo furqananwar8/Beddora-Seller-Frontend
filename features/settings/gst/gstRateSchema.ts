@@ -1,7 +1,8 @@
 import { z } from 'zod'
 
-/** Same rules as the server: a percentage above 0 and at most 100, with up to 2 decimals. */
+/** Same rules as the server: a name, and a percentage above 0 and at most 100, with up to 2 decimals. */
 export const gstRateSchema = z.object({
+  name: z.string().trim().min(1, 'Enter a name').max(60, 'Keep it under 60 characters'),
   rate: z
     .string()
     .trim()

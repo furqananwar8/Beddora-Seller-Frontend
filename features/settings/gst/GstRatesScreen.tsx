@@ -10,7 +10,7 @@ import { Input } from '@/design-system/inputs'
 import { Spinner } from '@/design-system/loaders'
 import { useApiFeedback } from '@/hooks/useApiFeedback'
 import { useAppAbility } from '@/hooks/useAppAbility'
-import { useCreateGstRateMutation, useDeleteGstRateMutation, useGetGstRateSettingsQuery, type GstRate } from '@/services/api/finance.api'
+import { useCreateGstRateMutation, useDeleteGstRateMutation, useGetGstRateSettingsQuery, type GstRateSetting } from '@/services/api/finance.api'
 import { applyServerIssues } from '@/utils/apiErrors'
 import { gstRateSchema, type GstRateValues } from './gstRateSchema'
 
@@ -21,16 +21,16 @@ export const GstRatesScreen: React.FC = () => {
   const { data: rates = [], isLoading, isError } = useGetGstRateSettingsQuery()
   const [create, { isLoading: creating }] = useCreateGstRateMutation()
   const [remove, { isLoading: removing }] = useDeleteGstRateMutation()
-  const [deleting, setDeleting] = useState<GstRate | null>(null)
-  const { register, handleSubmit, reset, setError, formState } = useForm<GstRateValues>({ resolver: zodResolver(gstRateSchema), defaultValues: { rate: '' } })
+  const [deleting, setDeleting] = useState<GstRateSetting | null>(null)
+  const { register, handleSubmit, reset, setError, formState } = useForm<GstRateValues>({ resolver: zodResolver(gstRateSchema), defaultValues: { name: '', rate: '' } })
 
-  const add = handleSubmit(async ({ rate }) => {
+  const add = handleSubmit(async ({ name, rate }) => {
     try {
-      await create({ rate: Number(rate) }).unwrap()
-      success(`${Number(rate)}% added`)
+      await create({ name, rate: Number(rate) }).unwrap()
+      success(`${name} (${Number(rate)}%) added`)
       reset()
     } catch (error) {
-      if (!applyServerIssues(error, setError, ['rate'])) failure(error, 'Could not add the GST rate')
+      if (!applyServerIssues(error, setError, ['name', 'rate'])) failure(error, 'Could not add the GST rate')
     }
   })
 
@@ -38,7 +38,7 @@ export const GstRatesScreen: React.FC = () => {
     if (!deleting) return
     try {
       await remove(deleting.id).unwrap()
-      success(`${deleting.rate}% removed`)
+      success(`${deleting.name} removed`)
       setDeleting(null)
     } catch (error) {
       failure(error, 'Could not remove the GST rate')
@@ -50,6 +50,9 @@ export const GstRatesScreen: React.FC = () => {
     <div className="max-w-xl space-y-4">
       {canEdit && (
         <form noValidate onSubmit={add} className="flex flex-wrap items-start gap-3 rounded-lg border border-border bg-surface p-4 shadow-sm">
+          <FormField label="Name" htmlFor="gst-name" required error={formState.errors.name?.message} className="w-56">
+            <Input id="gst-name" placeholder="e.g. GST" className="rounded-lg" {...register('name')} />
+          </FormField>
           <FormField label="GST %" htmlFor="gst-rate" required error={formState.errors.rate?.message} className="w-40">
             <Input id="gst-rate" inputMode="decimal" placeholder="e.g. 5" className="rounded-lg" {...register('rate')} />
           </FormField>
@@ -72,7 +75,9 @@ export const GstRatesScreen: React.FC = () => {
           <ul className="divide-y divide-border">
             {rates.map((rate) => (
               <li key={rate.id} className="flex items-center justify-between gap-3 px-4 py-3">
-                <span className="font-medium text-text-primary">{rate.rate}%</span>
+                <span className="min-w-0 flex-1 truncate font-medium text-text-primary" title={rate.name}>
+                  {rate.name} <span className="font-normal text-text-muted">· {rate.rate}%</span>
+                </span>
                 <span className="text-xs text-text-muted">{rate.usedBy > 0 ? `Used by ${rate.usedBy} request${rate.usedBy === 1 ? '' : 's'}` : 'Not used yet'}</span>
                 {canEdit && (
                   <Button type="button" variant="outline" size="sm" disabled={rate.usedBy > 0} title={rate.usedBy > 0 ? 'Used by payment requests, so it stays' : undefined} onClick={() => setDeleting(rate)}>
@@ -86,7 +91,7 @@ export const GstRatesScreen: React.FC = () => {
       </div>
 
       <ConfirmDialog isOpen={deleting !== null} title="Remove GST rate" confirmLabel="Remove" busy={removing} onClose={() => setDeleting(null)} onConfirm={confirmDelete}>
-        Remove {deleting?.rate}% from the list? Payment requests can no longer pick it.
+        Remove {deleting?.name} ({deleting?.rate}%) from the list? Payment requests can no longer pick it.
       </ConfirmDialog>
     </div>
   )

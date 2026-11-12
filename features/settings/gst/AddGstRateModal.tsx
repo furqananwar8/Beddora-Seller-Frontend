@@ -8,7 +8,7 @@ import { Button } from '@/design-system/buttons'
 import { Input } from '@/design-system/inputs'
 import { Modal } from '@/design-system/modals'
 import { useApiFeedback } from '@/hooks/useApiFeedback'
-import { useCreateGstRateMutation, type GstRate } from '@/services/api/finance.api'
+import { useCreateGstRateMutation, type GstRateSetting } from '@/services/api/finance.api'
 import { applyServerIssues } from '@/utils/apiErrors'
 import { gstRateSchema, type GstRateValues } from './gstRateSchema'
 
@@ -16,14 +16,14 @@ interface AddGstRateModalProps {
   isOpen: boolean
   onClose: () => void
   /** The rate just added, so the form that opened this can pick it. */
-  onAdded?: (rate: GstRate) => void
+  onAdded?: (rate: GstRateSetting) => void
 }
 
 /** Adds a GST percentage without leaving the screen that needs one (same rules and endpoint as Settings > GST). */
 export const AddGstRateModal: React.FC<AddGstRateModalProps> = ({ isOpen, onClose, onAdded }) => {
   const { success, failure } = useApiFeedback()
   const [create, { isLoading }] = useCreateGstRateMutation()
-  const { register, handleSubmit, reset, setError, formState } = useForm<GstRateValues>({ resolver: zodResolver(gstRateSchema), defaultValues: { rate: '' } })
+  const { register, handleSubmit, reset, setError, formState } = useForm<GstRateValues>({ resolver: zodResolver(gstRateSchema), defaultValues: { name: '', rate: '' } })
 
   const close = () => {
     reset()
@@ -33,14 +33,14 @@ export const AddGstRateModal: React.FC<AddGstRateModalProps> = ({ isOpen, onClos
   // Not the page's own form: this one sits inside another, so it must not submit that one
   const add = (event: React.FormEvent) => {
     event.stopPropagation()
-    return handleSubmit(async ({ rate }) => {
+    return handleSubmit(async ({ name, rate }) => {
       try {
-        const created = await create({ rate: Number(rate) }).unwrap()
-        success(`${created.rate}% added`)
+        const created = await create({ name, rate: Number(rate) }).unwrap()
+        success(`${created.name} (${created.rate}%) added`)
         onAdded?.(created)
         close()
       } catch (error) {
-        if (!applyServerIssues(error, setError, ['rate'])) failure(error, 'Could not add the GST rate')
+        if (!applyServerIssues(error, setError, ['name', 'rate'])) failure(error, 'Could not add the GST rate')
       }
     })(event)
   }
@@ -48,8 +48,11 @@ export const AddGstRateModal: React.FC<AddGstRateModalProps> = ({ isOpen, onClos
   return (
     <Modal isOpen={isOpen} onClose={close} title="Add GST rate" size="sm">
       <form noValidate onSubmit={add} className="space-y-4">
-        <FormField label="GST %" htmlFor="new-gst-rate" required error={formState.errors.rate?.message} hint="It joins the list in Settings > GST">
-          <Input id="new-gst-rate" inputMode="decimal" placeholder="e.g. 5" autoFocus className="rounded-lg" {...register('rate')} />
+        <FormField label="Name" htmlFor="new-gst-name" required error={formState.errors.name?.message} hint="For Settings > GST, e.g. GST or HST Ontario">
+          <Input id="new-gst-name" placeholder="e.g. GST" autoFocus className="rounded-lg" {...register('name')} />
+        </FormField>
+        <FormField label="GST %" htmlFor="new-gst-rate" required error={formState.errors.rate?.message} hint="Requests show only the percentage">
+          <Input id="new-gst-rate" inputMode="decimal" placeholder="e.g. 5" className="rounded-lg" {...register('rate')} />
         </FormField>
         <div className="flex justify-end gap-2">
           <Button type="button" variant="secondary" onClick={close}>
