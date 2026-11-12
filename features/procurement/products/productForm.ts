@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { CategoryRef, LengthUnit, PoProduct, PoProductFamily, ProductBody, VariationBody, WeightUnit } from '@/services/api/procurement.api'
+import type { CategoryRef, LengthUnit, PoProduct, PoProductFamily, ProductBody, ProductPlatform, VariationBody, WeightUnit } from '@/services/api/procurement.api'
 import { cbmOf, cmTo, convertLength, kgTo } from '../shared/units'
 
 /* ─────────────── Field helpers ─────────────── */
@@ -133,6 +133,8 @@ export const variationSchema = z.object({
 export const productFormSchema = z
   .object({
     name: nameField,
+    /** Ecommerce (Beddora) or Retail (Northern Linen); every variation takes it. */
+    platform: z.enum(['ECOMMERCE', 'RETAIL'], { message: 'Pick Ecommerce or Retail' }),
     sku: skuField,
     category: z.custom<CategoryRef | null>(),
     /** Default material for new variations; size, packaging and weight belong to each variation. */
@@ -174,6 +176,7 @@ const blankDimensions = { dimensions: '', supplierDimensions: '', cbm: '', cbmTo
 
 export const emptyProductValues: ProductFormValues = {
   name: '',
+  platform: 'ECOMMERCE',
   sku: '',
   category: null,
   material: '',
@@ -282,6 +285,7 @@ export function toProductBody(values: ProductFormValues, expectedUpdatedAt?: str
   }))
   return {
     name: values.name.trim(),
+    platform: values.platform,
     sku: text(values.sku)?.toUpperCase() ?? null,
     categoryId: values.category?.id ?? null,
     color: null,
@@ -327,6 +331,7 @@ function skusFrom(variation: PoProduct, asCopy: boolean): VariationFormValues['s
 export function fromFamily(family: PoProductFamily, asCopy = false): ProductFormValues {
   return {
     name: family.name,
+    platform: family.platform,
     sku: asCopy ? '' : (family.sku ?? ''),
     category: family.category,
     material: family.material ?? '',

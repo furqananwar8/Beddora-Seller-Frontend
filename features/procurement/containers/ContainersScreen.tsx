@@ -16,6 +16,7 @@ import { CostMappingModal } from './cost-analysis/CostMappingModal'
 import { ContainerRowDetail } from './detail/ContainerOverview'
 import { ContainerCell, skuSummary } from './list/ContainerCell'
 import { ShippedOnBoardCell } from './list/ShippedOnBoardCell'
+import { BrandCell } from '../shared/platformMeta'
 import { ContainerFilterBar } from './list/ContainerFilterBar'
 import { useContainerListState } from './list/useContainerListState'
 import { useContainerActions } from './useContainerActions'
@@ -101,6 +102,7 @@ export const ContainersScreen: React.FC = () => {
     { key: 'plBoxes', header: 'PL boxes', className: 'min-w-[100px] whitespace-nowrap', render: (container) => <span className="tabular-nums">{qty(container.totals.cartons)}</span> },
     { key: 'plUnits', header: 'PL units', className: 'min-w-[100px] whitespace-nowrap', render: (container) => <span className="tabular-nums">{qty(container.totals.units)}</span> },
     { key: 'skus', header: 'No. of SKUs', className: 'min-w-[110px] whitespace-nowrap', render: (container) => <span className="tabular-nums">{qty(container.totals.skus)}</span> },
+    { key: 'brand', header: 'Brand', className: 'min-w-[170px] whitespace-nowrap', render: (container) => <BrandCell platforms={container.platforms} /> },
     { key: 'warehouse', header: 'Warehouse', className: 'min-w-[150px] whitespace-nowrap', render: (container) => <span className="text-sm">{container.warehouse?.name ?? '—'}</span> },
     { key: 'cubicFeet', header: 'Cubic feet', className: 'min-w-[110px] whitespace-nowrap', render: (container) => <span className="tabular-nums">{container.cubicFeet === null ? '—' : qty(container.cubicFeet)}</span> },
     { key: 'broker', header: 'Custom broker', className: 'min-w-[140px]', render: (container) => <span className="text-sm">{container.customsBrokers.length ? container.customsBrokers.join(', ') : '—'}</span> },

@@ -26,12 +26,17 @@ export interface PoCategory extends CategoryRef {
 }
 
 /** One product row, master or variation. Measurements are canonical: kg, cm, m³; the unit fields say how they were entered. */
+/** The platform a product is sold on: Ecommerce is Beddora, Retail is Northern Linen. */
+export type ProductPlatform = 'ECOMMERCE' | 'RETAIL'
+
 export interface PoProduct {
   id: number
   pid: string
   parentId: number | null
   tag: ProductTag
   name: string
+  /** Recorded on the master; a variation has its master's. */
+  platform: ProductPlatform
   variantName: string | null
   /** Optional; null when the product has none. */
   sku: string | null
@@ -150,6 +155,7 @@ export interface VariationBody extends VariantInput, WeightInput, DimensionInput
 /** A master has a weight but no dimensions; `dimensionUnit` is the unit its variations' dimensions are typed in. */
 export interface ProductBody extends VariantInput, WeightInput, Pick<DimensionInput, 'dimensionUnit'> {
   name: string
+  platform: ProductPlatform
   sku: string | null
   categoryId: number | null
   color: string | null
@@ -673,6 +679,8 @@ export interface ContainerItem {
   /** Capacity in cubic feet, entered by hand. */
   cubicFeet: number | null
   warehouse: { id: number; name: string } | null
+  /** The platforms of the SKUs packed in it: one when they share it, both when mixed; empty while nothing is packed. */
+  platforms: ProductPlatform[]
   /** The partners paid for customs brokerage on it (payments booked to the L4s mapped to Custom brokerage). */
   customsBrokers: string[]
   /** The final landed cost its cost analysis shows (FOB plus allocated expenses); null while nothing is packed. */

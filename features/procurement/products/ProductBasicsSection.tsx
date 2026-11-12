@@ -6,6 +6,7 @@ import { FormField, fieldClass } from '@/components/form-field/FormField'
 import { Card, CardContent, CardHeader, CardTitle } from '@/design-system/cards/Card'
 import { CategorySelect } from '../shared/CategorySelect'
 import { PhotoField } from './PhotoField'
+import { PlatformRadio } from './PlatformRadio'
 import type { ProductFormValues } from './productForm'
 import { SkuInput } from './SkuInput'
 
@@ -36,6 +37,10 @@ export const ProductBasicsSection: React.FC<ProductBasicsSectionProps> = ({ form
       <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <FormField label="Name" htmlFor="product-name" required error={errors.name?.message} hint="First part of every variant name">
           <input id="product-name" autoComplete="off" className={fieldClass(errors.name?.message)} disabled={readOnly} {...register('name')} />
+        </FormField>
+
+        <FormField label="Platform" htmlFor="product-platform" required error={errors.platform?.message} hint="Every variation takes it; containers show it as their Brand">
+          <Controller control={control} name="platform" render={({ field }) => <PlatformRadio id="product-platform" value={field.value} onChange={field.onChange} disabled={readOnly} />} />
         </FormField>
 
         <FormField label="SKU (optional)" htmlFor="product-sku" error={errors.sku?.message} hint="Unique across all masters and variations when given">

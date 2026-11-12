@@ -768,13 +768,21 @@ export const SellerboardProductsTable: React.FC<
         <React.Fragment key={product.sku}>
           <TableRow
             className={`
+              group/row
               hover:bg-surface-secondary
               transition-colors
               ${isChild ? 'bg-surface-secondary/30' : ''}
             `}
           >
-            {/* Product Column */}
-            <TableCell className="text-left px-4 py-3">
+            {/* Product Column: frozen on the left with a solid background (the row's own tint is see-through) so the
+                other columns pass under it; it follows the row's hover colour */}
+            <TableCell
+              // Inline rather than the `sticky` class: the global `td.sticky` rule would lift it to the header's level (z-20)
+              style={{ position: 'sticky', left: 0, zIndex: 10 }}
+              className={`border-r border-border text-left px-4 py-3 transition-colors group-hover/row:bg-surface-secondary ${
+                isChild ? 'bg-surface-secondary' : 'bg-surface'
+              }`}
+            >
               <ProductIdentityCell
                 product={product}
                 isChild={isChild}
@@ -1013,9 +1021,11 @@ export const SellerboardProductsTable: React.FC<
                 </TableRow>
               ) : (
               <TableRow className="bg-surface h-12">
-                {/* Product Column */}
+                {/* Product Column: frozen on the left, so the other columns slide under it when the table scrolls sideways.
+                    Every sticky header is forced to z-30 by a global rule, so this one is lifted above them (else the next
+                    headers, later in the DOM, paint over it) */}
                 <TableHead
-                  className="!max-w-none sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-left min-w-[320px] py-3 px-4 border-b border-border align-middle"
+                  className="!max-w-none sticky left-0 top-0 [&&&&]:!z-40 bg-surface group cursor-pointer hover:bg-surface-secondary text-left min-w-[320px] py-3 px-4 border-b border-r border-border align-middle"
                   onClick={() => handleSort('name')}
                 >
                   <div className="flex items-center justify-start gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">

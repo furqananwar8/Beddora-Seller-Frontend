@@ -24,8 +24,7 @@ import {
 import { useAppSelector } from '@/store/hooks'
 import { applyServerIssues } from '@/utils/apiErrors'
 import { formatCalendarDay } from '@/utils/format'
-import { canRequestPayment, isApprovedPo, isPackable, newPackagingListHref, newPaymentRequestHref, newPurchaseInvoiceHref, PaymentBadge, PoStatusBadge, poPackagingListsHref, poPurchaseInvoicesHref } from '../shared/poMeta'
-import { ViewPoPaymentRequests } from '../shared/PoPaymentRequests'
+import { isApprovedPo, PaymentBadge, PoStatusBadge } from '../shared/poMeta'
 import { DownloadPoPdfButton } from '../shared/DownloadPoPdfButton'
 import { ApprovalPanel } from './ApprovalPanel'
 import { emptyPoValues, fromDetail, fromRemaining, poFormSchema, toPoBody, type PoFormValues } from './poForm'
@@ -171,35 +170,6 @@ export const PoFormScreen: React.FC<PoFormScreenProps> = ({ purchaseOrderId }) =
               <h1 className="text-xl font-bold text-text-primary sm:text-2xl">{title}</h1>
               {po && <PoStatusBadge status={po.status} />}
               {po && <PaymentBadge payment={po.payment} withPercent />}
-              {po && <DownloadPoPdfButton purchaseOrderId={po.id} />}
-              {po && isApprovedPo(po) && (
-                <Link href={poPackagingListsHref(po.id)} className="text-sm font-medium text-primary-600 underline-offset-2 hover:underline">
-                  View packaging lists
-                </Link>
-              )}
-              {po && isPackable(po) && ability.can('write', 'procurement:packaging-lists') && (
-                <Link href={newPackagingListHref(po.id)} className="text-sm font-medium text-primary-600 underline-offset-2 hover:underline">
-                  + Create packaging list
-                </Link>
-              )}
-              {po && canRequestPayment(po) && ability.can('write', 'finance:payment-request') && (
-                <Link href={newPaymentRequestHref(po.id)} className="text-sm font-medium text-primary-600 underline-offset-2 hover:underline">
-                  + Create payment request
-                </Link>
-              )}
-              {po && isApprovedPo(po) && ability.can('write', 'procurement:purchase-invoices') && (
-                <Link href={newPurchaseInvoiceHref(po.id)} className="text-sm font-medium text-primary-600 underline-offset-2 hover:underline">
-                  + Create purchase invoice
-                </Link>
-              )}
-              {po && isApprovedPo(po) && ability.can('read', 'procurement:purchase-invoices') && (
-                <Link href={poPurchaseInvoicesHref(po.id)} className="text-sm font-medium text-primary-600 underline-offset-2 hover:underline">
-                  View purchase invoices
-                </Link>
-              )}
-              {po && ability.can('read', 'finance:payment-request') && (
-                <ViewPoPaymentRequests purchaseOrder={{ id: po.id, poNo: po.poNo }} count={po.payment.requestCount} />
-              )}
             </div>
             {fromSource && (
               <p className="text-xs text-text-muted">
@@ -211,7 +181,9 @@ export const PoFormScreen: React.FC<PoFormScreenProps> = ({ purchaseOrderId }) =
             )}
           </div>
           {po && (
-            <div className="flex items-center">
+            // The other actions (packaging lists, purchase invoices, payment requests) are in the list's Actions menu
+            <div className="flex items-center gap-4">
+              <DownloadPoPdfButton purchaseOrderId={po.id} />
               <label className="flex items-center gap-2 text-sm font-medium text-text-primary">
                 <Switch
                   checked={po.isOpen}
