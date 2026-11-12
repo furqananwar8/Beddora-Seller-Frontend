@@ -17,6 +17,8 @@ import {
   useDownloadShipmentLabelsMutation,
   useGetShipmentOptionsMutation,
   useGetShipmentPoolQuery,
+  useGetShipmentPoolSummaryQuery,
+  type PoolSummary,
   useGetShipmentsConfigQuery,
   useGetShipmentsQuery,
   useMarkShipmentShippedMutation,
@@ -67,10 +69,10 @@ export interface ShipmentsController {
   /** Printable label sizes per kind; undefined until the config has loaded. */
   labelFormats?: LabelFormatCatalog
   shipments: InboundShipment[]
-  /** The FBA pool, as before channels. */
-  pool: ReservedPoolItem[]
-  /** Each channel's pool (WFS: eligibility as on Walmart.US; the create drawer asks per marketplace). */
-  pools: Record<ShipmentChannel, ReservedPoolItem[]>
+  /** What each channel has allocated, in internal units (the summary cards). */
+  poolSummary?: PoolSummary
+  /** The channel SKUs of a marketplace with their allocation; loaded for the marketplaces that have an open shipment. */
+  poolOf: (channel: ShipmentChannel, marketplace: Marketplace) => ReservedPoolItem[]
   lastSyncedAt: string
   /** deferListRefresh keeps the new draft out of the list until the caller's next call refreshes it. */
   createShipment: (input: CreateShipmentInput, options?: { deferListRefresh?: boolean }) => Promise<InboundShipment>
@@ -136,7 +138,7 @@ async function call<T>(promise: { unwrap: () => Promise<T> }, fallback: string):
 /** Lines for the API; WFS lines carry their units per case. */
 const toLines = (items: InboundShipmentItem[]) =>
   items.map((i) => ({
-    inventoryItemId: Number(i.productId),
+    channelSku: i.productId,
     quantity: i.quantity,
     ...(i.unitsPerCase ? { unitsPerCase: i.unitsPerCase } : {}),
   }))
@@ -184,8 +186,19 @@ export const useShipments = (): ShipmentsController => {
   const { data: config } = useGetShipmentsConfigQuery()
   const channels = useMemo(() => config?.channels ?? fbaOnly(!!config?.sandbox, config?.labelFormats), [config])
   const wfsEnabled = channels.some((c) => c.id === 'walmart_wfs' && c.enabled)
-  const { data: pool = [] } = useGetShipmentPoolQuery()
-  const { data: wfsPool = [] } = useGetShipmentPoolQuery({ channel: 'walmart_wfs' }, { skip: !wfsEnabled })
+  const { data: poolSummary } = useGetShipmentPoolSummaryQuery()
+  // A shipment's lines are channel SKUs of its marketplace, so an open shipment's limits come from that marketplace's pool
+  const openMarkets = useMemo(() => new Set(shipments.filter((s) => s.status === 'in_progress').map((s) => `${s.channel ?? 'amazon_fba'}|${s.marketplace}`)), [shipments])
+  const useMarketPool = (channel: ShipmentChannel, marketplace: Marketplace) =>
+    useGetShipmentPoolQuery({ channel, marketplace }, { skip: !openMarkets.has(`${channel}|${marketplace}`) || (channel === 'walmart_wfs' && !wfsEnabled) }).data ?? []
+  const marketPools: Record<string, ReservedPoolItem[]> = {
+    'amazon_fba|Amazon.com': useMarketPool('amazon_fba', 'Amazon.com'),
+    'amazon_fba|Amazon.ca': useMarketPool('amazon_fba', 'Amazon.ca'),
+    'amazon_fba|Amazon.mx': useMarketPool('amazon_fba', 'Amazon.mx'),
+    'walmart_wfs|Walmart.US': useMarketPool('walmart_wfs', 'Walmart.US'),
+    'walmart_wfs|Walmart.CA': useMarketPool('walmart_wfs', 'Walmart.CA'),
+  }
+  const poolOf = useCallback((channel: ShipmentChannel, marketplace: Marketplace) => marketPools[`${channel}|${marketplace}`] ?? [], [...Object.values(marketPools)])
   const [lastSyncedAt, setLastSyncedAt] = useState<string>(() => new Date().toISOString())
 
   const [create] = useCreateShipmentMutation()
@@ -327,12 +340,10 @@ export const useShipments = (): ShipmentsController => {
     [config, channels]
   )
 
-  const pools = useMemo(() => ({ amazon_fba: pool, walmart_wfs: wfsPool }), [pool, wfsPool])
-
   return {
     shipments,
-    pool,
-    pools,
+    poolSummary,
+    poolOf,
     channels,
     mode: config?.sandbox ? 'sandbox' : 'live',
     labelFormats,

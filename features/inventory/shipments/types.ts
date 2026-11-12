@@ -64,9 +64,22 @@ export interface CasePack {
   weightUnit: WeightUnit
 }
 
-export interface InboundShipmentItem {
-  productId: string
+/** An internal product a channel SKU deducts, for the whole line. */
+export interface ItemMapping {
   sku: string
+  name: string
+  perUnit: number
+  /** Units this line takes of it. */
+  quantity: number
+}
+
+export interface InboundShipmentItem {
+  /** The channel SKU, the same identity as in the pool. */
+  productId: string
+  /** The channel SKU (what the partner is sent). */
+  sku: string
+  /** The internal products it deducts. */
+  mapping?: ItemMapping[]
   fnsku?: string
   asin: string
   /** WFS: identifiers from the marketplace's Walmart listing. */
@@ -235,9 +248,22 @@ export interface ShipmentFees {
  * A product's stock for one channel that hasn't shipped: units allocated to FBA
  * (or WFS) in the Planner, shared by every marketplace of that channel.
  */
+/** An internal product a channel SKU is bound to, with what it has allocated to the channel. */
+export interface PoolMapping {
+  sku: string
+  name: string
+  perUnit: number
+  allocated: number
+}
+
 export interface ReservedPoolItem {
+  /** The channel SKU. */
   productId: string
   sku: string
+  /** The internal products it is bound to; empty while it is not bound. */
+  mapping?: PoolMapping[]
+  /** Why it cannot be booked yet: not bound to an internal SKU, or no allocation to the channel for its internal products. */
+  notice?: { kind: 'unbound' | 'no-allocation'; message: string }
   fnsku?: string
   asin: string
   title: string

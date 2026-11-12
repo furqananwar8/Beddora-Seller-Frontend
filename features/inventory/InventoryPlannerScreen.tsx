@@ -90,6 +90,7 @@ export const InventoryPlannerScreen: React.FC<{ initialSearch?: string }> = ({ i
   // ---- Allocation drawer: open with a snapshot of the selected rows ----
   const [allocation, setAllocation] = useState<{ items: ProductInventoryItem[] } | null>(null)
   // Products of an FBA-only allocation, while asking whether to book them into a shipment now
+  /** Internal SKUs whose FBA units were just allocated, to offer booking them */
   const [bookFbaIds, setBookFbaIds] = useState<string[] | null>(null)
 
   // ---- Header 3-Dots Dropdown State ----
@@ -239,10 +240,10 @@ export const InventoryPlannerScreen: React.FC<{ initialSearch?: string }> = ({ i
     setAppliedFilters({ ...pendingFilters })
   }, [pendingFilters])
 
-  /** Opens a new shipment on the Shipments tab (FBA unless WFS is asked for) with these products picked. */
-  const openShipmentCreation = (productIds: string[], channel: 'amazon_fba' | 'walmart_wfs' = 'amazon_fba') => {
+  /** Opens a new shipment on the Shipments tab (FBA unless WFS is asked for) with the channel SKUs bound to these internal SKUs picked. */
+  const openShipmentCreation = (internalSkus: string[], channel: 'amazon_fba' | 'walmart_wfs' = 'amazon_fba') => {
     const channelParam = channel === 'walmart_wfs' ? '&channel=walmart_wfs' : ''
-    router.push(`/dashboard/inventory/shipments?create=1&productIds=${encodeURIComponent(productIds.join(','))}${channelParam}`)
+    router.push(`/dashboard/inventory/shipments?create=1&skus=${encodeURIComponent(internalSkus.join(','))}${channelParam}`)
   }
 
   // ---- Create an FBA / WFS shipment: only stock already allocated to that program can go into one ----
@@ -258,7 +259,7 @@ export const InventoryPlannerScreen: React.FC<{ initialSearch?: string }> = ({ i
     if (skipped.length > 0) {
       dispatch(addNotification({ message: `${skipped.length} selected product${skipped.length === 1 ? ' has' : 's have'} no ${program} stock and ${skipped.length === 1 ? 'was' : 'were'} left out of the shipment.`, type: 'warning' }))
     }
-    openShipmentCreation(ready.map((row) => row.id), channel)
+    openShipmentCreation(ready.map((row) => row.sku), channel)
   }
 
   // ---- Trigger Multi-Channel Stock Push ----
@@ -722,14 +723,16 @@ export const InventoryPlannerScreen: React.FC<{ initialSearch?: string }> = ({ i
           items={allocation.items}
           onClose={() => setAllocation(null)}
           onCreateShipment={(itemIds, channel) => {
+            const skus = allocation.items.filter((item) => itemIds.includes(item.id)).map((item) => item.sku)
             setAllocation(null)
-            openShipmentCreation(itemIds, channel)
+            openShipmentCreation(skus, channel)
           }}
           onSavedWithoutChannels={(itemIds) => {
             // Closed first: toasts sit underneath the drawer
+            const skus = allocation.items.filter((item) => itemIds.includes(item.id)).map((item) => item.sku)
             setAllocation(null)
             dispatch(addNotification({ message: 'Successfully allocated FBA, no FBM to be allocated.', type: 'success' }))
-            setBookFbaIds(itemIds)
+            setBookFbaIds(skus)
           }}
         />
       )}

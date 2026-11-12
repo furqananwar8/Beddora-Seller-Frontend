@@ -85,7 +85,7 @@ export const FBA_CHANNEL: ShipmentChannelDefinition = {
     newTitle: 'New FBA shipment',
     newSubtitle: 'Book units from each SKU’s FBA pool. A draft holds them. Confirming with Amazon locks them.',
     namePrefix: 'FBA',
-    confirmCard: 'Creates the inbound plan. Quantities lock and the allocation drawer can’t take these units back. Stock leaves on-hand when marked shipped.',
+    confirmCard: 'Creates the inbound plan. Quantities lock and the allocation drawer can’t take these units back. Stock leaves on-hand when it is scanned out.',
     emptyPool: 'No FBA stock yet. Allocate units to FBA in the Planner first.',
     feesTitle: 'Amazon fees (estimate)',
     feesNote: 'Quoted when each option was confirmed. Amazon’s final charge can differ.',

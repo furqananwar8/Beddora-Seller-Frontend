@@ -89,7 +89,8 @@ export const ShipmentsScreen: React.FC = () => {
   const scanItems = useScanItems()
   const {
     shipments,
-    pools,
+    poolSummary,
+    poolOf,
     channels,
     labelFormats: labelFormatCatalog,
     createShipment,
@@ -189,28 +190,19 @@ export const ShipmentsScreen: React.FC = () => {
   const dialogId = (type: 'options' | 'packing' | 'carrier' | 'ship' | 'cancel' | 'shipFrom') =>
     dialog && dialog.type === type ? dialog.id : null
 
-  // Deep link from Planner: /shipments?create=1&productIds=1,2,3[&channel=walmart_wfs]
+  // Deep link from Planner: /shipments?create=1&skus=INTERNAL-SKU-1,INTERNAL-SKU-2[&channel=walmart_wfs]
   useEffect(() => {
     if (searchParams.get('create') !== '1') return
     const channel = searchParams.get('channel')
     openDialog({
       type: 'create',
-      preselect: (searchParams.get('productIds') ?? '').split(',').filter(Boolean),
+      preselect: (searchParams.get('skus') ?? '').split(',').filter(Boolean),
       channel: isShipmentChannel(channel) ? channel : undefined,
     })
     router.replace(isShipmentChannel(channel) ? `${pathname}?channel=${channel}` : pathname, { scroll: false })
   }, [searchParams, router, pathname])
 
   // ---- Derived ----
-  /** Unassigned units per channel: each channel books from its own pool. */
-  const unassignedByChannel = useMemo(
-    () =>
-      Object.fromEntries(
-        offered.map((c) => [c.id, getUnassignedUnits(pools[c.id] ?? [], ofChannel(shipments, c.id))])
-      ) as Partial<Record<ShipmentChannel, Record<string, number>>>,
-    [offered, pools, shipments]
-  )
-
   const summary = useMemo(() => {
     const by = (st: ShipmentStatus) => scopedShipments.filter((s) => s.status === st)
     const sumUnits = (list: InboundShipment[]) => list.reduce((n, s) => n + getShipmentUnits(s), 0)
@@ -220,13 +212,9 @@ export const ShipmentsScreen: React.FC = () => {
     const receivingUnits = sumUnits(receiving)
     const receivedUnits = receiving.reduce((n, s) => n + getReceivedUnits(s), 0)
     const perChannel = inScope.map((c) => {
-      const unassigned = unassignedByChannel[c.id] ?? {}
-      return {
-        id: c.id,
-        units: Object.values(unassigned).reduce((a, b) => a + b, 0),
-        skus: Object.values(unassigned).filter((u) => u > 0).length,
-        reserved: (pools[c.id] ?? []).reduce((a, p) => a + p.reserved, 0),
-      }
+      // Counted in internal units: what the channel has allocated, and what is still free to book
+      const totals = poolSummary?.[c.id]
+      return { id: c.id, units: totals?.available ?? 0, skus: totals?.skus ?? 0, reserved: totals?.allocated ?? 0 }
     })
     return {
       perChannel,
@@ -242,7 +230,7 @@ export const ShipmentsScreen: React.FC = () => {
       receivingUnits,
       receivedPct: receivingUnits ? Math.round((receivedUnits / receivingUnits) * 100) : 0,
     }
-  }, [scopedShipments, inScope, unassignedByChannel, pools])
+  }, [scopedShipments, inScope, poolSummary])
 
   const channelCounts = useMemo(() => {
     const counts: Record<ChannelFilter, number> = { all: shipments.length, amazon_fba: 0, walmart_wfs: 0 }
@@ -685,7 +673,7 @@ export const ShipmentsScreen: React.FC = () => {
               ) : (
                 visible.map((s) => {
                   const channel = channelIdOf(s)
-                  const pool = pools[channel] ?? []
+                  const pool = poolOf(channel, s.marketplace)
                   return (
                     <ShipmentRow
                       key={s.id}
@@ -693,7 +681,7 @@ export const ShipmentsScreen: React.FC = () => {
                       isExpanded={expanded.has(s.id)}
                       onToggle={() => toggle(s.id)}
                       pool={pool}
-                      availableElsewhere={getUnassignedUnits(pool, ofChannel(shipments, channel), s.id)}
+                      availableElsewhere={getUnassignedUnits(pool, ofChannel(shipments, channel).filter((other) => other.marketplace === s.marketplace), s.id)}
                       onChangeShipFrom={(choice) => run(() => setShipFrom(s.id, choice), `${s.reference} will ship from the new address`, 'Could not change the ship-from address')}
                       onSaveItems={(items) =>
                         run(
@@ -729,7 +717,7 @@ export const ShipmentsScreen: React.FC = () => {
         channels={offered}
         initialChannel={dialog?.type === 'create' ? dialog.channel : undefined}
         shipments={shipments}
-        initialProductIds={dialog?.type === 'create' ? dialog.preselect : []}
+        initialInternalSkus={dialog?.type === 'create' ? dialog.preselect : []}
         onCreate={handleCreate}
       />
 
@@ -794,7 +782,7 @@ export const ShipmentsScreen: React.FC = () => {
 
       <MarkShippedModal
         shipment={shippingTarget}
-        pool={shippingTarget ? pools[channelIdOf(shippingTarget)] ?? [] : []}
+        pool={shippingTarget ? poolOf(channelIdOf(shippingTarget), shippingTarget.marketplace) : []}
         onDownloadLabel={(type) => shippingTarget && handleDownloadLabel(shippingTarget.id, type)}
         downloadingLabels={shippingTarget ? downloadingFor(shippingTarget.id) : {}}
         onBack={() => shippingTarget && handleBack(shippingTarget.id, 'carrier')}

@@ -585,6 +585,12 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({
                               <div className="min-w-0">
                                 <div className="max-w-md truncate text-text-primary group-hover:text-primary-700 group-hover:underline">{item.title}</div>
                                 <div className="text-xs text-text-muted">{channel.itemSubline(item)}</div>
+                                {/* The internal SKUs this channel SKU deducts, and how many units of each this line takes */}
+                                {(item.mapping ?? []).map((m) => (
+                                  <div key={m.sku} className="text-[11px] text-text-muted" title={m.name}>
+                                    ↳ <span className="font-mono">{m.sku}</span> × {formatUnits(m.perUnit)} = {formatUnits(m.quantity)} units
+                                  </div>
+                                ))}
                               </div>
                             </Link>
                           </td>

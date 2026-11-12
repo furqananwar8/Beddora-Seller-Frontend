@@ -48,9 +48,17 @@ export interface ShipmentsConfig {
 
 export interface PoolArg {
   channel: ShipmentChannel
-  /** WFS: eligibility depends on the marketplace's Walmart listings. */
+  /** The channel SKUs listed are the marketplace's own. */
   marketplace?: Marketplace
 }
+
+/** What a channel has allocated, in internal units. */
+export interface PoolTotals {
+  allocated: number
+  available: number
+  skus: number
+}
+export type PoolSummary = Record<ShipmentChannel, PoolTotals>
 
 export type OptionKind = 'placement' | 'window'
 
@@ -76,7 +84,8 @@ export interface CarrierEntry {
 }
 
 export interface ShipmentLineInput {
-  inventoryItemId: number
+  /** The channel SKU (what Amazon / Walmart is sent); the server works out the internal units it deducts. */
+  channelSku: string
   quantity: number
   /** WFS: sellable units per case; the quantity is whole cases of it. */
   unitsPerCase?: number
@@ -132,6 +141,12 @@ export const inboundShipmentsApi = baseApi.injectEndpoints({
         params: arg ? { channel: arg.channel, ...(arg.marketplace ? { marketplace: arg.marketplace } : {}) } : undefined,
       }),
       // Allocations in the Planner change the FBA pool, and they invalidate Inventory
+      providesTags: ['InboundShipments', 'Inventory'],
+    }),
+
+    getShipmentPoolSummary: builder.query<PoolSummary, void>({
+      query: () => ({ url: '/inventory/shipments/pool/summary' }),
+      transformResponse: (response: { data?: PoolSummary } | PoolSummary) => ('data' in response && response.data ? response.data : (response as PoolSummary)),
       providesTags: ['InboundShipments', 'Inventory'],
     }),
 
@@ -259,6 +274,7 @@ export const {
   useGetShipmentsQuery,
   useGetShipmentsConfigQuery,
   useGetShipmentPoolQuery,
+  useGetShipmentPoolSummaryQuery,
   useGetShipmentCarriersQuery,
   useCreateShipmentMutation,
   useUpdateShipmentItemsMutation,

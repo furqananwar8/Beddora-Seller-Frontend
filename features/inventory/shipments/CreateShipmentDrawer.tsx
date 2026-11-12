@@ -35,7 +35,8 @@ interface CreateShipmentDrawerProps {
   /** All shipments, to show which ones hold each SKU's units. */
   shipments: InboundShipment[]
   /** Pre-selected products, e.g. from the Planner selection. */
-  initialProductIds?: string[]
+  /** Internal SKUs (from the Planner): the channel SKUs bound to them start picked. */
+  initialInternalSkus?: string[]
   onCreate: (input: CreateShipmentInput, mode: CreateMode) => Promise<InboundShipment>
 }
 
@@ -76,9 +77,9 @@ interface PoolRow {
   held: string
 }
 
-/** A row matches its title, SKU, ASIN or FNSKU. */
+/** A row matches its title, channel SKU, ASIN or FNSKU, or the internal SKU it is bound to; what comes back is the channel SKU. */
 const matchesPoolRow = ({ product: p }: PoolRow, query: string) =>
-  [p.title, p.sku, p.asin, p.fnsku].some((value) => value?.toLowerCase().includes(query))
+  [p.title, p.sku, p.asin, p.fnsku, ...(p.mapping ?? []).flatMap((m) => [m.sku, m.name])].some((value) => value?.toLowerCase().includes(query))
 
 /** "SHP-0002 draft · 10, SHP-0003 confirmed · 40", or "3 confirmed · 400" when many hold it. */
 function heldBy(productId: string, shipments: InboundShipment[]): string {
@@ -107,7 +108,7 @@ const DrawerPanel: React.FC<Omit<CreateShipmentDrawerProps, 'isOpen'>> = ({
   channels,
   initialChannel,
   shipments,
-  initialProductIds = [],
+  initialInternalSkus = [],
   onCreate,
 }) => {
   useScrollLock()
@@ -134,18 +135,19 @@ const DrawerPanel: React.FC<Omit<CreateShipmentDrawerProps, 'isOpen'>> = ({
   const wfs = channel === 'walmart_wfs'
   const marketplaceConfig = connectedMarketplaces(channel).find((m) => m.id === marketplace)
 
-  // FBA's pool without an argument shares the screen's cached copy; WFS eligibility depends on the marketplace
+  // The channel SKUs of the chosen marketplace (bound or not) with their allocation
   // currentData: never the previous channel's / marketplace's pool while the new one loads
-  const { currentData: pool = [], isFetching: poolLoading } = useGetShipmentPoolQuery(wfs ? { channel, marketplace } : undefined)
+  const { currentData: pool = [], isFetching: poolLoading } = useGetShipmentPoolQuery({ channel, marketplace })
   const channelShipments = useMemo(() => ofChannel(shipments, channel), [shipments, channel])
   const unassigned = useMemo(() => getUnassignedUnits(pool, channelShipments), [pool, channelShipments])
 
   // Planner preselection, applied once the starting channel's pool has loaded
-  const [seeded, setSeeded] = useState(initialProductIds.length === 0)
+  const [seeded, setSeeded] = useState(initialInternalSkus.length === 0)
   useEffect(() => {
     if (seeded || pool.length === 0) return
     setSeeded(true)
-    const picked = pool.filter((p) => initialProductIds.includes(p.productId) && (unassigned[p.productId] ?? 0) > 0 && p.eligible !== false)
+    const wanted = new Set(initialInternalSkus.map((sku) => sku.toUpperCase()))
+    const picked = pool.filter((p) => (p.mapping ?? []).some((m) => wanted.has(m.sku.toUpperCase())) && (unassigned[p.productId] ?? 0) > 0 && p.eligible !== false)
     const perCase = Object.fromEntries(picked.map((p) => [p.productId, String(savedUnitsPerCase(p) ?? '')]))
     const quantity = (p: ReservedPoolItem) => {
       if (!wfs) return String(unassigned[p.productId])
@@ -164,7 +166,7 @@ const DrawerPanel: React.FC<Omit<CreateShipmentDrawerProps, 'isOpen'>> = ({
   useEffect(() => {
     if (channelPicked || !initialChannel || channel === initialChannel || !enabled(initialChannel)) return
     moveTo(initialChannel)
-    setSeeded(initialProductIds.length === 0)
+    setSeeded(initialInternalSkus.length === 0)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [channels])
 
@@ -177,9 +179,7 @@ const DrawerPanel: React.FC<Omit<CreateShipmentDrawerProps, 'isOpen'>> = ({
 
   const rows = useMemo<PoolRow[]>(
     () =>
-      pool
-        .filter((p) => p.reserved > 0)
-        .map((p) => ({ product: p, available: unassigned[p.productId] ?? 0, held: heldBy(p.productId, channelShipments) })),
+      pool.map((p) => ({ product: p, available: unassigned[p.productId] ?? 0, held: heldBy(p.productId, channelShipments) })),
     [pool, unassigned, channelShipments]
   )
   // Units typed on one page stay booked while searching or paging
@@ -371,8 +371,8 @@ const DrawerPanel: React.FC<Omit<CreateShipmentDrawerProps, 'isOpen'>> = ({
                 type="search"
                 value={search.query}
                 onChange={(e) => search.setQuery(e.target.value)}
-                placeholder="Search by title, SKU, ASIN or FNSKU"
-                aria-label="Search products"
+                placeholder="Search by channel SKU, title, ASIN or internal SKU"
+                aria-label="Search channel SKUs"
                 className="h-10 w-full !rounded-lg border border-slate-300 bg-white px-3 text-[15px] focus:outline-none focus:ring-2 focus:ring-slate-300 sm:max-w-sm"
               />
               <span className="text-[13px] text-slate-600">
@@ -402,13 +402,14 @@ const DrawerPanel: React.FC<Omit<CreateShipmentDrawerProps, 'isOpen'>> = ({
 
             {search.pageRows.map(({ product: p, available, held }) => {
               const blocked = p.eligible === false
-              const full = available === 0
+              const notice = p.notice
+              const full = available === 0 && !notice
               const error = errors[p.productId]
               const units = unitsOf(p)
               return (
                 <div
                   key={p.productId}
-                  className={cn('grid min-h-[72px] items-center border-b border-slate-100 text-sm last:border-0', columns, full || blocked ? 'bg-slate-50' : 'bg-white')}
+                  className={cn('grid min-h-[72px] items-center border-b border-slate-100 text-sm last:border-0', columns, full || blocked || notice ? 'bg-slate-50' : 'bg-white')}
                 >
                   <div className="flex min-w-0 flex-col gap-0.5 px-4 py-2.5">
                     <span className={cn('truncate font-medium', full || blocked ? 'text-slate-600' : 'text-slate-900')}>{p.title}</span>
@@ -416,13 +417,20 @@ const DrawerPanel: React.FC<Omit<CreateShipmentDrawerProps, 'isOpen'>> = ({
                       {p.sku}
                       {wfs && p.gtin && ` · GTIN ${p.gtin}`}
                     </span>
+                    {/* What booking this SKU deducts: its internal SKUs, per unit, with what each has allocated to this channel */}
+                    {(p.mapping ?? []).map((m) => (
+                      <span key={m.sku} className="truncate text-[11px] text-slate-600" title={m.name}>
+                        <span aria-hidden>↳ </span>
+                        <span className="font-mono">{m.sku}</span> × {formatUnits(m.perUnit)} · {formatUnits(m.allocated)} allocated
+                      </span>
+                    ))}
                   </div>
                   <div className="px-2 py-2.5 text-right">{formatUnits(p.reserved)}</div>
                   <div className="px-4 py-2.5 text-[13px] text-slate-700">{held}</div>
                   <div className={cn('px-2 py-2.5 text-right font-semibold', full ? 'text-slate-600' : 'text-emerald-800')}>{formatUnits(available)}</div>
                   {wfs && (
                     <div className="px-3 py-2.5">
-                      {!blocked && !full && (
+                      {!blocked && !full && !notice && (
                         <input
                           type="number"
                           min={1}
@@ -438,7 +446,9 @@ const DrawerPanel: React.FC<Omit<CreateShipmentDrawerProps, 'isOpen'>> = ({
                     </div>
                   )}
                   <div className="px-4 py-2.5">
-                    {blocked ? (
+                    {notice ? (
+                      <span className="inline-flex rounded bg-amber-50 px-2 py-1 text-[12px] font-medium text-amber-800">{notice.message}</span>
+                    ) : blocked ? (
                       <span className="inline-flex rounded bg-amber-50 px-2 py-1 text-[12px] font-medium text-amber-800">{p.blockReason ?? 'Not set up for WFS'}</span>
                     ) : full ? (
                       <span className="text-[13px] text-slate-600">Fully booked</span>
@@ -485,7 +495,7 @@ const DrawerPanel: React.FC<Omit<CreateShipmentDrawerProps, 'isOpen'>> = ({
             <div className="flex flex-col gap-1.5 !rounded-[10px] border border-slate-200 px-4 py-3.5">
               <span className="text-sm font-semibold">Save as draft</span>
               <span className="text-sm text-slate-700">
-                Units move from the {def.program} pool to this shipment. Edit or cancel anytime, and cancelled units go back to the pool.
+                This only books the units: nothing moves in inventory, and the {def.program} pool stays as it is. Stock goes out through scanning. Edit or cancel anytime.
               </span>
             </div>
             <div className="flex flex-col gap-1.5 !rounded-[10px] border border-slate-300 bg-slate-50 px-4 py-3.5">

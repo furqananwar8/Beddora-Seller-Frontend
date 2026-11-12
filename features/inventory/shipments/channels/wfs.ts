@@ -72,7 +72,7 @@ export const WFS_CHANNEL: ShipmentChannelDefinition = {
     newTitle: 'New WFS shipment',
     newSubtitle: 'Book whole cases from each SKU’s WFS pool. A draft holds them. Confirming with Walmart locks them.',
     namePrefix: 'WFS',
-    confirmCard: 'Creates the inbound order. Walmart splits it into shipments per fulfillment center. Stock leaves on-hand when marked shipped.',
+    confirmCard: 'Creates the inbound order. Walmart splits it into shipments per fulfillment center. Stock leaves on-hand when it is scanned out.',
     emptyPool: 'No WFS stock yet. Allocate units to WFS in the Planner first.',
     feesTitle: 'Walmart fees (estimate)',
     feesNote: 'Quoted when the carrier was booked. Walmart’s final charge can differ.',

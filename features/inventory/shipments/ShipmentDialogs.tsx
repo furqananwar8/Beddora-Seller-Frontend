@@ -411,8 +411,8 @@ export const MarkShippedModal: React.FC<MarkShippedModalProps> = ({
       </div>
 
       <div className="mb-4 rounded-md border border-warning-200 bg-warning-50 px-3 py-2.5 text-sm text-warning-800">
-        This deducts <strong>{unitsLabel(units)}</strong> across {shipment.items.length} SKU
-        {shipment.items.length !== 1 && 's'} from on-hand inventory and locks the shipment. It can&apos;t be undone.
+        This marks <strong>{unitsLabel(units)}</strong> across {shipment.items.length} SKU
+        {shipment.items.length !== 1 && 's'} as shipped and locks the shipment. Inventory is not changed here: the units leave through scanning. It can&apos;t be undone.
       </div>
 
       <div className="max-h-64 divide-y divide-border overflow-y-auto rounded-md border border-border">
@@ -424,6 +424,11 @@ export const MarkShippedModal: React.FC<MarkShippedModalProps> = ({
               <div className="min-w-0 flex-1">
                 <div className="truncate text-sm text-text-primary">{item.title}</div>
                 <div className="font-mono text-xs text-text-muted">{item.sku}</div>
+                {(item.mapping ?? []).map((m) => (
+                  <div key={m.sku} className="text-[11px] text-text-muted">
+                    ↳ <span className="font-mono">{m.sku}</span> × {formatUnits(m.perUnit)} = {formatUnits(m.quantity)} units
+                  </div>
+                ))}
               </div>
               <div className="text-right">
                 <div className="text-sm font-semibold text-danger-600">−{formatUnits(item.quantity)}</div>
