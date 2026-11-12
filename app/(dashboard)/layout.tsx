@@ -368,6 +368,12 @@ export default function DashboardLayout({
                 action: 'read',
                 href: '/dashboard/settings/warehouses',
               },
+              {
+                label: 'GST',
+                subject: 'settings:gst',
+                action: 'read',
+                href: '/dashboard/settings/gst',
+              },
             ],
           },
         ],

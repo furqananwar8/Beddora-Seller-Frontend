@@ -94,6 +94,7 @@ export const tagTypes = [
   'SkuMapping',
   'CompanyDetails',
   'Warehouses',
+  'GstRates',
   'ShippingConfig',
   'ShippingShipments',
   'ShippingChannelOrders'

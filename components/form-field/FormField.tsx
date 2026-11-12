@@ -8,13 +8,15 @@ interface FormFieldProps {
   error?: string
   hint?: React.ReactNode
   className?: string
+  /** Extra classes for the label, e.g. `sm:sr-only` to show it only where a shared header does not. */
+  labelClassName?: string
   children: React.ReactNode
 }
 
 /** Label, control slot, hint and validation message laid out the same way on every form. */
-export const FormField: React.FC<FormFieldProps> = ({ label, htmlFor, required, error, hint, className, children }) => (
+export const FormField: React.FC<FormFieldProps> = ({ label, htmlFor, required, error, hint, className, labelClassName, children }) => (
   <div className={cn('min-w-0', className)}>
-    <label htmlFor={htmlFor} className="ds-input-label">
+    <label htmlFor={htmlFor} className={cn('ds-input-label', labelClassName)}>
       {label}
       {required && <span className="text-danger-600"> *</span>}
     </label>

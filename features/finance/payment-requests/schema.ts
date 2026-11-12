@@ -1,6 +1,7 @@
 import { z } from 'zod'
-import type { CarrierShipment, PaymentRequestDetail, PoRef, ReferenceType } from '@/services/api/finance.api'
+import type { CarrierShipment, GstRate, PaymentRequestDetail, PoRef, ReferenceType } from '@/services/api/finance.api'
 import { formatCurrencyAmount, formatMoney } from '../shared/format'
+import { splitGst, type GstInput } from '../shared/gst'
 
 /** "12,450.50" -> 12450.5, NaN when it is not a number. */
 export const parseAmount = (value: string): number => Number(value.replace(/,/g, '').trim())
@@ -25,11 +26,13 @@ export const lineSchema = z.object({
     .refine((value) => Number.isFinite(parseAmount(value)), 'Enter a valid amount')
     .refine((value) => parseAmount(value) > 0, 'Amount must be greater than zero'),
   costCenterId: z.string().min(1, 'Choose an expense'),
+  /** The GST % (id of a rate in Settings > GST) this amount is worked out at; needed unless GST does not apply. */
+  gstRateId: z.string(),
 })
 
 export type RequestLineValues = z.infer<typeof lineSchema>
 
-export const emptyLine: RequestLineValues = { amount: '', costCenterId: '' }
+export const emptyLine: RequestLineValues = { amount: '', costCenterId: '', gstRateId: '' }
 
 export const baseSchema = z.object({
   partnerId: z.string().min(1, 'Choose a partner'),
@@ -46,6 +49,8 @@ export const baseSchema = z.object({
   containerNo: z.string().trim().max(60, 'Keep it under 60 characters'),
   marketplaceId: z.string(),
   currency: z.string().min(1, 'Choose a currency'),
+  /** Whether the amounts entered include GST, exclude it, or none applies; each amount then picks its own rate. */
+  gstType: z.enum(['INCLUSIVE', 'EXCLUSIVE', 'NOT_APPLICABLE']),
   /** One or more amounts; on a purchase-order request their total is capped at what the PO has left. */
   lines: z.array(lineSchema).min(1, 'Add an amount').max(MAX_REQUEST_LINES, `Up to ${MAX_REQUEST_LINES} amounts`),
   remarks: z.string().trim().max(1000, 'Keep it under 1000 characters'),
@@ -57,6 +62,13 @@ export type PaymentRequestFormValues = z.infer<typeof baseSchema>
 export const requestTotal = (lines: Array<Pick<RequestLineValues, 'amount'>>): number =>
   Math.round(lines.reduce((sum, line) => sum + amountOf(line.amount), 0) * 100) / 100
 
+/** The amounts entered with the percentage picked for each (null when GST does not apply or none is picked yet). */
+export const gstInputsOf = (values: Pick<PaymentRequestFormValues, 'gstType'> & { lines: RequestLineValues[] }, rates: GstRate[]): GstInput[] =>
+  values.lines.map((line) => ({ amount: amountOf(line.amount), rate: values.gstType === 'NOT_APPLICABLE' ? null : (rates.find((rate) => String(rate.id) === line.gstRateId)?.rate ?? null) }))
+
+/** The amounts entered split into the amount before GST (what limits and cost analysis use), the GST, and the total paid. */
+export const gstSplitOf = (values: Pick<PaymentRequestFormValues, 'gstType'> & { lines: RequestLineValues[] }, rates: GstRate[]) => splitGst(gstInputsOf(values, rates), values.gstType)
+
 /** What the picked purchase order still takes; a PO request may not ask for more. */
 export interface PoLimit {
   currency: string
@@ -64,7 +76,7 @@ export interface PoLimit {
   leftToRequest: number
 }
 
-type ReferenceFields = Pick<PaymentRequestFormValues, 'referenceType' | 'invoiceNo' | 'purchaseOrder' | 'shipments' | 'invoiceDate' | 'dueDate'>
+type ReferenceFields = Pick<PaymentRequestFormValues, 'referenceType' | 'invoiceNo' | 'purchaseOrder' | 'shipments' | 'invoiceDate' | 'dueDate' | 'gstType' | 'lines'>
 
 /** What every request needs to name what it pays, whether raised alone or in a batch (`path` places the issues inside a list). */
 export function addReferenceIssues(values: ReferenceFields, ctx: z.RefinementCtx, path: Array<string | number> = []) {
@@ -74,13 +86,18 @@ export function addReferenceIssues(values: ReferenceFields, ctx: z.RefinementCtx
   if (!isPo && !values.invoiceNo.trim()) ctx.addIssue({ code: 'custom', path: [...path, 'invoiceNo'], message: 'Invoice number is required' })
   if (isPo && !values.purchaseOrder) ctx.addIssue({ code: 'custom', path: [...path, 'purchaseOrder'], message: 'Pick the purchase order being paid' })
   if (values.referenceType === 'SHIPMENT' && values.shipments.length === 0) ctx.addIssue({ code: 'custom', path: [...path, 'shipments'], message: 'Pick at least one shipment' })
+  if (values.gstType !== 'NOT_APPLICABLE') {
+    values.lines.forEach((line, index) => {
+      if (!line.gstRateId) ctx.addIssue({ code: 'custom', path: [...path, 'lines', index, 'gstRateId'], message: 'Choose a GST %' })
+    })
+  }
 }
 
-/** Schema depends on the picked PO: its open balance caps the request's total. */
-export const makePaymentRequestSchema = (poLimit: PoLimit | null) =>
+/** Schema depends on the picked PO: its open balance caps the request's amount before GST (the GST rates tell what that is). */
+export const makePaymentRequestSchema = (poLimit: PoLimit | null, gstRates: GstRate[] = []) =>
   baseSchema.superRefine((values, ctx) => {
     addReferenceIssues(values, ctx)
-    if (values.referenceType === 'PURCHASE_ORDER' && poLimit && requestTotal(values.lines) > poLimit.leftToRequest) {
+    if (values.referenceType === 'PURCHASE_ORDER' && poLimit && gstSplitOf(values, gstRates).net > poLimit.leftToRequest) {
       ctx.addIssue({ code: 'custom', path: ['lines'], message: poLimitMessage(poLimit) })
     }
   })
@@ -99,13 +116,15 @@ export const emptyFormValues: PaymentRequestFormValues = {
   containerNo: '',
   marketplaceId: '',
   currency: '',
+  gstType: 'NOT_APPLICABLE',
   lines: [emptyLine],
   remarks: '',
 }
 
+/** The lines as they were entered: an inclusive request's amounts held their GST. */
 export const linesFromDetail = (detail: PaymentRequestDetail): RequestLineValues[] =>
   detail.lines.length
-    ? detail.lines.map((line) => ({ amount: formatMoney(line.amount), costCenterId: line.costCenter ? String(line.costCenter.id) : '' }))
+    ? detail.lines.map((line) => ({ amount: formatMoney(detail.gstType === 'INCLUSIVE' ? line.amount + line.gstAmount : line.amount), costCenterId: line.costCenter ? String(line.costCenter.id) : '', gstRateId: line.gstRateId ? String(line.gstRateId) : '' }))
     : [emptyLine]
 
 const isPo = (values: PaymentRequestFormValues) => values.referenceType === 'PURCHASE_ORDER'
@@ -114,7 +133,7 @@ const isPo = (values: PaymentRequestFormValues) => values.referenceType === 'PUR
 const shipmentIdsOf = (values: PaymentRequestFormValues): number[] => (values.referenceType === 'SHIPMENT' ? values.shipments.map((shipment) => shipment.id) : [])
 
 const linesBody = (values: PaymentRequestFormValues) =>
-  values.lines.map((line) => ({ costCenterId: Number(line.costCenterId), amount: parseAmount(line.amount) }))
+  values.lines.map((line) => ({ costCenterId: Number(line.costCenterId), amount: parseAmount(line.amount), gstRateId: values.gstType === 'NOT_APPLICABLE' || !line.gstRateId ? null : Number(line.gstRateId) }))
 
 /** JSON body for PATCH, shared by edit and the save-after-create retry path. */
 export function toUpdateBody(values: PaymentRequestFormValues) {
@@ -129,6 +148,7 @@ export function toUpdateBody(values: PaymentRequestFormValues) {
     containerNo: values.containerNo.trim() || null,
     marketplaceId: values.marketplaceId ? Number(values.marketplaceId) : null,
     currency: values.currency,
+    gstType: values.gstType,
     lines: linesBody(values),
     remarks: values.remarks.trim() || null,
   }
@@ -150,6 +170,7 @@ export function toCreateFormData(values: PaymentRequestFormValues, files: File[]
   if (values.dueDate) body.append('dueDate', values.dueDate)
   if (values.marketplaceId) body.append('marketplaceId', values.marketplaceId)
   body.append('currency', values.currency)
+  body.append('gstType', values.gstType)
   body.append('lines', JSON.stringify(linesBody(values)))
   if (values.remarks.trim()) body.append('remarks', values.remarks.trim())
   files.forEach((file) => body.append('documents', file))

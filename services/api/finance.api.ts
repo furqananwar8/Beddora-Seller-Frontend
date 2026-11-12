@@ -334,6 +334,18 @@ export interface PayablePurchaseOrder extends PoRef {
   leftToRequest: number
 }
 
+/** Whether the amounts entered on a request hold GST, exclude it, or none applies. */
+export type GstType = 'INCLUSIVE' | 'EXCLUSIVE' | 'NOT_APPLICABLE'
+
+/** A GST percentage requests can pick (Settings > GST). */
+export interface GstRate {
+  id: number
+  /** Percentage, e.g. 5 or 13.5. */
+  rate: number
+  /** Payment requests raised with it. */
+  usedBy: number
+}
+
 export interface PaymentRequestListItem {
   id: number
   referenceType: ReferenceType
@@ -344,7 +356,12 @@ export interface PaymentRequestListItem {
   dueDate: string | null
   containerNo: string | null
   currency: string
+  /** Before GST: what cost analysis uses. */
   amount: number
+  gstType: GstType
+  gstAmount: number
+  /** What is paid: the amount plus its GST when GST is exclusive, otherwise the amount. */
+  totalAmount: number
   status: RequestStatus
   /** Set when raised together with other requests (batch form or Excel upload). */
   batchId: number | null
@@ -406,10 +423,14 @@ export interface PaymentRequestDetail {
   dueDate: string | null
   containerNo: string | null
   currency: string
-  /** The total of `lines`. */
+  /** The total of `lines`, before GST. */
   amount: number
   /** Snapshot taken when the request was created: the reporting currency, that day's rate and the amount in it. */
   baseCurrency: string | null
+  gstType: GstType
+  gstAmount: number
+  /** What is paid: `amount` plus GST when GST is exclusive, otherwise `amount`. */
+  totalAmount: number
   fxRate: number | null
   fxRateAsOf: string | null
   baseAmount: number | null
@@ -439,7 +460,12 @@ export interface PaymentRequestLine {
   id: number
   amount: number
   costCenter: CostCenterOption | null
+  /** Before GST. */
 }
+  gstAmount: number
+  /** The GST % this amount was worked out at (null without GST). */
+  gstRateId: number | null
+  gstRate: number | null
 
 export interface ExpenseType {
   id: number
@@ -689,6 +715,27 @@ export const financeApi = baseApi.injectEndpoints({
 
     /* approvers */
     getApproverStatus: b.query<{
+    /* GST rates: the form's choices, and Settings > GST */
+    getGstRates: b.query<GstRate[], void>({
+      query: () => '/finance/payment-requests/gst-rates',
+      transformResponse: unwrap,
+      providesTags: ['GstRates'],
+    }),
+    getGstRateSettings: b.query<GstRate[], void>({
+      query: () => '/settings/gst-rates',
+      transformResponse: unwrap,
+      providesTags: ['GstRates'],
+    }),
+    createGstRate: b.mutation<GstRate, { rate: number }>({
+      query: (body) => ({ url: '/settings/gst-rates', method: 'POST', body }),
+      transformResponse: unwrap,
+      invalidatesTags: ['GstRates'],
+    }),
+    deleteGstRate: b.mutation<void, number>({
+      query: (id) => ({ url: `/settings/gst-rates/${id}`, method: 'DELETE' }),
+      invalidatesTags: ['GstRates'],
+    }),
+
       isApprover: boolean
       canManageExpenseTypes: boolean
       canManageApprovers: boolean
@@ -918,6 +965,10 @@ export const {
   useGetFinanceMarketplacesQuery,
   useGetApproverStatusQuery,
   useGetApproversQuery,
+  useGetGstRatesQuery,
+  useGetGstRateSettingsQuery,
+  useCreateGstRateMutation,
+  useDeleteGstRateMutation,
   useGetApproverCandidatesQuery,
   useAddApproverMutation,
   useRemoveApproverMutation,

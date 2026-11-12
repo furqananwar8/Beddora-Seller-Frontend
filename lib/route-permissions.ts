@@ -72,6 +72,7 @@ export const ROUTE_PERMISSIONS: RoutePermission[] = [
   { pattern: '/dashboard/settings/addresses', subject: 'settings:addresses' },
   { pattern: '/dashboard/settings/company', subject: 'settings:company' },
   { pattern: '/dashboard/settings/warehouses', subject: 'settings:warehouses' },
+  { pattern: '/dashboard/settings/gst', subject: 'settings:gst' },
   { pattern: '/dashboard/settings', subject: 'settings' },
 ]
 

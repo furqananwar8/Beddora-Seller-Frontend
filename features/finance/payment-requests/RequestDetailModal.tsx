@@ -50,13 +50,20 @@ const Summary: React.FC<{ detail: PaymentRequestDetail }> = ({ detail }) => (
       detail.lines.map((line, index) => (
         <Row key={line.id} label={`Expense ${index + 1}`}>
           {line.costCenter?.name ?? '-'} · {formatCurrencyAmount(detail.currency, line.amount)}
+          {line.gstRate != null && <span className="font-normal text-text-muted"> · GST {line.gstRate}%</span>}
         </Row>
       ))
     ) : (
       <Row label="Expense">{detail.expenseType.name}</Row>
     )}
-    <Row label={detail.lines.length > 1 ? 'Total' : 'Amount'}>
-      <span className="text-base">{formatCurrencyAmount(detail.currency, detail.amount)}</span>
+    {detail.gstType !== 'NOT_APPLICABLE' && (
+      <>
+        <Row label="Amount before GST">{formatCurrencyAmount(detail.currency, detail.amount)}</Row>
+        <Row label={detail.gstType === 'INCLUSIVE' ? 'GST (included)' : 'GST'}>{formatCurrencyAmount(detail.currency, detail.gstAmount)}</Row>
+      </>
+    )}
+    <Row label="Total">
+      <span className="text-base">{formatCurrencyAmount(detail.currency, detail.totalAmount)}</span>
     </Row>
     {detail.baseCurrency && detail.baseCurrency !== detail.currency && (
       <Row label={`In ${detail.baseCurrency}`}>

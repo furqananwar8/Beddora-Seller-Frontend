@@ -113,7 +113,10 @@ export const RequestsTable: React.FC<RequestsTableProps> = ({ rows, isLoading, i
                     </button>
                   </TableCell>
                   <TableCell className={cn(CELL, 'text-left font-medium text-text-primary')}>{toProperName(row.partner.name)}</TableCell>
-                  <TableCell className={CELL}>{formatMoney(row.amount)}</TableCell>
+                  <TableCell className={CELL}>
+                    <span title={row.gstType === 'NOT_APPLICABLE' ? undefined : `Before GST ${formatMoney(row.amount)} · GST ${formatMoney(row.gstAmount)}`}>{formatMoney(row.totalAmount)}</span>
+                    {row.gstType !== 'NOT_APPLICABLE' && <span className="block text-xs text-text-muted">GST {row.gstType === 'INCLUSIVE' ? 'inclusive' : 'exclusive'}</span>}
+                  </TableCell>
                   <TableCell className={cn(CELL, row.payment && row.payment.remaining > 0 && 'font-medium text-danger-600')}>
                     {row.payment ? formatMoney(row.payment.remaining) : '-'}
                   </TableCell>

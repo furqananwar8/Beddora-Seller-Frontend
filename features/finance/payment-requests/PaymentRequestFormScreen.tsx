@@ -23,6 +23,7 @@ import {
   useCreatePaymentRequestMutation,
   useGetLeafCostCentersQuery,
   useGetFinanceMarketplacesQuery,
+  useGetGstRatesQuery,
   useGetPartnerQuery,
   useGetPayablePurchaseOrdersQuery,
   useGetPaymentRequestQuery,
@@ -62,9 +63,9 @@ import {
   REFERENCE_OPTIONS,
   emptyFormValues,
   filesFormData,
+  gstSplitOf,
   linesFromDetail,
   makePaymentRequestSchema,
-  requestTotal,
   toCreateFormData,
   toUpdateBody,
 } from './schema'
@@ -89,6 +90,7 @@ const toFormValues = (detail: PaymentRequestDetail): PaymentRequestFormValues =>
   containerNo: detail.containerNo ?? '',
   marketplaceId: detail.marketplaceId ? String(detail.marketplaceId) : '',
   currency: detail.currency,
+  gstType: detail.gstType,
   lines: linesFromDetail(detail),
   remarks: detail.remarks ?? '',
 })
@@ -121,6 +123,7 @@ export const PaymentRequestFormScreen: React.FC = () => {
 
   const { data: costCenters, isFetching: loadingCostCenters } = useGetLeafCostCentersQuery()
   const { data: marketplaces } = useGetFinanceMarketplacesQuery()
+  const { data: gstRates = [] } = useGetGstRatesQuery()
   const [checkDuplicate] = useLazyCheckDuplicateInvoiceQuery()
   const [checkPurchaseInvoice] = useLazyCheckPurchaseInvoiceQuery()
   const [createRequest] = useCreatePaymentRequestMutation()
@@ -143,7 +146,7 @@ export const PaymentRequestFormScreen: React.FC = () => {
     watch,
     formState: { errors },
   } = useForm<PaymentRequestFormValues>({
-    resolver: (values, context, options) => zodResolver(makePaymentRequestSchema(poLimit))(values, context, options),
+    resolver: (values, context, options) => zodResolver(makePaymentRequestSchema(poLimit, gstRates))(values, context, options),
     defaultValues: emptyFormValues,
   })
 
@@ -179,7 +182,8 @@ export const PaymentRequestFormScreen: React.FC = () => {
   const termsLockedBy = poLocked ? 'Set by the purchase order' : invoiceLocked ? 'Set by the invoice' : null
   const invoiceNo = watch('invoiceNo')
   const lines = watch('lines')
-  const total = requestTotal(lines)
+  /** Before GST: what the PO and invoice limits and the exchange-rate note are about. */
+  const total = gstSplitOf({ lines, gstType: watch('gstType') }, gstRates).net
   const existingDocuments: FinanceDocument[] = detail?.documents ?? []
 
   // Load an existing draft / rejected request into the form once.
@@ -347,7 +351,7 @@ export const PaymentRequestFormScreen: React.FC = () => {
 
   /** What this request asks for beyond what the invoice has left (its earlier requests and PO advances taken off). */
   const excessOver = (values: PaymentRequestFormValues): number =>
-    invoiceLocked && purchaseInvoice ? Math.max(0, Math.round((requestTotal(values.lines) - purchaseInvoice.leftToRequest) * 100) / 100) : 0
+    invoiceLocked && purchaseInvoice ? Math.max(0, Math.round((gstSplitOf(values, gstRates).net - purchaseInvoice.leftToRequest) * 100) / 100) : 0
 
   /** Sending for approval more than the invoice has left asks first; saving a draft does not. */
   const submitForApproval = (values: PaymentRequestFormValues) => {
@@ -581,6 +585,7 @@ export const PaymentRequestFormScreen: React.FC = () => {
         <RequestLinesSection
           control={control}
           register={register}
+          setValue={setValue}
           errors={errors}
           currencyOptions={currencyOptions(currency)}
           currencyLockedBy={termsLockedBy}
@@ -644,7 +649,7 @@ export const PaymentRequestFormScreen: React.FC = () => {
         {excessPending && purchaseInvoice && (
           <>
             Only {formatCurrencyAmount(purchaseInvoice.currency, purchaseInvoice.leftToRequest)} is left to pay on {purchaseInvoice.invoiceRef}. This request is for{' '}
-            {formatCurrencyAmount(excessPending.currency, requestTotal(excessPending.lines))}, an excess of {formatCurrencyAmount(purchaseInvoice.currency, excessOver(excessPending))}. Would you like to continue?
+            {formatCurrencyAmount(excessPending.currency, gstSplitOf(excessPending, gstRates).net)}, an excess of {formatCurrencyAmount(purchaseInvoice.currency, excessOver(excessPending))}. Would you like to continue?
           </>
         )}
       </ConfirmDialog>

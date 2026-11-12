@@ -25,6 +25,7 @@ export const emptyEntry = (currency: string): BatchEntryValues => ({
   containerNo: '',
   marketplaceId: '',
   currency,
+  gstType: 'NOT_APPLICABLE',
   lines: [emptyLine],
   remarks: '',
 })

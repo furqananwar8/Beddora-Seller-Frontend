@@ -6,18 +6,24 @@ import { SegmentedToggle } from '@/components/segmented-toggle/SegmentedToggle'
 import { SingleDatePicker } from '@/components/single-date-picker/SingleDatePicker'
 import { Button } from '@/design-system/buttons'
 import { Input, Select, Textarea } from '@/design-system/inputs'
-import type { CostCenterOption, Marketplace, PartnerOption, ReferenceType } from '@/services/api/finance.api'
+import type { CostCenterOption, GstType, Marketplace, PartnerOption, ReferenceType } from '@/services/api/finance.api'
 import { CostCenterField } from '../../shared/CostCenterSelect'
 import { FormField } from '../../shared/FormField'
 import { currencyOptions } from '../../shared/currency'
-import { formatCurrencyAmount, formatMoney } from '../../shared/format'
+import { formatMoney } from '../../shared/format'
+import { GstRateField, GstTypeField, useGstRates } from '../../shared/GstFields'
+import { LineColumnHeaders } from '../../shared/LineColumnHeaders'
+import { GstTotals } from '../../shared/GstTotals'
 import { SelectShell } from '../../shared/SelectShell'
 import { CarrierShipmentSelect } from '../CarrierShipmentSelect'
 import { ContainerSelect, containerRefOf } from '../ContainerSelect'
 import { PayableInvoiceSelect } from '../PayableInvoiceSelect'
 import { PayablePoSelect } from '../PayablePoSelect'
-import { MAX_REQUEST_LINES, REFERENCE_OPTIONS, emptyLine, parseAmount, requestTotal } from '../schema'
+import { MAX_REQUEST_LINES, REFERENCE_OPTIONS, emptyLine, gstInputsOf, parseAmount } from '../schema'
 import type { BatchFormValues } from './batchSchema'
+
+/** The column grid of an amount row (and of the labels above the rows). */
+const LINE_GRID = 'grid items-start gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,2fr)_auto]'
 
 const COST_CENTER_ADD_HREF = `/dashboard/finance/cost-center/new?returnTo=${encodeURIComponent('/dashboard/finance/payment-request/new')}`
 
@@ -39,6 +45,9 @@ export const BatchEntryCard: React.FC<BatchEntryCardProps> = ({ form, index, par
   const errors = formState.errors.entries?.[index]
   const { fields, append, remove } = useFieldArray({ control, name: `${prefix}.lines`, keyName: 'key' })
   const entry = useWatch({ control, name: prefix })
+  const { rates: gstRates, onlyRateId } = useGstRates()
+  const gstType: GstType = entry?.gstType ?? 'NOT_APPLICABLE'
+  const gstApplies = gstType !== 'NOT_APPLICABLE'
   const byPurchaseOrder = entry?.referenceType === 'PURCHASE_ORDER'
   const several = fields.length > 1
   const linesError = errors?.lines?.message ?? errors?.lines?.root?.message
@@ -46,6 +55,12 @@ export const BatchEntryCard: React.FC<BatchEntryCardProps> = ({ form, index, par
   const applyDestination = (code: string) => {
     const destination = marketplaces?.find((marketplace) => marketplace.code === code)
     if (destination) setValue(`${prefix}.marketplaceId`, String(destination.id), { shouldDirty: true })
+  }
+
+  /** How GST applies is the request's; each amount keeps (or starts with) its own percentage. */
+  const changeGstType = (next: GstType) => {
+    setValue(`${prefix}.gstType`, next, { shouldDirty: true, shouldValidate: true })
+    ;(entry?.lines ?? []).forEach((line, index) => setValue(`${prefix}.lines.${index}.gstRateId`, next === 'NOT_APPLICABLE' ? '' : line.gstRateId || onlyRateId, { shouldDirty: true }))
   }
 
   const switchReference = (next: ReferenceType) => {
@@ -139,14 +154,18 @@ export const BatchEntryCard: React.FC<BatchEntryCardProps> = ({ form, index, par
             <Select id={`${prefix}.currency`} className="appearance-none rounded-lg pr-9" options={[{ value: '', label: 'Select' }, ...currencyOptions(entry?.currency ?? '')]} {...register(`${prefix}.currency`)} />
           </SelectShell>
         </FormField>
+        <GstTypeField id={prefix} value={gstType} error={errors?.gstType?.message} onChange={changeGstType} />
       </div>
 
-      <div className="mt-4 space-y-3">
+      <div className="mt-4">
+        <LineColumnHeaders gridClassName={LINE_GRID} gstApplies={gstApplies} />
+      </div>
+      <div className="space-y-3">
         {fields.map((field, lineIndex) => {
           const lineErrors = errors?.lines?.[lineIndex]
           return (
-            <div key={field.key} className="grid items-start gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_auto]">
-              <FormField label={several ? `Amount ${lineIndex + 1}` : 'Amount'} htmlFor={`${prefix}.lines.${lineIndex}.amount`} required error={lineErrors?.amount?.message}>
+            <div key={field.key} className={LINE_GRID}>
+              <FormField label="Amount" labelClassName="sm:sr-only" htmlFor={`${prefix}.lines.${lineIndex}.amount`} required error={lineErrors?.amount?.message}>
                 <Controller
                   control={control}
                   name={`${prefix}.lines.${lineIndex}.amount`}
@@ -168,11 +187,14 @@ export const BatchEntryCard: React.FC<BatchEntryCardProps> = ({ form, index, par
                   )}
                 />
               </FormField>
-              <FormField label="Expense" htmlFor={`${prefix}.lines.${lineIndex}.costCenterId`} required error={lineErrors?.costCenterId?.message}>
+              <GstRateField id={`${prefix}.lines.${lineIndex}.gstRateId`} labelClassName="sm:sr-only" applies={gstApplies} error={lineErrors?.gstRateId?.message} onAdded={(rateId) => setValue(`${prefix}.lines.${lineIndex}.gstRateId`, rateId, { shouldDirty: true, shouldValidate: true })}>
+                {({ options, disabled }) => <Select id={`${prefix}.lines.${lineIndex}.gstRateId`} className="appearance-none rounded-lg pr-9" disabled={disabled} options={options} {...register(`${prefix}.lines.${lineIndex}.gstRateId`)} />}
+              </GstRateField>
+              <FormField label="Expense" labelClassName="sm:sr-only" htmlFor={`${prefix}.lines.${lineIndex}.costCenterId`} required error={lineErrors?.costCenterId?.message}>
                 <CostCenterField control={control} name={`${prefix}.lines.${lineIndex}.costCenterId`} id={`${prefix}.lines.${lineIndex}.costCenterId`} options={costCenters} loading={loadingCostCenters} addHref={COST_CENTER_ADD_HREF} />
               </FormField>
               {several ? (
-                <button type="button" aria-label={`Remove amount ${lineIndex + 1}`} onClick={() => remove(lineIndex)} className="mt-6 h-10 w-8 rounded-lg text-lg text-text-subtle hover:bg-secondary-100 hover:text-danger-600">
+                <button type="button" aria-label={`Remove amount ${lineIndex + 1}`} onClick={() => remove(lineIndex)} className="mt-6 h-10 w-8 rounded-lg text-lg sm:mt-0 text-text-subtle hover:bg-secondary-100 hover:text-danger-600">
                   ×
                 </button>
               ) : (
@@ -184,11 +206,15 @@ export const BatchEntryCard: React.FC<BatchEntryCardProps> = ({ form, index, par
       </div>
       {linesError && <p className="mt-2 text-sm text-danger-600">{linesError}</p>}
       <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-        <Button type="button" variant="outline" size="sm" disabled={fields.length >= MAX_REQUEST_LINES} onClick={() => append(emptyLine)}>
+        <Button type="button" variant="outline" size="sm" disabled={fields.length >= MAX_REQUEST_LINES} onClick={() => append({ ...emptyLine, gstRateId: gstApplies ? (entry?.lines?.[entry.lines.length - 1]?.gstRateId ?? onlyRateId) : '' })}>
           + Add amount
         </Button>
-        {several && <span className="text-sm font-semibold text-text-primary">Total {formatCurrencyAmount(entry?.currency || '—', requestTotal(entry?.lines ?? []))}</span>}
       </div>
+      <GstTotals
+        currency={entry?.currency ?? ''}
+        entered={gstInputsOf({ gstType, lines: entry?.lines ?? [] }, gstRates)}
+        type={gstType}
+      />
 
       <FormField label="Remarks" htmlFor={`${prefix}.remarks`} className="mt-4" error={errors?.remarks?.message}>
         <Textarea id={`${prefix}.remarks`} rows={1} className="rounded-lg" {...register(`${prefix}.remarks`)} />
