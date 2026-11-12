@@ -34,7 +34,7 @@ export const ContainerCostSummary: React.FC<{ container: Pick<ContainerDetail, '
         <p className="text-sm text-text-muted">
           Showing {rows.length} {rows.length === 1 ? 'SKU' : 'SKUs'} in this container
         </p>
-        <Link href={CONTAINER_ROUTES.costAnalysis} className="text-xs font-semibold text-primary-600 underline-offset-2 hover:underline">
+        <Link href={CONTAINER_ROUTES.costAnalysisOf(data.containerNo)} className="text-xs font-semibold text-primary-600 underline-offset-2 hover:underline">
           Full cost analysis
         </Link>
       </header>

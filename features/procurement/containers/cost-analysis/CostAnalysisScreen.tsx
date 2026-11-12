@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Container } from '@/components/layout'
 import { PaginationFooter } from '@/components/pagination-footer/PaginationFooter'
 import { TreeTable, type TreeColumn } from '@/components/tree-table/TreeTable'
@@ -44,7 +45,9 @@ const COLUMNS: TreeColumn<ContainerCostItem>[] = [
 
 /** Every container with its landed cost; opening one shows the cost per SKU, per PO. */
 export const CostAnalysisScreen: React.FC = () => {
-  const list = useContainerListState()
+  // "Full cost analysis" on a container links here with `?container=CID#…`: the list starts on that container and its row is open
+  const target = useSearchParams().get('container')
+  const list = useContainerListState(target ?? '')
   const { data, isLoading, isFetching, isError } = useGetContainerCostsQuery(list.params)
   const canMap = useAppAbility().can('write', 'containers:cost-analysis.mapping')
   const [mapping, setMapping] = useState(false)
@@ -80,6 +83,7 @@ export const CostAnalysisScreen: React.FC = () => {
             rows={data?.data ?? []}
             getKey={(container) => container.id}
             getChildren={() => []}
+            autoExpand={target ? (container) => container.containerNo === target : undefined}
             getRowClassName={(container) => DESTINATION_ROW_TINT[container.destination]}
             renderDetail={(container) => <ContainerCostDetail containerId={container.id} />}
             expandLabel="cost analysis"

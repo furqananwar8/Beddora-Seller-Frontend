@@ -17,9 +17,12 @@ export interface ContainerFilters extends Record<string, unknown> {
 
 const DEFAULT_FILTERS: ContainerFilters = { status: 'ALL', destination: 'ALL' }
 
-/** Search, staged filters and page of a containers listing, and the query params they make; shared by every containers screen. */
-export function useContainerListState() {
-  const [search, setSearchText] = useState('')
+/**
+ * Search, staged filters and page of a containers listing, and the query params they make; shared by every containers screen.
+ * `initialSearch` starts the list on a search (a link to one container).
+ */
+export function useContainerListState(initialSearch = '') {
+  const [search, setSearchText] = useState(initialSearch)
   const debouncedSearch = useDebounce(search.trim(), 300)
   const [page, setPage] = useState(1)
   const filters = useStagedFilters(DEFAULT_FILTERS, () => setPage(1))
