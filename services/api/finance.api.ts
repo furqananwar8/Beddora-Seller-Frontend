@@ -393,6 +393,8 @@ export interface PaymentRequestListParams extends PageParams {
   payment?: RequestPaymentFilter
   /** Only requests paying this purchase order. */
   purchaseOrderId?: number
+  /** Only the requests raised against this purchase invoice. */
+  purchaseInvoiceId?: number
   costCenterId?: number
   /** Only the requests of this batch. */
   batchId?: number

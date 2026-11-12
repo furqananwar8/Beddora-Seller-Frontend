@@ -357,6 +357,8 @@ export interface PurchaseInvoiceListItem {
   marketplaceId: number | null
   currency: string
   amount: number
+  /** Payment requests raised against this invoice that count (submitted, not turned down or cancelled). */
+  paymentRequestCount: number
   remarks: string | null
   status: PurchaseInvoiceStatus
   pdfStatus: PurchaseInvoicePdfStatus
@@ -473,6 +475,8 @@ export interface PackagingLineDetail {
   poNo: string
   product: PoProduct
   poQty: number
+  /** Units the supplier invoiced for this PO line (approved purchase invoices). */
+  invoiced: number
   /** Units of this PO line on other lists. */
   allocatedElsewhere: number
   available: number
@@ -514,6 +518,10 @@ export interface PackablePurchaseOrder {
   units: number
   /** Units not yet on another packaging list. */
   unitsLeft: number
+  /** Approved purchase invoices of this PO; none means nothing can be packed until one is created. */
+  invoiceCount: number
+  /** Invoiced units not yet on another packaging list. */
+  invoicedUnitsLeft: number
   /** Other packaging lists this PO is already on. */
   listCount: number
   /** Containers already holding some of this PO's units, with how many. */
@@ -523,7 +531,10 @@ export interface PackablePurchaseOrder {
 export interface PackablePoLines {
   /** `price` is the PO's total (units x rate) in its currency; null when no rate has been entered yet. */
   purchaseOrder: { id: number; poNo: string; currency: PoCurrency; destination: PoDestination; supplier: { id: number; name: string }; price: number | null }
-  lines: Array<{ product: PoProduct; poQty: number; allocated: number; available: number }>
+  /** The approved purchase invoices the quantities come from; empty when the PO has none yet. */
+  invoices: Array<{ id: number; invoiceNo: string; units: number }>
+  /** Only the SKUs the supplier invoiced: PO qty, invoiced, taken by other lists, and left for this list. */
+  lines: Array<{ product: PoProduct; poQty: number; invoiced: number; allocated: number; available: number }>
 }
 
 export interface PackagingLineBody {
@@ -750,7 +761,7 @@ export interface ContainerParams extends PageParams {
 }
 
 /** The container expenses spread over SKUs, as the server names them (see the server's cost-buckets). */
-export type CostBucketKey = 'oceanFreight' | 'trucking' | 'customsDuties' | 'customsBrokerage' | 'penalties'
+export type CostBucketKey = 'oceanFreight' | 'trucking' | 'customsDuties' | 'customsBrokerage'
 export type CostBuckets = Record<CostBucketKey, number>
 
 /** What amounts that were converted into the container's currency were before, per original currency. */
@@ -941,6 +952,17 @@ export interface PriceAnalysisEvent {
   unitPrice: number | null
   currency: string | null
   remarks: string | null
+  by: { id: number; name: string | null }
+  at: string
+}
+
+/** One dated snapshot of a product's price analysis: who quoted what when it was saved. */
+export interface PriceAnalysisRevision {
+  id: number
+  type: 'CREATED' | 'UPDATED' | 'REMOVED'
+  material: string | null
+  currency: string
+  quotes: Array<{ supplierId: number; supplierName: string; contactName: string | null; remarks: string | null; unitPrice: number }>
   by: { id: number; name: string | null }
   at: string
 }
@@ -1372,6 +1394,11 @@ export const procurementApi = baseApi.injectEndpoints({
       transformResponse: unwrap,
       providesTags: ['ProcurementPriceAnalysis'],
     }),
+    getPriceAnalysisRevisions: b.query<PriceAnalysisRevision[], number>({
+      query: (productId) => `/procurement/price-analysis/${productId}/revisions`,
+      transformResponse: unwrap,
+      providesTags: ['ProcurementPriceAnalysis'],
+    }),
     savePriceAnalysis: b.mutation<PriceAnalysisView, { productId: number; body: PriceAnalysisBody }>({
       query: ({ productId, body }) => ({ url: `/procurement/price-analysis/${productId}`, method: 'PUT', body }),
       transformResponse: unwrap,
@@ -1480,5 +1507,6 @@ export const {
   useApprovePriceAnalysisMutation,
   useRejectPriceAnalysisQuoteMutation,
   useGetPriceAnalysisQuery,
+  useGetPriceAnalysisRevisionsQuery,
   useSavePriceAnalysisMutation,
 } = procurementApi
