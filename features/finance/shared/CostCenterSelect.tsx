@@ -40,8 +40,8 @@ function useCostCenterPicker({ id, options, loading, error, addHref, onAdd, disa
     getLabel: (option: CostCenterOption) => option.name,
     renderOption: (option: CostCenterOption) => (
       <span className="flex min-w-0 flex-col">
-        <span className="truncate font-medium">{option.name}</span>
-        <span className="truncate text-xs text-text-muted">{option.code}</span>
+        <span className="break-words font-medium">{option.name}</span>
+        <span className="break-words text-xs text-text-muted">{option.code}</span>
       </span>
     ),
     search,
@@ -77,7 +77,7 @@ type CostCenterMultiSelectProps = Omit<CostCenterSelectProps, 'value' | 'onChang
 export const CostCenterMultiSelect: React.FC<CostCenterMultiSelectProps> = ({ value, onChange, placeholder = 'Select expenses', ...props }) => {
   const picker = useCostCenterPicker({ ...props, placeholder })
   const selected = (props.options ?? []).filter((option) => value.includes(option.id))
-  return <SearchableSelect<CostCenterOption> {...picker} multiple value={selected} onChange={onChange} />
+  return <SearchableSelect<CostCenterOption> {...picker} multiple wrapValue value={selected} onChange={onChange} />
 }
 
 /** Where a form's expense pickers get their options and where "+ Create new" leads; shared by every row. */
