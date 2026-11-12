@@ -7,6 +7,7 @@ import { RowActionsMenu } from '@/components/row-actions-menu/RowActionsMenu'
 import { TreeTable, type TreeColumn } from '@/components/tree-table/TreeTable'
 import { Button } from '@/design-system/buttons'
 import { useAppAbility } from '@/hooks/useAppAbility'
+import { useFitToViewport } from '@/hooks/useFitToViewport'
 import { useReportExport } from '@/hooks/useReportExport'
 import { useGetContainersQuery, useGetContainerSummaryQuery, type ContainerItem } from '@/services/api/procurement.api'
 import { cn } from '@/utils/cn'
@@ -38,6 +39,8 @@ export const ContainersScreen: React.FC = () => {
   // The customs broker column reads the L4s mapped to Custom brokerage; the same mapping as the cost analysis
   const canMap = useAppAbility().can('write', 'containers:cost-analysis.mapping')
   const [mapping, setMapping] = useState(false)
+  // The table's box fits the window, so its sideways scrollbar is in view without scrolling the page
+  const fit = useFitToViewport<HTMLDivElement>()
 
   const list = useContainerListState()
   const { data, isLoading, isFetching, isError } = useGetContainersQuery(list.params)
@@ -51,41 +54,51 @@ export const ContainersScreen: React.FC = () => {
       className: 'min-w-[150px] text-left',
       render: (container) => <ContainerCell container={container} detail={skuSummary(container.lines.length, container.totals.units)} />,
     },
-    { key: 'cbm', header: 'Total CBM', className: 'min-w-[100px] whitespace-nowrap', render: (container) => <span className="font-mono text-xs">{container.totals.cbm.toFixed(2)}</span> },
+    { key: 'cbm', header: 'Total CBM', className: 'min-w-[100px]', render: (container) => <span className="font-mono text-xs">{container.totals.cbm.toFixed(2)}</span> },
     {
       key: 'cartons',
-      header: 'Cartons (Received / Short)', className: 'min-w-[150px] whitespace-nowrap',
+      header: 'Cartons (Received / Short)', className: 'min-w-[170px]',
+      // Received / short side by side (like Net / Gross wt); the packed cartons are in PL boxes
       render: (container) => {
         const { cartons } = container.totals
-        // Before Inbound Receiving is confirmed only the packed cartons are known
-        if (!container.receiving) return <Stack className="tabular-nums" top={qty(cartons)} bottom="not received yet" />
+        // Nothing is received or short until Inbound Receiving is confirmed
+        if (!container.receiving) return <span className="text-sm tabular-nums">— / —</span>
         const { shortageCartons, damagedCartons } = container.receiving
         return (
-          <Stack
-            className="tabular-nums"
-            top={
-              <span>
-                {qty(cartons - shortageCartons)} / <span className={cn(shortageCartons > 0 && 'rounded bg-danger-50 px-1.5 py-0.5 font-semibold text-danger-600')}>{qty(shortageCartons)}</span>
-              </span>
-            }
-            bottom={damagedCartons > 0 ? `${qty(damagedCartons)} damaged` : undefined}
-          />
+          <span className="text-sm tabular-nums" title={damagedCartons > 0 ? `${qty(damagedCartons)} damaged` : undefined}>
+            {qty(cartons - shortageCartons)} / <span className={cn(shortageCartons > 0 && 'rounded bg-danger-50 px-1.5 py-0.5 font-semibold text-danger-600')}>{qty(shortageCartons)}</span>
+          </span>
         )
       },
     },
     {
       key: 'weight',
-      header: 'Net / Gross wt', className: 'min-w-[140px] whitespace-nowrap',
-      render: (container) => <Stack className="tabular-nums" top={kg(container.totals.netWeightKg)} bottom={kg(container.totals.grossWeightKg)} />,
+      header: 'Net / Gross wt', className: 'min-w-[230px]',
+      // Net and gross side by side on one line; it wraps only when the column is too narrow for both
+      render: (container) => (
+        <span className="text-sm tabular-nums">
+          {kg(container.totals.netWeightKg)} / {kg(container.totals.grossWeightKg)}
+        </span>
+      ),
     },
-    { key: 'bol', header: 'BOL / MBL', className: 'min-w-[130px] whitespace-nowrap', render: (container) => <Stack className="font-mono text-xs" top={container.billOfLading ?? '—'} bottom={container.masterBillOfLading ?? '—'} /> },
-    { key: 'etd', header: 'ETD', className: 'min-w-[100px] whitespace-nowrap', render: (container) => <span className="whitespace-nowrap text-sm">{date(container.etd)}</span> },
-    { key: 'eta', header: 'ETA', className: 'min-w-[100px] whitespace-nowrap', render: (container) => <span className="whitespace-nowrap text-sm">{date(container.eta)}</span> },
-    { key: 'board', header: 'Shipped on board', className: 'min-w-[170px] whitespace-nowrap', render: (container) => <ShippedOnBoardCell container={container} canWrite={actions.canWrite} /> },
-    { key: 'transit', header: 'Transit days', className: 'min-w-[120px] whitespace-nowrap', render: (container) => <span className="tabular-nums">{container.transitDays ?? '—'}</span> },
+    {
+      key: 'bol',
+      header: 'BOL / MBL',
+      className: 'min-w-[320px]',
+      // Side by side on one line; a long pair wraps at the slash instead of being cut off
+      render: (container) => (
+        <span className="font-mono text-xs">
+          {container.billOfLading ?? '—'} / {container.masterBillOfLading ?? '—'}
+        </span>
+      ),
+    },
+    { key: 'etd', header: 'ETD', className: 'min-w-[100px]', render: (container) => <span className="whitespace-nowrap text-sm">{date(container.etd)}</span> },
+    { key: 'eta', header: 'ETA', className: 'min-w-[100px]', render: (container) => <span className="whitespace-nowrap text-sm">{date(container.eta)}</span> },
+    { key: 'board', header: 'Shipped on board', className: 'min-w-[170px]', render: (container) => <ShippedOnBoardCell container={container} canWrite={actions.canWrite} /> },
+    { key: 'transit', header: 'Transit days', className: 'min-w-[120px]', render: (container) => <span className="tabular-nums">{container.transitDays ?? '—'}</span> },
     {
       key: 'status',
-      header: 'Status', className: 'min-w-[150px] whitespace-nowrap',
+      header: 'Status', className: 'min-w-[150px]',
       render: (container) => (
         <Stack
           top={
@@ -98,22 +111,31 @@ export const ContainersScreen: React.FC = () => {
         />
       ),
     },
-    { key: 'poa', header: 'Port', className: 'min-w-[120px] whitespace-nowrap', render: (container) => <span className="whitespace-nowrap text-sm">{container.portOfArrival ?? '—'}</span> },
-    { key: 'plBoxes', header: 'PL boxes', className: 'min-w-[100px] whitespace-nowrap', render: (container) => <span className="tabular-nums">{qty(container.totals.cartons)}</span> },
-    { key: 'plUnits', header: 'PL units', className: 'min-w-[100px] whitespace-nowrap', render: (container) => <span className="tabular-nums">{qty(container.totals.units)}</span> },
-    { key: 'skus', header: 'No. of SKUs', className: 'min-w-[110px] whitespace-nowrap', render: (container) => <span className="tabular-nums">{qty(container.totals.skus)}</span> },
-    { key: 'brand', header: 'Brand', className: 'min-w-[170px] whitespace-nowrap', render: (container) => <BrandCell platforms={container.platforms} /> },
-    { key: 'warehouse', header: 'Warehouse', className: 'min-w-[150px] whitespace-nowrap', render: (container) => <span className="text-sm">{container.warehouse?.name ?? '—'}</span> },
-    { key: 'cubicFeet', header: 'Cubic feet', className: 'min-w-[110px] whitespace-nowrap', render: (container) => <span className="tabular-nums">{container.cubicFeet === null ? '—' : qty(container.cubicFeet)}</span> },
+    { key: 'poa', header: 'Port', className: 'min-w-[120px]', render: (container) => <span className="text-sm">{container.portOfArrival ?? '—'}</span> },
+    { key: 'plBoxes', header: 'PL boxes', className: 'min-w-[100px]', render: (container) => <span className="tabular-nums">{qty(container.totals.cartons)}</span> },
+    { key: 'plUnits', header: 'PL units', className: 'min-w-[100px]', render: (container) => <span className="tabular-nums">{qty(container.totals.units)}</span> },
+    { key: 'skus', header: 'No. of SKUs', className: 'min-w-[110px]', render: (container) => <span className="tabular-nums">{qty(container.totals.skus)}</span> },
+    { key: 'brand', header: 'Brand', className: 'min-w-[170px]', render: (container) => <BrandCell platforms={container.platforms} /> },
+    { key: 'warehouse', header: 'Warehouse', className: 'min-w-[150px]', render: (container) => <span className="text-sm">{container.warehouse?.name ?? '—'}</span> },
+    { key: 'cubicFeet', header: 'Cubic feet', className: 'min-w-[110px]', render: (container) => <span className="tabular-nums">{container.cubicFeet === null ? '—' : qty(container.cubicFeet)}</span> },
     { key: 'broker', header: 'Custom broker', className: 'min-w-[140px]', render: (container) => <span className="text-sm">{container.customsBrokers.length ? container.customsBrokers.join(', ') : '—'}</span> },
     {
       key: 'city',
-      header: 'Dest. city', className: 'min-w-[150px] whitespace-nowrap',
-      render: (container) => <Stack className="text-sm" top={container.destinationCity ?? '—'} bottom={[container.destinationProvince, DESTINATION_LABEL[container.destination]].filter(Boolean).join(' · ')} />,
+      header: 'Dest. city', className: 'min-w-[270px]',
+      // City, then province and country beside it on the same line
+      render: (container) => {
+        const place = [container.destinationProvince, DESTINATION_LABEL[container.destination]].filter(Boolean).join(' · ')
+        return (
+          <span className="text-sm text-black">
+            {container.destinationCity ?? '—'}
+            {place && ` · ${place}`}
+          </span>
+        )
+      },
     },
     {
       key: 'cost',
-      header: 'Total cost', className: 'min-w-[130px] whitespace-nowrap',
+      header: 'Total cost', className: 'min-w-[130px]',
       render: (container) => <span className="whitespace-nowrap tabular-nums">{container.totalCost === null ? '—' : money(container.totalCost, container.totalCostCurrency)}</span>,
     },
     { key: 'actions', header: 'Actions', render: (container) => <RowActionsMenu label={container.containerNo} items={actions.actionsFor(container)} /> },
@@ -152,9 +174,12 @@ export const ContainersScreen: React.FC = () => {
       <ContainerFilterBar state={list} idPrefix="ct" />
 
       <div className={cn('overflow-hidden rounded-lg border border-border bg-surface shadow-sm', isFetching && 'opacity-70 transition-opacity')}>
-        <div className="max-h-[calc(100vh-380px)] overflow-auto">
+        <div ref={fit.ref} style={fit.style} className="max-h-[calc(100vh-380px)] overflow-auto">
           {/* The arrow opens the container's panels (POs and payments, payment requests, documents, packed products) */}
+          {/* The box around it is the one scroller (both ways), so the sideways scrollbar sits at the bottom of the visible
+              area and not below the last row; the table's own wrapper must not scroll */}
           <TreeTable<ContainerItem>
+            wrapperClassName="overflow-visible"
             columns={columns}
             rows={rows}
             getKey={(container) => container.id}

@@ -7,8 +7,8 @@ import { cn } from '@/utils/cn'
  * One list: the product form's radio, the Brand badge on containers and the exports all read it.
  */
 export const PLATFORM_META: Record<ProductPlatform, { label: string; brand: string; /** Filled (selected) look. */ solid: string; /** Soft badge look. */ soft: string }> = {
-  ECOMMERCE: { label: 'Ecommerce', brand: 'Beddora', solid: 'border-blue-600 bg-blue-600 text-white', soft: 'bg-blue-100 text-blue-800' },
-  RETAIL: { label: 'Retail', brand: 'Northern Linen', solid: 'border-red-600 bg-red-600 text-white', soft: 'bg-red-100 text-red-800' },
+  ECOMMERCE: { label: 'Ecommerce', brand: 'Beddora', solid: 'border-blue-600 bg-blue-600 text-white', soft: 'bg-blue-600 text-white' },
+  RETAIL: { label: 'Retail', brand: 'Northern Linen', solid: 'border-red-600 bg-red-600 text-white', soft: 'bg-red-600 text-white' },
 }
 
 export const PLATFORMS: ProductPlatform[] = ['ECOMMERCE', 'RETAIL']
