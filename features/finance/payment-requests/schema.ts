@@ -64,7 +64,7 @@ export interface PoLimit {
   leftToRequest: number
 }
 
-type ReferenceFields = Pick<PaymentRequestFormValues, 'referenceType' | 'invoiceNo' | 'purchaseOrder' | 'invoiceDate' | 'dueDate'>
+type ReferenceFields = Pick<PaymentRequestFormValues, 'referenceType' | 'invoiceNo' | 'purchaseOrder' | 'shipments' | 'invoiceDate' | 'dueDate'>
 
 /** What every request needs to name what it pays, whether raised alone or in a batch (`path` places the issues inside a list). */
 export function addReferenceIssues(values: ReferenceFields, ctx: z.RefinementCtx, path: Array<string | number> = []) {
@@ -73,13 +73,13 @@ export function addReferenceIssues(values: ReferenceFields, ctx: z.RefinementCtx
   if (values.dueDate && values.invoiceDate && values.dueDate < values.invoiceDate) ctx.addIssue({ code: 'custom', path: [...path, 'dueDate'], message: 'Due date cannot be before the invoice date' })
   if (!isPo && !values.invoiceNo.trim()) ctx.addIssue({ code: 'custom', path: [...path, 'invoiceNo'], message: 'Invoice number is required' })
   if (isPo && !values.purchaseOrder) ctx.addIssue({ code: 'custom', path: [...path, 'purchaseOrder'], message: 'Pick the purchase order being paid' })
+  if (values.referenceType === 'SHIPMENT' && values.shipments.length === 0) ctx.addIssue({ code: 'custom', path: [...path, 'shipments'], message: 'Pick at least one shipment' })
 }
 
 /** Schema depends on the picked PO: its open balance caps the request's total. */
 export const makePaymentRequestSchema = (poLimit: PoLimit | null) =>
   baseSchema.superRefine((values, ctx) => {
     addReferenceIssues(values, ctx)
-    if (values.referenceType === 'SHIPMENT' && values.shipments.length === 0) ctx.addIssue({ code: 'custom', path: ['shipments'], message: 'Pick at least one shipment' })
     if (values.referenceType === 'PURCHASE_ORDER' && poLimit && requestTotal(values.lines) > poLimit.leftToRequest) {
       ctx.addIssue({ code: 'custom', path: ['lines'], message: poLimitMessage(poLimit) })
     }

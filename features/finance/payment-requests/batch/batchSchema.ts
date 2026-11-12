@@ -2,10 +2,8 @@ import { z } from 'zod'
 import { addReferenceIssues, baseSchema, emptyLine, toUpdateBody, type PaymentRequestFormValues } from '../schema'
 import { MAX_BATCH_ENTRIES } from './types'
 
-/** One request of a batch: the same fields as the one-off form, minus the partner (shared) and shipments (not batched). */
-const entrySchema = baseSchema.omit({ partnerId: true, shipments: true }).extend({
-  referenceType: z.enum(['INVOICE', 'PURCHASE_ORDER']),
-})
+/** One request of a batch: the same fields as the one-off form, minus the partner (shared by the whole batch). */
+const entrySchema = baseSchema.omit({ partnerId: true })
 
 export const batchSchema = z
   .object({
@@ -21,6 +19,7 @@ export const emptyEntry = (currency: string): BatchEntryValues => ({
   referenceType: 'INVOICE',
   invoiceNo: '',
   purchaseOrder: null,
+  shipments: [],
   invoiceDate: '',
   dueDate: '',
   containerNo: '',
@@ -31,4 +30,4 @@ export const emptyEntry = (currency: string): BatchEntryValues => ({
 })
 
 /** The server's body for one entry: the one-off request body, which the batch endpoint reads the same way. */
-export const toEntryBody = (partnerId: string, entry: BatchEntryValues) => toUpdateBody({ ...entry, partnerId, shipments: [] } satisfies PaymentRequestFormValues)
+export const toEntryBody = (partnerId: string, entry: BatchEntryValues) => toUpdateBody({ ...entry, partnerId } satisfies PaymentRequestFormValues)

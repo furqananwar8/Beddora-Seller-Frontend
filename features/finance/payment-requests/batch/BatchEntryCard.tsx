@@ -12,14 +12,12 @@ import { FormField } from '../../shared/FormField'
 import { currencyOptions } from '../../shared/currency'
 import { formatCurrencyAmount, formatMoney } from '../../shared/format'
 import { SelectShell } from '../../shared/SelectShell'
+import { CarrierShipmentSelect } from '../CarrierShipmentSelect'
 import { ContainerSelect, containerRefOf } from '../ContainerSelect'
 import { PayableInvoiceSelect } from '../PayableInvoiceSelect'
 import { PayablePoSelect } from '../PayablePoSelect'
 import { MAX_REQUEST_LINES, REFERENCE_OPTIONS, emptyLine, parseAmount, requestTotal } from '../schema'
 import type { BatchFormValues } from './batchSchema'
-
-/** Batches pay invoices and purchase orders; shipment requests stay one at a time. */
-const BATCH_REFERENCE_OPTIONS = REFERENCE_OPTIONS.filter((option) => option.value !== 'SHIPMENT')
 
 const COST_CENTER_ADD_HREF = `/dashboard/finance/cost-center/new?returnTo=${encodeURIComponent('/dashboard/finance/payment-request/new')}`
 
@@ -51,16 +49,18 @@ export const BatchEntryCard: React.FC<BatchEntryCardProps> = ({ form, index, par
   }
 
   const switchReference = (next: ReferenceType) => {
-    setValue(`${prefix}.referenceType`, next === 'PURCHASE_ORDER' ? 'PURCHASE_ORDER' : 'INVOICE', { shouldDirty: true })
+    setValue(`${prefix}.referenceType`, next, { shouldDirty: true })
+    // A PO request has no invoice number; invoice and shipment requests have no PO; only shipment requests carry shipments
     if (next === 'PURCHASE_ORDER') setValue(`${prefix}.invoiceNo`, '')
     else setValue(`${prefix}.purchaseOrder`, null)
+    if (next !== 'SHIPMENT') setValue(`${prefix}.shipments`, [])
   }
 
   return (
     <div className="rounded-lg border border-border bg-surface p-4 shadow-sm">
       <div className="mb-3 flex flex-wrap items-center gap-3">
         <h3 className="text-sm font-semibold text-text-primary">Request {index + 1}</h3>
-        <SegmentedToggle<ReferenceType> ariaLabel={`Request ${index + 1} paying against`} value={entry?.referenceType ?? 'INVOICE'} onChange={switchReference} options={BATCH_REFERENCE_OPTIONS} />
+        <SegmentedToggle<ReferenceType> ariaLabel={`Request ${index + 1} paying against`} value={entry?.referenceType ?? 'INVOICE'} onChange={switchReference} options={REFERENCE_OPTIONS} />
         {onRemove && (
           <button type="button" onClick={onRemove} aria-label={`Remove request ${index + 1}`} className="ml-auto rounded-lg px-2 py-1 text-sm text-text-subtle hover:bg-secondary-100 hover:text-danger-600">
             Remove
@@ -96,6 +96,24 @@ export const BatchEntryCard: React.FC<BatchEntryCardProps> = ({ form, index, par
                 setValue(`${prefix}.marketplaceId`, invoice.marketplaceId ? String(invoice.marketplaceId) : '')
               }}
               onOther={(invoiceNo) => setValue(`${prefix}.invoiceNo`, invoiceNo, { shouldValidate: true, shouldDirty: true })}
+            />
+          </FormField>
+        )}
+        {entry?.referenceType === 'SHIPMENT' && (
+          <FormField
+            label="Shipment No"
+            htmlFor={`${prefix}.shipments`}
+            required
+            error={errors?.shipments?.message as string | undefined}
+            hint="FBA shipments booked with this carrier; one invoice may cover several"
+            className="sm:col-span-2 lg:col-span-4"
+          >
+            <Controller
+              control={control}
+              name={`${prefix}.shipments`}
+              render={({ field }) => (
+                <CarrierShipmentSelect id={`${prefix}.shipments`} partnerId={partner?.id ?? null} value={field.value} onChange={field.onChange} error={errors?.shipments?.message as string | undefined} />
+              )}
             />
           </FormField>
         )}

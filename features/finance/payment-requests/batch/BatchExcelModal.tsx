@@ -36,7 +36,8 @@ export const BatchExcelModal: React.FC<BatchExcelModalProps> = ({ isOpen, onClos
   const download = async () => {
     setDownloading(true)
     try {
-      await downloadApiFile(BATCH_TEMPLATE_URL, 'payment-requests-template.xlsx')
+      // With the partner known, the template also lists that carrier's shipments
+      await downloadApiFile(partner ? `${BATCH_TEMPLATE_URL}?partnerId=${partner.id}` : BATCH_TEMPLATE_URL, 'payment-requests-template.xlsx')
     } catch (error) {
       failure(error, 'Could not download the template')
     } finally {
@@ -53,7 +54,7 @@ export const BatchExcelModal: React.FC<BatchExcelModalProps> = ({ isOpen, onClos
           <section className="rounded-lg border border-border p-4">
             <h3 className="text-sm font-semibold text-text-primary">1. Download the template</h3>
             <p className="mt-1 text-sm text-text-secondary">
-              One row is one amount. Repeat the same <strong>Entry</strong> number on several rows to split one request across cost centers. Use the codes on the <em>Cost centers</em> and <em>Destinations</em> sheets. Up to {MAX_BATCH_ENTRIES} requests per file.
+              One row is one amount. Repeat the same <strong>Entry</strong> number on several rows to split one request across cost centers. Use the codes on the <em>Cost centers</em>, <em>Destinations</em> and <em>Shipments</em> sheets (the last appears once a partner is chosen). Reference type is Invoice, Purchase order or Shipment. Up to {MAX_BATCH_ENTRIES} requests per file.
             </p>
             <Button type="button" variant="outline" size="sm" className="mt-3" isLoading={downloading} onClick={download}>
               Download template (.xlsx)

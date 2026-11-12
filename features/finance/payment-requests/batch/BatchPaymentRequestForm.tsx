@@ -61,8 +61,11 @@ export const BatchPaymentRequestForm: React.FC<BatchPaymentRequestFormProps> = (
     setPartner(option)
     setValue('partnerId', String(option.id), { shouldValidate: true })
     getValues('entries').forEach((entry, index) => {
-      // A PO belongs to one supplier, so a different partner clears it; empty currencies start as the partner's
-      if (changed) setValue(`entries.${index}.purchaseOrder`, null)
+      // A PO belongs to one supplier and shipments to one carrier, so a different partner clears them; empty currencies start as the partner's
+      if (changed) {
+        setValue(`entries.${index}.purchaseOrder`, null)
+        setValue(`entries.${index}.shipments`, [])
+      }
       if (!entry.currency || changed) setValue(`entries.${index}.currency`, option.currency)
     })
   }
