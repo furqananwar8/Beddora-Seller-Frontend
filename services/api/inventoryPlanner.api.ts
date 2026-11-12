@@ -22,6 +22,7 @@ export interface ProductInventoryItem {
   sheetSku: string // SKU as written in the sheet; stays fixed when sku is edited
   description: string
   status: InventoryItemStatus
+  inCatalogue: boolean // false: stock under a SKU that is not a product in the catalogue
   lastReceivedDate: string | null // yyyy-mm-dd
   totalQuantity: number
   unallocated: number

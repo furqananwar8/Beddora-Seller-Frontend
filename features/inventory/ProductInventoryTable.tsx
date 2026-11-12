@@ -312,6 +312,9 @@ export const ProductInventoryTable = ({
                                 <span title="SKU as written in the InBound_Logs sheet"> · sheet: {product.sheetSku}</span>
                               )}
                               {product.lastReceivedDate && <> · received {product.lastReceivedDate}</>}
+                              {!product.inCatalogue && (
+                                <span className="text-warning-700" title="This SKU is not a product in the catalogue; its stock came in through the sheet only"> · not in catalogue</span>
+                              )}
                             </div>
                           </div>
                         )}
