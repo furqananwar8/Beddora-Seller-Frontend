@@ -346,6 +346,8 @@ export interface PaymentRequestListItem {
   currency: string
   amount: number
   status: RequestStatus
+  /** Set when raised together with other requests (batch form or Excel upload). */
+  batchId: number | null
   createdAt: string
   decisionNote: string | null
   remarks: string | null
@@ -370,6 +372,10 @@ export interface PaymentRequestListParams extends PageParams {
   /** Only requests paying this purchase order. */
   purchaseOrderId?: number
   costCenterId?: number
+  /** Only the requests of this batch. */
+  batchId?: number
+  /** Only requests raised in a batch (`yes`) or on their own (`no`). */
+  batched?: 'yes' | 'no'
   dateFrom?: string
   dateTo?: string
   scope?: 'mine' | 'all'

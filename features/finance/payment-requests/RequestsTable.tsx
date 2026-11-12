@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { RowActionsMenu } from '@/components/row-actions-menu/RowActionsMenu'
 import { Spinner } from '@/design-system/loaders'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/design-system/tables'
@@ -8,14 +9,14 @@ import { StatusBadge } from '@/components/status-badge/StatusBadge'
 import type { PaymentRequestListItem } from '@/services/api/finance.api'
 import { cn } from '@/utils/cn'
 import { toProperName } from '@/utils/format'
-import { formatDay, formatMoney, requestReference } from '../shared/format'
+import { formatBatchNo, formatDay, formatMoney, requestReference } from '../shared/format'
 import { PAYMENT_STATE_META, paymentStateOf } from '../shared/paymentState'
 import { REQUEST_STATUS_META } from '../shared/statusMeta'
 import { RequestPreview } from './RequestPreview'
 
 const HEAD = 'text-center align-middle'
 const CELL = 'text-center align-middle'
-const COLS = 12
+const COLS = 13
 
 const Paperclip = () => (
   <svg className="ml-1 inline h-3.5 w-3.5 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-label="Has documents">
@@ -63,6 +64,7 @@ export const RequestsTable: React.FC<RequestsTableProps> = ({ rows, isLoading, i
           <TableHead className={HEAD}>Curr.</TableHead>
           <TableHead className={HEAD}>Invoice / PO</TableHead>
           <TableHead className={HEAD}>Container no</TableHead>
+          <TableHead className={HEAD}>Batch</TableHead>
           <TableHead className={HEAD}>Date</TableHead>
           <TableHead className={cn(HEAD, 'min-w-[180px]')}>Remarks</TableHead>
           <TableHead className={HEAD}>Status</TableHead>
@@ -121,6 +123,15 @@ export const RequestsTable: React.FC<RequestsTableProps> = ({ rows, isLoading, i
                     {row.documentCount > 0 && <Paperclip />}
                   </TableCell>
                   <TableCell className={CELL}>{row.containerNo || '-'}</TableCell>
+                  <TableCell className={CELL}>
+                    {row.batchId ? (
+                      <Link href={`/dashboard/finance/payment-request?tab=ALL&batchId=${row.batchId}`} onClick={(event) => event.stopPropagation()} className="whitespace-nowrap font-medium text-primary-600 hover:underline">
+                        {formatBatchNo(row.batchId)}
+                      </Link>
+                    ) : (
+                      '-'
+                    )}
+                  </TableCell>
                   <TableCell className={cn(CELL, 'whitespace-nowrap')}>{formatDay(row.createdAt, 'dd MMM')}</TableCell>
                   <TableCell className={CELL}>
                     {row.remarks ? (

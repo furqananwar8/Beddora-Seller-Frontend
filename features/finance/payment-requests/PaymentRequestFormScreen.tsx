@@ -53,6 +53,8 @@ import { CarrierShipmentSelect } from './CarrierShipmentSelect'
 import { FxConversionNote } from '../shared/FxConversionNote'
 import { ContainerSelect, containerRefOf } from './ContainerSelect'
 import { RequestLinesSection } from './RequestLinesSection'
+import { BatchModeToggle } from './batch/BatchModeToggle'
+import { BatchPaymentRequestForm } from './batch/BatchPaymentRequestForm'
 import { clearRequestDraft, peekRequestDraft, saveRequestDraft, withQueryParam } from './requestDraftStore'
 import {
   PaymentRequestFormValues,
@@ -111,6 +113,8 @@ export const PaymentRequestFormScreen: React.FC = () => {
   const [draft] = useState(() => (wantsRestore ? peekRequestDraft() : null))
   const [restored, setRestored] = useState(draft === null)
 
+  /** Several requests for one partner at once; only when raising a new one on its own. */
+  const [batchMode, setBatchMode] = useState(false)
   const [savedId, setSavedId] = useState<number | null>(null)
   const requestId = editId ?? savedId
   const { data: detail, isLoading: loadingDetail, isError: detailError } = useGetPaymentRequestQuery(requestId ?? 0, { skip: requestId === null })
@@ -391,6 +395,8 @@ export const PaymentRequestFormScreen: React.FC = () => {
   const statusMeta = REQUEST_STATUS_META[detail?.status ?? 'DRAFT']
   const backHref = fromPoId ? `${PO_URL}/${fromPoId}` : LIST_URL
 
+  if (batchMode && editId === null && fromPoId === null) return <BatchPaymentRequestForm onExit={() => setBatchMode(false)} />
+
   if (editId !== null && loadingDetail) {
     return (
       <Container size="full" className="py-4 sm:py-8">
@@ -430,6 +436,7 @@ export const PaymentRequestFormScreen: React.FC = () => {
               {fromPo.poNo}
             </Link>
           )}
+          {editId === null && fromPoId === null && !requestId && <BatchModeToggle checked={false} onChange={setBatchMode} disabled={busy} />}
         </div>
 
         <Section title="Partner" note="who is being paid">

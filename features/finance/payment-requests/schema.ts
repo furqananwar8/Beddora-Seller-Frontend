@@ -18,7 +18,7 @@ export const REFERENCE_OPTIONS: Array<{ value: ReferenceType; label: string }> =
 export const MAX_REQUEST_LINES = 20
 
 /** One amount and the L4 cost center it is booked to. */
-const lineSchema = z.object({
+export const lineSchema = z.object({
   amount: z
     .string()
     .min(1, 'Amount is required')
@@ -31,7 +31,7 @@ export type RequestLineValues = z.infer<typeof lineSchema>
 
 export const emptyLine: RequestLineValues = { amount: '', costCenterId: '' }
 
-const baseSchema = z.object({
+export const baseSchema = z.object({
   partnerId: z.string().min(1, 'Choose a partner'),
   /** Paying a supplier invoice, one of our purchase orders (then there is no invoice no.), or a carrier's invoice for shipments. */
   referenceType: z.enum(['INVOICE', 'PURCHASE_ORDER', 'SHIPMENT']),
@@ -64,16 +64,23 @@ export interface PoLimit {
   leftToRequest: number
 }
 
+type ReferenceFields = Pick<PaymentRequestFormValues, 'referenceType' | 'invoiceNo' | 'purchaseOrder' | 'invoiceDate' | 'dueDate'>
+
+/** What every request needs to name what it pays, whether raised alone or in a batch (`path` places the issues inside a list). */
+export function addReferenceIssues(values: ReferenceFields, ctx: z.RefinementCtx, path: Array<string | number> = []) {
+  const isPo = values.referenceType === 'PURCHASE_ORDER'
+  // Both are yyyy-MM-dd, so they compare as text
+  if (values.dueDate && values.invoiceDate && values.dueDate < values.invoiceDate) ctx.addIssue({ code: 'custom', path: [...path, 'dueDate'], message: 'Due date cannot be before the invoice date' })
+  if (!isPo && !values.invoiceNo.trim()) ctx.addIssue({ code: 'custom', path: [...path, 'invoiceNo'], message: 'Invoice number is required' })
+  if (isPo && !values.purchaseOrder) ctx.addIssue({ code: 'custom', path: [...path, 'purchaseOrder'], message: 'Pick the purchase order being paid' })
+}
+
 /** Schema depends on the picked PO: its open balance caps the request's total. */
 export const makePaymentRequestSchema = (poLimit: PoLimit | null) =>
   baseSchema.superRefine((values, ctx) => {
-    const isPo = values.referenceType === 'PURCHASE_ORDER'
-    // Both are yyyy-MM-dd, so they compare as text
-    if (values.dueDate && values.invoiceDate && values.dueDate < values.invoiceDate) ctx.addIssue({ code: 'custom', path: ['dueDate'], message: 'Due date cannot be before the invoice date' })
-    if (!isPo && !values.invoiceNo.trim()) ctx.addIssue({ code: 'custom', path: ['invoiceNo'], message: 'Invoice number is required' })
+    addReferenceIssues(values, ctx)
     if (values.referenceType === 'SHIPMENT' && values.shipments.length === 0) ctx.addIssue({ code: 'custom', path: ['shipments'], message: 'Pick at least one shipment' })
-    if (isPo && !values.purchaseOrder) ctx.addIssue({ code: 'custom', path: ['purchaseOrder'], message: 'Pick the purchase order being paid' })
-    if (isPo && poLimit && requestTotal(values.lines) > poLimit.leftToRequest) {
+    if (values.referenceType === 'PURCHASE_ORDER' && poLimit && requestTotal(values.lines) > poLimit.leftToRequest) {
       ctx.addIssue({ code: 'custom', path: ['lines'], message: poLimitMessage(poLimit) })
     }
   })

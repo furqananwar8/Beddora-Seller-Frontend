@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { EventSourceParserStream } from 'eventsource-parser/stream'
 import { API_BASE_URL } from '@/services/api/baseApi'
-import { serverIssues, type ServerIssue } from '@/utils/apiErrors'
+import type { ServerIssue } from '@/utils/apiErrors'
+import { readSse, streamFailure } from '@/utils/sseStream'
 import type { ProviderEvent, ProviderId, Rate, RateStreamEvents, ShipmentRequest, UnavailableService } from './types'
 
 export type RateStreamStatus = 'idle' | 'streaming' | 'done' | 'error'
@@ -39,13 +39,6 @@ function reduce(state: RateStreamState, frame: StreamEvent): RateStreamState {
   }
 }
 
-/** The JSON error a request is answered with before the stream starts (400 with issues, 401, 403…). */
-async function failureOf(response: Response): Promise<{ message: string; issues: ServerIssue[] }> {
-  const data: unknown = await response.json().catch(() => null)
-  const body = data as { message?: string; error?: string } | null
-  return { message: body?.message || body?.error || `Rates could not be loaded (${response.status})`, issues: serverIssues({ data }) }
-}
-
 /**
  * `POST /shipping/rates` read as Server-Sent Events (EventSource can't POST). Rates and per-provider status arrive
  * as each provider answers. Starting again, `cancel`, or unmounting aborts the stream in flight.
@@ -74,28 +67,15 @@ export function useRateStream() {
           signal: abort.signal,
         })
         if (!response.ok || !response.body) {
-          const { message, issues } = await failureOf(response)
+          const { message, issues } = await streamFailure(response, 'Rates could not be loaded')
           setState((current) => ({ ...current, status: 'error', error: message, issues }))
           return
         }
-        const reader = response.body.pipeThrough(new TextDecoderStream()).pipeThrough(new EventSourceParserStream()).getReader()
-        try {
-          while (true) {
-            const { value, done } = await reader.read()
-            if (done) break
-            if (!isStreamEvent(value.event)) continue
-            let data: unknown
-            try {
-              data = JSON.parse(value.data)
-            } catch {
-              continue
-            }
-            const frame = { event: value.event, data } as StreamEvent
-            setState((current) => reduce(current, frame))
-          }
-        } finally {
-          reader.cancel().catch(() => undefined)
-        }
+        await readSse(response.body, (name, data) => {
+          if (!isStreamEvent(name)) return
+          const frame = { event: name, data } as StreamEvent
+          setState((current) => reduce(current, frame))
+        })
         // Closed without `done`: whatever arrived stays, but the list may be short
         setState((current) => (current.status === 'streaming' ? { ...current, status: 'error', error: 'The rate stream closed early. Some providers may be missing.' } : current))
       } catch (error) {

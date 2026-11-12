@@ -22,6 +22,7 @@ import {
 import { useDebounce } from '@/utils/debounce'
 import { formatPoNo } from '@/features/procurement/shared/poMeta'
 import { cn } from '@/utils/cn'
+import { formatBatchNo } from '../shared/format'
 import { ScreenSearch } from '../shared/ScreenSearch'
 import { SelectShell } from '../shared/SelectShell'
 import { ApproversModal } from './ApproversModal'
@@ -95,6 +96,14 @@ export const PaymentRequestScreen: React.FC = () => {
   // "View payment requests" on a purchase order opens this list narrowed to that PO
   const poParam = Number(searchParams.get('purchaseOrderId'))
   const purchaseOrderId = Number.isInteger(poParam) && poParam > 0 ? poParam : null
+  // "View batch" opens this list narrowed to the requests raised together
+  const batchParam = Number(searchParams.get('batchId'))
+  const batchId = Number.isInteger(batchParam) && batchParam > 0 ? batchParam : null
+  const clearBatch = () => {
+    const next = new URLSearchParams(searchParams.toString())
+    next.delete('batchId')
+    router.replace(next.size ? `${pathname}?${next}` : pathname)
+  }
   const clearPurchaseOrder = () => {
     const next = new URLSearchParams(searchParams.toString())
     next.delete('purchaseOrderId')
@@ -113,6 +122,7 @@ export const PaymentRequestScreen: React.FC = () => {
   const [page, setPage] = useState(1)
   const [chosenTab, setChosenTab] = useState<TabId | null>(() => (tabParam && TAB_IDS.has(tabParam) ? tabParam : null))
   const [costCenterId, setCostCenterId] = useState('')
+  const [batched, setBatched] = useState<'' | 'yes' | 'no'>('')
   // `dateRange` is what the lists use; `draftRange` is what the picker shows while a custom range is being chosen.
   // A linked request may be older than this month, so the list then starts without a date range
   const [dateRange, setDateRange] = useState<DateRangeValue>(() => (highlightId ? ANY_DATE : THIS_MONTH))
@@ -132,6 +142,8 @@ export const PaymentRequestScreen: React.FC = () => {
   const filters = {
     search: debouncedSearch,
     costCenterId: costCenterId ? Number(costCenterId) : undefined,
+    batchId: batchId ?? undefined,
+    batched: batched || undefined,
     // A PO's payments are shown whenever they were raised, so the date range does not apply
     ...(purchaseOrderId ? { purchaseOrderId } : dates),
   }
@@ -189,6 +201,14 @@ export const PaymentRequestScreen: React.FC = () => {
             </Link>
           )}
           <h1 className="text-xl font-bold text-text-primary sm:text-2xl">Payment Requests</h1>
+          {batchId && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-secondary-100 py-0.5 pl-3 pr-1 text-sm text-secondary-700">
+              Batch <strong className="font-semibold">{formatBatchNo(batchId)}</strong>
+              <button type="button" onClick={clearBatch} aria-label="Show all payment requests" className="rounded-full px-1.5 text-text-muted hover:bg-secondary-200 hover:text-text-primary">
+                ×
+              </button>
+            </span>
+          )}
           {purchaseOrderId && (
             <span className="inline-flex items-center gap-1 rounded-full bg-secondary-100 py-0.5 pl-3 pr-1 text-sm text-secondary-700">
               Purchase order <strong className="font-semibold">{formatPoNo(purchaseOrderId)}</strong>
@@ -244,6 +264,27 @@ export const PaymentRequestScreen: React.FC = () => {
               }}
               options={[{ value: '', label: 'All' }, ...(costCenters ?? []).map((option) => ({ value: String(option.id), label: option.path }))]}
             />
+            </SelectShell>
+          </div>
+          <div className="w-full min-w-0 sm:w-36">
+            <label htmlFor="filter-batch" className="ds-input-label">
+              Batch
+            </label>
+            <SelectShell>
+              <Select
+                id="filter-batch"
+                className="h-10 appearance-none rounded-lg py-0 pr-9"
+                value={batched}
+                onChange={(e) => {
+                  setBatched(e.target.value as '' | 'yes' | 'no')
+                  setPage(1)
+                }}
+                options={[
+                  { value: '', label: 'All' },
+                  { value: 'yes', label: 'Batched' },
+                  { value: 'no', label: 'Single' },
+                ]}
+              />
             </SelectShell>
           </div>
           <div className="w-full min-w-0 sm:w-56">
