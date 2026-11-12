@@ -40,6 +40,8 @@ interface ProductIdentityCellProps {
   onFbaStockClick?: (anchor: HTMLElement) => void
   /** The report's currency (CAD, USD...): price and COGS show its symbol, e.g. C$. */
   currency?: string
+  /** Shows the whole SKU: a wider cell, and a long SKU wraps instead of being cut off with an ellipsis. */
+  fullSku?: boolean
 }
 
 /** Opens the product's Amazon page in a new tab; plain text when there is no ASIN to link to. */
@@ -113,7 +115,7 @@ const ProductThumbnail: React.FC<{ src: string; alt: string }> = ({ src, alt }) 
  * The products table's product cell: image, marketplace and SKU, ASIN, title, then price per unit, COGS and promo.
  * Shared by the built-in Amazon columns and by pages that build their own columns on SellerboardProductsTable.
  */
-export function ProductIdentityCell({ product, isChild = false, isExpanded = false, onToggle, titleInTooltip = false, showUnitStats = true, fbaStock, onFbaStockClick, currency }: ProductIdentityCellProps) {
+export function ProductIdentityCell({ product, isChild = false, isExpanded = false, onToggle, titleInTooltip = false, showUnitStats = true, fbaStock, onFbaStockClick, currency, fullSku = false }: ProductIdentityCellProps) {
   // A parent's per-unit figures blend its children (often 0 when costs sit on the children): each child shows its own
   const isParentRow = !isChild && (product.children?.length ?? 0) > 0
   const unitStatsShown = showUnitStats && !isParentRow
@@ -138,10 +140,16 @@ export function ProductIdentityCell({ product, isChild = false, isExpanded = fal
       <div className="text-xs text-text-muted">{product.children?.length ?? 0} products</div>
     </div>
   ) : (
-    <div className={`min-w-0 flex-1 ${fbaStockLink ? 'max-w-[280px]' : 'max-w-[220px]'}`}>
-      <div className="text-xs text-text-muted mb-1 truncate flex items-center gap-1.5">
+    <div className={`min-w-0 flex-1 ${fullSku ? 'max-w-[460px]' : fbaStockLink ? 'max-w-[280px]' : 'max-w-[220px]'}`}>
+      <div className={`text-xs text-text-muted mb-1 flex gap-1.5 ${fullSku ? 'items-start' : 'truncate items-center'}`}>
         <MarketplaceFlag marketplace={product.marketplace} />
-        <AmazonLink asin={product.asin} marketplace={product.marketplace}>{product.sku}</AmazonLink>
+        {fullSku ? (
+          <span className="min-w-0 break-all">
+            <AmazonLink asin={product.asin} marketplace={product.marketplace}>{product.sku}</AmazonLink>
+          </span>
+        ) : (
+          <AmazonLink asin={product.asin} marketplace={product.marketplace}>{product.sku}</AmazonLink>
+        )}
       </div>
 
       {product.asin && (

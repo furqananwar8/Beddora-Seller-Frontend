@@ -75,7 +75,8 @@ export const PoProductsSection: React.FC<PoProductsSectionProps> = ({ form, read
                 <tr>
                   <th className="w-8" aria-label="Expand" />
                   <th className={HEAD}>SKU</th>
-                  <th className={cn(HEAD, 'min-w-[14rem] pl-6')}>Product</th>
+                  {/* `!`: the global .ds-table-td rule forces cell padding with !important, so plain padding classes do nothing */}
+                  <th className={cn(HEAD, 'min-w-[14rem] !pl-8')}>Product</th>
                   <th className={HEAD}>Tag</th>
                   <th className={HEAD}>Color</th>
                   <th className={HEAD}>L × W × H</th>
@@ -101,13 +102,13 @@ export const PoProductsSection: React.FC<PoProductsSectionProps> = ({ form, read
                         <td className={CELL}>
                           <ExpandToggle expanded={expanded} onToggle={() => toggle(product.id)} />
                         </td>
-                        <td className={cn(CELL, 'pr-8 font-mono text-xs')}>
+                        <td className={cn(CELL, '!pr-10 font-mono text-xs')}>
                           <span className="flex items-center gap-2">
                             <span className="whitespace-nowrap">{product.ref}</span>
                             <MarketplaceTags product={product} />
                           </span>
                         </td>
-                        <td className={cn(CELL, 'pl-6')}>{productLabel(product)}</td>
+                        <td className={cn(CELL, '!pl-8')}>{productLabel(product)}</td>
                         <td className={CELL}>
                           <ProductTagBadge tag={product.tag} />
                         </td>
