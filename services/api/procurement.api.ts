@@ -606,6 +606,9 @@ export type ContainerField =
   | 'destinationCity'
   | 'destinationProvince'
   | 'portOfArrival'
+  | 'shippedOnBoardAt'
+  | 'warehouseId'
+  | 'cubicFeet'
   | 'currency'
 
 /** What the container's status allows; the server enforces the same rules. */
@@ -663,6 +666,15 @@ export interface ContainerItem {
   destinationCity: string | null
   destinationProvince: string | null
   portOfArrival: string | null
+  /** The day it was shipped on board: entered by hand, locked once delivered. */
+  shippedOnBoardAt: string | null
+  /** ETD to ETA in days; null until both are set. */
+  transitDays: number | null
+  /** Capacity in cubic feet, entered by hand. */
+  cubicFeet: number | null
+  warehouse: { id: number; name: string } | null
+  /** The partners paid for customs brokerage on it (payments booked to the L4s mapped to Custom brokerage). */
+  customsBrokers: string[]
   /** The final landed cost its cost analysis shows (FOB plus allocated expenses); null while nothing is packed. */
   totalCost: number | null
   /** The currency of `totalCost`: the destination's (goods priced in the other currency are converted into it). */
@@ -679,7 +691,7 @@ export interface ContainerItem {
   packagingLists: Array<{ id: number; plNo: string; suppliers: Array<{ id: number; name: string }>; units: number; cbm: number }>
   /** Every PO packed into it, across its lists. */
   purchaseOrders: Array<{ id: number; poNo: string }>
-  totals: { units: number; cartons: number; cbm: number; netWeightKg: number; grossWeightKg: number }
+  totals: { skus: number; units: number; cartons: number; cbm: number; netWeightKg: number; grossWeightKg: number }
   lines: ContainerLine[]
 }
 
@@ -846,8 +858,20 @@ export interface ContainerBody {
   destinationCity: string | null
   destinationProvince: string | null
   portOfArrival: string | null
+  shippedOnBoardAt: string | null
+  warehouseId: number | null
+  cubicFeet: number | null
   currency: PoCurrency
   expectedUpdatedAt?: string
+}
+
+/** A warehouse a container can be sent to (kept in Settings > Warehouses). */
+export interface ContainerWarehouse {
+  id: number
+  name: string
+  city: string
+  province: string | null
+  country: string
 }
 
 /* ─────────────── Price analysis ─────────────── */
@@ -1272,6 +1296,10 @@ export const procurementApi = baseApi.injectEndpoints({
       transformResponse: unwrap,
       invalidatesTags: ['ProcurementContainers'],
     }),
+    getContainerWarehouses: b.query<ContainerWarehouse[], void>({
+      query: () => '/procurement/containers/warehouses',
+      transformResponse: unwrap,
+    }),
     getContainerPorts: b.query<string[], PoDestination>({
       query: (destination) => ({ url: '/procurement/containers/ports', params: { destination } }),
       transformResponse: unwrap,
@@ -1285,6 +1313,12 @@ export const procurementApi = baseApi.injectEndpoints({
       query: ({ id, body }) => ({ url: `/procurement/containers/${id}`, method: 'PUT', body }),
       transformResponse: unwrap,
       invalidatesTags: ['ProcurementContainers', 'ProcurementPackagingLists', 'ProcurementPurchaseOrders'],
+    }),
+    /** The shipped-on-board date picked straight from the table (null clears it); locked once delivered. */
+    setContainerShippedOnBoard: b.mutation<ContainerItem, { id: number; shippedOnBoardAt: string | null }>({
+      query: ({ id, shippedOnBoardAt }) => ({ url: `/procurement/containers/${id}/shipped-on-board`, method: 'PATCH', body: { shippedOnBoardAt } }),
+      transformResponse: unwrap,
+      invalidatesTags: ['ProcurementContainers'],
     }),
     /** A packaging list asks for a container: a placeholder takes the list and the container team is notified. */
     requestContainer: b.mutation<ContainerItem, { packagingListId: number }>({
@@ -1421,6 +1455,8 @@ export const {
   useGetContainerCostsQuery,
   useGetContainerCostDetailQuery,
   useGetContainerCostMappingQuery,
+  useGetContainerWarehousesQuery,
+  useSetContainerShippedOnBoardMutation,
   useSaveContainerCostMappingMutation,
   useGetContainerQuery,
   useGetContainerDetailQuery,

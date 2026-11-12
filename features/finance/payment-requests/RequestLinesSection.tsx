@@ -112,9 +112,14 @@ export const RequestLinesSection: React.FC<RequestLinesSectionProps> = ({
                   )}
                 />
               </FormField>
-              <GstRateField id={`lines.${index}.gstRateId`} labelClassName="sm:sr-only" applies={gstApplies} error={rowErrors?.gstRateId?.message} onAdded={(rateId) => setValue(`lines.${index}.gstRateId`, rateId, { shouldDirty: true, shouldValidate: true })}>
-                {({ options, disabled }) => <Select id={`lines.${index}.gstRateId`} className="appearance-none rounded-lg pr-9" disabled={disabled} options={options} {...register(`lines.${index}.gstRateId`)} />}
-              </GstRateField>
+              <GstRateField
+                id={`lines.${index}.gstRateId`}
+                labelClassName="sm:sr-only"
+                applies={gstApplies}
+                value={lines[index]?.gstRateId ?? ''}
+                error={rowErrors?.gstRateId?.message}
+                onChange={(rateId) => setValue(`lines.${index}.gstRateId`, rateId, { shouldDirty: true, shouldValidate: true })}
+              />
               <FormField label="Expense" labelClassName="sm:sr-only" htmlFor={`lines.${index}.costCenterId`} required error={rowErrors?.costCenterId?.message}>
                 <CostCenterField
                   control={control}

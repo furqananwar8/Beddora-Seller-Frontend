@@ -1,18 +1,21 @@
 'use client'
 
-import React from 'react'
+import React, { useState } from 'react'
 import { Container } from '@/components/layout'
 import { PaginationFooter } from '@/components/pagination-footer/PaginationFooter'
 import { RowActionsMenu } from '@/components/row-actions-menu/RowActionsMenu'
 import { TreeTable, type TreeColumn } from '@/components/tree-table/TreeTable'
 import { Button } from '@/design-system/buttons'
+import { useAppAbility } from '@/hooks/useAppAbility'
 import { useReportExport } from '@/hooks/useReportExport'
 import { useGetContainersQuery, useGetContainerSummaryQuery, type ContainerItem } from '@/services/api/procurement.api'
 import { cn } from '@/utils/cn'
 import { formatCalendarDay } from '@/utils/format'
 import { ContainerStatusBadge, DESTINATION_LABEL, DESTINATION_ROW_TINT, NeedsDetailsBadge } from '../shared/poMeta'
+import { CostMappingModal } from './cost-analysis/CostMappingModal'
 import { ContainerRowDetail } from './detail/ContainerOverview'
 import { ContainerCell, skuSummary } from './list/ContainerCell'
+import { ShippedOnBoardCell } from './list/ShippedOnBoardCell'
 import { ContainerFilterBar } from './list/ContainerFilterBar'
 import { useContainerListState } from './list/useContainerListState'
 import { useContainerActions } from './useContainerActions'
@@ -31,6 +34,9 @@ const Stack: React.FC<{ top: React.ReactNode; bottom?: React.ReactNode; classNam
 
 export const ContainersScreen: React.FC = () => {
   const actions = useContainerActions()
+  // The customs broker column reads the L4s mapped to Custom brokerage; the same mapping as the cost analysis
+  const canMap = useAppAbility().can('write', 'containers:cost-analysis.mapping')
+  const [mapping, setMapping] = useState(false)
 
   const list = useContainerListState()
   const { data, isLoading, isFetching, isError } = useGetContainersQuery(list.params)
@@ -44,10 +50,10 @@ export const ContainersScreen: React.FC = () => {
       className: 'min-w-[150px] text-left',
       render: (container) => <ContainerCell container={container} detail={skuSummary(container.lines.length, container.totals.units)} />,
     },
-    { key: 'cbm', header: 'Total CBM', render: (container) => <span className="font-mono text-xs">{container.totals.cbm.toFixed(2)}</span> },
+    { key: 'cbm', header: 'Total CBM', className: 'min-w-[100px] whitespace-nowrap', render: (container) => <span className="font-mono text-xs">{container.totals.cbm.toFixed(2)}</span> },
     {
       key: 'cartons',
-      header: 'Cartons (Received / Short)',
+      header: 'Cartons (Received / Short)', className: 'min-w-[150px] whitespace-nowrap',
       render: (container) => {
         const { cartons } = container.totals
         // Before Inbound Receiving is confirmed only the packed cartons are known
@@ -68,26 +74,17 @@ export const ContainersScreen: React.FC = () => {
     },
     {
       key: 'weight',
-      header: 'Net / Gross wt',
+      header: 'Net / Gross wt', className: 'min-w-[140px] whitespace-nowrap',
       render: (container) => <Stack className="tabular-nums" top={kg(container.totals.netWeightKg)} bottom={kg(container.totals.grossWeightKg)} />,
     },
-    { key: 'bol', header: 'BOL / MBL', render: (container) => <Stack className="font-mono text-xs" top={container.billOfLading ?? '—'} bottom={container.masterBillOfLading ?? '—'} /> },
-    { key: 'etd', header: 'ETD', render: (container) => <span className="whitespace-nowrap text-sm">{date(container.etd)}</span> },
-    { key: 'eta', header: 'ETA', render: (container) => <span className="whitespace-nowrap text-sm">{date(container.eta)}</span> },
-    { key: 'poa', header: 'POA', render: (container) => <span className="whitespace-nowrap text-sm">{container.portOfArrival ?? '—'}</span> },
-    {
-      key: 'city',
-      header: 'Dest. city',
-      render: (container) => <Stack className="text-sm" top={container.destinationCity ?? '—'} bottom={[container.destinationProvince, DESTINATION_LABEL[container.destination]].filter(Boolean).join(' · ')} />,
-    },
-    {
-      key: 'cost',
-      header: 'Total cost',
-      render: (container) => <span className="whitespace-nowrap tabular-nums">{container.totalCost === null ? '—' : money(container.totalCost, container.totalCostCurrency)}</span>,
-    },
+    { key: 'bol', header: 'BOL / MBL', className: 'min-w-[130px] whitespace-nowrap', render: (container) => <Stack className="font-mono text-xs" top={container.billOfLading ?? '—'} bottom={container.masterBillOfLading ?? '—'} /> },
+    { key: 'etd', header: 'ETD', className: 'min-w-[100px] whitespace-nowrap', render: (container) => <span className="whitespace-nowrap text-sm">{date(container.etd)}</span> },
+    { key: 'eta', header: 'ETA', className: 'min-w-[100px] whitespace-nowrap', render: (container) => <span className="whitespace-nowrap text-sm">{date(container.eta)}</span> },
+    { key: 'board', header: 'Shipped on board', className: 'min-w-[170px] whitespace-nowrap', render: (container) => <ShippedOnBoardCell container={container} canWrite={actions.canWrite} /> },
+    { key: 'transit', header: 'Transit days', className: 'min-w-[120px] whitespace-nowrap', render: (container) => <span className="tabular-nums">{container.transitDays ?? '—'}</span> },
     {
       key: 'status',
-      header: 'Status',
+      header: 'Status', className: 'min-w-[150px] whitespace-nowrap',
       render: (container) => (
         <Stack
           top={
@@ -99,6 +96,23 @@ export const ContainersScreen: React.FC = () => {
           bottom={container.deliveredAt ? formatCalendarDay(container.deliveredAt) : undefined}
         />
       ),
+    },
+    { key: 'poa', header: 'Port', className: 'min-w-[120px] whitespace-nowrap', render: (container) => <span className="whitespace-nowrap text-sm">{container.portOfArrival ?? '—'}</span> },
+    { key: 'plBoxes', header: 'PL boxes', className: 'min-w-[100px] whitespace-nowrap', render: (container) => <span className="tabular-nums">{qty(container.totals.cartons)}</span> },
+    { key: 'plUnits', header: 'PL units', className: 'min-w-[100px] whitespace-nowrap', render: (container) => <span className="tabular-nums">{qty(container.totals.units)}</span> },
+    { key: 'skus', header: 'No. of SKUs', className: 'min-w-[110px] whitespace-nowrap', render: (container) => <span className="tabular-nums">{qty(container.totals.skus)}</span> },
+    { key: 'warehouse', header: 'Warehouse', className: 'min-w-[150px] whitespace-nowrap', render: (container) => <span className="text-sm">{container.warehouse?.name ?? '—'}</span> },
+    { key: 'cubicFeet', header: 'Cubic feet', className: 'min-w-[110px] whitespace-nowrap', render: (container) => <span className="tabular-nums">{container.cubicFeet === null ? '—' : qty(container.cubicFeet)}</span> },
+    { key: 'broker', header: 'Custom broker', className: 'min-w-[140px]', render: (container) => <span className="text-sm">{container.customsBrokers.length ? container.customsBrokers.join(', ') : '—'}</span> },
+    {
+      key: 'city',
+      header: 'Dest. city', className: 'min-w-[150px] whitespace-nowrap',
+      render: (container) => <Stack className="text-sm" top={container.destinationCity ?? '—'} bottom={[container.destinationProvince, DESTINATION_LABEL[container.destination]].filter(Boolean).join(' · ')} />,
+    },
+    {
+      key: 'cost',
+      header: 'Total cost', className: 'min-w-[130px] whitespace-nowrap',
+      render: (container) => <span className="whitespace-nowrap tabular-nums">{container.totalCost === null ? '—' : money(container.totalCost, container.totalCostCurrency)}</span>,
     },
     { key: 'actions', header: 'Actions', render: (container) => <RowActionsMenu label={container.containerNo} items={actions.actionsFor(container)} /> },
   ]
@@ -120,6 +134,11 @@ export const ContainersScreen: React.FC = () => {
           <Button type="button" size="sm" variant="outline" disabled={isExporting} onClick={() => void startExport('xlsx', { search: list.params.search, status: list.params.status, destination: list.params.destination })}>
             {isExporting ? 'Exporting…' : 'Export Excel'}
           </Button>
+          {canMap && (
+            <Button type="button" size="sm" variant="outline" onClick={() => setMapping(true)}>
+              Map expense columns
+            </Button>
+          )}
           {actions.canAssign && (
             <Button type="button" size="sm" onClick={actions.startCreate}>
               + New container
@@ -151,6 +170,7 @@ export const ContainersScreen: React.FC = () => {
       </div>
 
       {actions.dialogs}
+      <CostMappingModal open={mapping} onClose={() => setMapping(false)} />
     </Container>
   )
 }

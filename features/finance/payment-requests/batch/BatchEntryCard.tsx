@@ -187,9 +187,14 @@ export const BatchEntryCard: React.FC<BatchEntryCardProps> = ({ form, index, par
                   )}
                 />
               </FormField>
-              <GstRateField id={`${prefix}.lines.${lineIndex}.gstRateId`} labelClassName="sm:sr-only" applies={gstApplies} error={lineErrors?.gstRateId?.message} onAdded={(rateId) => setValue(`${prefix}.lines.${lineIndex}.gstRateId`, rateId, { shouldDirty: true, shouldValidate: true })}>
-                {({ options, disabled }) => <Select id={`${prefix}.lines.${lineIndex}.gstRateId`} className="appearance-none rounded-lg pr-9" disabled={disabled} options={options} {...register(`${prefix}.lines.${lineIndex}.gstRateId`)} />}
-              </GstRateField>
+              <GstRateField
+                id={`${prefix}.lines.${lineIndex}.gstRateId`}
+                labelClassName="sm:sr-only"
+                applies={gstApplies}
+                value={entry?.lines?.[lineIndex]?.gstRateId ?? ''}
+                error={lineErrors?.gstRateId?.message}
+                onChange={(rateId) => setValue(`${prefix}.lines.${lineIndex}.gstRateId`, rateId, { shouldDirty: true, shouldValidate: true })}
+              />
               <FormField label="Expense" labelClassName="sm:sr-only" htmlFor={`${prefix}.lines.${lineIndex}.costCenterId`} required error={lineErrors?.costCenterId?.message}>
                 <CostCenterField control={control} name={`${prefix}.lines.${lineIndex}.costCenterId`} id={`${prefix}.lines.${lineIndex}.costCenterId`} options={costCenters} loading={loadingCostCenters} addHref={COST_CENTER_ADD_HREF} />
               </FormField>

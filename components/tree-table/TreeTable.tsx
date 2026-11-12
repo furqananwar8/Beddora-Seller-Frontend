@@ -5,6 +5,7 @@ import { Spinner } from '@/design-system/loaders'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/design-system/tables'
 import { cn } from '@/utils/cn'
 import { headerGroups } from '@/utils/headerGroups'
+import { LabelNote } from '@/components/label-note/LabelNote'
 
 export interface TreeColumn<T> {
   key: string
@@ -134,7 +135,7 @@ export function TreeTable<T>({
                   </TableHead>
                 ) : (
                   <TableHead key={first.key} rowSpan={2} className={cn(CELL, tone, first.className)}>
-                    {first.header}
+                    <LabelNote>{first.header}</LabelNote>
                   </TableHead>
                 )
               })}
@@ -144,7 +145,7 @@ export function TreeTable<T>({
                 .filter((column) => column.group)
                 .map((column) => (
                   <TableHead key={column.key} className={cn(CELL, tone, column.className)}>
-                    {column.header}
+                    <LabelNote>{column.header}</LabelNote>
                   </TableHead>
                 ))}
             </TableRow>
@@ -154,7 +155,7 @@ export function TreeTable<T>({
             {expandColumn && <TableHead className={cn('w-10', tone)} aria-label="Expand" />}
             {columns.map((column) => (
               <TableHead key={column.key} className={cn(CELL, tone, column.className)}>
-                {column.header}
+                <LabelNote>{column.header}</LabelNote>
               </TableHead>
             ))}
           </TableRow>

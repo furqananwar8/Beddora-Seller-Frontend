@@ -1,5 +1,6 @@
 import React from 'react'
 import { cn } from '@/utils/cn'
+import { LabelNote } from '@/components/label-note/LabelNote'
 
 interface FormFieldProps {
   label: string
@@ -17,8 +18,7 @@ interface FormFieldProps {
 export const FormField: React.FC<FormFieldProps> = ({ label, htmlFor, required, error, hint, className, labelClassName, children }) => (
   <div className={cn('min-w-0', className)}>
     <label htmlFor={htmlFor} className={cn('ds-input-label', labelClassName)}>
-      {label}
-      {required && <span className="text-danger-600"> *</span>}
+      <LabelNote suffix={required && <span className="text-danger-600"> *</span>}>{label}</LabelNote>
     </label>
     {children}
     {error ? <p className="mt-1 text-xs text-danger-600">{error}</p> : hint ? <p className="mt-1 text-xs text-text-muted">{hint}</p> : null}

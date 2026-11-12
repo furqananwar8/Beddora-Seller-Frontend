@@ -16,6 +16,8 @@ import type { GeoCity } from '@/services/api/geo.api'
 import {
   useCreateContainerMutation,
   useGetContainerPortsQuery,
+  useGetContainerWarehousesQuery,
+  type ContainerWarehouse,
   useGetPackablePurchaseOrdersQuery,
   useUpdateContainerMutation,
   type ContainerBody,
@@ -54,6 +56,16 @@ const schema = z
     purchaseOrderId: z.number().nullable(),
     city: z.custom<GeoCity | null>(),
     portOfArrival: z.string().nullable(),
+    /** The day it was shipped on board (yyyy-MM-dd), entered by hand. */
+    shippedOnBoardAt: z.string(),
+    warehouseId: z.number().nullable(),
+    /** Capacity in cubic feet: a number only. */
+    cubicFeet: z
+      .string()
+      .trim()
+      .refine((value) => value === '' || Number.isFinite(Number(value.replace(/,/g, ''))), 'Enter a number only')
+      .refine((value) => value === '' || Number(value.replace(/,/g, '')) > 0, 'Must be greater than 0')
+      .refine((value) => value === '' || Math.abs(Number(value.replace(/,/g, '')) * 100 - Math.round(Number(value.replace(/,/g, '')) * 100)) < 1e-6, 'Use at most 2 decimals'),
     currency: z.enum(['USD', 'CAD']),
   })
   .superRefine((values, ctx) => {
@@ -73,6 +85,9 @@ const SERVER_FIELDS: Record<string, keyof Values> = {
   destinationCity: 'city',
   destinationProvince: 'city',
   portOfArrival: 'portOfArrival',
+  shippedOnBoardAt: 'shippedOnBoardAt',
+  warehouseId: 'warehouseId',
+  cubicFeet: 'cubicFeet',
   currency: 'currency',
 }
 
@@ -92,6 +107,9 @@ function valuesOf(container: ContainerItem | null | undefined, preset?: { destin
       purchaseOrderId: null,
       city: null,
       portOfArrival: null,
+      shippedOnBoardAt: '',
+      warehouseId: null,
+      cubicFeet: '',
       currency: preset?.destination === 'CA' ? 'CAD' : 'USD',
     }
   }
@@ -106,6 +124,9 @@ function valuesOf(container: ContainerItem | null | undefined, preset?: { destin
     purchaseOrderId: null,
     city: container.destinationCity ? { name: container.destinationCity, provinceCode: container.destinationProvince ?? '' } : null,
     portOfArrival: container.portOfArrival,
+    shippedOnBoardAt: day(container.shippedOnBoardAt),
+    warehouseId: container.warehouse?.id ?? null,
+    cubicFeet: container.cubicFeet === null ? '' : String(container.cubicFeet),
     currency: container.currency,
   }
 }
@@ -159,6 +180,7 @@ export const ContainerFormModal: React.FC<ContainerFormModalProps> = ({ isOpen, 
   const etd = useWatch({ control, name: 'etd' })
   const cities = useCitySearch(destination)
   const { data: ports = [], isFetching: loadingPorts } = useGetContainerPortsQuery(destination, { skip: !isOpen })
+  const { data: warehouses = [], isFetching: loadingWarehouses } = useGetContainerWarehousesQuery(undefined, { skip: !isOpen })
 
   // A new container's country comes from its purchase order (or the packaging list it was opened from): read-only
   const countryFromOrder = !container && !preset
@@ -198,6 +220,9 @@ export const ContainerFormModal: React.FC<ContainerFormModalProps> = ({ isOpen, 
       destinationCity: values.city?.name ?? null,
       destinationProvince: values.city?.provinceCode || null,
       portOfArrival: values.portOfArrival,
+      shippedOnBoardAt: values.shippedOnBoardAt || null,
+      warehouseId: values.warehouseId,
+      cubicFeet: values.cubicFeet ? Number(values.cubicFeet.replace(/,/g, '')) : null,
       currency: values.currency,
       ...(container ? { expectedUpdatedAt: container.updatedAt } : {}),
     }
@@ -217,7 +242,7 @@ export const ContainerFormModal: React.FC<ContainerFormModalProps> = ({ isOpen, 
       <form onSubmit={submit} noValidate className="flex flex-col gap-4">
         {container && isShipping(container.status) && (
           <p className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-800">
-            {CONTAINER_STATUS_META[container.status].label}: only the ETA and the shipping status can change until it is marked as delivered.
+            {CONTAINER_STATUS_META[container.status].label}: only the ETA, the shipped-on-board date and the shipping status can change until it is marked as delivered.
           </p>
         )}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -254,6 +279,14 @@ export const ContainerFormModal: React.FC<ContainerFormModalProps> = ({ isOpen, 
               control={control}
               name="eta"
               render={({ field }) => <SingleDatePicker id="ct-eta" value={field.value} onChange={field.onChange} min={etd || undefined} error={errors.eta?.message} disabled={locked('eta')} />}
+            />
+          </FormField>
+
+          <FormField label="Shipped on board" htmlFor="ct-board" error={errors.shippedOnBoardAt?.message} hint="The day it was loaded on the vessel; locked once the container is delivered">
+            <Controller
+              control={control}
+              name="shippedOnBoardAt"
+              render={({ field }) => <SingleDatePicker id="ct-board" value={field.value} onChange={field.onChange} error={errors.shippedOnBoardAt?.message} disabled={locked('shippedOnBoardAt')} />}
             />
           </FormField>
 
@@ -342,6 +375,37 @@ export const ContainerFormModal: React.FC<ContainerFormModalProps> = ({ isOpen, 
                 />
               )}
             />
+          </FormField>
+          <FormField label="Warehouse" htmlFor="ct-warehouse" error={errors.warehouseId?.message} hint="Where this container is going">
+            <Controller
+              control={control}
+              name="warehouseId"
+              render={({ field }) => (
+                <SearchableSelect<ContainerWarehouse>
+                  id="ct-warehouse"
+                  value={warehouses.find((warehouse) => warehouse.id === field.value) ?? null}
+                  onChange={(warehouse) => field.onChange(warehouse.id)}
+                  options={warehouses}
+                  getKey={(warehouse) => warehouse.id}
+                  getLabel={(warehouse) => warehouse.name}
+                  renderOption={(warehouse) => (
+                    <span className="flex min-w-0 flex-col">
+                      <span className="break-words font-medium">{warehouse.name}</span>
+                      <span className="break-words text-xs text-text-muted">{[warehouse.city, warehouse.province, warehouse.country].filter(Boolean).join(', ')}</span>
+                    </span>
+                  )}
+                  loading={loadingWarehouses}
+                  placeholder="Select warehouse"
+                  searchPlaceholder="Search warehouses..."
+                  emptyText="No warehouses yet. Add them in Settings > Warehouses."
+                  error={errors.warehouseId?.message}
+                  disabled={locked('warehouseId')}
+                />
+              )}
+            />
+          </FormField>
+          <FormField label="Cubic feet" htmlFor="ct-cubic" error={errors.cubicFeet?.message} hint="Number only, e.g. 2,350">
+            <input id="ct-cubic" inputMode="decimal" autoComplete="off" placeholder="0" className={cn(fieldClass(errors.cubicFeet?.message), 'text-right')} disabled={locked('cubicFeet')} {...register('cubicFeet')} />
           </FormField>
           {askCost && (
             // The total cost is the landed cost its cost analysis works out, not typed here

@@ -1,10 +1,11 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useMemo, useState } from 'react'
+import { SearchableSelect } from '@/components/searchable-select/SearchableSelect'
 import { Select } from '@/design-system/inputs'
 import { useAppAbility } from '@/hooks/useAppAbility'
 import { AddGstRateModal } from '@/features/settings/gst/AddGstRateModal'
-import { useGetGstRatesQuery, type GstType } from '@/services/api/finance.api'
+import { useGetGstRatesQuery, type GstRate, type GstType } from '@/services/api/finance.api'
 import { FormField } from './FormField'
 import { GST_TYPE_OPTIONS } from './gst'
 import { SelectShell } from './SelectShell'
@@ -32,52 +33,69 @@ export function useGstRates() {
   return { rates, isLoading, onlyRateId: rates.length === 1 ? String(rates[0].id) : '' }
 }
 
-/** `<option>`s for the GST % select of an amount line. */
-export const gstRateOptions = (rates: Array<{ id: number; rate: number }>, applies: boolean) => [
-  { value: '', label: applies ? 'Select' : '—' },
-  ...rates.map((rate) => ({ value: String(rate.id), label: `${rate.rate}%` })),
-]
+const labelOf = (rate: GstRate) => `${rate.rate}%`
 
 interface GstRateFieldProps {
   id: string
   label?: string
-  /** Whether GST applies to the request; without it the select is off. */
+  /** The picked rate's id; '' when none. */
+  value: string
+  onChange: (rateId: string) => void
+  /** Whether GST applies to the request; without it the dropdown is off. */
   applies: boolean
   error?: string
   /** Extra classes for the label (see FormField). */
   labelClassName?: string
-  /** Called with the id of a rate added from here (when the list is empty), so the line can pick it. */
-  onAdded?: (rateId: string) => void
-  children: (props: { options: ReturnType<typeof gstRateOptions>; disabled: boolean }) => React.ReactNode
 }
 
-/** The GST % of one amount line, labelled and with its error; the select itself is rendered by the caller so each form binds it its own way. */
-export const GstRateField: React.FC<GstRateFieldProps> = ({ id, label = 'GST %', applies, error, labelClassName, onAdded, children }) => {
+/**
+ * The GST % of one amount line: a searchable dropdown of the percentages (names stay in Settings), ending with
+ * "+ Add GST rate" for those who may add one, as the partner picker ends with "+ Add new partner".
+ */
+export const GstRateField: React.FC<GstRateFieldProps> = ({ id, label = 'GST %', value, onChange, applies, error, labelClassName }) => {
   const { rates, isLoading } = useGstRates()
   const canAdd = useAppAbility().can('write', 'settings:gst')
+  const [search, setSearch] = useState('')
   const [adding, setAdding] = useState(false)
-  const empty = applies && !isLoading && rates.length === 0
+  const term = search.trim().replace(/%$/, '')
+  const shown = useMemo(() => rates.filter((rate) => !term || String(rate.rate).includes(term)), [rates, term])
+  const selected = rates.find((rate) => String(rate.id) === value) ?? null
+
   return (
-    <FormField
-      label={label}
-      htmlFor={id}
-      required={applies}
-      error={error}
-      labelClassName={labelClassName}
-      hint={
-        empty ? (
-          canAdd ? (
-            <button type="button" onClick={() => setAdding(true)} className="font-medium text-primary-600 underline-offset-2 hover:underline">
-              + Add GST rate
-            </button>
-          ) : (
-            'No GST rates yet. Ask an admin to add them in Settings.'
-          )
-        ) : undefined
-      }
-    >
-      <SelectShell>{children({ options: gstRateOptions(rates, applies), disabled: !applies })}</SelectShell>
-      {adding && <AddGstRateModal isOpen onClose={() => setAdding(false)} onAdded={(rate) => onAdded?.(String(rate.id))} />}
+    <FormField label={label} htmlFor={id} required={applies} error={error} labelClassName={labelClassName}>
+      <SearchableSelect<GstRate>
+        id={id}
+        options={shown}
+        getKey={(rate) => rate.id}
+        getLabel={labelOf}
+        value={applies ? selected : null}
+        onChange={(rate) => onChange(String(rate.id))}
+        search={search}
+        onSearchChange={setSearch}
+        loading={isLoading}
+        disabled={!applies}
+        placeholder={applies ? 'Select' : '—'}
+        searchPlaceholder="Search GST %..."
+        emptyText={rates.length === 0 ? (canAdd ? 'No GST rates yet.' : 'No GST rates yet. Ask an admin to add them in Settings.') : 'Nothing matches.'}
+        error={error}
+        footer={
+          canAdd
+            ? (close) => (
+                <button
+                  type="button"
+                  onClick={() => {
+                    close()
+                    setAdding(true)
+                  }}
+                  className="block w-full rounded-md px-2 pb-1 pt-2 text-left text-sm font-medium text-primary-600 hover:underline"
+                >
+                  + Add GST rate
+                </button>
+              )
+            : undefined
+        }
+      />
+      {adding && <AddGstRateModal isOpen onClose={() => setAdding(false)} onAdded={(rate) => onChange(String(rate.id))} />}
     </FormField>
   )
 }
