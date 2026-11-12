@@ -70,7 +70,7 @@ export function computeLine(line: PackableLine, value: LineValue | undefined) {
   const net = Number.isFinite(typedNet) && typedNet >= 0 ? typedNet : productNet
   const errors: { units?: string; cartons?: string; carton?: string; net?: string; gross?: string } = {}
   if (!Number.isFinite(units)) errors.units = 'Whole units only'
-  else if (units > line.available) errors.units = `Only ${line.available.toLocaleString('en-CA')} available`
+  else if (units > line.available) errors.units = `Only ${line.available.toLocaleString('en-CA')} invoiced and available`
   if (safeUnits > 0 && !(cartons >= 1)) errors.cartons = 'Required'
   if (safeUnits > 0 && !hasCarton) errors.carton = 'Enter L, W and H'
   if (value?.net.trim() && (!Number.isFinite(typedNet) || typedNet < 0)) errors.net = 'Not a weight'

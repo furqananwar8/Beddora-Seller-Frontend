@@ -31,6 +31,7 @@ import { computeLine, EMPTY_LINE, lineKey, newLine, savedLine, toLineBody, type 
 import { PackingLinesTable } from './PackingLinesTable'
 
 const LIST = '/dashboard/procurement/packaging-lists'
+const invoiceHref = (purchaseOrderId: number) => `/dashboard/procurement/purchase-invoices/new?purchaseOrderId=${purchaseOrderId}`
 
 interface PackagingListFormScreenProps {
   /** Existing list: shown read-only, or editable with `?edit=1` ("Edit quantities"). */
@@ -42,7 +43,7 @@ export const PackagingListFormScreen: React.FC<PackagingListFormScreenProps> = (
   const params = useSearchParams()
   const ability = useAppAbility()
   const canWrite = ability.can('write', 'procurement:packaging-lists')
-  const { success, failure } = useApiFeedback()
+  const { success, failure, error: notifyError } = useApiFeedback()
 
   const isNew = packagingListId === undefined
   const fromPoParam = Number(params.get('purchaseOrderId'))
@@ -106,6 +107,20 @@ export const PackagingListFormScreen: React.FC<PackagingListFormScreenProps> = (
   }, [groups, readOnly])
 
   const pickedGroups = useMemo(() => groups.filter((group) => poIds.includes(group.purchaseOrder.id)), [groups, poIds])
+  // SKU lines come from approved purchase invoices: a PO whose invoices (if any) carry no SKUs has nothing to pack until one is created
+  const uninvoiced = useMemo(() => pickedGroups.filter((group) => group.lines.length === 0), [pickedGroups])
+  const noInvoiceReason = (group: (typeof pickedGroups)[number]) =>
+    group.invoices.length === 0 ? `${group.purchaseOrder.poNo} has no approved purchase invoice` : `The approved purchase invoice(s) of ${group.purchaseOrder.poNo} carry no SKUs`
+  const warned = useRef<Set<number>>(new Set())
+  useEffect(() => {
+    if (readOnly) return
+    for (const group of uninvoiced) {
+      if (warned.current.has(group.purchaseOrder.id)) continue
+      warned.current.add(group.purchaseOrder.id)
+      notifyError(`${noInvoiceReason(group)}. Create a purchase invoice against it to pack its SKUs.`)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uninvoiced, readOnly, notifyError])
   const shownGroups = useMemo(
     () => pickedGroups.map((group) => ({ ...group, lines: group.lines.filter((line) => !removed.has(lineKey(group.purchaseOrder.id, line.product.id))) })).filter((group) => group.lines.length > 0),
     [pickedGroups, removed]
@@ -260,6 +275,16 @@ export const PackagingListFormScreen: React.FC<PackagingListFormScreenProps> = (
               </div>
             ) : (
               <>
+                {uninvoiced.map((group) => (
+                  <div key={group.purchaseOrder.id} role="alert" className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-warning-200 bg-warning-50 px-3 py-2 text-sm text-warning-800">
+                    <span>
+                      {noInvoiceReason(group)}, so none of its SKUs can be packed yet.
+                    </span>
+                    <Link href={invoiceHref(group.purchaseOrder.id)} className="font-medium underline-offset-2 hover:underline">
+                      Create purchase invoice
+                    </Link>
+                  </div>
+                ))}
                 {shownGroups.length > 0 ? (
                   <PackingLinesTable
                     groups={shownGroups}
@@ -269,9 +294,9 @@ export const PackagingListFormScreen: React.FC<PackagingListFormScreenProps> = (
                     readOnly={readOnly}
                     onRemove={(key) => setRemoved((current) => new Set(current).add(key))}
                   />
-                ) : (
+                ) : uninvoiced.length === 0 ? (
                   <p className="py-6 text-center text-sm text-text-muted">Every SKU is removed from this list.</p>
-                )}
+                ) : null}
                 {!readOnly && removedLines.length > 0 && (
                   <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-secondary-50 px-3 py-2 text-sm text-text-secondary">
                     <span>
@@ -287,7 +312,16 @@ export const PackagingListFormScreen: React.FC<PackagingListFormScreenProps> = (
             {overAllocated.length > 0 && (
               <p role="alert" className="rounded-lg border border-danger-200 bg-danger-50 px-3 py-2 text-sm text-danger-700">
                 <strong>Over-allocation is blocked:</strong>{' '}
-                {overAllocated.map((row) => `${row.line.product.ref} has only ${row.line.available.toLocaleString('en-CA')} available`).join('; ')}.
+                {overAllocated.map((row) => `${row.line.product.ref} has only ${row.line.available.toLocaleString('en-CA')} invoiced and available on ${row.group.purchaseOrder.poNo}`).join('; ')}. To pack more, create a new purchase invoice for the remaining quantity:{' '}
+                {[...new Map(overAllocated.map((row) => [row.group.purchaseOrder.id, row.group.purchaseOrder])).values()].map((po, index) => (
+                  <React.Fragment key={po.id}>
+                    {index > 0 && ', '}
+                    <Link href={invoiceHref(po.id)} className="font-medium underline underline-offset-2">
+                      {po.poNo}
+                    </Link>
+                  </React.Fragment>
+                ))}
+                .
               </p>
             )}
           </CardContent>

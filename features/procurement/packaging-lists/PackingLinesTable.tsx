@@ -30,7 +30,7 @@ const HEAD = 'px-3 py-2 text-center text-xs font-semibold uppercase tracking-wid
  */
 const CELL = 'px-3 py-2 text-center align-top tabular-nums'
 const FOOT_CELL = 'px-3 py-2 text-center align-middle tabular-nums'
-const BASE_COLUMNS = 14
+const BASE_COLUMNS = 15
 const qty = (value: number) => value.toLocaleString('en-CA')
 const kg = (value: number) => `${value.toLocaleString('en-CA', { maximumFractionDigits: 1 })} kg`
 
@@ -67,7 +67,7 @@ const NumberCell: React.FC<{
   </>
 )
 
-/** SKU lines grouped by PO: PO qty, allocated elsewhere, available, quantity to be shipped, remaining, cartons, carton size, CBM, net and gross weight. */
+/** SKU lines grouped by PO: PO qty, invoiced, allocated elsewhere, available, quantity to be shipped, remaining, cartons, carton size, CBM, net and gross weight. */
 export const PackingLinesTable: React.FC<PackingLinesTableProps> = ({ groups, values, onChange, serverErrors, readOnly, onRemove }) => {
   const { isOpen, toggle } = useExpandedRows<string>()
   const removable = Boolean(onRemove) && !readOnly
@@ -83,6 +83,7 @@ export const PackingLinesTable: React.FC<PackingLinesTableProps> = ({ groups, va
             <th className="w-8" aria-label="Expand" />
             <th className={cn(HEAD, 'min-w-[13rem]')}>SKU / product</th>
             <th className={HEAD}>PO qty</th>
+            <th className={HEAD}>Invoiced</th>
             <th className={HEAD}>Allocated</th>
             <th className={HEAD}>Available</th>
             <th className={HEAD}>Quantity to be shipped</th>
@@ -104,6 +105,13 @@ export const PackingLinesTable: React.FC<PackingLinesTableProps> = ({ groups, va
                 <td colSpan={columns} className="px-3 py-2 text-left text-xs text-text-secondary">
                   <span className="font-semibold text-text-primary">{group.purchaseOrder.poNo}</span> · {group.purchaseOrder.supplier.name} · PO price{' '}
                   <span className="font-semibold tabular-nums text-text-primary">{group.purchaseOrder.price === null ? 'no rates yet' : formatCurrencyAmount(group.purchaseOrder.currency, group.purchaseOrder.price)}</span>
+                  {group.invoices.length > 0 && (
+                    <>
+                      {' '}
+                      · Invoices{' '}
+                      <span className="font-semibold text-text-primary">{group.invoices.map((invoice) => `${invoice.invoiceNo} (${qty(invoice.units)})`).join(', ')}</span>
+                    </>
+                  )}
                 </td>
               </tr>
               {group.lines.map((line) => {
@@ -130,6 +138,9 @@ export const PackingLinesTable: React.FC<PackingLinesTableProps> = ({ groups, va
                       </td>
                       <td className={CELL}>
                         <Value>{qty(line.poQty)}</Value>
+                      </td>
+                      <td className={CELL}>
+                        <Value>{qty(line.invoiced)}</Value>
                       </td>
                       <td className={cn(CELL, 'text-text-muted')}>
                         <Value>{qty(line.allocated)}</Value>
@@ -251,6 +262,7 @@ export const PackingLinesTable: React.FC<PackingLinesTableProps> = ({ groups, va
               Total · {groups.length} {groups.length === 1 ? 'PO' : 'POs'} · {all.length} {all.length === 1 ? 'SKU' : 'SKUs'}
             </td>
             <td className={FOOT_CELL}>{qty(total((row) => row.line.poQty))}</td>
+            <td className={FOOT_CELL}>{qty(total((row) => row.line.invoiced))}</td>
             <td className={FOOT_CELL}>{qty(total((row) => row.line.allocated))}</td>
             <td className={FOOT_CELL}>{qty(total((row) => row.line.available))}</td>
             <td className={FOOT_CELL}>{qty(total((row) => row.figures.units))}</td>

@@ -52,7 +52,7 @@ export const PackablePoSelect: React.FC<PackablePoSelectProps> = ({ id, options,
               {po.poNo} <span className="font-normal text-text-secondary">· {po.supplier.name}</span>
             </span>
             <span className="truncate text-xs text-text-muted">
-              {DESTINATION_LABEL[po.destination]} · {po.unitsLeft.toLocaleString('en-CA')} of {po.units.toLocaleString('en-CA')} units left · {po.listCount ? plural(po.listCount, 'packaging list') : 'no packaging lists'}
+              {DESTINATION_LABEL[po.destination]} · {po.unitsLeft.toLocaleString('en-CA')} of {po.units.toLocaleString('en-CA')} units left · {po.listCount ? plural(po.listCount, 'packaging list') : 'no packaging lists'} · {po.invoiceCount ? `${po.invoicedUnitsLeft.toLocaleString('en-CA')} invoiced units left` : 'no purchase invoice'}
             </span>
           </span>
           {/* Units of this PO already booked in containers, so nobody packs them twice */}
