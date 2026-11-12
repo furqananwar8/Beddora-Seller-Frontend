@@ -116,7 +116,7 @@ interface PurchaseOrdersTableProps extends PoRowActions {
 }
 
 export const PurchaseOrdersTable: React.FC<PurchaseOrdersTableProps> = ({ rows, isLoading, isError, filtered, ...actions }) => (
-  <Table className="min-w-full">
+  <Table className="min-w-full" wrapperClassName="overflow-visible">
     <TableHeader className="sticky top-0 z-10 bg-surface shadow-sm">
       <TableRow>
         <TableHead className={CELL}>PO #</TableHead>

@@ -7,6 +7,7 @@ import { FILL_PICKER, FilterBar, FilterItem, FunnelIcon } from '@/components/fil
 import { FilterMultiSelect, type FilterOption } from '@/components/filter-bar/FilterMultiSelect'
 import { useStagedFilters } from '@/components/filter-bar/useStagedFilters'
 import { FormField } from '@/components/form-field/FormField'
+import { useFitToViewport } from '@/hooks/useFitToViewport'
 import { PaginationFooter } from '@/components/pagination-footer/PaginationFooter'
 import { useApiFeedback } from '@/hooks/useApiFeedback'
 import { useAppAbility } from '@/hooks/useAppAbility'
@@ -45,6 +46,7 @@ const day = (value: string | null) => (value ? value.slice(0, 10) : undefined)
  * starts the list searched.
  */
 export const OrdersScreen: React.FC = () => {
+  const fit = useFitToViewport<HTMLDivElement>()
   const ability = useAppAbility()
   const canWrite = ability.can('write', 'shipping:parcels')
   const canScan = ability.can('write', 'barcode:scans')
@@ -137,7 +139,8 @@ export const OrdersScreen: React.FC = () => {
       </div>
 
       <div className={cn('overflow-hidden rounded-lg border border-border bg-surface shadow-sm', isFetching && 'opacity-70 transition-opacity')}>
-        <div className="max-h-[calc(100vh-320px)] min-h-[240px] overflow-auto">
+        {/* Fitted to the window: the sideways scrollbar stays in view and the vertical one starts under the header */}
+        <div ref={fit.ref} style={fit.style} className="max-h-[calc(100vh-320px)] min-h-[240px] overflow-auto">
           <OrdersTable
             rows={data?.data ?? []}
             isLoading={isLoading}

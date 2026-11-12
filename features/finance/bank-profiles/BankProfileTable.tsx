@@ -1,5 +1,6 @@
 'use client'
 
+import { useFitToViewport } from '@/hooks/useFitToViewport'
 import React from 'react'
 import { RowActionsMenu } from '@/components/row-actions-menu/RowActionsMenu'
 import { Spinner } from '@/design-system/loaders'
@@ -24,14 +25,15 @@ interface BankProfileTableProps {
 }
 
 export const BankProfileTable: React.FC<BankProfileTableProps> = ({ rows, isLoading, isFetching, isError, onEdit, onRemove }) => {
+  const fit = useFitToViewport<HTMLDivElement>()
   const actionsOf = (row: BankProfile) => [
     ...(onEdit ? [{ key: 'edit', label: 'Edit', onSelect: () => onEdit(row) }] : []),
     ...(onRemove ? [{ key: 'remove', label: 'Remove', onSelect: () => onRemove(row) }] : []),
   ]
 
   return (
-    <div className={cn('max-h-[calc(100vh-360px)] overflow-auto', isFetching && 'opacity-70 transition-opacity')}>
-      <Table className="min-w-full">
+    <div ref={fit.ref} style={fit.style} className={cn('max-h-[calc(100vh-360px)] overflow-auto', isFetching && 'opacity-70 transition-opacity')}>
+      <Table className="min-w-full" wrapperClassName="overflow-visible">
         <TableHeader className="sticky top-0 z-10 bg-surface shadow-sm">
           <TableRow>
             <TableHead className={cn(HEAD, 'min-w-[180px]')}>Bank Name</TableHead>

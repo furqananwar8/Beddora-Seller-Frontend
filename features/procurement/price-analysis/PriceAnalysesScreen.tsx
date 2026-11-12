@@ -7,6 +7,7 @@ import { FILL_TOGGLE, FilterBar, FilterItem } from '@/components/filter-bar/Filt
 import { useStagedFilters } from '@/components/filter-bar/useStagedFilters'
 import { FormField } from '@/components/form-field/FormField'
 import { Container } from '@/components/layout'
+import { useFitToViewport } from '@/hooks/useFitToViewport'
 import { PaginationFooter } from '@/components/pagination-footer/PaginationFooter'
 import { RowActionsMenu } from '@/components/row-actions-menu/RowActionsMenu'
 import { SegmentedToggle } from '@/components/segmented-toggle/SegmentedToggle'
@@ -58,6 +59,7 @@ const muted = <span className="text-text-muted">—</span>
 
 /** The price analyses: each product's quotes, lowest price and approval, filterable and paginated. */
 export const PriceAnalysesScreen: React.FC = () => {
+  const fit = useFitToViewport<HTMLDivElement>()
   const router = useRouter()
   const params = useSearchParams()
   const ability = useAppAbility()
@@ -135,8 +137,8 @@ export const PriceAnalysesScreen: React.FC = () => {
       </div>
 
       <div className={cn('overflow-hidden rounded-lg border border-border bg-surface shadow-sm', isFetching && 'opacity-70 transition-opacity')}>
-        <div className="max-h-[calc(100vh-340px)] overflow-auto">
-          <Table className="min-w-full">
+        <div ref={fit.ref} style={fit.style} className="max-h-[calc(100vh-340px)] overflow-auto">
+          <Table className="min-w-full" wrapperClassName="overflow-visible">
             <TableHeader className="sticky top-0 z-10 bg-surface shadow-sm">
               <TableRow>
                 <TableHead className="min-w-[220px] text-left">Product</TableHead>

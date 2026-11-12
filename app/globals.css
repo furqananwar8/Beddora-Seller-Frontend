@@ -40,6 +40,14 @@
     background: transparent;
   }
 
+  /* A table box fitted to the window: its vertical bar begins under the sticky header instead of overlapping it */
+  [data-fit-scroll] {
+    background: linear-gradient(var(--head-bg, transparent) var(--head-h, 0px), transparent 0) no-repeat;
+  }
+  [data-fit-scroll]::-webkit-scrollbar-track:vertical {
+    margin-top: var(--head-h, 0px);
+  }
+
   @supports not selector(::-webkit-scrollbar) {
     * {
       scrollbar-width: thin;

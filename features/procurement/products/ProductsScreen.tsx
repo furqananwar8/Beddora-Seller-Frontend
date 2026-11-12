@@ -8,6 +8,7 @@ import { FILL_TOGGLE, FilterBar, FilterItem } from '@/components/filter-bar/Filt
 import { useStagedFilters } from '@/components/filter-bar/useStagedFilters'
 import { FormField } from '@/components/form-field/FormField'
 import { Container } from '@/components/layout'
+import { useFitToViewport } from '@/hooks/useFitToViewport'
 import { PaginationFooter } from '@/components/pagination-footer/PaginationFooter'
 import { SearchableSelect } from '@/components/searchable-select/SearchableSelect'
 import { MultiSelectInput } from '@/components/multi-select-input/MultiSelectInput'
@@ -58,6 +59,7 @@ const DEFAULT_FILTERS: Filters = { category: null, color: null, tag: 'ALL', mark
 const ALL_COLORS = 'All colors'
 
 export const ProductsScreen: React.FC = () => {
+  const fit = useFitToViewport<HTMLDivElement>()
   const router = useRouter()
   const ability = useAppAbility()
   const canWrite = ability.can('write', 'procurement:products')
@@ -207,7 +209,7 @@ export const ProductsScreen: React.FC = () => {
       </div>
 
       <div className={cn('overflow-hidden rounded-lg border border-border bg-surface shadow-sm', isFetching && 'opacity-70 transition-opacity')}>
-        <div className="max-h-[calc(100vh-380px)] overflow-auto">
+        <div ref={fit.ref} style={fit.style} className="max-h-[calc(100vh-380px)] overflow-auto">
           <ProductsTable
             rows={data?.data ?? []}
             isLoading={isLoading}

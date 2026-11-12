@@ -8,6 +8,7 @@ import { FilterMultiSelect } from '@/components/filter-bar/FilterMultiSelect'
 import { useStagedFilters } from '@/components/filter-bar/useStagedFilters'
 import { FormField } from '@/components/form-field/FormField'
 import { Container } from '@/components/layout'
+import { useFitToViewport } from '@/hooks/useFitToViewport'
 import { PaginationFooter } from '@/components/pagination-footer/PaginationFooter'
 import { ReasonDialog } from '@/components/reason-dialog/ReasonDialog'
 import { RowActionsMenu, type RowActionItem } from '@/components/row-actions-menu/RowActionsMenu'
@@ -47,6 +48,7 @@ const positiveParam = (value: string | null): number | undefined => {
  * Rows patch live over SSE (approvals, payments, the background PDF becoming ready).
  */
 export const PurchaseInvoicesScreen: React.FC = () => {
+  const fit = useFitToViewport<HTMLDivElement>()
   const router = useRouter()
   const pathname = usePathname()
   const params = useSearchParams()
@@ -157,8 +159,8 @@ export const PurchaseInvoicesScreen: React.FC = () => {
 
       <div className={cn('overflow-hidden rounded-lg border border-border bg-surface shadow-sm', isFetching && 'opacity-70 transition-opacity')}>
         {/* Both axes scroll: the table keeps its column widths and scrolls sideways on narrow screens */}
-        <div className="max-h-[calc(100vh-340px)] overflow-auto">
-          <Table className="min-w-[1400px]">
+        <div ref={fit.ref} style={fit.style} className="max-h-[calc(100vh-340px)] overflow-auto">
+          <Table className="min-w-[1400px]" wrapperClassName="overflow-visible">
             <TableHeader className="sticky top-0 z-10 bg-surface shadow-sm">
               <TableRow>
                 <TableHead className={CELL}>Invoice #</TableHead>

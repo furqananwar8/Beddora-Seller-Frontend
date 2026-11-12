@@ -1,5 +1,6 @@
 'use client'
 
+import { useFitToViewport } from '@/hooks/useFitToViewport'
 import React, { useState } from 'react'
 import { Container } from '@/components/layout'
 import { PaginationFooter } from '@/components/pagination-footer/PaginationFooter'
@@ -36,6 +37,7 @@ const CELL = 'text-center align-middle'
 type Dialog = { action: AdjustmentAction; rowId: string } | null
 
 export const AdjustmentsScreen: React.FC = () => {
+  const fit = useFitToViewport<HTMLDivElement>()
   const dispatch = useAppDispatch()
   const [search, setSearch] = useState('')
   const debouncedSearch = useDebounce(search, 300)
@@ -100,8 +102,8 @@ export const AdjustmentsScreen: React.FC = () => {
       />
 
       <div className={cn('overflow-hidden rounded-lg border border-border shadow-sm', isFetching && 'opacity-70 transition-opacity')}>
-        <div className="max-h-[calc(100vh-320px)] overflow-auto">
-        <Table className="min-w-full">
+        <div ref={fit.ref} style={fit.style} className="max-h-[calc(100vh-320px)] overflow-auto">
+        <Table className="min-w-full" wrapperClassName="overflow-visible">
           <TableHeader className="sticky top-0 z-10 bg-surface shadow-sm">
             <TableRow>
               <TableHead className={cn(HEAD, "min-w-[320px]")}>Product</TableHead>

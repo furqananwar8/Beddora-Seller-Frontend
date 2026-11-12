@@ -8,6 +8,7 @@ import { TreeTable, type TreeColumn } from '@/components/tree-table/TreeTable'
 import { Button } from '@/design-system/buttons'
 import { formatCurrencyAmount } from '@/features/finance/shared/format'
 import { useAppAbility } from '@/hooks/useAppAbility'
+import { useFitToViewport } from '@/hooks/useFitToViewport'
 import { useReportExport } from '@/hooks/useReportExport'
 import { useGetContainerCostsQuery, type ContainerCostItem } from '@/services/api/procurement.api'
 import { cn } from '@/utils/cn'
@@ -48,6 +49,7 @@ export const CostAnalysisScreen: React.FC = () => {
   // "Full cost analysis" on a container links here with `?container=CID#…`: the list starts on that container and its row is open
   const target = useSearchParams().get('container')
   const list = useContainerListState(target ?? '')
+  const fit = useFitToViewport<HTMLDivElement>()
   const { data, isLoading, isFetching, isError } = useGetContainerCostsQuery(list.params)
   const canMap = useAppAbility().can('write', 'containers:cost-analysis.mapping')
   const [mapping, setMapping] = useState(false)
@@ -77,8 +79,10 @@ export const CostAnalysisScreen: React.FC = () => {
       <ContainerFilterBar state={list} idPrefix="ca" />
 
       <div className={cn('overflow-hidden rounded-lg border border-border bg-surface shadow-sm', isFetching && 'opacity-70 transition-opacity')}>
-        <div className="max-h-[calc(100vh-380px)] overflow-auto">
+        {/* The box is the one scroller, fitted to the window, so the sideways scrollbar is in view without scrolling the page down to it */}
+        <div ref={fit.ref} style={fit.style} className="max-h-[calc(100vh-380px)] overflow-auto">
           <TreeTable<ContainerCostItem>
+            wrapperClassName="overflow-visible"
             columns={COLUMNS}
             rows={data?.data ?? []}
             getKey={(container) => container.id}

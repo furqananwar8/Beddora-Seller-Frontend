@@ -1,5 +1,6 @@
 'use client'
 
+import { useFitToViewport } from '@/hooks/useFitToViewport'
 import React from 'react'
 import Link from 'next/link'
 import { PaginationFooter } from '@/components/pagination-footer/PaginationFooter'
@@ -29,12 +30,13 @@ interface PaymentTableProps {
 }
 
 export const PaymentTable: React.FC<PaymentTableProps> = ({ page, isLoading, isFetching, isError, onPageChange, onOpen, onAction }) => {
+  const fit = useFitToViewport<HTMLDivElement>()
   const rows = page?.data ?? []
 
   return (
     <div className={cn('overflow-hidden rounded-lg border border-border shadow-sm', isFetching && 'opacity-70 transition-opacity')}>
-      <div className="max-h-[calc(100vh-380px)] overflow-auto">
-        <Table className="min-w-full">
+      <div ref={fit.ref} style={fit.style} className="max-h-[calc(100vh-380px)] overflow-auto">
+        <Table className="min-w-full" wrapperClassName="overflow-visible">
           <TableHeader className="sticky top-0 z-10 bg-surface shadow-sm">
             <TableRow>
               <TableHead className={HEAD}>Doc #</TableHead>

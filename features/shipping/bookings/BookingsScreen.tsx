@@ -1,5 +1,6 @@
 'use client'
 
+import { useFitToViewport } from '@/hooks/useFitToViewport'
 import React, { useCallback, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
@@ -58,6 +59,7 @@ function useOpenShipment() {
 
 /** Shipping › Bookings: every shipment from every provider, with summary cards, filters and the detail drawer. */
 export const BookingsScreen: React.FC = () => {
+  const fit = useFitToViewport<HTMLDivElement>()
   const canWrite = useAppAbility().can('write', 'shipping:parcels')
   const [page, setPage] = useState(1)
   const filters = useStagedFilters(DEFAULT_FILTERS, () => setPage(1))
@@ -129,7 +131,7 @@ export const BookingsScreen: React.FC = () => {
       </div>
 
       <div className={cn('overflow-hidden rounded-lg border border-border bg-surface shadow-sm', isFetching && 'opacity-70 transition-opacity')}>
-        <div className="max-h-[calc(100vh-420px)] min-h-[240px] overflow-auto">
+        <div ref={fit.ref} style={fit.style} className="max-h-[calc(100vh-420px)] min-h-[240px] overflow-auto">
           <BookingsTable
             rows={data?.data ?? []}
             isLoading={isLoading}

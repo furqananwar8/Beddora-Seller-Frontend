@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react'
 import { Container } from '@/components/layout'
+import { useFitToViewport } from '@/hooks/useFitToViewport'
 import { PaginationFooter } from '@/components/pagination-footer/PaginationFooter'
 import { useStagedFilters } from '@/components/filter-bar/useStagedFilters'
 import { KpiCard } from '@/design-system/kpi'
@@ -18,6 +19,7 @@ const syncedLabel = (iso: string | null | undefined) =>
   iso ? `Synced ${new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}` : 'Not synced yet'
 
 export const ChannelInventoryScreen: React.FC = () => {
+  const fit = useFitToViewport<HTMLDivElement>()
   const [page, setPage] = useState(1)
   const filters = useStagedFilters(DEFAULT_CHANNEL_STOCK_FILTERS, () => setPage(1))
   const { applied } = filters
@@ -60,7 +62,8 @@ export const ChannelInventoryScreen: React.FC = () => {
       </div>
 
       <div className={cn('overflow-hidden rounded-lg border border-border shadow-sm', isFetching && 'opacity-70 transition-opacity')}>
-        <div className="max-h-[calc(100vh-420px)] overflow-auto">
+        {/* Fitted to the window: the sideways scrollbar stays in view and the vertical one starts under the header */}
+        <div ref={fit.ref} style={fit.style} className="max-h-[calc(100vh-420px)] overflow-auto">
           <ChannelStockTable
             rows={data?.data ?? []}
             fulfillments={appliedChannel?.fulfillments ?? []}

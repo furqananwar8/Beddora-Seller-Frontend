@@ -1,5 +1,6 @@
 'use client'
 
+import { useScrollbarBelowHeader } from '@/hooks/useFitToViewport'
 import React from 'react'
 import { Table, TABLE_STATUS_VIEWPORT, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow, TableStatusRow } from '@/design-system/tables'
 import type { CashflowPaymentState, CashflowReport, CashflowRow, CashflowTotalCell } from '@/services/api/finance.api'
@@ -49,6 +50,7 @@ interface CashflowTableProps {
  * totals below (orange when some are paid and some are not) and a legend explaining the colours.
  */
 export const CashflowTable: React.FC<CashflowTableProps> = ({ report, isLoading, isError, onOpen }) => {
+  const scroll = useScrollbarBelowHeader<HTMLDivElement>()
   const periods = report?.periods ?? []
   const columns = periods.length + 2
   const rowsOf = (currency: string, period?: string) => (report?.rows ?? []).filter((row) => row.currency === currency && (!period || row.period === period))
@@ -59,7 +61,7 @@ export const CashflowTable: React.FC<CashflowTableProps> = ({ report, isLoading,
     <div className="space-y-3">
       <div className="overflow-hidden rounded-lg border border-border shadow-sm">
         {/* At most a screen tall: however the page is scrolled, the box (and its pinned header and totals) stays in view */}
-        <div className={cn('max-h-[calc(100vh-7rem)] overflow-auto', TABLE_STATUS_VIEWPORT)}>
+        <div ref={scroll.ref} style={scroll.style} className={cn('max-h-[calc(100vh-7rem)] overflow-auto', TABLE_STATUS_VIEWPORT)}>
           {/* The box above scrolls both ways, so the header, the first column and the totals stick to it */}
           <Table className="min-w-full" wrapperClassName="overflow-visible">
             {/* Above the sticky first column, so rows scroll under the header */}

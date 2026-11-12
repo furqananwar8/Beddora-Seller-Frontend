@@ -1,5 +1,6 @@
 'use client'
 
+import { useFitToViewport } from '@/hooks/useFitToViewport'
 import React from 'react'
 import { useRouter } from 'next/navigation'
 import { RowActionsMenu } from '@/components/row-actions-menu/RowActionsMenu'
@@ -40,11 +41,12 @@ interface PartnerTableProps {
 }
 
 export const PartnerTable: React.FC<PartnerTableProps> = ({ rows, isLoading, isFetching, isError, onOpen, selection, onDelete }) => {
+  const fit = useFitToViewport<HTMLDivElement>()
   const router = useRouter()
   const { canWritePartners } = useFinanceCapabilities()
   return (
-  <div className={cn('max-h-[calc(100vh-360px)] overflow-auto', isFetching && 'opacity-70 transition-opacity')}>
-    <Table className="min-w-full">
+  <div ref={fit.ref} style={fit.style} className={cn('max-h-[calc(100vh-360px)] overflow-auto', isFetching && 'opacity-70 transition-opacity')}>
+    <Table className="min-w-full" wrapperClassName="overflow-visible">
       <TableHeader className="sticky top-0 z-10 bg-surface shadow-sm">
         <TableRow>
           {selection && (

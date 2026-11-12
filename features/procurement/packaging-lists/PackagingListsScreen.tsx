@@ -8,6 +8,7 @@ import { FILL_TOGGLE, FilterBar, FilterItem } from '@/components/filter-bar/Filt
 import { useStagedFilters } from '@/components/filter-bar/useStagedFilters'
 import { FormField } from '@/components/form-field/FormField'
 import { Container } from '@/components/layout'
+import { useFitToViewport } from '@/hooks/useFitToViewport'
 import { PaginationFooter } from '@/components/pagination-footer/PaginationFooter'
 import { RowActionsMenu, type RowActionItem } from '@/components/row-actions-menu/RowActionsMenu'
 import { SegmentedToggle } from '@/components/segmented-toggle/SegmentedToggle'
@@ -44,6 +45,7 @@ const kg = (value: number) => `${value.toLocaleString('en-CA', { maximumFraction
 
 export const PackagingListsScreen: React.FC = () => {
   const router = useRouter()
+  const fit = useFitToViewport<HTMLDivElement>()
   const pathname = usePathname()
   const params = useSearchParams()
   const ability = useAppAbility()
@@ -175,8 +177,9 @@ export const PackagingListsScreen: React.FC = () => {
       </div>
 
       <div className={cn('overflow-hidden rounded-lg border border-border bg-surface shadow-sm', isFetching && 'opacity-70 transition-opacity')}>
-        <div className="max-h-[calc(100vh-340px)] overflow-auto">
-          <Table className="min-w-full">
+        {/* Fitted to the window, so the sideways scrollbar is in view without scrolling the page down to it */}
+        <div ref={fit.ref} style={fit.style} className="max-h-[calc(100vh-340px)] overflow-auto">
+          <Table className="min-w-full" wrapperClassName="overflow-visible">
             <TableHeader className="sticky top-0 z-10 bg-surface shadow-sm">
               <TableRow>
                 <TableHead className={CELL}>PL #</TableHead>

@@ -1,5 +1,6 @@
 "use client"
 
+import { useFitToViewport } from '@/hooks/useFitToViewport'
 import React, { useEffect, useMemo, useState } from 'react'
 import { differenceInCalendarDays, format, parseISO, subDays } from 'date-fns'
 import { Container } from '@/components/layout'
@@ -76,6 +77,7 @@ const daysIn = (range: DateRangeValue): number =>
 const n = (value: number) => value.toLocaleString()
 
 export const SellerCentralScreen: React.FC = () => {
+  const fit = useFitToViewport<HTMLDivElement>()
   const dispatch = useAppDispatch()
   const [search, setSearch] = useState('')
   const debouncedSearch = useDebounce(search, 300)
@@ -250,8 +252,8 @@ export const SellerCentralScreen: React.FC = () => {
       </div>
 
       <div className={cn('overflow-hidden rounded-lg border border-border shadow-sm', isFetching && 'opacity-70 transition-opacity')}>
-        <div className="max-h-[calc(100vh-340px)] overflow-auto">
-          <Table className="min-w-full">
+        <div ref={fit.ref} style={fit.style} className="max-h-[calc(100vh-340px)] overflow-auto">
+          <Table className="min-w-full" wrapperClassName="overflow-visible">
             <TableHeader className="sticky top-0 z-10 bg-surface shadow-sm">
               <TableRow>
                 <TableHead className={cn(HEAD, 'min-w-[260px]')}>Shipment plan</TableHead>

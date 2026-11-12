@@ -5,6 +5,7 @@ import { FilterBar, FilterItem } from '@/components/filter-bar/FilterBar'
 import { useStagedFilters } from '@/components/filter-bar/useStagedFilters'
 import { FormField } from '@/components/form-field/FormField'
 import { Container } from '@/components/layout'
+import { useFitToViewport } from '@/hooks/useFitToViewport'
 import { PaginationFooter } from '@/components/pagination-footer/PaginationFooter'
 import { TreeTable, type TreeColumn } from '@/components/tree-table/TreeTable'
 import { monthLabel } from '@/components/month-picker/MonthPicker'
@@ -78,6 +79,7 @@ const columnsFor = (shipmentCurrency: string, opexCurrency: string): TreeColumn<
 
 /** Per SKU: its landed cost from containers in transit or delivered, and its shipment cost; opening one shows its timeline. */
 export const SkuLandedScreen: React.FC = () => {
+  const fit = useFitToViewport<HTMLDivElement>()
   const defaults = useMemo(defaultSkuLandedFilters, [])
   const [page, setPage] = useState(1)
   const filters = useStagedFilters(defaults, () => setPage(1))
@@ -148,8 +150,9 @@ export const SkuLandedScreen: React.FC = () => {
       </div>
 
       <div className={cn('overflow-hidden rounded-lg border border-border bg-surface shadow-sm', isFetching && 'opacity-70 transition-opacity')}>
-        <div className="max-h-[calc(100vh-300px)] overflow-auto">
+        <div ref={fit.ref} style={fit.style} className="max-h-[calc(100vh-300px)] overflow-auto">
           <TreeTable<SkuLandedRow>
+            wrapperClassName="overflow-visible"
             columns={columnsFor(data?.shipmentCurrency ?? 'CAD', data?.opex.currency ?? 'CAD')}
             rows={data?.data ?? []}
             getKey={(row) => row.product.id}

@@ -1,5 +1,6 @@
 'use client'
 
+import { useScrollbarBelowHeader } from '@/hooks/useFitToViewport'
 import React from 'react'
 import { Table, TABLE_STATUS_VIEWPORT, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow, TableStatusRow } from '@/design-system/tables'
 import type { AgingBucket, AgingCell, PartnerAgingReport } from '@/services/api/finance.api'
@@ -38,6 +39,7 @@ interface AgingTableProps {
 
 /** Partners down the side, amounts by due bucket across (green: coming due, red: overdue), totals per currency below. */
 export const AgingTable: React.FC<AgingTableProps> = ({ report, isLoading, isError, onOpen }) => {
+  const scroll = useScrollbarBelowHeader<HTMLDivElement>()
   const buckets: AgingBucket[] = report?.buckets ?? []
   const groups = groupBuckets(buckets)
   const columns = buckets.length + 3
@@ -45,7 +47,7 @@ export const AgingTable: React.FC<AgingTableProps> = ({ report, isLoading, isErr
   return (
     <div className="overflow-hidden rounded-lg border border-border shadow-sm">
       {/* Scrolls down past many partners with the header and the totals staying in view */}
-      <div className={cn('max-h-[calc(100vh-260px)] overflow-y-auto overflow-x-auto', TABLE_STATUS_VIEWPORT)}>
+      <div ref={scroll.ref} style={scroll.style} className={cn('max-h-[calc(100vh-260px)] overflow-y-auto overflow-x-auto', TABLE_STATUS_VIEWPORT)}>
         <Table className="min-w-full" wrapperClassName="overflow-visible">
           <TableHeader className="sticky top-0 z-20 shadow-sm">
             <TableRow>

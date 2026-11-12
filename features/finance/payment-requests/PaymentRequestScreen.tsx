@@ -1,5 +1,6 @@
 'use client'
 
+import { useFitToViewport } from '@/hooks/useFitToViewport'
 import React, { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
@@ -81,6 +82,7 @@ function rangeFor(range: DateRangeValue): { dateFrom?: string; dateTo?: string }
 }
 
 export const PaymentRequestScreen: React.FC = () => {
+  const fit = useFitToViewport<HTMLDivElement>()
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -323,7 +325,7 @@ export const PaymentRequestScreen: React.FC = () => {
       </div>
 
       <div className={cn('overflow-hidden rounded-lg border border-border shadow-sm', isFetching && 'opacity-70 transition-opacity')}>
-        <div className="max-h-[calc(100vh-360px)] overflow-auto">
+        <div ref={fit.ref} style={fit.style} className="max-h-[calc(100vh-360px)] overflow-auto">
           <RequestsTable
             rows={rows}
             isLoading={isLoading}

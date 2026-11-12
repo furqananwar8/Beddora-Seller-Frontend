@@ -39,7 +39,7 @@ export const ChannelStockTable: React.FC<ChannelStockTableProps> = ({ rows, fulf
   )
 
   return (
-    <Table className="min-w-full">
+    <Table className="min-w-full" wrapperClassName="overflow-visible">
       <TableHeader className="sticky top-0 z-10 bg-surface shadow-sm">
         <TableRow>
           <TableHead className={cn(HEAD, 'min-w-[260px] text-left')}>Product</TableHead>

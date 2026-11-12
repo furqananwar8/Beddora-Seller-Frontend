@@ -1,5 +1,6 @@
 'use client'
 
+import { useScrollbarBelowHeader } from '@/hooks/useFitToViewport'
 import React from 'react'
 import { Table, TABLE_STATUS_VIEWPORT, TableBody, TableCell, TableHead, TableHeader, TableRow, TableStatusRow } from '@/design-system/tables'
 import type { WarehouseInventoryReport, WarehouseInventoryRow } from '@/services/api/warehouseInventory.api'
@@ -38,13 +39,14 @@ interface WarehouseInventoryTableProps {
 
 /** One row per internal SKU: its stock in every place, what is on its way, and the pipeline at landed cost. */
 export const WarehouseInventoryTable: React.FC<WarehouseInventoryTableProps> = ({ report, isLoading, isError }) => {
+  const scroll = useScrollbarBelowHeader<HTMLDivElement>()
   const columns = IDENTITY_COLUMNS + FIGURE_COLUMNS.length
   const untracked = (column: FigureColumn) => Boolean(column.source && report && !report.tracked[column.source])
 
   return (
     <div className="overflow-hidden rounded-lg border border-border shadow-sm">
       {/* At most a screen tall: the header, the SKU column and the page stay in view however it is scrolled */}
-      <div className={cn('max-h-[calc(100vh-7rem)] overflow-auto', TABLE_STATUS_VIEWPORT)}>
+      <div ref={scroll.ref} style={scroll.style} className={cn('max-h-[calc(100vh-7rem)] overflow-auto', TABLE_STATUS_VIEWPORT)}>
         <Table className="min-w-full" wrapperClassName="overflow-visible">
           <TableHeader className="sticky top-0 z-30 bg-surface shadow-sm">
             <TableRow>

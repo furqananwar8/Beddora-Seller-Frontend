@@ -1,5 +1,6 @@
 'use client'
 
+import { useScrollbarBelowHeader } from '@/hooks/useFitToViewport'
 import React from 'react'
 import { format, parseISO } from 'date-fns'
 import { Boxes, CalendarDays, Container, Store, Truck, type LucideIcon, Warehouse } from 'lucide-react'
@@ -97,12 +98,13 @@ interface InvpTableProps {
 export const InvpTable: React.FC<InvpTableProps> = ({ report, isLoading, isError, onPotentialChange }) => {
   const weeks = report?.weeks ?? []
   const columns = weeks.length + 2
+  const scroll = useScrollbarBelowHeader<HTMLDivElement>()
 
   return (
     <div className="space-y-3">
       <div className="overflow-hidden rounded-lg border border-border shadow-sm">
         {/* At most a screen tall: the header, the SKU column and the page stay in view however it is scrolled */}
-        <div className={cn('max-h-[calc(100vh-7rem)] overflow-auto', TABLE_STATUS_VIEWPORT)}>
+        <div ref={scroll.ref} style={scroll.style} className={cn('max-h-[calc(100vh-7rem)] overflow-auto', TABLE_STATUS_VIEWPORT)}>
           <Table className="min-w-full" wrapperClassName="overflow-visible">
             <TableHeader className="sticky top-0 z-30 bg-surface shadow-sm">
               <TableRow>

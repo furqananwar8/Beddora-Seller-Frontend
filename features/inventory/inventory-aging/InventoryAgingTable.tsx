@@ -1,5 +1,6 @@
 'use client'
 
+import { useScrollbarBelowHeader } from '@/hooks/useFitToViewport'
 import React from 'react'
 import { ArrowDownWideNarrow, ArrowUpDown, ArrowUpNarrowWide } from 'lucide-react'
 import { MarketplaceFlag } from '@/components/marketplace-flag/MarketPlaceFlag'
@@ -58,6 +59,7 @@ const SortableHead: React.FC<SortableHeadProps> = ({ column, sort, onSort, class
 
 /** One row per seller SKU and marketplace: units by how long they have sat at Amazon, beside what is sellable and what is reserved. */
 export const InventoryAgingTable: React.FC<InventoryAgingTableProps> = ({ report, isLoading, isError, sort, onSort }) => {
+  const scroll = useScrollbarBelowHeader<HTMLDivElement>()
   const buckets = report?.buckets ?? []
   const columns = IDENTITY_COLUMNS + buckets.length
   const rows: InventoryAgingRow[] = report?.data ?? []
@@ -65,7 +67,7 @@ export const InventoryAgingTable: React.FC<InventoryAgingTableProps> = ({ report
   return (
     <div className="overflow-hidden rounded-lg border border-border shadow-sm">
       {/* At most a screen tall: the header, the SKU column and the totals stay in view however it is scrolled */}
-      <div className={cn('max-h-[calc(100vh-7rem)] overflow-auto', TABLE_STATUS_VIEWPORT)}>
+      <div ref={scroll.ref} style={scroll.style} className={cn('max-h-[calc(100vh-7rem)] overflow-auto', TABLE_STATUS_VIEWPORT)}>
         <Table className="min-w-full" wrapperClassName="overflow-visible">
           <TableHeader className="sticky top-0 z-30 bg-surface shadow-sm">
             <TableRow>

@@ -15,6 +15,9 @@ import { PaginationFooter } from '@/components/pagination-footer/PaginationFoote
 import { SegmentedToggle } from '@/components/segmented-toggle/SegmentedToggle'
 import { useApiFeedback } from '@/hooks/useApiFeedback'
 import { useAppAbility } from '@/hooks/useAppAbility'
+import { useFitToViewport } from '@/hooks/useFitToViewport'
+import { useReportExport } from '@/hooks/useReportExport'
+import { Button } from '@/design-system/buttons'
 import {
   useGetPurchaseOrderFilterOptionsQuery,
   useGetProcurementPurchaseOrdersQuery,
@@ -89,6 +92,8 @@ export const PurchaseOrdersScreen: React.FC = () => {
   const canInvoice = ability.can('write', 'procurement:purchase-invoices')
   const canRequestPayments = ability.can('write', 'finance:payment-request')
   const pdf = usePoPdfDownload()
+  const fit = useFitToViewport<HTMLDivElement>()
+  const { start: startExport, isExporting } = useReportExport('purchase-orders')
   const decisions = usePoActions()
   const [approving, setApproving] = useState<PurchaseOrderListItem | null>(null)
   const [rejecting, setRejecting] = useState<PurchaseOrderListItem | null>(null)
@@ -146,11 +151,35 @@ export const PurchaseOrdersScreen: React.FC = () => {
             </p>
           )}
         </div>
-        {canWrite && (
-          <Link href={`${BASE}/new`} className="ds-button ds-button-primary ds-button-sm">
-            + New purchase order
-          </Link>
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* The whole filtered result, not the page on screen: built in the background and downloaded when ready */}
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={isExporting}
+            onClick={() =>
+              void startExport('xlsx', {
+                search: debouncedSearch || undefined,
+                colors: applied.colors,
+                destinations: applied.destinations,
+                statuses: applied.statuses,
+                paymentStatuses: applied.paymentStatuses,
+                etdFrom: day(applied.etd.startDate),
+                etdTo: day(applied.etd.endDate),
+                etdAlerts: applied.etdAlerts,
+                open: applied.open,
+              })
+            }
+          >
+            {isExporting ? 'Exporting…' : 'Export Excel'}
+          </Button>
+          {canWrite && (
+            <Link href={`${BASE}/new`} className="ds-button ds-button-primary ds-button-sm">
+              + New purchase order
+            </Link>
+          )}
+        </div>
       </div>
 
       <div className="mb-4 rounded-lg border border-border bg-surface p-3 shadow-sm sm:p-4">
@@ -220,7 +249,8 @@ export const PurchaseOrdersScreen: React.FC = () => {
       </div>
 
       <div className={cn('overflow-hidden rounded-lg border border-border bg-surface shadow-sm', isFetching && 'opacity-70 transition-opacity')}>
-        <div className="max-h-[calc(100vh-420px)] overflow-auto">
+        {/* Fitted to the window, so the sideways scrollbar is in view without scrolling the page down to it */}
+        <div ref={fit.ref} style={fit.style} className="max-h-[calc(100vh-420px)] overflow-auto">
           <PurchaseOrdersTable
             rows={data?.data ?? []}
             isLoading={isLoading}

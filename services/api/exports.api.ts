@@ -11,6 +11,7 @@ export type ExportReport =
   | "channel-report-listings"
   | "break-even-analysis"
   | "sku-binding-history"
+  | "purchase-orders"
   | "purchase-order-pdf"
   | "sku-landed"
   | "containers"

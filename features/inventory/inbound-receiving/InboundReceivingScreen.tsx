@@ -1,5 +1,6 @@
 'use client'
 
+import { useFitToViewport } from '@/hooks/useFitToViewport'
 import React, { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Container } from '@/components/layout'
@@ -36,6 +37,7 @@ const Numbers: React.FC<{ values: string[] }> = ({ values }) =>
  * sheet; once confirmed the container is Goods Received and only its PDF remains.
  */
 export const InboundReceivingScreen: React.FC = () => {
+  const fit = useFitToViewport<HTMLDivElement>()
   const router = useRouter()
   const canWrite = useAppAbility().can('write', 'inventory:inbound-receiving')
   const [page, setPage] = useState(1)
@@ -78,7 +80,7 @@ export const InboundReceivingScreen: React.FC = () => {
 
       <div className={cn('space-y-3', isFetching && !isLoading && 'opacity-70 transition-opacity')}>
         <div className="overflow-hidden rounded-lg border border-border shadow-sm">
-          <div className="max-h-[calc(100vh-18rem)] overflow-auto">
+          <div ref={fit.ref} style={fit.style} className="max-h-[calc(100vh-18rem)] overflow-auto">
             <Table className="min-w-full" wrapperClassName="overflow-visible">
               <TableHeader className="sticky top-0 z-30 bg-surface shadow-sm">
                 <TableRow>
