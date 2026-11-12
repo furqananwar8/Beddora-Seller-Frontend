@@ -63,6 +63,8 @@ interface ShipmentRowProps {
   onChangeShipFrom: (choice: ShipFromRequest) => Promise<unknown>
   onAction: (action: NextAction) => Promise<void> | void
   onCancel: () => void
+  /** Opens the Scan items dialog (In or Out) for this shipment; omitted when the user can't scan. */
+  onScanItems?: () => void
   /** Redo a completed step from the stepper. */
   onGoBack: (to: RewindTarget) => void
   onDownloadLabel: (type: LabelType) => void
@@ -84,6 +86,7 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({
   onChangeShipFrom,
   onAction,
   onCancel,
+  onScanItems,
   onGoBack,
   onDownloadLabel,
   downloadingLabels,
@@ -341,6 +344,11 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({
                     {downloadingLabels[l.type] ? `Downloading ${l.label.toLowerCase()}…` : `Download ${l.label.toLowerCase()}`}
                   </MenuItem>
                 ))}
+                {onScanItems && (
+                  <MenuItem onClick={() => { setIsMenuOpen(false); onScanItems() }}>
+                    Scan items
+                  </MenuItem>
+                )}
                 <div className="my-1 border-t border-border" />
                 <MenuItem
                   danger

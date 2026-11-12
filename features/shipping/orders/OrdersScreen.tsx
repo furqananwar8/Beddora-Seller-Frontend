@@ -10,6 +10,7 @@ import { FormField } from '@/components/form-field/FormField'
 import { PaginationFooter } from '@/components/pagination-footer/PaginationFooter'
 import { useApiFeedback } from '@/hooks/useApiFeedback'
 import { useAppAbility } from '@/hooks/useAppAbility'
+import { useScanItems } from '@/features/barcode/session/useScanItems'
 import { useGetChannelOrdersQuery, useGetOrderChannelsQuery, useRetryChannelSyncMutation } from '@/services/api/shipping.api'
 import { cn } from '@/utils/cn'
 import { MARKETPLACES } from '@/utils/marketplaces'
@@ -44,7 +45,10 @@ const day = (value: string | null) => (value ? value.slice(0, 10) : undefined)
  * starts the list searched.
  */
 export const OrdersScreen: React.FC = () => {
-  const canWrite = useAppAbility().can('write', 'shipping:parcels')
+  const ability = useAppAbility()
+  const canWrite = ability.can('write', 'shipping:parcels')
+  const canScan = ability.can('write', 'barcode:scans')
+  const scanItems = useScanItems()
   const { success, failure, info } = useApiFeedback()
   const params = useSearchParams()
   const [page, setPage] = useState(1)
@@ -145,12 +149,14 @@ export const OrdersScreen: React.FC = () => {
             onOpen={({ channel, market, orderId }) => setOpened({ channel, market, orderId })}
             onPrintLabel={setPrinting}
             onDownloadInvoice={downloadInvoice}
+            onScanItems={canScan ? ({ channel, market, orderId }) => scanItems.open({ scenario: 'FBM_ORDER', sourceId: `${channel}:${market}:${orderId}` }) : undefined}
             invoiceBusy={invoiceBusy}
           />
         </div>
         {data && data.totalRecords > 0 && <PaginationFooter page={data.page} pageSize={data.limit} totalItems={data.totalRecords} totalPages={data.totalPages} onPageChange={setPage} itemLabel="orders" />}
       </div>
 
+      {scanItems.dialog}
       <OrderDrawer order={opened} canWrite={canWrite} onClose={() => setOpened(null)} />
       <PrintDialog shipmentId={printing} initialDocument="label" onClose={() => setPrinting(null)} />
     </div>

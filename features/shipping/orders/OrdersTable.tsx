@@ -27,6 +27,8 @@ interface OrdersTableProps {
   onPrintLabel: (bookingId: number) => void
   /** Builds and downloads the order's tax invoice. */
   onDownloadInvoice: (row: ChannelOrderListItem) => void
+  /** Opens the Scan items dialog (In or Out) for the order; omitted when the user can't scan. */
+  onScanItems?: (row: ChannelOrderListItem) => void
   /** An invoice is being built (one at a time). */
   invoiceBusy: boolean
 }
@@ -87,7 +89,7 @@ function trackingOf(row: ChannelOrderListItem): TrackingView | null {
 }
 
 /** Channel orders: book the seller-fulfilled ones, follow the ones shipped on the channel. */
-export const OrdersTable: React.FC<OrdersTableProps> = ({ rows, isLoading, isError, filtered, canWrite, retrying, onRetrySync, onOpen, onPrintLabel, onDownloadInvoice, invoiceBusy }) => {
+export const OrdersTable: React.FC<OrdersTableProps> = ({ rows, isLoading, isError, filtered, canWrite, retrying, onRetrySync, onOpen, onPrintLabel, onDownloadInvoice, onScanItems, invoiceBusy }) => {
   const router = useRouter()
   if (isLoading)
     return (
@@ -120,6 +122,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ rows, isLoading, isErr
         items.push({ key: 'retry', label: 'Retry mark shipped', onSelect: () => onRetrySync(id), disabled: retrying === id, disabledReason: 'Retrying…' })
       }
     }
+    if (onScanItems) items.push({ key: 'scan', label: 'Scan items', onSelect: () => onScanItems(row) })
     return items
   }
 

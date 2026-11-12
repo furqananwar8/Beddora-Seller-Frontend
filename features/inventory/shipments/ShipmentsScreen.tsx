@@ -3,6 +3,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useAppDispatch } from '@/store/hooks'
+import { useAppAbility } from '@/hooks/useAppAbility'
+import { useScanItems } from '@/features/barcode/session/useScanItems'
 import { addNotification } from '@/store/ui.slice'
 import { Container } from '@/components/layout'
 import { Button } from '@/design-system/buttons'
@@ -83,6 +85,8 @@ const ofChannelOrNull = (s: InboundShipment | null, channel: ShipmentChannel) =>
 
 export const ShipmentsScreen: React.FC = () => {
   const dispatch = useAppDispatch()
+  const canScan = useAppAbility().can('write', 'barcode:scans')
+  const scanItems = useScanItems()
   const {
     shipments,
     pools,
@@ -493,6 +497,7 @@ export const ShipmentsScreen: React.FC = () => {
   return (
     <LabelFormatProvider value={labelFormats}>
     <Container size="full" className="py-4 sm:py-8">
+      {scanItems.dialog}
       {/* Header */}
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4 px-1">
         <div>
@@ -703,6 +708,7 @@ export const ShipmentsScreen: React.FC = () => {
                       }
                       onAction={(action) => handleAction(s.id, action)}
                       onCancel={() => openDialog({ type: 'cancel', id: s.id })}
+                      onScanItems={canScan ? () => scanItems.open({ scenario: 'FBA_WFS', sourceId: String(s.id) }) : undefined}
                       onGoBack={(to) => handleBack(s.id, to)}
                       onDownloadLabel={(type) => handleDownloadLabel(s.id, type)}
                       // The open dialog's own buttons show the progress, so the row behind it stays still
