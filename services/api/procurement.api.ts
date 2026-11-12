@@ -1368,11 +1368,6 @@ export const procurementApi = baseApi.injectEndpoints({
       transformResponse: unwrap,
       invalidatesTags: ['ProcurementContainers', 'ProcurementPackagingLists', 'ProcurementPurchaseOrders'],
     }),
-    markContainerDelivered: b.mutation<ContainerItem, number>({
-      query: (id) => ({ url: `/procurement/containers/${id}/delivered`, method: 'POST' }),
-      transformResponse: unwrap,
-      invalidatesTags: ['ProcurementContainers'],
-    }),
 
     /* price analysis */
     getPriceAnalyses: b.query<Page<PriceAnalysisListItem>, PriceAnalysisListParams>({
@@ -1502,7 +1497,6 @@ export const {
   useRequestContainerMutation,
   useAddContainerPackagingListMutation,
   useRemoveContainerPackagingListMutation,
-  useMarkContainerDeliveredMutation,
   useGetPriceAnalysesQuery,
   useApprovePriceAnalysisMutation,
   useRejectPriceAnalysisQuoteMutation,

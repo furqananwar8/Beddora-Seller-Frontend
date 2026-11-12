@@ -13,7 +13,6 @@ import { useDebounce } from '@/utils/debounce'
 import { ScreenSearch } from '../shared/ScreenSearch'
 import { DOC_STATUS_META } from '../shared/statusMeta'
 import { CancelPaymentDialog } from './CancelPaymentDialog'
-import { MarkPaidConfirm } from './MarkPaidConfirm'
 import { EditContainerModal } from './EditContainerModal'
 import { PaymentDetailModal } from './PaymentDetailModal'
 import { PaymentKpiRow } from './PaymentKpiRow'
@@ -35,7 +34,6 @@ export const PaymentProcessScreen: React.FC = () => {
 
   const [detailId, setDetailId] = useState<number | null>(null)
   const [uploadRow, setUploadRow] = useState<{ row: PaymentDocumentListItem; mode: PopDialogMode } | null>(null)
-  const [markPaidRow, setMarkPaidRow] = useState<PaymentDocumentListItem | null>(null)
   const [cancelRow, setCancelRow] = useState<PaymentDocumentListItem | null>(null)
   const [containerNo, setContainerNo] = useState<string | null>(null)
 
@@ -62,7 +60,6 @@ export const PaymentProcessScreen: React.FC = () => {
   const onAction = (row: PaymentDocumentListItem, action: RowAction) => {
     if (action === 'upload') setUploadRow({ row, mode: 'record' })
     else if (action === 'proofs') setUploadRow({ row, mode: 'proofs' })
-    else if (action === 'mark-paid') setMarkPaidRow(row)
     else if (action === 'cancel') setCancelRow(row)
     else if (action === 'edit-container') setContainerNo(row.containerNo)
     else setDetailId(row.id)
@@ -114,7 +111,6 @@ export const PaymentProcessScreen: React.FC = () => {
 
       <PaymentDetailModal docId={detailId} onClose={closeDetail} />
       <PopUploadDialog row={uploadRow?.row ?? null} mode={uploadRow?.mode} onClose={() => setUploadRow(null)} />
-      <MarkPaidConfirm row={markPaidRow} onClose={() => setMarkPaidRow(null)} />
       <CancelPaymentDialog row={cancelRow} onClose={() => setCancelRow(null)} />
       <EditContainerModal containerNo={containerNo} onClose={() => setContainerNo(null)} />
     </Container>

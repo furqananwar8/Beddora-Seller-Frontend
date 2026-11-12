@@ -8,7 +8,7 @@ import { useFinanceCapabilities } from '../shared/useFinanceCapabilities'
 import { isFinalDoc } from '../shared/statusMeta'
 import { useAppAbility } from '@/hooks/useAppAbility'
 
-export type RowAction = 'mark-paid' | 'cancel' | 'upload' | 'proofs' | 'view' | 'edit-container'
+export type RowAction = 'cancel' | 'upload' | 'proofs' | 'view' | 'edit-container'
 
 interface RowActionsProps {
   row: PaymentDocumentListItem
@@ -27,12 +27,9 @@ export const RowActions: React.FC<RowActionsProps> = ({ row, onSelect }) => {
       label={formatDocNo(row.id)}
       items={[
         ...(canProcessPayments && !closed && row.balance > 0 ? [{ key: 'upload', label: 'View Request', onSelect: () => onSelect('upload') }] : []),
-        ...(canProcessPayments && !closed
-          ? [{ key: 'mark-paid', label: row.paidAmount > 0 && row.balance > 0 ? 'Mark paid (settle amount)' : 'Mark paid', onSelect: () => onSelect('mark-paid'), disabled: !row.canMarkPaid, disabledReason: 'Record a payment first.' }]
-          : []),
-        // Only a payment nothing is paid on can be cancelled; once paid it is settled instead
+        // Only a payment nothing is paid on can be cancelled; one paid in full closes by itself
         ...(canProcessPayments && row.canCancel ? [{ key: 'cancel', label: 'Cancel payment', onSelect: () => onSelect('cancel') }] : []),
-        // Proofs stay correctable once a payment is recorded, even after it is marked paid
+        // Proofs stay correctable once a payment is recorded, even after it is paid in full
         ...(canProcessPayments && row.paidAmount > 0 ? [{ key: 'proofs', label: 'Update proof of payment', onSelect: () => onSelect('proofs') }] : []),
         // The container stays editable whatever the payment's status; its own status rules still apply
         ...(canEditContainers && row.containerNo ? [{ key: 'edit-container', label: 'Edit container', onSelect: () => onSelect('edit-container') }] : []),

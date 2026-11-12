@@ -519,7 +519,6 @@ export interface PaymentDocumentListItem {
   paidAmount: number
   balance: number
   status: DocStatus
-  canMarkPaid: boolean
   /** Only while nothing is paid on it. */
   canCancel: boolean
   cancelReason: string | null
@@ -559,7 +558,6 @@ export interface PaymentDocumentDetail {
   paidAmount: number
   balance: number
   baseCurrency: string
-  canMarkPaid: boolean
   markedPaidBy: UserRef | null
   markedPaidAt: string | null
   /** Why it was closed with a balance outstanding (AMOUNT_SETTLED). */
@@ -930,12 +928,6 @@ export const financeApi = baseApi.injectEndpoints({
       transformResponse: unwrap,
       invalidatesTags: ['FinanceProcess'],
     }),
-    /** With a balance still outstanding it settles the amount, which needs `reason`. */
-    markPaid: b.mutation<PaymentDocumentDetail, { id: number; reason?: string }>({
-      query: ({ id, reason }) => ({ url: `/finance/payment-documents/${id}/mark-paid`, method: 'POST', body: reason ? { reason } : {} }),
-      transformResponse: unwrap,
-      invalidatesTags: ['FinanceProcess', 'FinanceRequests'],
-    }),
     /** Only while nothing is paid on it; the reason is required. */
     cancelPayment: b.mutation<PaymentDocumentDetail, { id: number; reason: string }>({
       query: ({ id, reason }) => ({ url: `/finance/payment-documents/${id}/cancel`, method: 'POST', body: { reason } }),
@@ -1006,7 +998,6 @@ export const {
   useGetPaymentDocumentQuery,
   useGetFxTodayQuery,
   useAddPopMutation,
-  useMarkPaidMutation,
   useCancelPaymentMutation,
   useRevealBankDetailsMutation,
   useGetPartnerAgingQuery,

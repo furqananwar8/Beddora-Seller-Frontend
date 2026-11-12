@@ -156,7 +156,7 @@ export const ContainerFormModal: React.FC<ContainerFormModalProps> = ({ isOpen, 
   const editable = new Set<ContainerField>(container?.permissions.editableFields ?? (Object.keys(SERVER_FIELDS) as ContainerField[]))
   const locked = (field: ContainerField) => !editable.has(field)
   const askCost = Boolean(container)
-  // A new container is booked; a saved one moves as far as the server allows (never to delivered: that is "Mark as delivered")
+  // A new container is booked; a saved one moves as far as the server allows (reaching the warehouse is the delivery)
   const statusOptions: ContainerStatus[] = container ? container.permissions.statuses : ['BOOKED']
 
   const {

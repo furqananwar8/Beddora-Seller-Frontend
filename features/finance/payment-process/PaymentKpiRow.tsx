@@ -38,12 +38,6 @@ export const PaymentKpiRow: React.FC<PaymentKpiRowProps> = ({ summary, active, o
       ),
     },
     {
-      status: 'POP_UPLOADED',
-      title: 'Payment recorded',
-      value: summary?.byStatus.POP_UPLOADED ?? 0,
-      subtitle: 'Ready to mark paid',
-    },
-    {
       status: 'PAID',
       title: 'Paid this month',
       value: paidMonth.reduce((sum, p) => sum + p.count, 0),
@@ -55,7 +49,7 @@ export const PaymentKpiRow: React.FC<PaymentKpiRowProps> = ({ summary, active, o
   ]
 
   return (
-    <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4">
+    <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-3">
       {tiles.map((tile) => (
         <button
           key={tile.status}
