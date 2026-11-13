@@ -3,20 +3,22 @@
 import { useState } from 'react'
 import { useStagedFilters } from '@/components/filter-bar/useStagedFilters'
 import type { SortDirection } from '@/components/sort-header/SortHeader'
-import type { ContainerParams, ContainerSortColumn, ContainerStatus, PoDestination } from '@/services/api/procurement.api'
+import type { ContainerParams, ContainerSortColumn, ContainerStatus, PoDestination, ProductPlatform } from '@/services/api/procurement.api'
 import { useDebounce } from '@/utils/debounce'
 
 const PAGE_SIZE = 20
 
 export type StatusFilter = 'ALL' | ContainerStatus
 export type CountryFilter = 'ALL' | PoDestination
+export type BrandFilter = 'ALL' | ProductPlatform
 
 export interface ContainerFilters extends Record<string, unknown> {
   status: StatusFilter
   destination: CountryFilter
+  brand: BrandFilter
 }
 
-const DEFAULT_FILTERS: ContainerFilters = { status: 'ALL', destination: 'ALL' }
+const DEFAULT_FILTERS: ContainerFilters = { status: 'ALL', destination: 'ALL', brand: 'ALL' }
 
 /**
  * Search, staged filters and page of a containers listing, and the query params they make; shared by every containers screen.
@@ -43,6 +45,7 @@ export function useContainerListState(initialSearch = '') {
     sortOrder: sort?.order,
     status: applied.status === 'ALL' ? undefined : applied.status,
     destination: applied.destination === 'ALL' ? undefined : applied.destination,
+    platform: applied.brand === 'ALL' ? undefined : applied.brand,
   }
 
   const setSearch = (value: string) => {

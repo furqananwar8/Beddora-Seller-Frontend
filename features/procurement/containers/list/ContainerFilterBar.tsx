@@ -5,7 +5,8 @@ import { FilterBar, FilterItem } from '@/components/filter-bar/FilterBar'
 import { FormField } from '@/components/form-field/FormField'
 import { SearchableSelect } from '@/components/searchable-select/SearchableSelect'
 import { CONTAINER_STATUS_META, CONTAINER_STATUSES, DESTINATION_LABEL } from '../../shared/poMeta'
-import type { ContainerListState, CountryFilter, StatusFilter } from './useContainerListState'
+import { PLATFORM_META, PLATFORMS } from '../../shared/platformMeta'
+import type { BrandFilter, ContainerListState, CountryFilter, StatusFilter } from './useContainerListState'
 
 type Option<T> = { value: T; label: string }
 
@@ -15,6 +16,7 @@ const COUNTRY_OPTIONS: Array<Option<CountryFilter>> = [
   { value: 'US', label: DESTINATION_LABEL.US },
   { value: 'CA', label: DESTINATION_LABEL.CA },
 ]
+const BRAND_OPTIONS: Array<Option<BrandFilter>> = [{ value: 'ALL', label: 'All brands' }, ...PLATFORMS.map((value) => ({ value, label: PLATFORM_META[value].label }))]
 
 interface FilterSelectProps<T extends string> {
   id: string
@@ -39,7 +41,7 @@ function FilterSelect<T extends string>({ id, options, value, onChange, highligh
   )
 }
 
-/** Search, status and country over a containers listing. */
+/** Search, status, country and brand over a containers listing. */
 export const ContainerFilterBar: React.FC<{ state: ContainerListState; idPrefix: string }> = ({ state, idPrefix }) => {
   const { filters, search, setSearch } = state
   const { draft, setDraft, changed } = filters
@@ -66,6 +68,11 @@ export const ContainerFilterBar: React.FC<{ state: ContainerListState; idPrefix:
         <FilterItem>
           <FormField label="Country" htmlFor={`${idPrefix}-country`}>
             <FilterSelect id={`${idPrefix}-country`} options={COUNTRY_OPTIONS} value={draft.destination} onChange={(v) => setDraft('destination', v)} highlighted={changed.has('destination')} />
+          </FormField>
+        </FilterItem>
+        <FilterItem>
+          <FormField label="Brand" htmlFor={`${idPrefix}-brand`}>
+            <FilterSelect id={`${idPrefix}-brand`} options={BRAND_OPTIONS} value={draft.brand} onChange={(v) => setDraft('brand', v)} highlighted={changed.has('brand')} />
           </FormField>
         </FilterItem>
       </FilterBar>

@@ -162,7 +162,7 @@ export const ContainersScreen: React.FC = () => {
           )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Button type="button" size="sm" variant="outline" disabled={isExporting} onClick={() => void startExport('xlsx', { search: list.params.search, status: list.params.status, destination: list.params.destination })}>
+          <Button type="button" size="sm" variant="outline" disabled={isExporting} onClick={() => void startExport('xlsx', { search: list.params.search, status: list.params.status, destination: list.params.destination, platform: list.params.platform })}>
             {isExporting ? 'Exporting…' : 'Export Excel'}
           </Button>
           {canMap && (

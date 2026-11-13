@@ -760,6 +760,8 @@ export type ContainerSortColumn = 'etd' | 'eta'
 export interface ContainerParams extends PageParams {
   status?: ContainerStatus
   destination?: PoDestination
+  /** Containers packing at least one SKU of this platform (brand). */
+  platform?: ProductPlatform
   sortBy?: ContainerSortColumn
   sortOrder?: 'asc' | 'desc'
 }
