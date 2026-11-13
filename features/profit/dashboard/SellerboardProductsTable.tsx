@@ -835,17 +835,17 @@ export const SellerboardProductsTable: React.FC<
             </TableCell>
 
             {/* Sales */}
-            <TableCell className="text-right font-medium whitespace-nowrap px-4 py-3">
+            <TableCell className="text-center font-medium whitespace-nowrap px-4 py-3">
               {formatCurrency(product.salesRevenue || 0)}
             </TableCell>
 
             {/* Units */}
-            <TableCell className="text-right whitespace-nowrap px-4 py-3">
+            <TableCell className="text-center whitespace-nowrap px-4 py-3">
               {formatNumber(product.unitsSold || 0, 0)}
             </TableCell>
 
             {/* Refunds */}
-            <TableCell className="text-right whitespace-nowrap px-4 py-3">
+            <TableCell className="text-center whitespace-nowrap px-4 py-3">
               {refundCount > 0 && refundReasonsScope ? (
                 <button
                   type="button"
@@ -861,77 +861,77 @@ export const SellerboardProductsTable: React.FC<
             </TableCell>
 
             {/* Refund Cost */}
-            <TableCell className="text-right whitespace-nowrap px-4 py-3">
+            <TableCell className="text-center whitespace-nowrap px-4 py-3">
               {formatCurrency(Math.abs(product.refundCost || 0))}
             </TableCell>
 
             {/* Promo */}
-            <TableCell className="text-right whitespace-nowrap px-4 py-3">
+            <TableCell className="text-center whitespace-nowrap px-4 py-3">
               {formatCurrency(Math.abs(product.promoRebates || 0))}
             </TableCell>
 
             {/* COGS */}
-            <TableCell className="text-right text-danger-600 whitespace-nowrap px-4 py-3">
+            <TableCell className="text-center text-danger-600 whitespace-nowrap px-4 py-3">
               -{formatCurrency(Math.abs(product.totalCOGS || 0))}
             </TableCell>
 
             {/* Gross Profit */}
-            <TableCell className={`text-right font-medium whitespace-nowrap px-4 py-3 ${profitTone(product.grossProfit)}`}>
+            <TableCell className={`text-center font-medium whitespace-nowrap px-4 py-3 ${profitTone(product.grossProfit)}`}>
               {formatCurrency(product.grossProfit || 0)}
             </TableCell>
 
             {/* Amazon Fees */}
-            <TableCell className="text-right text-danger-600 whitespace-nowrap px-4 py-3">
+            <TableCell className="text-center text-danger-600 whitespace-nowrap px-4 py-3">
               -{formatCurrency(Math.abs(product.totalFees || 0))}
             </TableCell>
 
             {/* Ads */}
-            <TableCell className="text-right text-danger-600 whitespace-nowrap px-4 py-3">
+            <TableCell className="text-center text-danger-600 whitespace-nowrap px-4 py-3">
               -{formatCurrency(Math.abs(product.advertisingCost || 0))}
             </TableCell>
 
             {/* Net Profit */}
-            <TableCell className={`text-right font-semibold whitespace-nowrap px-4 py-3 ${profitTone(product.netProfit)}`}>
+            <TableCell className={`text-center font-semibold whitespace-nowrap px-4 py-3 ${profitTone(product.netProfit)}`}>
               {formatCurrency(product.netProfit || 0)}
             </TableCell>
 
             {/* Storage Fee: estimated, shown only (not deducted from gross or net profit) */}
-            <TableCell className="text-right text-warning-600 whitespace-nowrap px-4 py-3">
+            <TableCell className="text-center text-warning-600 whitespace-nowrap px-4 py-3">
               {formatCurrency(storageFeeOf(product))}
             </TableCell>
 
             {/* Net Profit After Storage */}
-            <TableCell className={`text-right whitespace-nowrap px-4 py-3 ${profitTone(netAfterStorageOf(product))}`}>
+            <TableCell className={`text-center whitespace-nowrap px-4 py-3 ${profitTone(netAfterStorageOf(product))}`}>
               {formatCurrency(netAfterStorageOf(product))}
             </TableCell>
 
             {/* Ads Spend Sales: sales Amazon attributes to the ads */}
-            <TableCell className="text-right whitespace-nowrap px-4 py-3">
+            <TableCell className="text-center whitespace-nowrap px-4 py-3">
               {formatCurrency(product.advertisingSales || 0)}
             </TableCell>
 
             {/* Margin */}
-            <TableCell className={`text-right whitespace-nowrap px-4 py-3 ${lossTone(product.margin)}`}>
+            <TableCell className={`text-center whitespace-nowrap px-4 py-3 ${lossTone(product.margin)}`}>
               {formatPercentage(product.margin || 0)}
             </TableCell>
 
             {/* TACOS */}
-            <TableCell className="text-right whitespace-nowrap px-4 py-3">
+            <TableCell className="text-center whitespace-nowrap px-4 py-3">
               {formatPercentage(tacosOf(product))}
             </TableCell>
 
             {/* ACOS */}
-            <TableCell className="text-right whitespace-nowrap px-4 py-3">
+            <TableCell className="text-center whitespace-nowrap px-4 py-3">
               {acosOf(product) === null ? <span className="text-text-muted">—</span> : formatPercentage(acosOf(product) as number)}
             </TableCell>
 
             {/* ROI */}
-            <TableCell className={`text-right whitespace-nowrap px-4 py-3 ${lossTone(product.roi)}`}>
+            <TableCell className={`text-center whitespace-nowrap px-4 py-3 ${lossTone(product.roi)}`}>
               {formatPercentage(product.roi || 0)}
             </TableCell>
 
             {/* BSR: Amazon's Best Sellers Rank in the main category, with its name and the sub-category rank below */}
-            <TableCell className="text-right whitespace-nowrap px-4 py-3">
+            <TableCell className="text-center whitespace-nowrap px-4 py-3">
               {product.salesRank ? (
                 <div className="flex flex-col items-end leading-tight" title={[product.salesRankCategory && `#${product.salesRank.toLocaleString('en-US')} in ${product.salesRankCategory}`, product.salesSubRank && `#${product.salesSubRank.toLocaleString('en-US')} in ${product.salesSubRankCategory ?? 'sub-category'}`].filter(Boolean).join('\n')}>
                   <span className="font-medium">#{product.salesRank.toLocaleString('en-US')}</span>
@@ -1080,11 +1080,11 @@ export const SellerboardProductsTable: React.FC<
 
                 {/* Sales Column */}
                 <TableHead
-                  className="!max-w-none sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[130px] py-3 px-4 border-b border-border align-middle"
+                  className="!max-w-none sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-center w-[120px] min-w-[120px] py-3 px-4 border-b border-border align-middle"
                   onClick={() => handleSort('sales')}
                 >
-                  <div className="flex items-center justify-end gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
-                    <span>Sales</span>
+                  <div className="flex items-center justify-center gap-1 font-semibold text-xs tracking-wider uppercase text-center leading-tight">
+                    <span className="min-w-0">Sales</span>
                     <SortIcon column="sales" />
                   </div>
                   <HeaderTooltip columnKey="sales" />
@@ -1092,11 +1092,11 @@ export const SellerboardProductsTable: React.FC<
 
                 {/* Units Sold Column */}
                 <TableHead
-                  className="!max-w-none sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[120px] py-3 px-4 border-b border-border align-middle"
+                  className="!max-w-none sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-center w-[110px] min-w-[110px] py-3 px-4 border-b border-border align-middle"
                   onClick={() => handleSort('units')}
                 >
-                  <div className="flex items-center justify-end gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
-                    <span>Units Sold</span>
+                  <div className="flex items-center justify-center gap-1 font-semibold text-xs tracking-wider uppercase text-center leading-tight">
+                    <span className="min-w-0">Units Sold</span>
                     <SortIcon column="units" />
                   </div>
                   <HeaderTooltip columnKey="units" />
@@ -1104,11 +1104,11 @@ export const SellerboardProductsTable: React.FC<
 
                 {/* Refunds Column */}
                 <TableHead
-                  className="!max-w-none sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[110px] py-3 px-4 border-b border-border align-middle"
+                  className="!max-w-none sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-center w-[110px] min-w-[110px] py-3 px-4 border-b border-border align-middle"
                   onClick={() => handleSort('refunds')}
                 >
-                  <div className="flex items-center justify-end gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
-                    <span>Refund Units</span>
+                  <div className="flex items-center justify-center gap-1 font-semibold text-xs tracking-wider uppercase text-center leading-tight">
+                    <span className="min-w-0">Refund Units</span>
                     <SortIcon column="refunds" />
                   </div>
                   <HeaderTooltip columnKey="refunds" />
@@ -1116,11 +1116,11 @@ export const SellerboardProductsTable: React.FC<
 
                 {/* Refund Cost Column */}
                 <TableHead
-                  className="!max-w-none sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[140px] py-3 px-4 border-b border-border align-middle"
+                  className="!max-w-none sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-center w-[110px] min-w-[110px] py-3 px-4 border-b border-border align-middle"
                   onClick={() => handleSort('refundCost')}
                 >
-                  <div className="flex items-center justify-end gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
-                    <span>Refund Cost</span>
+                  <div className="flex items-center justify-center gap-1 font-semibold text-xs tracking-wider uppercase text-center leading-tight">
+                    <span className="min-w-0">Refund Cost</span>
                     <SortIcon column="refundCost" />
                   </div>
                   <HeaderTooltip columnKey="refundCost" />
@@ -1128,11 +1128,11 @@ export const SellerboardProductsTable: React.FC<
 
                 {/* Promo Column */}
                 <TableHead
-                  className="!max-w-none sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[120px] py-3 px-4 border-b border-border align-middle"
+                  className="!max-w-none sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-center w-[100px] min-w-[100px] py-3 px-4 border-b border-border align-middle"
                   onClick={() => handleSort('promo')}
                 >
-                  <div className="flex items-center justify-end gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
-                    <span>Promo</span>
+                  <div className="flex items-center justify-center gap-1 font-semibold text-xs tracking-wider uppercase text-center leading-tight">
+                    <span className="min-w-0">Promo</span>
                     <SortIcon column="promo" />
                   </div>
                   <HeaderTooltip columnKey="promo" />
@@ -1140,11 +1140,11 @@ export const SellerboardProductsTable: React.FC<
 
                 {/* COGS Column */}
                 <TableHead
-                  className="!max-w-none sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[140px] py-3 px-4 border-b border-border align-middle"
+                  className="!max-w-none sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-center w-[110px] min-w-[110px] py-3 px-4 border-b border-border align-middle"
                   onClick={() => handleSort('cogs')}
                 >
-                  <div className="flex items-center justify-end gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
-                    <span>Cost of Goods</span>
+                  <div className="flex items-center justify-center gap-1 font-semibold text-xs tracking-wider uppercase text-center leading-tight">
+                    <span className="min-w-0">Cost of Goods</span>
                     <SortIcon column="cogs" />
                   </div>
                   <HeaderTooltip columnKey="cogs" />
@@ -1152,11 +1152,11 @@ export const SellerboardProductsTable: React.FC<
 
                 {/* Gross Profit Column */}
                 <TableHead
-                  className="!max-w-none sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[130px] py-3 px-4 border-b border-border align-middle"
+                  className="!max-w-none sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-center w-[110px] min-w-[110px] py-3 px-4 border-b border-border align-middle"
                   onClick={() => handleSort('grossProfit')}
                 >
-                  <div className="flex items-center justify-end gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
-                    <span>Gross Profit</span>
+                  <div className="flex items-center justify-center gap-1 font-semibold text-xs tracking-wider uppercase text-center leading-tight">
+                    <span className="min-w-0">Gross Profit</span>
                     <SortIcon column="grossProfit" />
                   </div>
                   <HeaderTooltip columnKey="grossProfit" />
@@ -1164,11 +1164,11 @@ export const SellerboardProductsTable: React.FC<
 
                 {/* Amazon Fees Column */}
                 <TableHead
-                  className="!max-w-none sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[140px] py-3 px-4 border-b border-border align-middle"
+                  className="!max-w-none sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-center w-[110px] min-w-[110px] py-3 px-4 border-b border-border align-middle"
                   onClick={() => handleSort('amazonFees')}
                 >
-                  <div className="flex items-center justify-end gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
-                    <span>Amazon Fees</span>
+                  <div className="flex items-center justify-center gap-1 font-semibold text-xs tracking-wider uppercase text-center leading-tight">
+                    <span className="min-w-0">Amazon Fees</span>
                     <SortIcon column="amazonFees" />
                   </div>
                   <HeaderTooltip columnKey="amazonFees" />
@@ -1176,11 +1176,11 @@ export const SellerboardProductsTable: React.FC<
 
                 {/* Ads Column */}
                 <TableHead
-                  className="!max-w-none sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[130px] py-3 px-4 border-b border-border align-middle"
+                  className="!max-w-none sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-center w-[100px] min-w-[100px] py-3 px-4 border-b border-border align-middle"
                   onClick={() => handleSort('ads')}
                 >
-                  <div className="flex items-center justify-end gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
-                    <span>Ads</span>
+                  <div className="flex items-center justify-center gap-1 font-semibold text-xs tracking-wider uppercase text-center leading-tight">
+                    <span className="min-w-0">Ads</span>
                     <SortIcon column="ads" />
                   </div>
                   <HeaderTooltip columnKey="ads" />
@@ -1188,11 +1188,11 @@ export const SellerboardProductsTable: React.FC<
 
                 {/* Net Profit Column */}
                 <TableHead
-                  className="!max-w-none sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[130px] py-3 px-4 border-b border-border align-middle"
+                  className="!max-w-none sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-center w-[190px] min-w-[190px] py-3 px-4 border-b border-border align-middle"
                   onClick={() => handleSort('netProfit')}
                 >
-                  <div className="flex items-center justify-end gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
-                    <span>Net Profit Before Storage</span>
+                  <div className="flex items-center justify-center gap-1 font-semibold text-xs tracking-wider uppercase text-center leading-tight">
+                    <span className="min-w-0">Net Profit Before Storage</span>
                     <SortIcon column="netProfit" />
                   </div>
                   <HeaderTooltip columnKey="netProfit" />
@@ -1200,11 +1200,11 @@ export const SellerboardProductsTable: React.FC<
 
                 {/* Storage Fee Column */}
                 <TableHead
-                  className="!max-w-none sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[130px] py-3 px-4 border-b border-border align-middle"
+                  className="!max-w-none sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-center w-[110px] min-w-[110px] py-3 px-4 border-b border-border align-middle"
                   onClick={() => handleSort('storageFee')}
                 >
-                  <div className="flex items-center justify-end gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
-                    <span>Storage Fee</span>
+                  <div className="flex items-center justify-center gap-1 font-semibold text-xs tracking-wider uppercase text-center leading-tight">
+                    <span className="min-w-0">Storage Fee</span>
                     <SortIcon column="storageFee" />
                   </div>
                   <HeaderTooltip columnKey="storageFee" />
@@ -1212,11 +1212,11 @@ export const SellerboardProductsTable: React.FC<
 
                 {/* Net Profit After Storage Column */}
                 <TableHead
-                  className="!max-w-none sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[170px] py-3 px-4 border-b border-border align-middle"
+                  className="!max-w-none sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-center w-[160px] min-w-[160px] py-3 px-4 border-b border-border align-middle"
                   onClick={() => handleSort('netAfterStorage')}
                 >
-                  <div className="flex items-center justify-end gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
-                    <span>Net Profit After Storage</span>
+                  <div className="flex items-center justify-center gap-1 font-semibold text-xs tracking-wider uppercase text-center leading-tight">
+                    <span className="min-w-0">Net Profit After Storage</span>
                     <SortIcon column="netAfterStorage" />
                   </div>
                   <HeaderTooltip columnKey="netAfterStorage" />
@@ -1224,11 +1224,11 @@ export const SellerboardProductsTable: React.FC<
 
                 {/* Ads Spend Sales Column */}
                 <TableHead
-                  className="!max-w-none sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[150px] py-3 px-4 border-b border-border align-middle"
+                  className="!max-w-none sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-center w-[124px] min-w-[124px] py-3 px-4 border-b border-border align-middle"
                   onClick={() => handleSort('adSales')}
                 >
-                  <div className="flex items-center justify-end gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
-                    <span>Ads Spend Sales</span>
+                  <div className="flex items-center justify-center gap-1 font-semibold text-xs tracking-wider uppercase text-center leading-tight">
+                    <span className="min-w-0">Ads Spend Sales</span>
                     <SortIcon column="adSales" />
                   </div>
                   <HeaderTooltip columnKey="adSales" />
@@ -1236,11 +1236,11 @@ export const SellerboardProductsTable: React.FC<
 
                 {/* Margin Column */}
                 <TableHead
-                  className="!max-w-none sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[110px] py-3 px-4 border-b border-border align-middle"
+                  className="!max-w-none sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-center w-[96px] min-w-[96px] py-3 px-4 border-b border-border align-middle"
                   onClick={() => handleSort('margin')}
                 >
-                  <div className="flex items-center justify-end gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
-                    <span>Margin</span>
+                  <div className="flex items-center justify-center gap-1 font-semibold text-xs tracking-wider uppercase text-center leading-tight">
+                    <span className="min-w-0">Margin</span>
                     <SortIcon column="margin" />
                   </div>
                   <HeaderTooltip columnKey="margin" />
@@ -1248,11 +1248,11 @@ export const SellerboardProductsTable: React.FC<
 
                 {/* TACOS Column */}
                 <TableHead
-                  className="!max-w-none sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[100px] py-3 px-4 border-b border-border align-middle"
+                  className="!max-w-none sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-center w-[96px] min-w-[96px] py-3 px-4 border-b border-border align-middle"
                   onClick={() => handleSort('tacos')}
                 >
-                  <div className="flex items-center justify-end gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
-                    <span>TACOS</span>
+                  <div className="flex items-center justify-center gap-1 font-semibold text-xs tracking-wider uppercase text-center leading-tight">
+                    <span className="min-w-0">TACOS</span>
                     <SortIcon column="tacos" />
                   </div>
                   <HeaderTooltip columnKey="tacos" />
@@ -1260,11 +1260,11 @@ export const SellerboardProductsTable: React.FC<
 
                 {/* ACOS Column */}
                 <TableHead
-                  className="!max-w-none sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[100px] py-3 px-4 border-b border-border align-middle"
+                  className="!max-w-none sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-center w-[96px] min-w-[96px] py-3 px-4 border-b border-border align-middle"
                   onClick={() => handleSort('acos')}
                 >
-                  <div className="flex items-center justify-end gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
-                    <span>ACOS</span>
+                  <div className="flex items-center justify-center gap-1 font-semibold text-xs tracking-wider uppercase text-center leading-tight">
+                    <span className="min-w-0">ACOS</span>
                     <SortIcon column="acos" />
                   </div>
                   <HeaderTooltip columnKey="acos" />
@@ -1272,19 +1272,19 @@ export const SellerboardProductsTable: React.FC<
 
                 {/* ROI Column */}
                 <TableHead
-                  className="!max-w-none sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[110px] py-3 px-4 border-b border-border align-middle"
+                  className="!max-w-none sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-center w-[96px] min-w-[96px] py-3 px-4 border-b border-border align-middle"
                   onClick={() => handleSort('roi')}
                 >
-                  <div className="flex items-center justify-end gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
-                    <span>ROI</span>
+                  <div className="flex items-center justify-center gap-1 font-semibold text-xs tracking-wider uppercase text-center leading-tight">
+                    <span className="min-w-0">ROI</span>
                     <SortIcon column="roi" />
                   </div>
                   <HeaderTooltip columnKey="roi" />
                 </TableHead>
 
                 {/* BSR Column */}
-                <TableHead className="!max-w-none sticky top-0 z-20 bg-surface group relative text-right min-w-[90px] py-3 px-4 border-b border-border align-middle">
-                  <div className="flex items-center justify-end gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
+                <TableHead className="!max-w-none sticky top-0 z-20 bg-surface group relative text-center min-w-[90px] py-3 px-4 border-b border-border align-middle">
+                  <div className="flex items-center justify-center gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
                     <span>BSR</span>
                   </div>
                   <HeaderTooltip columnKey="bsr" />
