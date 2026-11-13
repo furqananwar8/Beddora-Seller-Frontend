@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import { Metadata } from 'next'
 import { ChannelInventoryScreen } from '@/features/inventory/channel-stock'
 
@@ -7,5 +8,10 @@ export const metadata: Metadata = {
 }
 
 export default function ChannelInventoryPage() {
-  return <ChannelInventoryScreen />
+  // Suspense: the screen reads search params (a link can open it already searched)
+  return (
+    <Suspense>
+      <ChannelInventoryScreen />
+    </Suspense>
+  )
 }

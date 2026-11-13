@@ -17,6 +17,7 @@ import {
   InboundShipmentItem,
   LabelType,
   ReservedPoolItem,
+  ShipmentChannel,
   legId,
 } from './types'
 import {
@@ -47,8 +48,9 @@ import {
 
 export const SHIPMENT_TABLE_COLUMNS = 11
 
-/** The planner opens already searched for the product. */
-const plannerSearchHref = (title: string) => `/dashboard/inventory/planner?search=${encodeURIComponent(title)}`
+/** These are channel SKUs, so their stock is on Channel Inventory: it opens on the shipment's channel, searched for the SKU. */
+const channelInventoryHref = (channelId: ShipmentChannel, sku: string) =>
+  `/dashboard/inventory/channel-inventory?channel=${channelId === 'walmart_wfs' ? 'walmart' : 'amazon'}&search=${encodeURIComponent(sku)}`
 
 interface ShipmentRowProps {
   shipment: InboundShipment
@@ -577,15 +579,15 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({
                         <tr key={item.productId} className="border-b border-border/60 last:border-0">
                           <td className="px-4 py-2.5">
                             <Link
-                              href={plannerSearchHref(item.title)}
-                              title="Find this product in the planner"
+                              href={channelInventoryHref(channelIdOf(shipment), item.sku)}
+                              title={`${item.title}
+See ${item.sku} on Channel Inventory`}
                               className="group flex items-center gap-3"
                             >
                               <ProductThumb src={item.imageUrl} alt={item.title} size="sm" />
                               <div className="min-w-0">
-                                <div className="max-w-md truncate text-text-primary group-hover:text-primary-700 group-hover:underline">{item.title}</div>
-                                <div className="text-xs text-text-muted">{channel.itemSubline(item)}</div>
-                                {/* The internal SKUs this channel SKU deducts, and how many units of each this line takes */}
+                                {/* The channel SKU, then the internal SKUs it deducts and how many units of each this line takes */}
+                                <div className="break-all font-mono text-sm font-bold text-text-primary group-hover:text-primary-700 group-hover:underline">{item.sku}</div>
                                 {(item.mapping ?? []).map((m) => (
                                   <div key={m.sku} className="text-[11px] text-text-muted" title={m.name}>
                                     ↳ <span className="font-mono">{m.sku}</span> × {formatUnits(m.perUnit)} = {formatUnits(m.quantity)} units

@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Container } from '@/components/layout'
 import { useFitToViewport } from '@/hooks/useFitToViewport'
 import { PaginationFooter } from '@/components/pagination-footer/PaginationFooter'
@@ -8,7 +9,7 @@ import { useStagedFilters } from '@/components/filter-bar/useStagedFilters'
 import { KpiCard } from '@/design-system/kpi'
 import { useGetChannelStockOptionsQuery, useGetChannelStockQuery } from '@/services/api/channelStock.api'
 import { cn } from '@/utils/cn'
-import { ChannelStockFilters, DEFAULT_CHANNEL_STOCK_FILTERS } from './ChannelStockFilters'
+import { ChannelStockFilters, DEFAULT_CHANNEL_STOCK_FILTERS, type ChannelStockFilterValues } from './ChannelStockFilters'
 import { ChannelStockTable } from './ChannelStockTable'
 
 const PAGE_SIZE = 20
@@ -21,7 +22,15 @@ const syncedLabel = (iso: string | null | undefined) =>
 export const ChannelInventoryScreen: React.FC = () => {
   const fit = useFitToViewport<HTMLDivElement>()
   const [page, setPage] = useState(1)
-  const filters = useStagedFilters(DEFAULT_CHANNEL_STOCK_FILTERS, () => setPage(1))
+  // A link can open it on a channel and already searched (?channel=walmart&search=SKU), e.g. from a shipment's products
+  const searchParams = useSearchParams()
+  const urlChannel = searchParams.get('channel')
+  const initial: ChannelStockFilterValues = {
+    ...DEFAULT_CHANNEL_STOCK_FILTERS,
+    ...(urlChannel === 'amazon' || urlChannel === 'walmart' ? { channel: urlChannel } : {}),
+    search: searchParams.get('search') ?? DEFAULT_CHANNEL_STOCK_FILTERS.search,
+  }
+  const filters = useStagedFilters(DEFAULT_CHANNEL_STOCK_FILTERS, () => setPage(1), initial)
   const { applied } = filters
 
   const { data: channels = [] } = useGetChannelStockOptionsQuery()
