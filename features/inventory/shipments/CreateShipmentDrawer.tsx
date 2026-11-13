@@ -244,7 +244,7 @@ const DrawerPanel: React.FC<Omit<CreateShipmentDrawerProps, 'isOpen'>> = ({
     }
   }
 
-  const columns = wfs ? 'grid-cols-[240px_100px_minmax(0,1fr)_100px_110px_150px]' : 'grid-cols-[260px_110px_minmax(0,1fr)_110px_150px]'
+  const columns = wfs ? 'grid-cols-[340px_100px_minmax(0,1fr)_100px_110px_280px]' : 'grid-cols-[340px_100px_minmax(0,1fr)_100px_280px]'
 
   return createPortal(
     <div className="fixed inset-0 z-50 overscroll-none" role="dialog" aria-modal="true" aria-labelledby="create-shipment-title">
@@ -373,7 +373,7 @@ const DrawerPanel: React.FC<Omit<CreateShipmentDrawerProps, 'isOpen'>> = ({
                 onChange={(e) => search.setQuery(e.target.value)}
                 placeholder="Search by channel SKU, title, ASIN or internal SKU"
                 aria-label="Search channel SKUs"
-                className="h-10 w-full !rounded-lg border border-slate-300 bg-white px-3 text-[15px] focus:outline-none focus:ring-2 focus:ring-slate-300 sm:max-w-sm"
+                className="h-10 w-full !rounded-lg border border-slate-300 bg-white px-3 text-[15px] focus:outline-none focus:ring-2 focus:ring-slate-300 sm:max-w-lg"
               />
               <span className="text-[13px] text-slate-600">
                 {search.isPending ? 'Searching…' : `${search.totalItems} of ${rows.length} products`}
@@ -382,7 +382,7 @@ const DrawerPanel: React.FC<Omit<CreateShipmentDrawerProps, 'isOpen'>> = ({
           )}
 
           <div className="shrink-0 !rounded-xl border border-slate-200">
-          <div className="overflow-x-auto"><div className="min-w-[760px]">
+          <div className="overflow-x-auto"><div className="min-w-[1000px]">
             <div className={cn('grid border-b border-slate-200 bg-slate-100 text-xs font-semibold text-slate-700', columns)}>
               <div className="px-4 py-3">Product</div>
               <div className="px-2 py-3 text-right">{def.program} pool</div>
@@ -412,14 +412,14 @@ const DrawerPanel: React.FC<Omit<CreateShipmentDrawerProps, 'isOpen'>> = ({
                   className={cn('grid min-h-[72px] items-center border-b border-slate-100 text-sm last:border-0', columns, full || blocked || notice ? 'bg-slate-50' : 'bg-white')}
                 >
                   <div className="flex min-w-0 flex-col gap-0.5 px-4 py-2.5">
-                    <span className={cn('truncate font-medium', full || blocked ? 'text-slate-600' : 'text-slate-900')}>{p.title}</span>
-                    <span className="truncate font-mono text-xs text-slate-600">
+                    {/* The channel SKU leads (bold), then what it maps to; the title is only a tooltip. Long SKUs wrap instead of being cut off */}
+                    <span title={p.title} className={cn('break-all font-mono text-sm font-bold', full || blocked ? 'text-slate-600' : 'text-slate-900')}>
                       {p.sku}
-                      {wfs && p.gtin && ` · GTIN ${p.gtin}`}
+                      {wfs && p.gtin && <span className="text-xs font-normal text-slate-600">{` · GTIN ${p.gtin}`}</span>}
                     </span>
                     {/* What booking this SKU deducts: its internal SKUs, per unit, with what each has allocated to this channel */}
                     {(p.mapping ?? []).map((m) => (
-                      <span key={m.sku} className="truncate text-[11px] text-slate-600" title={m.name}>
+                      <span key={m.sku} className="break-words text-[11px] text-slate-600" title={m.name}>
                         <span aria-hidden>↳ </span>
                         <span className="font-mono">{m.sku}</span> × {formatUnits(m.perUnit)} · {formatUnits(m.allocated)} allocated
                       </span>

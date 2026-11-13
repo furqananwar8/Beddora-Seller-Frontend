@@ -22,8 +22,6 @@ export interface ChannelNodeData extends Record<string, unknown> {
   status: NodeStatus
   selected: boolean
   compact: boolean
-  /** How many internal SKUs are bound to it (the Unbind button shows only when there are some). */
-  boundCount: number
 }
 
 export interface InternalNodeData extends Record<string, unknown> {
@@ -91,7 +89,7 @@ export function layoutGraph({ rows, componentsOf, statusOf, placed, selected, co
     const y = index * pitch
     const isSelected = row.key === selected
     const components = componentsOf(row)
-    nodes.push({ id: `c:${row.key}`, type: 'channel', position: { x: 0, y }, data: { row, status: statusOf(row), selected: isSelected, compact, boundCount: components.length }, ...FIXED })
+    nodes.push({ id: `c:${row.key}`, type: 'channel', position: { x: 0, y }, data: { row, status: statusOf(row), selected: isSelected, compact }, ...FIXED })
 
     for (const component of components) {
       const entry = internal.get(component.productId) ?? { component, ys: [] }

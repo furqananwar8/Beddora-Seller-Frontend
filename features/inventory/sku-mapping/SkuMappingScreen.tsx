@@ -111,7 +111,7 @@ export const SkuMappingScreen: React.FC = () => {
                 placed={mapper.draft.placed}
                 selected={mapper.draft.selected}
                 compact={mapper.compact}
-                actions={{ select: mapper.select, connect: mapper.connect, setQuantity: mapper.setQuantity, unbindAll: mapper.unbindAll, dismissInternal: mapper.dismissInternal, readOnly }}
+                actions={{ select: mapper.select, connect: mapper.connect, setQuantity: mapper.setQuantity, dismissInternal: mapper.dismissInternal, readOnly }}
               />
             </div>
           )}

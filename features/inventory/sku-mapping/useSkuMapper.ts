@@ -189,13 +189,14 @@ export function useSkuMapper() {
       if (row && internal) dispatch({ type: 'bind', row, internal })
     },
     setQuantity: (row: ChannelSku, productId: number, quantity: number) => dispatch({ type: 'quantity', row, productId, quantity }),
-    /** Unbinds every child of a channel SKU; the internal nodes stay on the graph. */
-    unbindAll: (rowKey: string) => {
-      const row = rows.find((item) => item.key === rowKey)
-      if (row) dispatch({ type: 'unbindAll', row })
+    /**
+     * The X on an internal SKU: while a channel SKU is selected and the SKU is bound to it, only that one binding is
+     * removed (the node stays on the graph); otherwise the SKU leaves the graph.
+     */
+    dismissInternal: (productId: number) => {
+      const boundToSelected = selectedRow && componentsOf(draft, selectedRow).some((component) => component.productId === productId)
+      dispatch(boundToSelected && selectedRow ? { type: 'unbind', row: selectedRow, productId } : { type: 'dismiss', productId, rows })
     },
-    /** Takes an internal SKU off the graph (and off every channel SKU shown on it). */
-    dismissInternal: (productId: number) => dispatch({ type: 'dismiss', productId, rows }),
     discard: () => dispatch({ type: 'clearEdits' }),
     saveChanges,
   }

@@ -264,7 +264,8 @@ export const ShipmentsScreen: React.FC = () => {
           has(s.name) ||
           has(s.externalRef) ||
           s.legs.some((l) => has(legId(l)) || has(l.shipmentConfirmationId) || has(l.fulfillmentCenter)) ||
-          s.items.some((i) => has(i.sku) || has(i.asin) || has(i.gtin) || has(i.title))
+          // A booked channel SKU is also found by the internal SKU it deducts
+          s.items.some((i) => has(i.sku) || has(i.asin) || has(i.gtin) || has(i.title) || (i.mapping ?? []).some((m) => has(m.sku) || has(m.name)))
       )
       .sort(
         (a, b) =>

@@ -781,7 +781,8 @@ export const SellerboardProductsTable: React.FC<
               style={{ position: 'sticky', left: 0, zIndex: 10 }}
               // Solid white for parents and children alike (surface-secondary is not a colour in the theme, so it painted nothing and
               // the columns scrolling underneath showed through); hover uses an opaque shade for the same reason
-              className="border-r border-border bg-surface text-left px-4 py-3 transition-colors group-hover/row:bg-secondary-50"
+              // Only the right edge takes the full-strength colour: `border-border` would also recolour the bottom edge, so the row's line looked stronger under this cell than under the rest
+              className="border-r border-r-border bg-surface text-left px-4 py-3 transition-colors group-hover/row:bg-secondary-50"
             >
               <ProductIdentityCell
                 product={product}

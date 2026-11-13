@@ -17,8 +17,6 @@ export type DraftAction =
   | { type: 'bind'; row: ChannelSku; internal: Pick<BindingComponent, 'productId' | 'sku' | 'name' | 'onHand'> }
   | { type: 'quantity'; row: ChannelSku; productId: number; quantity: number }
   | { type: 'unbind'; row: ChannelSku; productId: number }
-  /** Unbinds every internal SKU from one channel SKU; the internal nodes stay on the graph. */
-  | { type: 'unbindAll'; row: ChannelSku }
   /** Removes an internal SKU from the graph, unbinding it from the given (graph) channel SKUs. */
   | { type: 'dismiss'; productId: number; rows: ChannelSku[] }
   | { type: 'place'; internal: InternalSku }
@@ -68,9 +66,6 @@ export function draftReducer(state: DraftState, action: DraftAction): DraftState
     }
     case 'unbind':
       return unbindOne(state, action.row, action.productId)
-    case 'unbindAll':
-      // Every child of this channel SKU is released; the internal nodes stay on the graph
-      return componentsOf(state, action.row).reduce((next, component) => unbindOne(next, action.row, component.productId), state)
     case 'dismiss': {
       // Takes the internal SKU off the graph: unbound from every channel SKU on it, and no longer placed
       const released = action.rows.reduce((next, row) => unbindOne(next, row, action.productId), state)

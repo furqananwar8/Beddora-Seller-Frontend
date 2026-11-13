@@ -755,9 +755,13 @@ export interface ContainerDetail extends ContainerItem {
   documents: ContainerDocument[]
 }
 
+export type ContainerSortColumn = 'etd' | 'eta'
+
 export interface ContainerParams extends PageParams {
   status?: ContainerStatus
   destination?: PoDestination
+  sortBy?: ContainerSortColumn
+  sortOrder?: 'asc' | 'desc'
 }
 
 /** The container expenses spread over SKUs, as the server names them (see the server's cost-buckets). */

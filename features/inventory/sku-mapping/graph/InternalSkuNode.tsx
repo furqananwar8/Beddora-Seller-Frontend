@@ -51,8 +51,8 @@ export const InternalSkuNode = memo(function InternalSkuNode({ data, dragging }:
         <button
           type="button"
           onClick={() => dismissInternal(productId)}
-          aria-label={`Remove ${sku} from the graph`}
-          title={linked ? 'Remove from the graph (also unbinds it from the channel SKUs shown)' : 'Remove from the graph'}
+          aria-label={bound ? `Unbind ${sku} from the selected channel SKU` : `Remove ${sku} from the graph`}
+          title={bound ? 'Unbind from the selected channel SKU' : linked ? 'Remove from the graph (also unbinds it from the channel SKUs shown)' : 'Remove from the graph'}
           className="nodrag nopan pointer-events-auto relative shrink-0 rounded p-0.5 text-text-muted hover:bg-danger-50 hover:text-danger-600"
         >
           <X className="h-3.5 w-3.5" aria-hidden />

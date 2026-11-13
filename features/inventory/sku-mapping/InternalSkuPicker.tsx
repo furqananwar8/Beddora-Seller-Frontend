@@ -5,6 +5,9 @@ import { SearchableSelect } from '@/components/searchable-select/SearchableSelec
 import { useGetInternalSkusQuery, type InternalSku } from '@/services/api/skuMapping.api'
 import { useDebounce } from '@/utils/debounce'
 
+/** Most SKUs the closed picker lists by name. */
+const MAX_NAMED = 2
+
 interface InternalSkuPickerProps {
   /** The selected channel SKU: picking binds to it ×1; without one the node is only placed. */
   bindTo: string | null
@@ -47,7 +50,8 @@ export const InternalSkuPicker: React.FC<InternalSkuPickerProps> = ({ bindTo, va
       loading={isFetching}
       disabled={disabled}
       placeholder="+ Add internal SKUs"
-      renderValue={(items) => `Internal SKUs · ${items.length}`}
+      // Name the SKUs picked so it is clear what is mapped; a long list falls back to a count
+      renderValue={(items) => (items.length <= MAX_NAMED ? items.map((item) => item.sku).join(', ') : `Internal SKUs · ${items.length}`)}
       triggerClassName="text-text-primary [&>span]:text-text-primary"
       searchPlaceholder="Search internal SKU or product"
       emptyText="No internal SKU matches. Add a SKU to the product under Procurement > Products."

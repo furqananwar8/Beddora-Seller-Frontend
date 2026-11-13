@@ -2,7 +2,8 @@
 
 import { useState } from 'react'
 import { useStagedFilters } from '@/components/filter-bar/useStagedFilters'
-import type { ContainerParams, ContainerStatus, PoDestination } from '@/services/api/procurement.api'
+import type { SortDirection } from '@/components/sort-header/SortHeader'
+import type { ContainerParams, ContainerSortColumn, ContainerStatus, PoDestination } from '@/services/api/procurement.api'
 import { useDebounce } from '@/utils/debounce'
 
 const PAGE_SIZE = 20
@@ -27,11 +28,19 @@ export function useContainerListState(initialSearch = '') {
   const [page, setPage] = useState(1)
   const filters = useStagedFilters(DEFAULT_FILTERS, () => setPage(1))
   const { applied } = filters
+  // Unsorted keeps the newest container first; a header click sorts earliest first, again latest first
+  const [sort, setSort] = useState<{ column: ContainerSortColumn; order: SortDirection } | null>(null)
+  const toggleSort = (column: ContainerSortColumn) => {
+    setSort((current) => ({ column, order: current?.column === column && current.order === 'asc' ? 'desc' : 'asc' }))
+    setPage(1)
+  }
 
   const params: ContainerParams = {
     page,
     limit: PAGE_SIZE,
     search: debouncedSearch,
+    sortBy: sort?.column,
+    sortOrder: sort?.order,
     status: applied.status === 'ALL' ? undefined : applied.status,
     destination: applied.destination === 'ALL' ? undefined : applied.destination,
   }
@@ -41,7 +50,7 @@ export function useContainerListState(initialSearch = '') {
     setPage(1)
   }
 
-  return { search, setSearch, setPage, filters, params, filtered: Boolean(debouncedSearch) || filters.appliedCount > 0 }
+  return { search, setSearch, setPage, filters, params, sort, toggleSort, filtered: Boolean(debouncedSearch) || filters.appliedCount > 0 }
 }
 
 export type ContainerListState = ReturnType<typeof useContainerListState>

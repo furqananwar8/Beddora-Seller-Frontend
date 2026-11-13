@@ -9,7 +9,8 @@ import { Button } from '@/design-system/buttons'
 import { useAppAbility } from '@/hooks/useAppAbility'
 import { useFitToViewport } from '@/hooks/useFitToViewport'
 import { useReportExport } from '@/hooks/useReportExport'
-import { useGetContainersQuery, useGetContainerSummaryQuery, type ContainerItem } from '@/services/api/procurement.api'
+import { SortHeader } from '@/components/sort-header/SortHeader'
+import { useGetContainersQuery, useGetContainerSummaryQuery, type ContainerItem, type ContainerSortColumn } from '@/services/api/procurement.api'
 import { cn } from '@/utils/cn'
 import { formatCalendarDay } from '@/utils/format'
 import { ContainerStatusBadge, DESTINATION_LABEL, DESTINATION_ROW_TINT, NeedsDetailsBadge } from '../shared/poMeta'
@@ -47,6 +48,12 @@ export const ContainersScreen: React.FC = () => {
   const { data: summary } = useGetContainerSummaryQuery()
   const { start: startExport, isExporting } = useReportExport('containers')
 
+  const sortHeader = (column: ContainerSortColumn, label: string) => (
+    <SortHeader direction={list.sort?.column === column ? list.sort.order : null} onClick={() => list.toggleSort(column)}>
+      {label}
+    </SortHeader>
+  )
+
   const columns: TreeColumn<ContainerItem>[] = [
     {
       key: 'container',
@@ -54,6 +61,7 @@ export const ContainersScreen: React.FC = () => {
       className: 'min-w-[150px] text-left',
       render: (container) => <ContainerCell container={container} detail={skuSummary(container.lines.length, container.totals.units)} />,
     },
+    { key: 'brand', header: 'Brand', className: 'min-w-[170px]', render: (container) => <BrandCell platforms={container.platforms} /> },
     { key: 'cbm', header: 'Total CBM', className: 'min-w-[100px]', render: (container) => <span className="font-mono text-xs">{container.totals.cbm.toFixed(2)}</span> },
     {
       key: 'cartons',
@@ -92,8 +100,8 @@ export const ContainersScreen: React.FC = () => {
         </span>
       ),
     },
-    { key: 'etd', header: 'ETD', className: 'min-w-[100px]', render: (container) => <span className="whitespace-nowrap text-sm">{date(container.etd)}</span> },
-    { key: 'eta', header: 'ETA', className: 'min-w-[100px]', render: (container) => <span className="whitespace-nowrap text-sm">{date(container.eta)}</span> },
+    { key: 'etd', header: sortHeader('etd', 'ETD'), className: 'min-w-[100px]', render: (container) => <span className="whitespace-nowrap text-sm">{date(container.etd)}</span> },
+    { key: 'eta', header: sortHeader('eta', 'ETA'), className: 'min-w-[100px]', render: (container) => <span className="whitespace-nowrap text-sm">{date(container.eta)}</span> },
     { key: 'board', header: 'Shipped on board', className: 'min-w-[170px]', render: (container) => <ShippedOnBoardCell container={container} canWrite={actions.canWrite} /> },
     { key: 'transit', header: 'Transit days', className: 'min-w-[120px]', render: (container) => <span className="tabular-nums">{container.transitDays ?? '—'}</span> },
     {
@@ -115,7 +123,6 @@ export const ContainersScreen: React.FC = () => {
     { key: 'plBoxes', header: 'PL boxes', className: 'min-w-[100px]', render: (container) => <span className="tabular-nums">{qty(container.totals.cartons)}</span> },
     { key: 'plUnits', header: 'PL units', className: 'min-w-[100px]', render: (container) => <span className="tabular-nums">{qty(container.totals.units)}</span> },
     { key: 'skus', header: 'No. of SKUs', className: 'min-w-[110px]', render: (container) => <span className="tabular-nums">{qty(container.totals.skus)}</span> },
-    { key: 'brand', header: 'Brand', className: 'min-w-[170px]', render: (container) => <BrandCell platforms={container.platforms} /> },
     { key: 'warehouse', header: 'Warehouse', className: 'min-w-[150px]', render: (container) => <span className="text-sm">{container.warehouse?.name ?? '—'}</span> },
     { key: 'cubicFeet', header: 'Cubic feet', className: 'min-w-[110px]', render: (container) => <span className="tabular-nums">{container.cubicFeet === null ? '—' : qty(container.cubicFeet)}</span> },
     { key: 'broker', header: 'Custom broker', className: 'min-w-[140px]', render: (container) => <span className="text-sm">{container.customsBrokers.length ? container.customsBrokers.join(', ') : '—'}</span> },
