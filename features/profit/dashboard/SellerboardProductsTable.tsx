@@ -449,11 +449,6 @@ const buildProductStatData = (
         currency: true,
       },
       {
-        label: 'Indirect expenses',
-        value: p.totalExpenses,
-        currency: true,
-      },
-      {
         label: 'Net profit',
         value: p.netProfit,
         currency: true,
@@ -464,7 +459,12 @@ const buildProductStatData = (
         { label: 'Long-term storage', value: Number(p.longTermStorageFee || 0), currency: true },
       ].filter((item) => item.value > 0),
       {
-        label: 'Real ACOS',
+        label: 'ACOS',
+        value: p.advertisingSales ? (Math.abs(p.advertisingCost || 0) / p.advertisingSales) * 100 : 0,
+        percentage: true,
+      },
+      {
+        label: 'TACOS',
         value: p.realACOS,
         percentage: true,
       },

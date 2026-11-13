@@ -111,10 +111,15 @@ const STAT_TOOLTIPS: Record<
     formula: 'Gross Profit - Indirect Expenses',
     note: 'Final bottom-line profit remaining after all direct and indirect expenses.',
   },
-  'Real ACOS': {
-    title: 'Real ACOS',
+  ACOS: {
+    title: 'Advertising Cost of Sales (ACOS)',
+    formula: '(Advertising Cost / Ads Spend Sales) × 100',
+    note: 'Ad spend against only the sales Amazon attributes to the ads (14-day).',
+  },
+  TACOS: {
+    title: 'Total Advertising Cost of Sales (TACOS)',
     formula: '(Advertising Cost / Sales Revenue) × 100',
-    note: 'True advertising cost of sales relative to overall gross revenue.',
+    note: 'Ad spend relative to all sales revenue.',
   },
   '% Refunds': {
     title: 'Refund Percentage',
@@ -205,7 +210,7 @@ const RowTooltip: React.FC<{ tooltipKey?: string }> = ({ tooltipKey }) => {
   if (!info) return null
 
   return (
-    <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 w-60 p-2.5 bg-gray-900 text-white text-left text-xs rounded-md shadow-2xl opacity-0 group-hover/row:opacity-100 transition-opacity duration-200 pointer-events-none z-[9999] font-normal normal-case">
+    <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 w-60 p-2.5 bg-gray-900 text-white text-left text-xs rounded-md shadow-2xl hidden group-hover/row:block pointer-events-none z-[9999] font-normal normal-case">
       <div className="font-semibold text-white mb-1 border-b border-gray-700 pb-1">
         {info.title}
       </div>

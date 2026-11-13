@@ -65,6 +65,21 @@ const TILE_TOOLTIPS = {
         formula: 'SP Spend + SB Spend + SD Spend',
         note: 'Total ad cost incurred across active Amazon advertising campaigns.',
     },
+    adSales: {
+        title: 'Ads Spend Sales',
+        formula: 'Sales Amazon attributes to the ads (14-day)',
+        note: 'Sales that came through advertising: the figure ACOS divides the ad spend by.',
+    },
+    tacos: {
+        title: 'Total Advertising Cost of Sales (TACOS)',
+        formula: '(Ads / Sales Revenue) × 100',
+        note: 'Share of all sales spent on advertising.',
+    },
+    acos: {
+        title: 'Advertising Cost of Sales (ACOS)',
+        formula: '(Ads / Ads Spend Sales) × 100',
+        note: 'Ad spend against only the sales the ads brought. Empty when there were no ad sales.',
+    },
     estPayout: {
         title: 'Estimated Payout',
         formula: 'Sales Revenue - Amazon Fees - Product Refund Amount + Reimbursements',
@@ -132,6 +147,11 @@ const SummaryTiles = ({
     const salesPct = salesChange === undefined ? margin : salesChange
     const Tooltip = showTooltips ? FieldTooltip : NoTooltip
     const isShown = (metric: SummaryTileMetric) => !hiddenMetrics.includes(metric)
+    // Only cards that carry ad sales get the ad-performance row (other data sources, e.g. the channel report, do not)
+    const adSales = period.advertisingSales === undefined || period.advertisingSales === null ? null : Number(period.advertisingSales)
+    const adSpend = Math.abs(Number(period.advertisingCost ?? 0))
+    const tacos = Number(period.salesRevenue) > 0 ? (adSpend / Number(period.salesRevenue)) * 100 : 0
+    const acos = adSales && adSales > 0 ? (adSpend / adSales) * 100 : null
 
     return (
         <div className="space-y-3 flex-1 flex flex-col">
@@ -158,7 +178,7 @@ const SummaryTiles = ({
                 <Tooltip fieldKey="sales" />
             </div>
 
-            {/* Orders / Refunds / Adv cost / Est payout */}
+            {/* Orders / Refunds / Adv cost / Est payout (+ ad performance) */}
             <div className="grid grid-cols-2 gap-3 text-xs min-w-0">
                 <div className="min-w-0 group relative cursor-pointer">
                     <div className="text-text-muted break-words">Orders / Units</div>
@@ -191,6 +211,26 @@ const SummaryTiles = ({
                     </div>
                     <Tooltip fieldKey="estPayout" />
                 </div>
+                )}
+                {/* Ad performance, in the same two columns (only cards that carry ad sales) */}
+                {adSales !== null && (
+                <>
+                <div className="min-w-0 group relative cursor-pointer">
+                    <div className="text-text-muted break-words">Ads spend sales</div>
+                    <div className="font-semibold text-text-primary break-words">{formatAmount(adSales)}</div>
+                    <Tooltip fieldKey="adSales" />
+                </div>
+                <div className="min-w-0 group relative cursor-pointer">
+                    <div className="text-text-muted break-words">TACOS</div>
+                    <div className="font-semibold text-text-primary break-words">{formatPercentage(tacos)}</div>
+                    <Tooltip fieldKey="tacos" />
+                </div>
+                <div className="min-w-0 group relative cursor-pointer">
+                    <div className="text-text-muted break-words">ACOS</div>
+                    <div className="font-semibold text-text-primary break-words">{acos === null ? '—' : formatPercentage(acos)}</div>
+                    <Tooltip fieldKey="acos" />
+                </div>
+                </>
                 )}
             </div>
 
