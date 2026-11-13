@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useRef } from 'react'
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import {
   formatCurrency,
   formatPercentage,
@@ -290,6 +290,9 @@ const Row: React.FC<{
   </div>
 )
 
+/** Least space kept between the panel and the screen's top and bottom edges. */
+const VIEWPORT_MARGIN = 16
+
 export const StatModal: React.FC<Props> = ({
   isOpen,
   onClose,
@@ -298,6 +301,17 @@ export const StatModal: React.FC<Props> = ({
   anchorRect,
 }) => {
   const panelRef = useRef<HTMLDivElement>(null)
+  // The panel's real height: it follows the content (and the sections a user expands), so the position cannot be a guess
+  const [panelHeight, setPanelHeight] = useState<number | null>(null)
+
+  useLayoutEffect(() => {
+    const panel = panelRef.current
+    if (!isOpen || !panel) return
+    setPanelHeight(panel.offsetHeight)
+    const observer = new ResizeObserver(() => setPanelHeight(panel.offsetHeight))
+    observer.observe(panel)
+    return () => observer.disconnect()
+  }, [isOpen, data])
 
   // ==========================================================
   // OUTSIDE CLICK
@@ -331,7 +345,8 @@ export const StatModal: React.FC<Props> = ({
   const MODAL_WIDTH = showPerUnit ? 520 : 420
   const GAP = 12
   const viewportH = window.innerHeight
-  const approxModalHeight = 560
+  // Until the panel is measured (its first paint), assume a typical height
+  const modalHeight = Math.min(panelHeight ?? 560, viewportH - 2 * VIEWPORT_MARGIN)
 
   // ==========================================================
   // POSITION
@@ -351,10 +366,11 @@ export const StatModal: React.FC<Props> = ({
 
   if (anchorRect) {
     const anchorCenter = anchorRect.top + anchorRect.height / 2
-    top = anchorCenter - approxModalHeight / 2
+    top = anchorCenter - modalHeight / 2
   }
 
-  top = Math.max(16, Math.min(top, viewportH - approxModalHeight - 16))
+  // Beside the row it was opened from, but always whole on screen: near the bottom it moves up so its end meets the bottom edge
+  top = Math.max(VIEWPORT_MARGIN, Math.min(top, viewportH - modalHeight - VIEWPORT_MARGIN))
 
   // ==========================================================
   // FORMAT
@@ -398,16 +414,17 @@ export const StatModal: React.FC<Props> = ({
   return (
     <div
       ref={panelRef}
-      className="fixed z-50 max-h-[80vh] overflow-y-auto bg-surface border border-border rounded-lg shadow-2xl"
+      className="fixed z-50 flex flex-col overflow-hidden bg-surface border border-border rounded-lg shadow-2xl"
       style={{
         width: `${MODAL_WIDTH}px`,
         left: `${left}px`,
         top: `${top}px`,
+        maxHeight: `calc(100vh - ${2 * VIEWPORT_MARGIN}px)`,
       }}
     >
-      {/* HEADER */}
+      {/* HEADER: part of the panel, outside the scrolling body, so the scrollbar starts below it */}
 
-      <div className="sticky top-0 bg-surface z-20 border-b border-border flex items-center justify-between px-4 py-3">
+      <div className="shrink-0 bg-surface border-b border-border flex items-center justify-between px-4 py-3">
         <div className="font-semibold flex items-center gap-2 text-base">
           {data.flag && <span>{data.flag}</span>}
           <span>{data.title}</span>
@@ -434,9 +451,9 @@ export const StatModal: React.FC<Props> = ({
         </button>
       </div>
 
-      {/* BODY */}
+      {/* BODY: the only part that scrolls */}
 
-      <div className="px-3 py-2">
+      <div className="min-h-0 flex-1 overflow-y-auto px-3 py-2">
         {showPerUnit && (
           <div className="flex justify-end pt-1 text-[11px] font-semibold uppercase tracking-wider text-text-muted">
             <span className="w-28 text-right">Total</span>

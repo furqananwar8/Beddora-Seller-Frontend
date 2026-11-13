@@ -17,6 +17,11 @@ export interface ModalProps {
   isOpen: boolean
   onClose: () => void
   title?: string
+  /**
+   * A title area that stays put while the body scrolls, with the close button beside it. Without it the whole modal scrolls
+   * (the close button too).
+   */
+  header?: React.ReactNode
   children: React.ReactNode
   size?: 'sm' | 'md' | 'lg' | 'xl'
   className?: string
@@ -30,6 +35,7 @@ export const Modal: React.FC<ModalProps> = ({
   isOpen,
   onClose,
   title,
+  header,
   children,
   size = 'md',
   className,
@@ -83,6 +89,7 @@ export const Modal: React.FC<ModalProps> = ({
         className={cn(
           'ds-modal',
           sizes[size],
+          header && 'flex flex-col overflow-hidden',
           className
         )}
         onClick={(e) => e.stopPropagation()}
@@ -95,7 +102,8 @@ export const Modal: React.FC<ModalProps> = ({
             <h2 className="text-section-title">{title}</h2>
           </div>
         )}
-        <div className="ds-modal-content">{children}</div>
+        {header && <div className="shrink-0 px-6 pt-4">{header}</div>}
+        <div className={cn('ds-modal-content', header && 'min-h-0 flex-1 overflow-y-auto pt-0')}>{children}</div>
         <button
           type="button"
           onClick={onClose}
