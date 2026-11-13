@@ -16,10 +16,13 @@ export interface SettlementTileStreamParams {
   preset?: string
   startDate?: string
   endDate?: string
+  /** Which screen's cards: the settlement report's (default) or the Profit dashboard's. */
+  source?: 'settlement' | 'dashboard'
 }
 
 const urlOf = (params: SettlementTileStreamParams) => {
-  const query = new URLSearchParams({ reportType: 'settlement-type' })
+  const dashboard = params.source === 'dashboard'
+  const query = new URLSearchParams(dashboard ? {} : { reportType: 'settlement-type' })
   const set = (key: string, value?: string) => value && query.set(key, value)
   set('accountId', params.accountId)
   set('currency', params.currency)
@@ -27,7 +30,7 @@ const urlOf = (params: SettlementTileStreamParams) => {
   set('startDate', params.startDate)
   set('endDate', params.endDate)
   if (params.marketplaces.length) query.set('marketplaces', params.marketplaces.join(','))
-  return `${API_BASE_URL}/profit/settlement-report/summary/stream?${query}`
+  return `${API_BASE_URL}/profit/${dashboard ? 'summary' : 'settlement-report/summary'}/stream?${query}`
 }
 
 /**
