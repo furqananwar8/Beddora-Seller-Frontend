@@ -157,7 +157,7 @@ export const ShipFromPicker: React.FC<ShipFromPickerProps> = ({ value, onChange,
           )}
           {!value && isSuccess && all.length === 0 && (
             <p className="mt-2 text-xs text-slate-600">
-              No address saved yet. Type one manually, or add addresses in Settings. Without one, the INBOUND_SHIP_FROM_* server settings are used.
+              No address saved yet. Add a warehouse with a phone number in Settings, or type one manually.
             </p>
           )}
         </>

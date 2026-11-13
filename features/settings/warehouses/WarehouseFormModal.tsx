@@ -13,11 +13,12 @@ import { serverIssues } from '@/utils/apiErrors'
 interface Values extends AddressValue {
   name: string
   address: string
+  phoneNumber: string
 }
 
 type Errors = Partial<Record<keyof Values, string>>
 
-const EMPTY: Values = { name: '', address: '', country: '', province: '', city: '', postalCode: '' }
+const EMPTY: Values = { name: '', address: '', country: '', province: '', city: '', postalCode: '', phoneNumber: '' }
 
 /** Same rules as the server, which also checks that the state belongs to the country and the city to the state. */
 const schema = z.object({
@@ -27,11 +28,12 @@ const schema = z.object({
   province: z.string(),
   city: z.string().trim().min(1, 'Pick a city'),
   postalCode: z.string().trim().max(12, 'Postal code is too long'),
+  phoneNumber: z.string().trim().max(32, 'Phone number is too long'),
 })
 
 const valuesOf = (warehouse: Warehouse | null): Values =>
   warehouse
-    ? { name: warehouse.name, address: warehouse.address, country: warehouse.country, province: warehouse.province ?? '', city: warehouse.city, postalCode: warehouse.postalCode ?? '' }
+    ? { name: warehouse.name, address: warehouse.address, country: warehouse.country, province: warehouse.province ?? '', city: warehouse.city, postalCode: warehouse.postalCode ?? '', phoneNumber: warehouse.phoneNumber ?? '' }
     : EMPTY
 
 const toBody = (values: Values): WarehouseBody => ({
@@ -41,6 +43,7 @@ const toBody = (values: Values): WarehouseBody => ({
   province: values.province || null,
   city: values.city.trim(),
   postalCode: values.postalCode.trim() || null,
+  phoneNumber: values.phoneNumber.trim() || null,
 })
 
 const toErrors = (issues: Array<{ field: string; message: string }>): Errors => Object.fromEntries(issues.map((issue) => [issue.field, issue.message]))
@@ -120,6 +123,23 @@ export const WarehouseFormModal: React.FC<WarehouseFormModalProps> = ({ editing,
           errors={errors as AddressErrors}
           disabled={saving}
         />
+        <FormField
+          label="Phone"
+          htmlFor="warehouse-form-phone"
+          error={errors.phoneNumber}
+          hint="With a phone and a postal code, this warehouse is offered as the ship-from address on new shipments."
+          className="sm:col-span-2"
+        >
+          <input
+            id="warehouse-form-phone"
+            type="tel"
+            value={values.phoneNumber}
+            onChange={(event) => change({ phoneNumber: event.target.value })}
+            placeholder="+1 416 555 0100"
+            className={fieldClass(errors.phoneNumber)}
+            disabled={saving}
+          />
+        </FormField>
       </div>
       {formError && (
         <p role="alert" className="mt-4 rounded-md border border-danger-200 bg-danger-50 px-3 py-2 text-sm text-danger-700">

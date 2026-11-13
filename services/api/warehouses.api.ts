@@ -14,6 +14,8 @@ export interface Warehouse {
   province: string | null
   city: string
   postalCode: string | null
+  /** Contact phone: with it and a postal code, the warehouse is offered as a ship-from address on shipments. */
+  phoneNumber: string | null
   updatedAt: string
 }
 
