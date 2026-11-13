@@ -6,16 +6,17 @@ import { FloatingMenu } from '@/features/inventory/shipments/ShipmentParts'
 import type { ProductGrouping } from '@/services/api/profit.api'
 import { cn } from '@/utils/cn'
 
+/** The options on offer. "SKU" is no grouping at all: every row is one SKU. */
 const GROUPINGS: { value: ProductGrouping; label: string }[] = [
-  { value: 'none', label: '—' },
-  { value: 'asin', label: 'ASIN' },
   { value: 'parent', label: 'Parent' },
+  { value: 'asin', label: 'ASIN' },
   { value: 'marketplace', label: 'Marketplace' },
   { value: 'brand', label: 'Brand' },
-  { value: 'supplier', label: 'Supplier' },
-  { value: 'channel', label: 'Channel' },
-  { value: 'coupon', label: 'Coupon' },
+  { value: 'none', label: 'SKU' },
 ]
+
+/** Acronyms keep their capitals in the button ("Group by ASIN"). */
+const ACRONYMS = new Set<ProductGrouping>(['asin', 'none'])
 
 interface GroupByMenuProps {
   value: ProductGrouping
@@ -25,9 +26,8 @@ interface GroupByMenuProps {
 }
 
 const buttonLabel = (value: ProductGrouping) => {
-  if (value === 'none') return 'No grouping'
   const label = GROUPINGS.find((grouping) => grouping.value === value)?.label ?? value
-  return `Group by ${value === 'asin' ? label : label.toLowerCase()}`
+  return `Group by ${ACRONYMS.has(value) ? label : label.toLowerCase()}`
 }
 
 /** The products table's "Group by" dropdown: what SKU rows group under, and whether SKUs split by marketplace. */
