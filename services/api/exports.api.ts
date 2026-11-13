@@ -6,6 +6,7 @@ export type ExportFormat = "xlsx" | "csv" | "pdf";
 /** Keys of the reports the API can export (`POST /exports`). */
 export type ExportReport =
   | "profit-by-product"
+  | "profit-by-product-v2"
   | "inventory-planner"
   | "products-cogs"
   | "channel-report-listings"

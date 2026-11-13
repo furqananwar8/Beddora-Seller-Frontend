@@ -506,6 +506,8 @@ export const ProfitDashboardScreen: React.FC = () => {
   }
 
   const { start: startProductExport, isExporting: productExporting } = useReportExport('profit-by-product')
+  // V2: one row per order of each SKU, from the orders' raw transactions
+  const { start: startProductOrdersExport, isExporting: productOrdersExporting } = useReportExport('profit-by-product-v2')
 
   const { data: productData, isFetching: productFetching } = useGetProfitByProductQuery(
     productQueryFilters,
@@ -795,6 +797,13 @@ export const ProfitDashboardScreen: React.FC = () => {
                         onSelect: () => startProductExport('xlsx', productQueryFilters),
                         disabled: !effectiveAccountId || tableView !== 'products' || productExporting,
                         disabledReason: productExporting ? 'An export is being prepared…' : undefined,
+                      },
+                      {
+                        key: 'export-excel-v2',
+                        label: 'Export Transaction Data',
+                        onSelect: () => startProductOrdersExport('xlsx', productQueryFilters),
+                        disabled: !effectiveAccountId || tableView !== 'products' || productOrdersExporting,
+                        disabledReason: productOrdersExporting ? 'An export is being prepared…' : undefined,
                       },
                     ]}
                   />
