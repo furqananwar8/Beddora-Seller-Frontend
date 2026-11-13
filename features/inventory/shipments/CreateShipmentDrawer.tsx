@@ -14,6 +14,7 @@ import { MARKETPLACE_META, getUnassignedUnits, isOpen as isOpenShipment, ofChann
 import { formatUnits, unitsLabel, ChannelChip } from './ShipmentParts'
 import { ShipFromChoice, ShipFromPicker, shipFromRequest } from './ShipFromPicker'
 import { CHANNEL_ORDER, SHIPMENT_CHANNELS } from './channels'
+import { charge, fitUnits, internalHolders, internalRemaining, overbookings } from './bookingCapacity'
 
 /**
  * New shipment, per the "Shipment" canvas design: the channel first (Amazon FBA
@@ -140,6 +141,10 @@ const DrawerPanel: React.FC<Omit<CreateShipmentDrawerProps, 'isOpen'>> = ({
   const { currentData: pool = [], isFetching: poolLoading } = useGetShipmentPoolQuery({ channel, marketplace })
   const channelShipments = useMemo(() => ofChannel(shipments, channel), [shipments, channel])
   const unassigned = useMemo(() => getUnassignedUnits(pool, channelShipments), [pool, channelShipments])
+  // Internal units each internal SKU still has free for new bookings (shared by every channel SKU bound to it)
+  const openShipments = useMemo(() => channelShipments.filter(isOpenShipment), [channelShipments])
+  const remaining = useMemo(() => internalRemaining(pool.flatMap((p) => p.mapping ?? []), openShipments), [pool, openShipments])
+  const holders = useMemo(() => internalHolders(openShipments), [openShipments])
 
   // Planner preselection, applied once the starting channel's pool has loaded
   const [seeded, setSeeded] = useState(initialInternalSkus.length === 0)
@@ -149,10 +154,14 @@ const DrawerPanel: React.FC<Omit<CreateShipmentDrawerProps, 'isOpen'>> = ({
     const wanted = new Set(initialInternalSkus.map((sku) => sku.toUpperCase()))
     const picked = pool.filter((p) => (p.mapping ?? []).some((m) => wanted.has(m.sku.toUpperCase())) && (unassigned[p.productId] ?? 0) > 0 && p.eligible !== false)
     const perCase = Object.fromEntries(picked.map((p) => [p.productId, String(savedUnitsPerCase(p) ?? '')]))
+    // Channel SKUs share their internal SKUs' allocation, so each one gets what the ones before it left over
+    const free = new Map(remaining)
     const quantity = (p: ReservedPoolItem) => {
-      if (!wfs) return String(unassigned[p.productId])
-      const upc = Number(perCase[p.productId]) || 0
-      return upc ? String(Math.floor((unassigned[p.productId] ?? 0) / upc)) : ''
+      const units = fitUnits(p.mapping ?? [], unassigned[p.productId] ?? 0, free)
+      const upc = wfs ? Number(perCase[p.productId]) || 0 : 1
+      const count = upc ? Math.floor(units / upc) : 0
+      charge(free, p.mapping ?? [], count * upc)
+      return wfs && !upc ? '' : String(count)
     }
     patch({ book: Object.fromEntries(picked.map((p) => [p.productId, quantity(p)])), unitsPerCase: perCase })
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -179,8 +188,9 @@ const DrawerPanel: React.FC<Omit<CreateShipmentDrawerProps, 'isOpen'>> = ({
 
   const rows = useMemo<PoolRow[]>(
     () =>
-      pool.map((p) => ({ product: p, available: unassigned[p.productId] ?? 0, held: heldBy(p.productId, channelShipments) })),
-    [pool, unassigned, channelShipments]
+      // Available is the SKU's own figure, capped by what its internal SKUs still have free across every open shipment
+      pool.map((p) => ({ product: p, available: fitUnits(p.mapping ?? [], unassigned[p.productId] ?? 0, remaining), held: heldBy(p.productId, channelShipments) })),
+    [pool, unassigned, remaining, channelShipments]
   )
   // Units typed on one page stay booked while searching or paging
   const search = usePagedSearch(rows, matchesPoolRow, { pageSize: PAGE_SIZE })
@@ -191,7 +201,29 @@ const DrawerPanel: React.FC<Omit<CreateShipmentDrawerProps, 'isOpen'>> = ({
     return wfs ? n * (Number(perCaseOf(p)) || 0) : n
   }
 
+  /** A row is picked once ticked (its quantity box exists, even while empty); unticking drops it from the booking. */
+  const isPicked = (p: ReservedPoolItem) => book[p.productId] !== undefined
+  const toggle = ({ product: p, available }: PoolRow) => {
+    if (isPicked(p)) {
+      const { [p.productId]: _dropped, ...rest } = book
+      return patch({ book: rest })
+    }
+    // Starts at as much as the shared internal allocation still covers after the rows already picked
+    const free = new Map(remaining)
+    for (const other of rows) if (other.product.productId !== p.productId) charge(free, other.product.mapping ?? [], unitsOf(other.product))
+    const units = fitUnits(p.mapping ?? [], available, free)
+    const upc = Number(perCaseOf(p)) || 0
+    const count = wfs ? (upc ? Math.floor(units / upc) : 0) : units
+    patch({ book: { ...book, [p.productId]: count > 0 ? String(count) : '' } })
+  }
+
   const booked = rows.map((r) => ({ ...r, qty: unitsOf(r.product) })).filter((r) => r.qty > 0)
+  const shared = overbookings(
+    booked.map((r) => ({ productId: r.product.productId, sku: r.product.sku, mapping: r.product.mapping ?? [], units: r.qty })),
+    remaining,
+    holders,
+    formatUnits
+  )
   const errors = Object.fromEntries(
     rows
       .map((r) => {
@@ -204,6 +236,7 @@ const DrawerPanel: React.FC<Omit<CreateShipmentDrawerProps, 'isOpen'>> = ({
         }
         const units = unitsOf(r.product)
         if (units > r.available) return [r.product.productId, `Only ${formatUnits(r.available)} available`]
+        if (shared[r.product.productId]) return [r.product.productId, shared[r.product.productId]]
         return null
       })
       .filter((e): e is [string, string] => e !== null)
@@ -244,7 +277,7 @@ const DrawerPanel: React.FC<Omit<CreateShipmentDrawerProps, 'isOpen'>> = ({
     }
   }
 
-  const columns = wfs ? 'grid-cols-[340px_100px_minmax(0,1fr)_100px_110px_280px]' : 'grid-cols-[340px_100px_minmax(0,1fr)_100px_280px]'
+  const columns = wfs ? 'grid-cols-[48px_340px_100px_minmax(240px,1fr)_100px_110px_280px]' : 'grid-cols-[48px_340px_100px_minmax(240px,1fr)_100px_280px]'
 
   return createPortal(
     <div className="fixed inset-0 z-50 overscroll-none" role="dialog" aria-modal="true" aria-labelledby="create-shipment-title">
@@ -382,8 +415,9 @@ const DrawerPanel: React.FC<Omit<CreateShipmentDrawerProps, 'isOpen'>> = ({
           )}
 
           <div className="shrink-0 !rounded-xl border border-slate-200">
-          <div className="overflow-x-auto"><div className="min-w-[1000px]">
+          <div className="overflow-x-auto"><div className="min-w-[1120px]">
             <div className={cn('grid border-b border-slate-200 bg-slate-100 text-xs font-semibold text-slate-700', columns)}>
+              <div className="px-3 py-3" aria-hidden />
               <div className="px-4 py-3">Product</div>
               <div className="px-2 py-3 text-right">{def.program} pool</div>
               <div className="px-4 py-3">Held by other shipments</div>
@@ -400,17 +434,27 @@ const DrawerPanel: React.FC<Omit<CreateShipmentDrawerProps, 'isOpen'>> = ({
               <div className="px-4 py-10 text-center text-sm text-slate-600">No products match “{search.query.trim()}”.</div>
             )}
 
-            {search.pageRows.map(({ product: p, available, held }) => {
+            {search.pageRows.map((row) => {
+              const { product: p, available, held } = row
+              const picked = isPicked(p)
               const blocked = p.eligible === false
               const notice = p.notice
               const full = available === 0 && !notice
               const error = errors[p.productId]
               const units = unitsOf(p)
               return (
-                <div
-                  key={p.productId}
-                  className={cn('grid min-h-[72px] items-center border-b border-slate-100 text-sm last:border-0', columns, full || blocked || notice ? 'bg-slate-50' : 'bg-white')}
-                >
+                <div key={p.productId} className={cn('border-b border-slate-100 last:border-0', error ? 'bg-red-50/60' : full || blocked || notice ? 'bg-slate-50' : 'bg-white')}>
+                <div className={cn('grid min-h-[72px] items-center text-sm', columns)}>
+                  <div className="flex justify-center px-3 py-2.5">
+                    <input
+                      type="checkbox"
+                      checked={picked}
+                      disabled={!!submitting || full || blocked || !!notice}
+                      onChange={() => toggle(row)}
+                      aria-label={`Book ${p.sku}`}
+                      className="h-4 w-4 cursor-pointer accent-slate-900 disabled:cursor-not-allowed"
+                    />
+                  </div>
                   <div className="flex min-w-0 flex-col gap-0.5 px-4 py-2.5">
                     {/* The channel SKU leads (bold), then what it maps to; the title is only a tooltip. Long SKUs wrap instead of being cut off */}
                     <span title={p.title} className={cn('break-all font-mono text-sm font-bold', full || blocked ? 'text-slate-600' : 'text-slate-900')}>
@@ -426,11 +470,25 @@ const DrawerPanel: React.FC<Omit<CreateShipmentDrawerProps, 'isOpen'>> = ({
                     ))}
                   </div>
                   <div className="px-2 py-2.5 text-right">{formatUnits(p.reserved)}</div>
-                  <div className="px-4 py-2.5 text-[13px] text-slate-700">{held}</div>
+                  <div className="px-4 py-2.5 text-[13px] text-slate-700">
+                    {held}
+                    {/* Under it, what those shipments hold in this SKU's own units: the shared internal units divided by the units this SKU takes per sale */}
+                    {(p.mapping ?? []).map((m) => {
+                      const holding = holders.get(m.sku)
+                      if (!holding?.length) return null
+                      const internal = holding.reduce((sum, h) => sum + h.units, 0)
+                      const mine = Math.ceil(internal / m.perUnit)
+                      return (
+                        <span key={m.sku} className="block text-[12px] text-slate-500" title={`${m.sku}: ${holding.map((h) => `${h.reference} ${formatUnits(h.units)}`).join(', ')}`}>
+                          holds {formatUnits(mine)} ({formatUnits(mine)} × {formatUnits(m.perUnit)} = {formatUnits(internal)})
+                        </span>
+                      )
+                    })}
+                  </div>
                   <div className={cn('px-2 py-2.5 text-right font-semibold', full ? 'text-slate-600' : 'text-emerald-800')}>{formatUnits(available)}</div>
                   {wfs && (
                     <div className="px-3 py-2.5">
-                      {!blocked && !full && !notice && (
+                      {picked && !blocked && !full && !notice && (
                         <input
                           type="number"
                           min={1}
@@ -452,6 +510,8 @@ const DrawerPanel: React.FC<Omit<CreateShipmentDrawerProps, 'isOpen'>> = ({
                       <span className="inline-flex rounded bg-amber-50 px-2 py-1 text-[12px] font-medium text-amber-800">{p.blockReason ?? 'Not set up for WFS'}</span>
                     ) : full ? (
                       <span className="text-[13px] text-slate-600">Fully booked</span>
+                    ) : !picked ? (
+                      <span className="text-[13px] text-slate-500">Tick to book</span>
                     ) : (
                       <div className="flex flex-col gap-1">
                         <input
@@ -469,14 +529,17 @@ const DrawerPanel: React.FC<Omit<CreateShipmentDrawerProps, 'isOpen'>> = ({
                             error ? 'border-red-400 focus:ring-red-200' : 'border-slate-300 focus:ring-slate-300'
                           )}
                         />
-                        {error ? (
-                          <span className="text-[11px] text-red-600">{error}</span>
-                        ) : (
-                          wfs && units > 0 && <span className="text-[11px] text-slate-600">{unitsLabel(units)}</span>
-                        )}
+                        {wfs && units > 0 && !error && <span className="text-[11px] text-slate-600">{unitsLabel(units)}</span>}
                       </div>
                     )}
                   </div>
+                </div>
+                {/* The problem gets its own full-width line under the row, so no cell in the row changes height or moves */}
+                {error && (
+                  <p role="alert" className="px-4 pb-2.5 pl-[64px] text-[12px] text-red-700">
+                    {error}
+                  </p>
+                )}
                 </div>
               )
             })}
@@ -506,6 +569,11 @@ const DrawerPanel: React.FC<Omit<CreateShipmentDrawerProps, 'isOpen'>> = ({
         </div>
 
         {/* Footer */}
+        {!submitError && Object.keys(errors).length > 0 && (
+          <div role="alert" className="border-t border-red-200 bg-red-50 px-4 py-2.5 sm:px-8 text-sm text-red-700">
+            {Object.keys(errors).length} picked product{Object.keys(errors).length !== 1 ? 's need' : ' needs'} fixing before you can book. SKUs bound to the same internal SKU share its allocation, so spread the units across them.
+          </div>
+        )}
         {submitError && (
           <div role="alert" className="border-t border-red-200 bg-red-50 px-4 py-2.5 sm:px-8 text-sm text-red-700">
             {submitError}
