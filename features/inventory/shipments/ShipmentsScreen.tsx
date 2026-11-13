@@ -57,6 +57,7 @@ type Dialog =
   | { type: 'labels'; id: string; error?: string }
   | { type: 'ship'; id: string }
   | { type: 'cancel'; id: string }
+  | { type: 'delete'; id: string }
   /** Edit the ship-from address of a shipment that already has an Amazon plan. */
   | { type: 'shipFrom'; id: string }
   /** Confirm going back; cancelling returns to the dialog it came from. */
@@ -111,6 +112,7 @@ export const ShipmentsScreen: React.FC = () => {
     getShipRequirements,
     markShipped,
     cancelShipment,
+    deleteShipment,
   } = useShipments()
 
   const labelFormats = useLabelFormatState(labelFormatCatalog)
@@ -187,7 +189,7 @@ export const ShipmentsScreen: React.FC = () => {
   /** Like closeIfCurrent, but cancelling drops back to the dialog the user came from. */
   const closeTo = (current: Dialog, resume: Dialog) => () =>
     setUi((prev) => (JSON.stringify(prev.dialog) === JSON.stringify(current) ? { ...prev, dialog: resume } : prev))
-  const dialogId = (type: 'options' | 'packing' | 'carrier' | 'ship' | 'cancel' | 'shipFrom') =>
+  const dialogId = (type: 'options' | 'packing' | 'carrier' | 'ship' | 'cancel' | 'delete' | 'shipFrom') =>
     dialog && dialog.type === type ? dialog.id : null
 
   // Deep link from Planner: /shipments?create=1&skus=INTERNAL-SKU-1,INTERNAL-SKU-2[&channel=walmart_wfs]
@@ -478,6 +480,7 @@ export const ShipmentsScreen: React.FC = () => {
   }
 
   const cancelTarget = byId(dialogId('cancel'))
+  const deleteTarget = byId(dialogId('delete'))
   const shippingTarget = byId(dialogId('ship'))
   const packingTarget = byId(dialogId('packing'))
   const carrierTarget = byId(dialogId('carrier'))
@@ -697,6 +700,7 @@ export const ShipmentsScreen: React.FC = () => {
                       }
                       onAction={(action) => handleAction(s.id, action)}
                       onCancel={() => openDialog({ type: 'cancel', id: s.id })}
+                      onDelete={() => openDialog({ type: 'delete', id: s.id })}
                       onScanItems={canScan ? () => scanItems.open({ scenario: 'FBA_WFS', sourceId: String(s.id) }) : undefined}
                       onGoBack={(to) => handleBack(s.id, to)}
                       onDownloadLabel={(type) => handleDownloadLabel(s.id, type)}
@@ -831,6 +835,16 @@ export const ShipmentsScreen: React.FC = () => {
         onConfirm={() =>
           run(() => cancelShipment(cancelTarget!.id), `${cancelTarget?.reference} cancelled`, 'Could not cancel shipment')
         }
+      />
+
+      <ConfirmModal
+        isOpen={!!deleteTarget}
+        title={`Delete ${deleteTarget?.reference ?? ''}?`}
+        message="This removes the cancelled shipment and its products from your list for good. It can't be undone."
+        confirmLabel="Delete shipment"
+        variant="danger"
+        onClose={closeDialog}
+        onConfirm={() => run(() => deleteShipment(deleteTarget!.id), `${deleteTarget?.reference} deleted`, 'Could not delete shipment')}
       />
     </Container>
     </LabelFormatProvider>

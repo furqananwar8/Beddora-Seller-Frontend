@@ -8,6 +8,7 @@ import {
   RewindResponse,
   RewindTarget,
   useCancelShipmentMutation,
+  useDeleteShipmentMutation,
   useConfirmShipmentOptionsMutation,
   useRewindShipmentMutation,
   useSubmitShipmentCarrierMutation,
@@ -96,6 +97,7 @@ export interface ShipmentsController {
   getShipRequirements: (id: string) => Promise<ShipLegRequirement[]>
   markShipped: (id: string, tracking?: ShipTrackingInput[]) => Promise<InboundShipment>
   cancelShipment: (id: string) => Promise<InboundShipment>
+  deleteShipment: (id: string) => Promise<void>
   sync: () => Promise<void>
 }
 
@@ -204,6 +206,7 @@ export const useShipments = (): ShipmentsController => {
   const [create] = useCreateShipmentMutation()
   const [updateItems] = useUpdateShipmentItemsMutation()
   const [cancel] = useCancelShipmentMutation()
+  const [remove] = useDeleteShipmentMutation()
   const [ship] = useMarkShipmentShippedMutation()
   const [shipRequirements] = useGetShipRequirementsMutation()
   const [updateShipFrom] = useUpdateShipmentShipFromMutation()
@@ -329,6 +332,8 @@ export const useShipments = (): ShipmentsController => {
 
   const cancelShipment = useCallback((id: string) => call(cancel(id), 'Could not cancel the shipment'), [cancel])
 
+  const deleteShipment = useCallback((id: string) => call(remove(id), 'Could not delete the shipment').then(() => undefined), [remove])
+
   const sync = useCallback(async () => {
     await call(syncAll(), 'Sync failed')
     setLastSyncedAt(new Date().toISOString())
@@ -366,6 +371,7 @@ export const useShipments = (): ShipmentsController => {
     setShipFrom,
     getShipRequirements,
     cancelShipment,
+    deleteShipment,
     sync,
   }
 }

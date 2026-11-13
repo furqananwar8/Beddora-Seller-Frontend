@@ -65,6 +65,7 @@ interface ShipmentRowProps {
   onChangeShipFrom: (choice: ShipFromRequest) => Promise<unknown>
   onAction: (action: NextAction) => Promise<void> | void
   onCancel: () => void
+  onDelete: () => void
   /** Opens the Scan items dialog (In or Out) for this shipment; omitted when the user can't scan. */
   onScanItems?: () => void
   /** Redo a completed step from the stepper. */
@@ -88,6 +89,7 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({
   onChangeShipFrom,
   onAction,
   onCancel,
+  onDelete,
   onScanItems,
   onGoBack,
   onDownloadLabel,
@@ -359,6 +361,11 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({
                 >
                   Cancel shipment
                 </MenuItem>
+                {shipment.status === 'cancelled' && (
+                  <MenuItem danger onClick={() => { setIsMenuOpen(false); onDelete() }}>
+                    Delete shipment
+                  </MenuItem>
+                )}
           </FloatingMenu>
         </TableCell>
       </TableRow>

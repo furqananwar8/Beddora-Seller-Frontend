@@ -166,6 +166,12 @@ export const inboundShipmentsApi = baseApi.injectEndpoints({
       invalidatesTags: ['InboundShipments', 'Inventory'],
     }),
 
+    /** Deletes a cancelled shipment for good. */
+    deleteShipment: builder.mutation<void, string>({
+      query: (id) => ({ url: `/inventory/shipments/${id}`, method: 'DELETE' }),
+      invalidatesTags: ['InboundShipments'],
+    }),
+
     /** Changes where a draft ships from (drafts only; a plan sent to Amazon keeps its address). */
     updateShipmentShipFrom: builder.mutation<
       InboundShipment,
@@ -279,6 +285,7 @@ export const {
   useCreateShipmentMutation,
   useUpdateShipmentItemsMutation,
   useCancelShipmentMutation,
+  useDeleteShipmentMutation,
   useMarkShipmentShippedMutation,
   useUpdateShipmentShipFromMutation,
   useGetShipRequirementsMutation,
