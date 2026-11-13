@@ -140,11 +140,12 @@ export function ProductIdentityCell({ product, isChild = false, isExpanded = fal
       <div className="text-xs text-text-muted">{product.children?.length ?? 0} products</div>
     </div>
   ) : (
-    <div className={`min-w-0 flex-1 ${fullSku ? 'max-w-[460px]' : fbaStockLink ? 'max-w-[280px]' : 'max-w-[220px]'}`}>
-      <div className={`text-xs text-text-muted mb-1 flex gap-1.5 ${fullSku ? 'items-start' : 'truncate items-center'}`}>
+    <div className={`min-w-0 flex-1 ${fullSku ? 'max-w-[460px] overflow-hidden' : fbaStockLink ? 'max-w-[280px]' : 'max-w-[220px]'}`}>
+      <div className="text-xs text-text-muted mb-1 flex gap-1.5 items-center truncate">
         <MarketplaceFlag marketplace={product.marketplace} />
         {fullSku ? (
-          <span className="min-w-0 break-all">
+          // One line that follows the column's width, with the whole SKU on hover (the column can be dragged narrower)
+          <span className="min-w-0 truncate" title={product.sku}>
             <AmazonLink asin={product.asin} marketplace={product.marketplace}>{product.sku}</AmazonLink>
           </span>
         ) : (
@@ -225,7 +226,7 @@ export function ProductIdentityCell({ product, isChild = false, isExpanded = fal
   )
 
   const identity = (
-    <div className="flex items-start gap-3 min-w-[280px]">
+    <div className={`flex items-start gap-3 ${fullSku ? 'min-w-0 flex-1' : 'min-w-[280px]'}`}>
       <div
         className={`w-12 h-12 rounded flex items-center justify-center flex-shrink-0 overflow-hidden ${
           product.imageUrl ? '' : 'bg-surface-secondary'
@@ -259,6 +260,7 @@ export function ProductIdentityCell({ product, isChild = false, isExpanded = fal
       className={`
         flex items-start
         ${isChild ? 'pl-7' : ''}
+        ${fullSku ? 'min-w-0' : ''}
       `}
     >
       {/* A child row expands too when it has rows of its own (e.g. a product's listings under a parent) */}
@@ -288,7 +290,7 @@ export function ProductIdentityCell({ product, isChild = false, isExpanded = fal
       )}
 
       {titleInTooltip && product.productTitle && !product.groupLabel ? (
-        <Tooltip content={product.productTitle} side="bottom" multiline>
+        <Tooltip content={product.productTitle} side="bottom" multiline className={fullSku ? 'min-w-0 flex-1' : undefined}>
           {identity}
         </Tooltip>
       ) : (

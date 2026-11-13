@@ -7,6 +7,8 @@ import { MarketplaceFlag } from '@/components/marketplace-flag/MarketPlaceFlag'
 import { Table, TABLE_STATUS_VIEWPORT, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow, TableStatusRow } from '@/design-system/tables'
 import type { AgingSortColumn, InventoryAgingReport, InventoryAgingRow, SortOrder } from '@/services/api/inventoryAging.api'
 import { cn } from '@/utils/cn'
+import { useColumnResize } from '@/hooks/useColumnResize'
+import { ColumnResizeHandle, columnWidthStyle, fillRemainingWidth } from '@/components/column-resize-handle/ColumnResizeHandle'
 
 /** Every body cell is centred both ways. */
 const CELL = 'text-center align-middle'
@@ -34,15 +36,16 @@ interface SortableHeadProps {
   sort: InventoryAgingTableProps['sort']
   onSort: InventoryAgingTableProps['onSort']
   className?: string
+  style?: React.CSSProperties
   title?: string
   children: React.ReactNode
 }
 
 /** A header that orders the whole report by its column: highest first, then lowest first. */
-const SortableHead: React.FC<SortableHeadProps> = ({ column, sort, onSort, className, title, children }) => {
+const SortableHead: React.FC<SortableHeadProps> = ({ column, sort, onSort, className, style, title, children }) => {
   const active = sort?.column === column
   return (
-    <TableHead className={cn('text-center', className)} title={title} aria-sort={active ? (sort.order === 'desc' ? 'descending' : 'ascending') : 'none'}>
+    <TableHead className={cn('text-center', className)} style={style} title={title} aria-sort={active ? (sort.order === 'desc' ? 'descending' : 'ascending') : 'none'}>
       <button type="button" onClick={() => onSort(column)} className="group inline-flex items-center justify-center gap-1.5 whitespace-nowrap uppercase hover:text-text-primary">
         {children}
         {!active ? (
@@ -60,6 +63,9 @@ const SortableHead: React.FC<SortableHeadProps> = ({ column, sort, onSort, class
 /** One row per seller SKU and marketplace: units by how long they have sat at Amazon, beside what is sellable and what is reserved. */
 export const InventoryAgingTable: React.FC<InventoryAgingTableProps> = ({ report, isLoading, isError, sort, onSort }) => {
   const scroll = useScrollbarBelowHeader<HTMLDivElement>()
+  // The frozen SKU column: drag the handle on its right edge to widen or narrow it
+  const skuColumn = useColumnResize({ initial: 256, min: 180, max: 640, storageKey: 'inventory-aging-sku-column-width' })
+  const skuStyle = columnWidthStyle(skuColumn.width)
   const buckets = report?.buckets ?? []
   const columns = IDENTITY_COLUMNS + buckets.length
   const rows: InventoryAgingRow[] = report?.data ?? []
@@ -78,7 +84,10 @@ export const InventoryAgingTable: React.FC<InventoryAgingTableProps> = ({ report
             </TableRow>
             <TableRow>
               {/* sticky-corner (globals.css) lifts it above the other header cells, which slide under it */}
-              <TableHead className={cn(STICKY, 'sticky-corner min-w-[16rem] text-center')}>SKU</TableHead>
+              <TableHead className={cn(STICKY, 'sticky-corner text-center')} style={skuStyle}>
+                SKU
+                <ColumnResizeHandle resize={skuColumn} column="SKU" />
+              </TableHead>
               <TableHead className="min-w-[8rem] text-center">ASIN</TableHead>
               <SortableHead column="available" sort={sort} onSort={onSort} className="min-w-[6rem]">
                 Available
@@ -86,8 +95,8 @@ export const InventoryAgingTable: React.FC<InventoryAgingTableProps> = ({ report
               <SortableHead column="reserved" sort={sort} onSort={onSort} className="min-w-[6rem]" title="Held for customer orders, FC transfers or processing: counted in the age columns, not in Available">
                 Reserved
               </SortableHead>
-              {buckets.map((bucket) => (
-                <SortableHead key={bucket.key} column={bucket.key} sort={sort} onSort={onSort} className="min-w-[6.5rem]">
+              {buckets.map((bucket, index) => (
+                <SortableHead key={bucket.key} column={bucket.key} sort={sort} onSort={onSort} className="min-w-[6.5rem]" style={index === buckets.length - 1 ? fillRemainingWidth : undefined}>
                   {bucket.label}
                 </SortableHead>
               ))}
@@ -107,12 +116,13 @@ export const InventoryAgingTable: React.FC<InventoryAgingTableProps> = ({ report
             ) : (
               rows.map((row) => (
                 <TableRow key={`${row.marketplace}:${row.sellerSku}`}>
-                  <TableCell className={cn(STICKY, 'text-left align-middle')}>
-                    <div className="flex items-start gap-2">
+                  <TableCell className={cn(STICKY, 'text-left align-middle')} style={skuStyle}>
+                    {/* w-0 + min-w-full: fills the cell without its single-line SKU counting toward how narrow the column can get */}
+                    <div className="flex w-0 min-w-full items-start gap-2">
                       <MarketplaceFlag marketplace={row.marketplace} />
-                      <div>
-                        <p className="font-mono text-xs font-semibold text-text-primary">{row.sellerSku}</p>
-                        {row.productName && <p className="line-clamp-2 text-xs text-text-secondary">{row.productName}</p>}
+                      <div className="min-w-0 flex-1 overflow-hidden">
+                        <p className="truncate font-mono text-xs font-semibold text-text-primary" title={row.sellerSku}>{row.sellerSku}</p>
+                        {row.productName && <p className="line-clamp-2 break-words text-xs text-text-secondary">{row.productName}</p>}
                       </div>
                     </div>
                   </TableCell>
@@ -134,7 +144,7 @@ export const InventoryAgingTable: React.FC<InventoryAgingTableProps> = ({ report
           {report?.snapshotDate && rows.length > 0 && (
             <TableFooter>
               <TableRow className="border-t-2 border-border bg-secondary-100 [&>td]:bg-secondary-100">
-                <TableCell className={cn(STICKY, 'bg-secondary-100 text-left font-semibold')}>Total · {report.totalRecords.toLocaleString()} listings</TableCell>
+                <TableCell className={cn(STICKY, 'bg-secondary-100 text-left font-semibold')} style={skuStyle}>Total · {report.totalRecords.toLocaleString()} listings</TableCell>
                 <TableCell />
                 <TableCell className={cn(NUM, 'font-semibold')}>{report.totals.available.toLocaleString()}</TableCell>
                 <TableCell className={cn(NUM, 'font-semibold')}>{report.totals.reserved.toLocaleString()}</TableCell>
