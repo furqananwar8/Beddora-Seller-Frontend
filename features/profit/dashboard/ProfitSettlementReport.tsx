@@ -32,8 +32,9 @@ import {
   useGetProfitByOrderItemsQuery,
   PeriodSummary,
   PeriodSummaryPeriod,
-  useGetSettlementReportSummaryQuery,
 } from '@/services/api/profit.api'
+
+import { useSettlementTileStream } from './useSettlementTileStream'
 
 import { SellerboardProductsTable } from './SellerboardProductsTable'
 import { OrderItemsTable } from './OrderItemsTable'
@@ -301,70 +302,27 @@ export const ProfitSettlementReport: React.FC = () => {
   // Instead we validate the tile inside handleApplyTileFilters.
 
   // ──────────────────────────────
-  // Profit summary — standard presets
+  // Period cards: streamed, each one as soon as the server has built it
   // ──────────────────────────────
 
-  const {
-    data: profitData,
-    isFetching: profitFetching,
-    refetch: refetchProfit,
-  } = useGetSettlementReportSummaryQuery(
-    {
-      accountId: effectiveAccountId,
-      marketplaces: appliedMarketplaces.length ? appliedMarketplaces : ALL_MARKETPLACES,
-      currency: appliedCurrency,
-      preset: appliedPresetId !== 'custom' ? appliedPresetId : undefined,
-    } as any,
-    {
-      skip: !effectiveAccountId || appliedPresetId === 'custom',
-    },
+  const isCustomRange = appliedPresetId === 'custom'
+  const cardStream = useSettlementTileStream(
+    !effectiveAccountId || (isCustomRange && !appliedCustomTileRange)
+      ? null
+      : {
+          accountId: effectiveAccountId,
+          marketplaces: appliedMarketplaces.length ? appliedMarketplaces : ALL_MARKETPLACES,
+          currency: appliedCurrency,
+          ...(isCustomRange ? { startDate: appliedCustomTileRange?.startDate, endDate: appliedCustomTileRange?.endDate } : { preset: appliedPresetId }),
+        }
   )
-
-  // ──────────────────────────────
-  // Profit summary — custom range
-  // ──────────────────────────────
-
-  const {
-    data: customSummaryData,
-    isFetching: customSummaryFetching,
-    refetch: refetchCustomSummary,
-  } = useGetSettlementReportSummaryQuery(
-    {
-      accountId: effectiveAccountId,
-      marketplaces: appliedMarketplaces.length ? appliedMarketplaces : ALL_MARKETPLACES,
-      currency: appliedCurrency,
-      startDate: appliedCustomTileRange?.startDate,
-      endDate: appliedCustomTileRange?.endDate,
-    } as any,
-    {
-      skip:
-        !effectiveAccountId ||
-        appliedPresetId !== 'custom' ||
-        !appliedCustomTileRange,
-    },
-  )
-
-  const isFetchingActive = appliedPresetId === 'custom' ? customSummaryFetching : profitFetching
+  const isFetchingActive = cardStream.isFetching
 
   // ──────────────────────────────
   // Period map
   // ──────────────────────────────
 
-  const periodMap = useMemo(() => {
-    if (appliedPresetId === 'custom') {
-      const map = new Map<PeriodSummaryPeriod, PeriodSummary>()
-      if (customSummaryData) {
-        const raw: any = customSummaryData
-        const single = Array.isArray(raw?.periods) ? raw.periods[0] : raw
-        if (single) map.set('CUSTOM' as PeriodSummaryPeriod, single)
-      }
-      return map
-    }
-
-    if (!profitData?.periods) return new Map<PeriodSummaryPeriod, PeriodSummary>()
-
-    return new Map(profitData.periods.map((period: any) => [period.period, period]))
-  }, [profitData, appliedPresetId, customSummaryData])
+  const periodMap = cardStream.tiles
 
   // ──────────────────────────────
   // Tile detail data
@@ -464,7 +422,8 @@ export const ProfitSettlementReport: React.FC = () => {
         realACOS: Number(period?.realACOS ?? 0),
         roi: Number(period?.roi ?? 0),
         refundPercentage: Number(period?.refundPercentage ?? 0),
-        isFetching: isFetchingActive,
+        // Each card waits only for itself: it shows as soon as its own tile has arrived
+        isFetching: isFetchingActive && !period,
       }
     })
   }, [currentPreset, periodMap, isFetchingActive])
@@ -647,13 +606,7 @@ export const ProfitSettlementReport: React.FC = () => {
   // Reload (tiles)
   // ──────────────────────────────
 
-  const handleReload = useCallback(() => {
-    if (appliedPresetId === 'custom') {
-      refetchCustomSummary()
-    } else {
-      refetchProfit()
-    }
-  }, [appliedPresetId, refetchProfit, refetchCustomSummary])
+  const handleReload = cardStream.reload
 
   // ──────────────────────────────
   // Render
