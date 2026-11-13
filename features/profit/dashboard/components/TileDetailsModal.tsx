@@ -305,14 +305,18 @@ export const TileDetailsModal: React.FC<TileDetailsModalProps> = ({
 
   if (!data) return null
 
+  // Fixed above the scrolling body, so the close button and the title stay in view
+  const header = (
+    <div className="px-6 py-4 border-b border-border">
+      <div className="text-lg font-semibold line-clamp-2 pr-8" title={periodLabel}>{periodLabel}</div>
+      <div className="text-sm text-text-muted mt-1">{dateRange}</div>
+      {headerExtra}
+    </div>
+  )
+
   if (renderBody) {
     return (
-      <Modal isOpen={isOpen} onClose={onClose}>
-        <div className="px-6 py-4 border-b border-border sticky top-0 bg-surface z-20">
-          <div className="text-lg font-semibold line-clamp-2 pr-8" title={periodLabel}>{periodLabel}</div>
-          <div className="text-sm text-text-muted mt-1">{dateRange}</div>
-          {headerExtra}
-        </div>
+      <Modal isOpen={isOpen} onClose={onClose} header={header}>
         <div className="px-6 py-4 relative">{renderBody(data)}</div>
       </Modal>
     )
@@ -337,6 +341,8 @@ export const TileDetailsModal: React.FC<TileDetailsModalProps> = ({
   const totalCOGS = Number(data.totalCOGS ?? 0)
   const totalExpenses = Number(data.totalExpenses ?? 0)
   const advertisingCost = Number(data.advertisingCost ?? 0)
+  // Only the settlement report's cards carry it; elsewhere the two ad-sales rows are left out
+  const advertisingSales: number | null = data.advertisingSales === undefined || data.advertisingSales === null ? null : Number(data.advertisingSales)
   const totalPromo = Number(data.totalPromo ?? 0)
   const unitsSold = Number(data.ordersUnitCount ?? 0)
   const refundCount = Number(data.totalRefundsCount ?? 0)
@@ -450,6 +456,18 @@ export const TileDetailsModal: React.FC<TileDetailsModalProps> = ({
       value: formatPercentage(salesRevenue ? (Math.abs(advertisingCost) / salesRevenue) * 100 : 0),
       expandable: false,
     },
+    ...(advertisingSales === null
+      ? []
+      : [
+          { key: 'ads-spend-sales', label: 'Ads spend sales', value: formatCurrency(advertisingSales, displayCurrency), expandable: false },
+          {
+            key: 'acos',
+            label: 'ACOS',
+            // Ad spend against only the sales the ads brought; none, no ACOS
+            value: advertisingSales > 0 ? formatPercentage((Math.abs(advertisingCost) / advertisingSales) * 100) : '—',
+            expandable: false,
+          },
+        ]),
     {
       key: 'roi',
       label: 'ROI',
@@ -471,13 +489,7 @@ export const TileDetailsModal: React.FC<TileDetailsModalProps> = ({
   ]
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose}>
-      <div className="px-6 py-4 border-b border-border sticky top-0 bg-surface z-20">
-        <div className="text-lg font-semibold line-clamp-2 pr-8" title={periodLabel}>{periodLabel}</div>
-        <div className="text-sm text-text-muted mt-1">{dateRange}</div>
-        {headerExtra}
-      </div>
-
+    <Modal isOpen={isOpen} onClose={onClose} header={header}>
       <div className="px-6 py-4 relative">
         <div className="space-y-0">
           {metrics.filter((metric) => !hiddenMetrics?.includes(metric.key)).map((metric) => (

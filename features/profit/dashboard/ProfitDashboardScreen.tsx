@@ -418,6 +418,7 @@ export const ProfitDashboardScreen: React.FC = () => {
         ordersUnitCount: Number(apiPeriod.ordersUnitCount ?? 0),
         totalPromo: Number(apiPeriod.totalPromo ?? 0),
         advertisingCost: Number(apiPeriod.advertisingCost ?? 0),
+        advertisingSales: Number(apiPeriod.advertisingSales ?? 0),
         advertisingDetails: {
           sponsoredProducts: Number(apiPeriod.advertisingDetails?.sponsoredProducts ?? 0),
           sponsoredBrandsVideo: Number(apiPeriod.advertisingDetails?.sponsoredBrandsVideo ?? 0),
@@ -488,6 +489,7 @@ export const ProfitDashboardScreen: React.FC = () => {
         totalExpenses: Number(period?.totalExpenses ?? 0),
         totalPromo: Number(period?.totalPromo ?? 0),
         advertisingCost: Number(period?.advertisingCost ?? 0),
+        advertisingSales: Number(period?.advertisingSales ?? 0),
         grossProfit: Number(period?.grossProfit ?? 0),
         estimatedPayout: Number(period?.estimatedPayout ?? 0),
         estimatedStorageFee: Number(period?.estimatedStorageFee ?? 0),

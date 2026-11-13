@@ -32,6 +32,8 @@ import { RefundReasonsPopover, type RefundReasonsScope } from './components/Refu
 import { FbaStockPopover } from './components/FbaStockPopover'
 import { useGetFbaStockQuery, type FbaStockSummary } from '@/services/api/inventoryPlanner.api'
 import { cn } from '@/utils/cn'
+import { useColumnResize } from '@/hooks/useColumnResize'
+import { ColumnResizeHandle, columnWidthStyle } from '@/components/column-resize-handle/ColumnResizeHandle'
 import { lossTone, profitTone } from '@/utils/profitTone'
 
 /* ──────────────────────────────────────────────────────
@@ -108,7 +110,9 @@ type BuiltInSortColumn =
   | 'bsr'
   | 'storageFee'
   | 'netAfterStorage'
+  | 'adSales'
   | 'tacos'
+  | 'acos'
 
 type SortDirection = 'asc' | 'desc'
 
@@ -125,6 +129,9 @@ const netAfterStorageOf = (product: ProductProfitBreakdown) => (product.netProfi
 
 /** Ads as a percentage of sales. */
 const tacosOf = (product: ProductProfitBreakdown) => (product.salesRevenue ? (Math.abs(product.advertisingCost || 0) / product.salesRevenue) * 100 : 0)
+
+/** Ad spend as a percentage of the sales Amazon attributes to those ads; null while there are no ad sales to divide by. */
+const acosOf = (product: ProductProfitBreakdown) => (product.advertisingSales ? (Math.abs(product.advertisingCost || 0) / product.advertisingSales) * 100 : null)
 
 /* ──────────────────────────────────────────────────────
  * Tooltip Information Map
@@ -218,6 +225,16 @@ const COLUMN_TOOLTIPS: Record<
     title: 'Total Advertising Cost of Sales (TACOS)',
     formula: '(Ads / Sales Revenue) × 100',
     note: 'Share of sales spent on advertising.',
+  },
+  adSales: {
+    title: 'Ads Spend Sales',
+    formula: 'Sales Amazon attributes to the ads (14-day)',
+    note: 'Sales that came through advertising: the figure ACOS divides the ad spend by.',
+  },
+  acos: {
+    title: 'Advertising Cost of Sales (ACOS)',
+    formula: '(Ads / Ad Sales) × 100',
+    note: 'Ad spend against only the sales Amazon attributes to the ads (14-day). Empty when the product had no ad sales.',
   },
   info: {
     title: 'Detailed Financial Audit',
@@ -502,6 +519,9 @@ export const SellerboardProductsTable: React.FC<
     const [currentPage, setCurrentPage] = useState(1)
     const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
     const itemsPerPage = pageSize
+    // The frozen Product column: drag the handle on its right edge to widen or narrow it (300 is the least its image and SKU need)
+    const productColumn = useColumnResize({ initial: 360, min: 300, max: 760, storageKey: 'profit-products-name-column-width' })
+    const productColumnStyle = columnWidthStyle(productColumn.width)
     const rowKeyOf = (row: any): string => (getRowKey ? getRowKey(row) : row.sku)
 
     // Preserve previous products so search refetches don't drop data to undefined
@@ -674,9 +694,18 @@ export const SellerboardProductsTable: React.FC<
             aVal = netAfterStorageOf(a)
             bVal = netAfterStorageOf(b)
             break
+          case 'adSales':
+            aVal = a.advertisingSales || 0
+            bVal = b.advertisingSales || 0
+            break
           case 'tacos':
             aVal = tacosOf(a)
             bVal = tacosOf(b)
+            break
+          case 'acos':
+            // No ad sales has no ACOS: those rows sort below every real figure
+            aVal = acosOf(a) ?? -Infinity
+            bVal = acosOf(b) ?? -Infinity
             break
         }
 
@@ -778,7 +807,7 @@ export const SellerboardProductsTable: React.FC<
                 other columns pass under it; it follows the row's hover colour */}
             <TableCell
               // Inline rather than the `sticky` class: the global `td.sticky` rule would lift it to the header's level (z-20)
-              style={{ position: 'sticky', left: 0, zIndex: 10 }}
+              style={{ position: 'sticky', left: 0, zIndex: 10, ...productColumnStyle }}
               // Solid white for parents and children alike (surface-secondary is not a colour in the theme, so it painted nothing and
               // the columns scrolling underneath showed through); hover uses an opaque shade for the same reason
               // Only the right edge takes the full-strength colour: `border-border` would also recolour the bottom edge, so the row's line looked stronger under this cell than under the rest
@@ -876,6 +905,11 @@ export const SellerboardProductsTable: React.FC<
               {formatCurrency(netAfterStorageOf(product))}
             </TableCell>
 
+            {/* Ads Spend Sales: sales Amazon attributes to the ads */}
+            <TableCell className="text-right whitespace-nowrap px-4 py-3">
+              {formatCurrency(product.advertisingSales || 0)}
+            </TableCell>
+
             {/* Margin */}
             <TableCell className={`text-right whitespace-nowrap px-4 py-3 ${lossTone(product.margin)}`}>
               {formatPercentage(product.margin || 0)}
@@ -884,6 +918,11 @@ export const SellerboardProductsTable: React.FC<
             {/* TACOS */}
             <TableCell className="text-right whitespace-nowrap px-4 py-3">
               {formatPercentage(tacosOf(product))}
+            </TableCell>
+
+            {/* ACOS */}
+            <TableCell className="text-right whitespace-nowrap px-4 py-3">
+              {acosOf(product) === null ? <span className="text-text-muted">—</span> : formatPercentage(acosOf(product) as number)}
             </TableCell>
 
             {/* ROI */}
@@ -1027,7 +1066,8 @@ export const SellerboardProductsTable: React.FC<
                     Every sticky header is forced to z-30 by a global rule, so this one is lifted above them (else the next
                     headers, later in the DOM, paint over it) */}
                 <TableHead
-                  className="!max-w-none sticky left-0 top-0 [&&&&]:!z-40 bg-surface group cursor-pointer hover:bg-surface-secondary text-left min-w-[560px] py-3 px-4 border-b border-r border-border align-middle"
+                  className="!max-w-none sticky left-0 top-0 [&&&&]:!z-40 bg-surface group cursor-pointer hover:bg-surface-secondary text-left py-3 px-4 border-b border-r border-border align-middle"
+                  style={productColumnStyle}
                   onClick={() => handleSort('name')}
                 >
                   <div className="flex items-center justify-start gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
@@ -1035,6 +1075,7 @@ export const SellerboardProductsTable: React.FC<
                     <SortIcon column="name" />
                   </div>
                   <HeaderTooltip columnKey="name" />
+                  <ColumnResizeHandle resize={productColumn} column="Product" />
                 </TableHead>
 
                 {/* Sales Column */}
@@ -1181,6 +1222,18 @@ export const SellerboardProductsTable: React.FC<
                   <HeaderTooltip columnKey="netAfterStorage" />
                 </TableHead>
 
+                {/* Ads Spend Sales Column */}
+                <TableHead
+                  className="!max-w-none sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[150px] py-3 px-4 border-b border-border align-middle"
+                  onClick={() => handleSort('adSales')}
+                >
+                  <div className="flex items-center justify-end gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
+                    <span>Ads Spend Sales</span>
+                    <SortIcon column="adSales" />
+                  </div>
+                  <HeaderTooltip columnKey="adSales" />
+                </TableHead>
+
                 {/* Margin Column */}
                 <TableHead
                   className="!max-w-none sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[110px] py-3 px-4 border-b border-border align-middle"
@@ -1203,6 +1256,18 @@ export const SellerboardProductsTable: React.FC<
                     <SortIcon column="tacos" />
                   </div>
                   <HeaderTooltip columnKey="tacos" />
+                </TableHead>
+
+                {/* ACOS Column */}
+                <TableHead
+                  className="!max-w-none sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-right min-w-[100px] py-3 px-4 border-b border-border align-middle"
+                  onClick={() => handleSort('acos')}
+                >
+                  <div className="flex items-center justify-end gap-1 font-semibold text-xs tracking-wider uppercase whitespace-nowrap">
+                    <span>ACOS</span>
+                    <SortIcon column="acos" />
+                  </div>
+                  <HeaderTooltip columnKey="acos" />
                 </TableHead>
 
                 {/* ROI Column */}

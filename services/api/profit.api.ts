@@ -65,6 +65,8 @@ export interface ProfitSummary {
     }
 
     advertisingCost?: number
+    /** Sales Amazon attributes to the ads (14-day); ACOS = advertisingCost / this. */
+    advertisingSales?: number
     advertisingDetails?: {
       sponsoredProducts: number
       sponsoredBrandsVideo: number
@@ -121,6 +123,8 @@ export interface ProductProfitBreakdown {
 
   // Ads
   advertisingCost: number
+  /** Sales Amazon attributes to the ads (14-day), per SKU; ACOS = ads / this. */
+  advertisingSales?: number
 
   // Amazon fees
   totalFees: number
