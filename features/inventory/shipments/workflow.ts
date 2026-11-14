@@ -6,6 +6,7 @@ import {
   ReservedPoolItem,
   ShipmentChannel,
   ShipmentStatus,
+  WarehouseStatus,
 } from './types'
 import { FBA_CHANNEL, NextAction, NextActionDef, WorkflowStep, channelIdOf, channelOf } from './channels'
 
@@ -128,6 +129,25 @@ export const STATUS_META: Record<
     label: 'Cancelled',
     className: 'bg-secondary-100 text-secondary-600 border-secondary-200',
     dotClassName: 'bg-secondary-400',
+  },
+}
+
+/** Our own status; `pending` has no badge (the partner status already says the shipment is in progress). */
+export const WAREHOUSE_STATUS_META: Record<
+  Exclude<WarehouseStatus, 'pending'>,
+  { label: string; hint: string; className: string; dotClassName: string }
+> = {
+  booked: {
+    label: 'Booked',
+    hint: 'Confirmed with the partner. Scan the units out when they leave the warehouse.',
+    className: 'bg-warning-50 text-warning-700 border-warning-200',
+    dotClassName: 'bg-warning-500',
+  },
+  scanned_and_shipped: {
+    label: 'Scanned & shipped',
+    hint: 'Every booked unit was scanned out of the warehouse.',
+    className: 'bg-success-50 text-success-700 border-success-200',
+    dotClassName: 'bg-success-500',
   },
 }
 

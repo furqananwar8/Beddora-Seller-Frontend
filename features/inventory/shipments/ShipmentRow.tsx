@@ -38,6 +38,7 @@ import {
   ProductThumb,
   StageProgress,
   StatusBadge,
+  WarehouseStatusBadge,
   WorkflowStepper,
   formatRelative,
   formatShortDate,
@@ -314,7 +315,10 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({
         <TableCell className="whitespace-nowrap text-sm">{formatWindow(shipment.deliveryWindow)}</TableCell>
 
         <TableCell>
-          <StatusBadge status={shipment.status} />
+          <div className="flex flex-col items-start gap-1">
+            <StatusBadge status={shipment.status} />
+            <WarehouseStatusBadge status={shipment.warehouseStatus} />
+          </div>
         </TableCell>
 
         <TableCell className="whitespace-nowrap text-xs text-text-muted" title={shipment.updatedAt}>
