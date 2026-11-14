@@ -605,6 +605,10 @@ interface ConfirmModalProps {
   variant?: 'primary' | 'danger'
   onConfirm: () => Promise<void>
   onClose: () => void
+  /** A second way to confirm, shown left of the main one (e.g. Cancel only next to Cancel + delete). */
+  secondary?: { label: string; onConfirm: () => Promise<void> }
+  /** Label of the button that closes without doing anything. */
+  dismissLabel?: string
 }
 
 export const ConfirmModal: React.FC<ConfirmModalProps> = ({
@@ -615,22 +619,25 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
   variant = 'primary',
   onConfirm,
   onClose,
+  secondary,
+  dismissLabel = 'Keep',
 }) => {
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [running, setRunning] = useState<'main' | 'secondary' | null>(null)
+  const isSubmitting = running !== null
   const [error, setError] = useState<string | null>(null)
   if (!isOpen) return null
 
-  const handleConfirm = async () => {
-    setIsSubmitting(true)
+  const handle = (which: 'main' | 'secondary', action: () => Promise<void>) => async () => {
+    setRunning(which)
     setError(null)
     try {
-      await onConfirm()
+      await action()
       onClose()
     } catch (err) {
       // keep the dialog open; the caller's toast sits under it, so show the reason here too
       setError((err as Error).message || 'Something went wrong.')
     } finally {
-      setIsSubmitting(false)
+      setRunning(null)
     }
   }
 
@@ -644,10 +651,15 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
       )}
       <div className="mt-6 flex justify-end gap-2 border-t border-border pt-4">
         <Button variant="outline" onClick={onClose} disabled={isSubmitting}>
-          Keep
+          {dismissLabel}
         </Button>
-        <Button variant={variant} onClick={handleConfirm} disabled={isSubmitting}>
-          {isSubmitting ? 'Working…' : confirmLabel}
+        {secondary && (
+          <Button variant="outline" onClick={handle('secondary', secondary.onConfirm)} disabled={isSubmitting}>
+            {running === 'secondary' ? 'Working…' : secondary.label}
+          </Button>
+        )}
+        <Button variant={variant} onClick={handle('main', onConfirm)} disabled={isSubmitting}>
+          {running === 'main' ? 'Working…' : confirmLabel}
         </Button>
       </div>
     </Modal>

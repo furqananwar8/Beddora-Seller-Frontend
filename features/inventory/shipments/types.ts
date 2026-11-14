@@ -193,6 +193,8 @@ export interface InboundShipment {
   warehouseStatus?: WarehouseStatus
   /** When the last booked unit was scanned out. */
   scannedOutAt?: string
+  /** Totals of the box contents entered when it was packed; missing until then. */
+  packed?: { boxes: number; units: number }
   stage: ShipmentStage
   items: InboundShipmentItem[]
   amazonInboundPlanId?: string
