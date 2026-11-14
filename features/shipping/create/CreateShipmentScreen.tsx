@@ -7,7 +7,7 @@ import { Alert } from '@/design-system/alerts'
 import { Button } from '@/design-system/buttons'
 import { useAppAbility } from '@/hooks/useAppAbility'
 import { useGetShipFromOptionsQuery } from '@/services/api/shipping.api'
-import { BOOKINGS_HREF, money } from '../shippingMeta'
+import { BOOKINGS_HREF, CHANNEL_LABEL, money } from '../shippingMeta'
 import type { ParcelShipmentDto } from '../types'
 import { AddressStep, defaultShipFrom } from './AddressStep'
 import { BookingConfirmed } from './BookingConfirmed'
@@ -29,7 +29,8 @@ export const CreateShipmentScreen: React.FC = () => {
   const canWrite = useAppAbility().can('write', 'shipping:parcels')
   const [booked, setBooked] = useState<ParcelShipmentDto | null>(null)
   const { data: addresses = [], isLoading: loadingAddresses } = useGetShipFromOptionsQuery()
-  const wizard = useShipmentForm(addresses)
+  // A manual shipment says which platform and marketplace it is for
+  const wizard = useShipmentForm(addresses, { requirePlatform: true })
   const { form, values, step, setStep, shipFrom, crossBorder, rate, stream } = wizard
 
   // The first warehouse (else the default address) is picked up front
@@ -47,8 +48,9 @@ export const CreateShipmentScreen: React.FC = () => {
   if (booked) return <BookingConfirmed shipment={booked} onShipmentChange={setBooked} next={{ label: 'Create another shipment', onClick: startOver }} />
 
   const units = UNITS[values.units]
+  const platform = values.platform.channel ? `${CHANNEL_LABEL[values.platform.channel]} ${values.platform.market === 'ca' ? 'Canada' : values.platform.market === 'us' ? 'USA' : ''}`.trim() : null
   const summaries = [
-    shipFrom && values.shipTo.address.city ? `${shipFrom.city} → ${values.shipTo.address.city}, ${values.shipTo.address.province}` : null,
+    shipFrom && values.shipTo.address.city ? `${platform ? `${platform} · ` : ''}${shipFrom.city} → ${values.shipTo.address.city}, ${values.shipTo.address.province}` : null,
     `1 pkg · ${values.pkg.length}×${values.pkg.width}×${values.pkg.height} ${units.length.toLowerCase()} · ${values.pkg.weight} ${units.weight.toLowerCase()} · ${values.incoterm}`,
     rate ? `${rate.serviceName} · ${money(rate.total, rate.currency)}` : null,
     null,
@@ -64,7 +66,7 @@ export const CreateShipmentScreen: React.FC = () => {
       </div>
       <WizardStepper steps={CREATE_STEPS} current={step} summaries={summaries} onGoTo={(index) => setStep(index as WizardStep)} />
 
-      {step === 0 && <AddressStep addresses={addresses} loadingAddresses={loadingAddresses} shipFrom={shipFrom} onCancel={() => router.push(BOOKINGS_HREF)} onContinue={() => void wizard.continueFromAddress()} />}
+      {step === 0 && <AddressStep addresses={addresses} loadingAddresses={loadingAddresses} shipFrom={shipFrom} onCancel={() => router.push(BOOKINGS_HREF)} onContinue={() => void wizard.continueFromAddress()} showPlatform />}
       {step === 1 && (
         <ShipmentStep
           lane={crossBorder ? `${shipFrom?.countryCode} → ${values.shipTo.address.country}` : null}
@@ -96,6 +98,7 @@ export const CreateShipmentScreen: React.FC = () => {
           quoteId={stream.quoteId}
           onBooked={setBooked}
           onQuoteExpired={wizard.refetchRates}
+          channel={values.platform.channel && values.platform.market ? { channel: values.platform.channel, market: values.platform.market } : undefined}
         />
       )}
     </FormProvider>

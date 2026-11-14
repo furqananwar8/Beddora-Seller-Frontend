@@ -13,8 +13,8 @@ import { SectionCard } from '../shared/Card'
 import { PriceBreakdownTable } from '../shared/PriceBreakdownTable'
 import { CarrierLogo } from '../shared/CarrierLogo'
 import { RadioCards } from '../shared/RadioCards'
-import { apiErrorCode, INCOTERM_META, money, transitDays } from '../shippingMeta'
-import type { ChannelOrderRef, LabelFormat, ParcelShipmentDto, Rate } from '../types'
+import { apiErrorCode, CHANNEL_LABEL, INCOTERM_META, money, transitDays } from '../shippingMeta'
+import type { ChannelOrderRef, LabelFormat, ParcelShipmentDto, Rate, ShipmentChannelRef } from '../types'
 import { numberOf, UNITS, type WizardStep } from './shipmentForm'
 import type { ShipmentFormValues } from './shipmentSchema'
 import { WizardFooter } from './WizardFooter'
@@ -33,6 +33,8 @@ interface BookingStepProps {
   onQuoteExpired: () => void
   /** Booking a channel order: sent with the booking, and the order is marked shipped on its channel. */
   order?: ChannelOrderRef
+  /** A manual shipment: the platform and marketplace it is for. */
+  channel?: ShipmentChannelRef
   /** 409 ORDER_NOT_BOOKABLE: the order was booked, shipped or cancelled meanwhile. */
   onOrderNotBookable?: () => void
   /** Offer Edit links back to Address Info / Shipment Info (the manual flow has them). */
@@ -58,7 +60,7 @@ const ReviewItem: React.FC<{ label: string; onEdit?: () => void; children: React
 )
 
 /** Step 4: review, label format, price, and Book & buy label. */
-export const BookingStep: React.FC<BookingStepProps> = ({ values, labelFormat: picked, onLabelFormatChange, onGoTo, shipFrom, rate, quoteId, onBooked, onQuoteExpired, order, onOrderNotBookable, editable = true }) => {
+export const BookingStep: React.FC<BookingStepProps> = ({ values, labelFormat: picked, onLabelFormatChange, onGoTo, shipFrom, rate, quoteId, onBooked, onQuoteExpired, order, channel, onOrderNotBookable, editable = true }) => {
   const { failure, info } = useApiFeedback()
   const [book, { isLoading, error }] = useBookShipmentMutation()
   // Booking buys postage, so the button only asks; the booking is made once it is confirmed in the dialog
@@ -80,7 +82,7 @@ export const BookingStep: React.FC<BookingStepProps> = ({ values, labelFormat: p
 
   const submit = async () => {
     if (!labelFormat) return
-    const body = { quoteId, rateId: rate.rateId, labelFormat, order }
+    const body = { quoteId, rateId: rate.rateId, labelFormat, order, channel }
     try {
       const shipment = await book({ body, idempotencyKey: idempotencyKey(JSON.stringify(body)) }).unwrap()
       attempt.current = null
@@ -117,6 +119,11 @@ export const BookingStep: React.FC<BookingStepProps> = ({ values, labelFormat: p
         <div className="space-y-4">
           <SectionCard title="Review" subtitle={editable ? 'click a section to edit it' : undefined}>
             <div className="grid gap-4 sm:grid-cols-2">
+              {channel && (
+                <ReviewItem label="Sales channel" onEdit={editTo(0)}>
+                  <b>{CHANNEL_LABEL[channel.channel]}</b> · {channel.market === 'us' ? 'USA' : 'Canada'}
+                </ReviewItem>
+              )}
               <ReviewItem label="From" onEdit={editTo(0)}>
                 <b>{shipFrom.label}</b>
                 <br />

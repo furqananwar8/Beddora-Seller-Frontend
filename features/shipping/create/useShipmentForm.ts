@@ -16,7 +16,7 @@ import { useDraftRates } from './useDraftRates'
  * schema of the current lane) plus what isn't form data: the step, the picked rate and the label format. Going
  * back keeps everything; any change to what is quoted clears the picked rate and the rates are fetched again.
  */
-export function useShipmentForm(addresses: ShipFromOption[]) {
+export function useShipmentForm(addresses: ShipFromOption[], { requirePlatform = false }: { requirePlatform?: boolean } = {}) {
   const [step, setStep] = useState<WizardStep>(0)
   const [selectedRateId, setSelectedRateId] = useState<string | null>(null)
   const [labelFormat, setLabelFormat] = useState<LabelFormat | null>(null)
@@ -28,8 +28,8 @@ export function useShipmentForm(addresses: ShipFromOption[]) {
     const from = laneInputs.current.addresses.find((address) => address.id === values.shipFromId)
     const country = values.shipTo.address.country
     const lane: Lane = { crossBorder: Boolean(from && country && from.countryCode !== country), toUs: country === 'US', needsProvince: laneInputs.current.needsProvince }
-    return zodResolver(shipmentSchema(lane))(values, context, options) as ReturnType<Resolver<ShipmentFormValues>>
-  }, [])
+    return zodResolver(shipmentSchema(lane, { requirePlatform }))(values, context, options) as ReturnType<Resolver<ShipmentFormValues>>
+  }, [requirePlatform])
 
   const form = useForm<ShipmentFormValues>({ resolver, mode: 'onChange', defaultValues: newShipmentValues() })
   const { control, getValues, setValue, trigger, reset, formState } = form
