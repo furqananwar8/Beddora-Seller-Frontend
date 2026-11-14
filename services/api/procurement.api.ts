@@ -1011,6 +1011,13 @@ export interface PriceAnalysisBody {
 /** Arrays go to the API as comma-separated values; empty ones are left out. */
 const csv = (values?: Array<string | number>) => (values && values.length ? values.join(',') : undefined)
 
+/** An HS code from the customs catalogue, and the product categories it is the default for. */
+export interface ProductHsCodeOption {
+  code: string
+  label: string
+  categories: string[]
+}
+
 export const procurementApi = baseApi.injectEndpoints({
   endpoints: (b) => ({
     getPoProducts: b.query<Page<PoProductListItem>, ProductListParams>({
@@ -1034,6 +1041,12 @@ export const procurementApi = baseApi.injectEndpoints({
       query: ({ search, limit }) => ({ url: '/procurement/products/options', params: { search: search || undefined, limit } }),
       transformResponse: unwrap,
       providesTags: ['ProcurementProducts'],
+    }),
+    /** The HS codes we ship under, with the product categories each is the default for. */
+    getProductHsCodes: b.query<ProductHsCodeOption[], void>({
+      query: () => '/procurement/products/hs-codes',
+      transformResponse: unwrap,
+      keepUnusedDataFor: 3600,
     }),
     checkPoProductSku: b.query<{ sku: string; available: boolean }, { sku: string; productId?: number }>({
       query: (params) => ({ url: '/procurement/products/sku-check', params }),
@@ -1440,6 +1453,7 @@ export const {
   useGetPoProductSummaryQuery,
   useGetPoProductQuery,
   useGetPoProductOptionsQuery,
+  useGetProductHsCodesQuery,
   useLazyCheckPoProductSkuQuery,
   useCreatePoProductMutation,
   useUpdatePoProductMutation,

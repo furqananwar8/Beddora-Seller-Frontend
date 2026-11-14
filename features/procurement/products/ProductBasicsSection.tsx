@@ -7,6 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/design-system/cards/
 import { CategorySelect } from '../shared/CategorySelect'
 import { PhotoField } from './PhotoField'
 import { PlatformRadio } from './PlatformRadio'
+import { ProductHsCodeSelect } from './ProductHsCodeSelect'
+import { useCategoryHsCode } from './useHsCodeSync'
 import type { ProductFormValues } from './productForm'
 import { SkuInput } from './SkuInput'
 
@@ -28,6 +30,7 @@ export const ProductBasicsSection: React.FC<ProductBasicsSectionProps> = ({ form
     setValue,
     formState: { errors },
   } = form
+  useCategoryHsCode(form)
 
   return (
     <Card>
@@ -67,14 +70,12 @@ export const ProductBasicsSection: React.FC<ProductBasicsSectionProps> = ({ form
         </FormField>
 
         <FormField label="HS code (optional)" htmlFor="product-hs-code" error={errors.hsCode?.message} hint="Customs tariff code. Every variation starts from it and can be changed per SKU">
-          <input
-            id="product-hs-code"
-            autoComplete="off"
-            inputMode="numeric"
-            placeholder="6302.21.00"
-            className={fieldClass(errors.hsCode?.message)}
-            disabled={readOnly}
-            {...register('hsCode')}
+          <Controller
+            control={control}
+            name="hsCode"
+            render={({ field }) => (
+              <ProductHsCodeSelect id="product-hs-code" value={field.value ?? ''} onChange={field.onChange} error={errors.hsCode?.message} disabled={readOnly} />
+            )}
           />
         </FormField>
 

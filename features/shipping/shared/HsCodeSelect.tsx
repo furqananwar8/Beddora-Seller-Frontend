@@ -15,6 +15,17 @@ interface HsCodeSelectProps {
   /** Grey fill: the code came from the product or its category. */
   prefilled?: boolean
   ariaLabel?: string
+  disabled?: boolean
+  /**
+   * The codes to offer. Left out, the shipping catalogue is loaded (Shipping permission); screens outside Shipping
+   * pass the catalogue they can read.
+   */
+  catalogue?: HsCodeOption[]
+  catalogueLoading?: boolean
+  /** Offer "No HS code" first, for places where the code is optional. */
+  allowNone?: boolean
+  /** How a held code that isn't in the catalogue is described. */
+  unknownLabel?: string
 }
 
 const digits = (code: string) => code.replace(/\D/g, '')
@@ -25,15 +36,35 @@ export const formatHsCode = (code: string) => {
   return d.length === 10 ? `${d.slice(0, 4)}.${d.slice(4, 6)}.${d.slice(6)}` : code
 }
 
+const NONE: HsCodeOption = { code: '', label: 'No HS code' }
+
 /**
- * The HS code of a customs line. It arrives preselected (the product's, else its category's) and can be changed
- * to any code we ship under; when nothing could be preselected this is the dropdown to pick from.
+ * Picks an HS code from the codes we ship under. On a customs line it arrives preselected (the product's, else its
+ * category's); on a product it is optional. A held code that isn't in the catalogue stays selectable as it is.
  */
-export const HsCodeSelect: React.FC<HsCodeSelectProps> = ({ id, value, onChange, error, prefilled, ariaLabel }) => {
-  const { data: catalogue = [], isLoading } = useGetHsCodesQuery()
-  // A code the product carries that isn't in the catalogue stays selectable as it is
-  const options = useMemo<HsCodeOption[]>(() => (value && !catalogue.some((option) => digits(option.code) === digits(value)) ? [{ code: value, label: 'From the product' }, ...catalogue] : catalogue), [catalogue, value])
-  const picked = options.find((option) => digits(option.code) === digits(value)) ?? null
+export const HsCodeSelect: React.FC<HsCodeSelectProps> = ({
+  id,
+  value,
+  onChange,
+  error,
+  prefilled,
+  ariaLabel,
+  disabled,
+  catalogue: given,
+  catalogueLoading,
+  allowNone,
+  unknownLabel = 'From the product',
+}) => {
+  const shipping = useGetHsCodesQuery(undefined, { skip: given !== undefined })
+  const catalogue = given ?? shipping.data ?? []
+  const isLoading = given !== undefined ? Boolean(catalogueLoading) : shipping.isLoading
+
+  const options = useMemo<HsCodeOption[]>(() => {
+    const known = value && !catalogue.some((option) => digits(option.code) === digits(value)) ? [{ code: value, label: unknownLabel }, ...catalogue] : catalogue
+    return allowNone ? [NONE, ...known] : known
+  }, [catalogue, value, allowNone, unknownLabel])
+  const picked = value ? options.find((option) => option.code && digits(option.code) === digits(value)) ?? null : allowNone ? NONE : null
+
   return (
     <SearchableSelect<HsCodeOption>
       id={id}
@@ -41,9 +72,10 @@ export const HsCodeSelect: React.FC<HsCodeSelectProps> = ({ id, value, onChange,
       value={picked}
       onChange={(option) => onChange(option.code)}
       options={options}
-      getKey={(option) => option.code}
-      getLabel={(option) => `${formatHsCode(option.code)} · ${option.label}`}
+      getKey={(option) => option.code || 'none'}
+      getLabel={(option) => (option.code ? `${formatHsCode(option.code)} · ${option.label}` : option.label)}
       loading={isLoading}
+      disabled={disabled}
       placeholder="Pick an HS code"
       searchPlaceholder="Search code or goods…"
       error={error}
