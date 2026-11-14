@@ -38,6 +38,7 @@ import { CreateMode, CreateShipmentDrawer } from './CreateShipmentDrawer'
 import { ConfirmModal, LabelsStepModal, MarkShippedModal, OptionPickerModal } from './ShipmentDialogs'
 import { PackingModal } from './PackingModal'
 import { CarrierModal } from './CarrierModal'
+import { BolModal } from './bol/BolModal'
 import { WfsCartonsModal } from './WfsCartonsModal'
 import { WfsCarrierModal } from './WfsCarrierModal'
 import { LabelFormatProvider, isSizedLabelType, useLabelFormatState } from './labelFormats'
@@ -485,6 +486,8 @@ export const ShipmentsScreen: React.FC = () => {
   const shippingTarget = byId(dialogId('ship'))
   const packingTarget = byId(dialogId('packing'))
   const carrierTarget = byId(dialogId('carrier'))
+  /** The shipment whose bills of lading are open (its own modal, beside the step dialogs). */
+  const [bolShipmentId, setBolShipmentId] = useState<string | null>(null)
   const rewindTarget = dialog?.type === 'rewind' ? byId(dialog.id) : null
 
   return (
@@ -703,6 +706,7 @@ export const ShipmentsScreen: React.FC = () => {
                       onCancel={() => openDialog({ type: 'cancel', id: s.id })}
                       onDelete={() => openDialog({ type: 'delete', id: s.id })}
                       onScanItems={canScan ? () => scanItems.open({ scenario: 'FBA_WFS', sourceId: String(s.id) }) : undefined}
+                      onBillOfLading={channel === 'amazon_fba' ? () => setBolShipmentId(s.id) : undefined}
                       onGoBack={(to) => handleBack(s.id, to)}
                       onDownloadLabel={(type) => handleDownloadLabel(s.id, type)}
                       // The open dialog's own buttons show the progress, so the row behind it stays still
@@ -726,6 +730,9 @@ export const ShipmentsScreen: React.FC = () => {
         initialInternalSkus={dialog?.type === 'create' ? dialog.preselect : []}
         onCreate={handleCreate}
       />
+
+      {/* Bills of lading (Amazon FBA, from the row menu) */}
+      <BolModal shipment={bolShipmentId ? byId(bolShipmentId) ?? null : null} onClose={() => setBolShipmentId(null)} />
 
       {/* Amazon FBA steps */}
       <OptionPickerModal
