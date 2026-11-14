@@ -8,6 +8,7 @@ import { FormField, fieldClass } from '@/components/form-field/FormField'
 import { PhoneField } from '@/components/phone-field/PhoneField'
 import { SearchableSelect } from '@/components/searchable-select/SearchableSelect'
 import { Button } from '@/design-system/buttons'
+import { CHANNEL_LABEL } from '../shippingMeta'
 import type { ShipFromOption } from '../types'
 import { SectionCard } from '../shared/Card'
 import { ShipFromFixModal } from '../shared/ShipFromFixModal'
@@ -22,6 +23,8 @@ interface AddressStepProps {
   onCancel: () => void
   /** Validates the address fields and moves on when they are fine. */
   onContinue: () => void
+  /** Create shipment: ask which platform and marketplace it is for (Book order takes them from the order). */
+  showPlatform?: boolean
 }
 
 /** The ship-from picked up front: the first warehouse, else the default saved address, else the only option. */
@@ -153,13 +156,71 @@ export const ShipToSection: React.FC = () => {
   )
 }
 
+interface Choice<T extends string> {
+  value: T
+  label: string
+}
+
+const PLATFORMS: Choice<Exclude<ShipmentFormValues['platform']['channel'], ''>>[] = [
+  { value: 'walmart', label: CHANNEL_LABEL.walmart },
+  { value: 'amazon', label: CHANNEL_LABEL.amazon },
+  { value: 'temu', label: CHANNEL_LABEL.temu },
+]
+
+const MARKETPLACES: Choice<Exclude<ShipmentFormValues['platform']['market'], ''>>[] = [
+  { value: 'us', label: 'USA' },
+  { value: 'ca', label: 'Canada' },
+]
+
+/** Which platform and marketplace a manual shipment is for; recorded on the booking (no order is linked or updated). */
+export const PlatformSection: React.FC = () => {
+  const {
+    control,
+    formState: { errors },
+  } = useFormContext<ShipmentFormValues>()
+  const select = <T extends string>(id: string, label: string, name: 'platform.channel' | 'platform.market', choices: Choice<T>[], error?: string) => (
+    <FormField label={label} htmlFor={id} required>
+      <Controller
+        control={control}
+        name={name}
+        render={({ field }) => (
+          <SearchableSelect<Choice<T>>
+            id={id}
+            value={choices.find((choice) => choice.value === field.value) ?? null}
+            onChange={(choice) => field.onChange(choice.value)}
+            options={choices}
+            getKey={(choice) => choice.value}
+            getLabel={(choice) => choice.label}
+            searchable={false}
+            placeholder={`Pick the ${label.toLowerCase()}`}
+            error={error}
+          />
+        )}
+      />
+    </FormField>
+  )
+  return (
+    <SectionCard title="Sales channel" subtitle="where this order was sold">
+      <div className="grid gap-4 sm:grid-cols-2">
+        {select('platform-channel', 'Platform', 'platform.channel', PLATFORMS, errors.platform?.channel?.message)}
+        {select('platform-market', 'Marketplace', 'platform.market', MARKETPLACES, errors.platform?.market?.message)}
+      </div>
+    </SectionCard>
+  )
+}
+
 /** Step 1: where the parcel ships from (saved addresses) and to (the customer). Errors show once Continue is pressed. */
-export const AddressStep: React.FC<AddressStepProps> = ({ addresses, loadingAddresses, shipFrom, onCancel, onContinue }) => {
+export const AddressStep: React.FC<AddressStepProps> = ({ addresses, loadingAddresses, shipFrom, onCancel, onContinue, showPlatform }) => {
   const { watch } = useFormContext<ShipmentFormValues>()
   const shipTo = watch('shipTo')
 
   return (
     <>
+      {showPlatform && (
+        <div className="mb-4">
+          <PlatformSection />
+        </div>
+      )}
       <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
         <ShipFromSection addresses={addresses} loadingAddresses={loadingAddresses} shipFrom={shipFrom} />
         <ShipToSection />

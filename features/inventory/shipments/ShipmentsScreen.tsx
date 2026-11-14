@@ -21,6 +21,7 @@ import { useDebounce } from '@/utils/debounce'
 import { cn } from '@/utils/cn'
 import { AmazonOption, InboundShipment, LabelType, Marketplace, PackingSubmission, ShipmentChannel, ShipmentStatus, WfsCarrierEntry, WfsCartons, legId } from './types'
 import { CarrierEntry, ChannelConfig, CreateShipmentInput, OptionKind, RewindTarget, ShipFromRequest, useShipments } from './useShipments'
+import type { ShippingModeChoice } from '@/services/api/inboundShipments.api'
 import {
   MARKETPLACE_META,
   NextAction,
@@ -373,8 +374,8 @@ export const ShipmentsScreen: React.FC = () => {
     await continueFlow(updated)
   }
 
-  const handleSubmitCarrier = async (id: string, carriers: CarrierEntry[]) => {
-    const updated = await submitCarrier(id, carriers)
+  const handleSubmitCarrier = async (id: string, carriers: CarrierEntry[], shippingMode: ShippingModeChoice) => {
+    const updated = await submitCarrier(id, carriers, shippingMode)
     dispatch(addNotification({ message: `${updated.reference}: carrier saved and Amazon updated`, type: 'success' }))
     await continueFlow(updated)
   }
@@ -739,7 +740,7 @@ export const ShipmentsScreen: React.FC = () => {
 
       <CarrierModal
         shipment={ofChannelOrNull(carrierTarget, 'amazon_fba')}
-        onConfirm={(carriers) => handleSubmitCarrier(dialogId('carrier')!, carriers)}
+        onConfirm={(carriers, shippingMode) => handleSubmitCarrier(dialogId('carrier')!, carriers, shippingMode)}
         onBack={() => dialog?.type === 'carrier' && handleBack(dialog.id, 'window')}
         onClose={closeIfCurrent(dialog?.type === 'carrier' ? dialog : null)}
       />
@@ -822,18 +823,34 @@ export const ShipmentsScreen: React.FC = () => {
               {cancelTarget.externalRef ?? cancelTarget.amazonInboundPlanId
                 ? channelIdOf(cancelTarget) === 'walmart_wfs'
                   ? 'The inbound order will be cancelled with Walmart, with all of its shipments. '
-                  : 'The inbound plan will be cancelled with Amazon. '
+                  : 'The inbound plan will be cancelled with Amazon first, then here. '
                 : `This draft was never sent to ${channelOf(cancelTarget).partner}. `}
               Its {formatUnits(getShipmentUnits(cancelTarget))} units go back to your
               unassigned {channelOf(cancelTarget).program} reserve.
+              <span className="mt-3 block">
+                <b>Cancel only</b> keeps it in your list as cancelled. <b>Cancel + delete</b> also removes it for good.
+              </span>
             </>
           )
         }
-        confirmLabel="Cancel shipment"
+        dismissLabel="Keep shipment"
+        secondary={{
+          label: 'Cancel only',
+          onConfirm: () => run(() => cancelShipment(cancelTarget!.id), `${cancelTarget?.reference} cancelled`, 'Could not cancel shipment'),
+        }}
+        confirmLabel="Cancel + delete"
         variant="danger"
         onClose={closeDialog}
         onConfirm={() =>
-          run(() => cancelShipment(cancelTarget!.id), `${cancelTarget?.reference} cancelled`, 'Could not cancel shipment')
+          // The partner's plan is cancelled first (by the cancel itself); the record goes only once that worked
+          run(
+            async () => {
+              await cancelShipment(cancelTarget!.id)
+              await deleteShipment(cancelTarget!.id)
+            },
+            `${cancelTarget?.reference} cancelled and deleted`,
+            'Could not cancel and delete shipment'
+          )
         }
       />
 

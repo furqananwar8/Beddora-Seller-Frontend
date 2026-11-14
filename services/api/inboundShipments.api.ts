@@ -65,6 +65,9 @@ export type OptionKind = 'placement' | 'window'
 /** The step a shipment can go back to and redo. */
 export type RewindTarget = 'packing' | 'placement' | 'window' | 'carrier'
 
+/** How an Amazon shipment travels: small parcel delivery (boxes) or less-than / full truckload (pallets). */
+export type ShippingModeChoice = 'SPD' | 'LTL_FTL'
+
 export interface RewindResponse {
   shipment: InboundShipment
   /** Set when an earlier answer couldn't be replayed, so the seller lands on that step instead. */
@@ -221,7 +224,8 @@ export const inboundShipmentsApi = baseApi.injectEndpoints({
     }),
 
     /** The seller's own carrier per Amazon shipment; the backend tells Amazon the shipment ships with it. */
-    submitShipmentCarrier: builder.mutation<InboundShipment, { id: string; carriers: CarrierEntry[] }>({
+    /** shippingMode: SPD (boxes) or LTL_FTL (pallets); Amazon confirms the own-carrier option of that mode. */
+    submitShipmentCarrier: builder.mutation<InboundShipment, { id: string; carriers: CarrierEntry[]; shippingMode: ShippingModeChoice }>({
       query: ({ id, ...body }) => ({ url: `/inventory/shipments/${id}/carrier`, method: 'POST', body }),
       invalidatesTags: ['InboundShipments'],
     }),

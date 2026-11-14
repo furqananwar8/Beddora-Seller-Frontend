@@ -48,6 +48,7 @@ export const EMPTY_SHIP_TO: ShipToValues = {
  * marketplace buyers aren't asked to pay at the door, and the carriers bill our wallet.
  */
 export const newShipmentValues = (): ShipmentFormValues => ({
+  platform: { channel: '', market: '' },
   shipFromId: '',
   shipTo: EMPTY_SHIP_TO,
   products: [],

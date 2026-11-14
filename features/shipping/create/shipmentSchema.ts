@@ -78,9 +78,23 @@ const shipToSchema = (lane: Lane) =>
       if (lane.needsProvince && !shipTo.address.province) ctx.addIssue({ code: 'custom', path: ['address', 'province'], message: 'State / province is required' })
     })
 
+/**
+ * The platform and marketplace a shipment is for. Create shipment asks for both; Book order leaves them empty, as
+ * they come with the order.
+ */
+const platformSchema = (required: boolean) =>
+  z
+    .object({ channel: z.enum(['', 'walmart', 'amazon', 'temu']), market: z.enum(['', 'us', 'ca']) })
+    .superRefine((platform, ctx) => {
+      if (!required) return
+      if (!platform.channel) ctx.addIssue({ code: 'custom', path: ['channel'], message: 'Pick the platform' })
+      if (!platform.market) ctx.addIssue({ code: 'custom', path: ['market'], message: 'Pick the marketplace' })
+    })
+
 /** The whole Create shipment / Book order form; rebuilt when the lane changes. */
-export const shipmentSchema = (lane: Lane) =>
+export const shipmentSchema = (lane: Lane, { requirePlatform = false }: { requirePlatform?: boolean } = {}) =>
   z.object({
+    platform: platformSchema(requirePlatform),
     shipFromId: z.string().min(1, 'Pick the address to ship from'),
     shipTo: shipToSchema(lane),
     products: z.array(productLineSchema(lane)).min(1, 'Add at least one product'),
@@ -96,4 +110,4 @@ export const shipmentSchema = (lane: Lane) =>
 export type ShipmentFormValues = z.infer<ReturnType<typeof shipmentSchema>>
 
 /** Field groups of the Address step, for validating just them before moving on. */
-export const ADDRESS_FIELDS = ['shipFromId', 'shipTo'] as const
+export const ADDRESS_FIELDS = ['platform', 'shipFromId', 'shipTo'] as const

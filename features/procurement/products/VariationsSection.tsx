@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
-import { UseFormReturn, useFieldArray, useWatch } from 'react-hook-form'
+import { Controller, UseFormReturn, useFieldArray, useWatch } from 'react-hook-form'
 import { fieldClass } from '@/components/form-field/FormField'
 import { SegmentedToggle } from '@/components/segmented-toggle/SegmentedToggle'
 import { Button } from '@/design-system/buttons'
@@ -11,6 +11,7 @@ import { cn } from '@/utils/cn'
 import { ColorSelect } from '../shared/ColorSelect'
 import { CbmField, LENGTH_UNITS, WeightField } from '../shared/MeasurementFields'
 import { PhotoField } from './PhotoField'
+import { ProductHsCodeSelect } from './ProductHsCodeSelect'
 import { MarketplaceSkus } from './MarketplaceSkus'
 import { convertDimensionsText, derivedCbm, newVariation, type ProductFormValues } from './productForm'
 import { SkuInput } from './SkuInput'
@@ -185,14 +186,19 @@ export const VariationsSection: React.FC<VariationsSectionProps> = ({ form, prod
                       <input aria-label="Packaging" className={input(err?.packaging?.message)} disabled={readOnly} {...register(`variations.${index}.packaging`)} />
                     </Field>
                     <Field label="HS code" error={err?.hsCode?.message} note="Starts from the master's; change it for this SKU if it differs">
-                      <input
-                        aria-label="HS code"
-                        autoComplete="off"
-                        inputMode="numeric"
-                        placeholder="6302.21.00"
-                        className={input(err?.hsCode?.message)}
-                        disabled={readOnly}
-                        {...register(`variations.${index}.hsCode`)}
+                      <Controller
+                        control={control}
+                        name={`variations.${index}.hsCode`}
+                        render={({ field: hs }) => (
+                          <ProductHsCodeSelect
+                            id={`variation-${index}-hs-code`}
+                            ariaLabel="HS code"
+                            value={hs.value ?? ''}
+                            onChange={hs.onChange}
+                            error={err?.hsCode?.message}
+                            disabled={readOnly}
+                          />
+                        )}
                       />
                     </Field>
                   </div>

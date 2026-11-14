@@ -397,7 +397,7 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({
               )}
 
               {/* Partner details */}
-              <dl className="grid grid-cols-2 gap-x-6 gap-y-3 rounded-lg border border-border bg-surface p-4 text-sm md:grid-cols-3 xl:grid-cols-6">
+              <dl className="grid grid-cols-2 gap-x-6 gap-y-3 rounded-lg border border-border bg-surface p-4 text-sm md:grid-cols-3 xl:grid-cols-4">
                 <Detail label="Internal ID" value={<span className="font-mono">{shipment.reference}</span>} />
                 <Detail
                   label={channel.copy.planLabel}
@@ -441,6 +441,15 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({
                 />
                 <Detail label={byCase ? 'Expected delivery' : 'Delivery window'} value={formatWindow(shipment.deliveryWindow)} />
                 <Detail label="Carrier" value={shipment.carrier ?? '—'} />
+                {/* From the box contents entered when the shipment was packed */}
+                <Detail
+                  label="Total boxes"
+                  value={shipment.packed ? formatUnits(shipment.packed.boxes) : <span className="text-text-subtle">Not packed yet</span>}
+                />
+                <Detail
+                  label="Total units"
+                  value={formatUnits(shipment.packed?.units ?? getShipmentUnits(shipment))}
+                />
                 <Detail
                   label={shipment.shippedAt ? 'Shipped' : 'Created'}
                   value={formatShortDate(shipment.shippedAt ?? shipment.createdAt)}

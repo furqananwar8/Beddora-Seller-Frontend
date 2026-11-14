@@ -218,6 +218,14 @@ export interface BookShipmentBody {
   labelFormat: LabelFormat
   /** Booking a channel order: it is marked shipped on the channel afterwards. */
   order?: ChannelOrderRef
+  /** A manual shipment: the platform and marketplace it is for (nothing is updated on the channel). */
+  channel?: ShipmentChannelRef
+}
+
+/** The platform and marketplace a shipment is for. */
+export interface ShipmentChannelRef {
+  channel: ChannelId
+  market: 'us' | 'ca'
 }
 
 export interface ParcelShipmentListItem {
@@ -277,6 +285,8 @@ export interface ParcelShipmentDto extends ParcelShipmentListItem {
   /** Newest first. */
   events: TrackingEvent[]
   /** The channel order this parcel ships, and whether it was marked shipped there. */
+  /** Platform and marketplace, whether booked from an order or created manually. */
+  channel: { channel: ChannelId; market: string | null } | null
   channelOrder: (ChannelOrderRef & { sync: ChannelSync; syncMessage: string | null; syncedAt: string | null }) | null
 }
 

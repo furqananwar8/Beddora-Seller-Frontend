@@ -32,6 +32,7 @@ import {
   useSubmitWfsCartonsMutation,
   useSyncShipmentsMutation,
   useUpdateShipmentItemsMutation,
+  type ShippingModeChoice,
 } from '@/services/api/inboundShipments.api'
 import {
   AmazonOption,
@@ -83,7 +84,7 @@ export interface ShipmentsController {
   submitPacking: (id: string, submission: PackingSubmission) => Promise<InboundShipment>
   getOptions: (shipment: InboundShipment, kind: OptionKind) => Promise<AmazonOption[]>
   confirmOptions: (id: string, kind: OptionKind, chosen: AmazonOption[]) => Promise<InboundShipment>
-  submitCarrier: (id: string, carriers: CarrierEntry[]) => Promise<InboundShipment>
+  submitCarrier: (id: string, carriers: CarrierEntry[], shippingMode: ShippingModeChoice) => Promise<InboundShipment>
   /** WFS: cartons per Walmart shipment. */
   submitWfsCartons: (id: string, legs: WfsCartons[]) => Promise<InboundShipment>
   /** WFS (Walmart.US): Walmart's carrier rates for one Walmart shipment. */
@@ -169,7 +170,12 @@ const fbaOnly = (sandbox: boolean, labelFormats?: LabelFormatCatalog): ChannelCo
 export const useShipments = (): ShipmentsController => {
   // Poll while the server is still fetching label files, so their status appears on its own
   const [pollMs, setPollMs] = useState(0)
-  const { data: shipments = [] } = useGetShipmentsQuery(undefined, { pollingInterval: pollMs })
+  const { data: shipments = [] } = useGetShipmentsQuery(undefined, {
+    pollingInterval: pollMs,
+    // Always ask the server when the screen opens or the tab is back in focus: a cached (or failed) list must not linger
+    refetchOnMountOrArgChange: true,
+    refetchOnFocus: true,
+  })
   useEffect(() => {
     // Labels are fetched right after they're generated, so a status that's missing counts as still preparing
     const preparing = shipments.some(
@@ -281,8 +287,8 @@ export const useShipments = (): ShipmentsController => {
   )
 
   const submitCarrier = useCallback(
-    (id: string, carriers: CarrierEntry[]) =>
-      call(carrier({ id, carriers }), 'Could not save the carrier'),
+    (id: string, carriers: CarrierEntry[], shippingMode: ShippingModeChoice) =>
+      call(carrier({ id, carriers, shippingMode }), 'Could not save the carrier'),
     [carrier]
   )
 

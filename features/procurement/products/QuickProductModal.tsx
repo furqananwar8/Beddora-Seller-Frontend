@@ -11,13 +11,16 @@ import { useApiFeedback } from '@/hooks/useApiFeedback'
 import { useCreatePoProductMutation, type CategoryRef, type PoProduct } from '@/services/api/procurement.api'
 import { applyServerIssues } from '@/utils/apiErrors'
 import { CategorySelect } from '../shared/CategorySelect'
-import { emptyProductValues, nameField, skuField, toProductBody } from './productForm'
+import { emptyProductValues, hsCodeField, nameField, skuField, toProductBody } from './productForm'
+import { ProductHsCodeSelect } from './ProductHsCodeSelect'
+import { useCategoryHsCode } from './useHsCodeSync'
 import { SkuInput } from './SkuInput'
 
 const quickSchema = z.object({
   name: nameField,
   sku: skuField,
   category: z.custom<CategoryRef | null>(),
+  hsCode: hsCodeField,
 })
 
 type QuickValues = z.infer<typeof quickSchema>
@@ -29,7 +32,7 @@ interface QuickProductModalProps {
   onCreated: (product: PoProduct) => void
 }
 
-/** "+ Add new product" from a product picker: a master with just name, SKU and category. Details can follow on the product page. */
+/** "+ Add new product" from a product picker: a master with just name, SKU, category and HS code. Details can follow on the product page. */
 export const QuickProductModal: React.FC<QuickProductModalProps> = ({ isOpen, onClose, onCreated }) => {
   const { success, failure } = useApiFeedback()
   const [createProduct, { isLoading }] = useCreatePoProductMutation()
@@ -39,8 +42,11 @@ export const QuickProductModal: React.FC<QuickProductModalProps> = ({ isOpen, on
     handleSubmit,
     reset,
     setError,
+    getValues,
+    setValue,
     formState: { errors },
-  } = useForm<QuickValues>({ resolver: zodResolver(quickSchema), defaultValues: { name: '', sku: '', category: null } })
+  } = useForm<QuickValues>({ resolver: zodResolver(quickSchema), defaultValues: { name: '', sku: '', category: null, hsCode: '' } })
+  useCategoryHsCode({ control, getValues, setValue })
 
   const close = () => {
     reset()
@@ -49,12 +55,12 @@ export const QuickProductModal: React.FC<QuickProductModalProps> = ({ isOpen, on
 
   const submit = handleSubmit(async (values) => {
     try {
-      const created = await createProduct(toProductBody({ ...emptyProductValues, name: values.name, sku: values.sku, category: values.category })).unwrap()
+      const created = await createProduct(toProductBody({ ...emptyProductValues, name: values.name, sku: values.sku, category: values.category, hsCode: values.hsCode })).unwrap()
       success(`${created.sku} created`)
       onCreated(created)
       close()
     } catch (error) {
-      if (!applyServerIssues(error, setError, ['name', 'sku'])) failure(error, 'Could not create the product')
+      if (!applyServerIssues(error, setError, ['name', 'sku', 'hsCode'])) failure(error, 'Could not create the product')
     }
   })
 
@@ -69,6 +75,9 @@ export const QuickProductModal: React.FC<QuickProductModalProps> = ({ isOpen, on
         </FormField>
         <FormField label="Category" htmlFor="quick-category">
           <Controller control={control} name="category" render={({ field }) => <CategorySelect id="quick-category" value={field.value} onChange={field.onChange} canAdd />} />
+        </FormField>
+        <FormField label="HS code (optional)" htmlFor="quick-hs-code" error={errors.hsCode?.message} hint="Picking a category fills in its usual code">
+          <Controller control={control} name="hsCode" render={({ field }) => <ProductHsCodeSelect id="quick-hs-code" value={field.value} onChange={field.onChange} error={errors.hsCode?.message} />} />
         </FormField>
         <p className="text-xs text-text-muted">Weight, dimensions and variations can be added from the product page later.</p>
         <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">

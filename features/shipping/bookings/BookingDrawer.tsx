@@ -130,6 +130,19 @@ export const BookingDrawer: React.FC<BookingDrawerProps> = ({ shipmentId, canWri
             </Section>
           )}
 
+          {/* A manual shipment: the platform and marketplace it was created for, with no order behind it */}
+          {!shipment.channelOrder && shipment.channel && (
+            <Section title="Sales channel">
+              <div className="flex items-center gap-2 text-sm">
+                <ChannelBadge channel={shipment.channel.channel} />
+                <span>
+                  {CHANNEL_LABEL[shipment.channel.channel]} · {shipment.channel.market === 'ca' ? 'Canada' : shipment.channel.market === 'us' ? 'USA' : shipment.channel.market}
+                  <span className="text-text-muted"> · created manually</span>
+                </span>
+              </div>
+            </Section>
+          )}
+
           <Section title="Tracking">
             <TrackingTimeline events={shipment.events} />
           </Section>

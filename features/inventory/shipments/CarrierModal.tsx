@@ -1,12 +1,13 @@
 "use client"
 
 import React, { useState } from 'react'
+import { cn } from '@/utils/cn'
 import { Modal } from '@/design-system/modals'
 import { Button } from '@/design-system/buttons'
 import { Spinner } from '@/design-system/loaders'
 import { Input } from '@/design-system/inputs'
 import { SearchableSelect } from '@/components/searchable-select/SearchableSelect'
-import { useGetShipmentCarriersQuery, type CarrierEntry } from '@/services/api/inboundShipments.api'
+import { useGetShipmentCarriersQuery, type CarrierEntry, type ShippingModeChoice } from '@/services/api/inboundShipments.api'
 import { InboundShipment } from './types'
 import { DialogFooter, formatUnits } from './ShipmentParts'
 import { getShipmentUnits } from './workflow'
@@ -20,10 +21,15 @@ const isoDay = (date: Date) => {
 const today = () => isoDay(new Date())
 const tomorrow = () => isoDay(new Date(Date.now() + 24 * 60 * 60 * 1000))
 
+const SHIPPING_MODES: { value: ShippingModeChoice; label: string; hint: string }[] = [
+  { value: 'SPD', label: 'Small parcel delivery (SPD)', hint: 'Individual boxes, each with its own tracking number' },
+  { value: 'LTL_FTL', label: 'Less than / full truckload (LTL/FTL)', hint: 'Boxes on pallets; tracked by the bill of lading' },
+]
+
 interface CarrierModalProps {
   shipment: InboundShipment | null
   /** Saves each shipment's carrier booking; the backend tells Amazon each one ships with the seller's own carrier. */
-  onConfirm: (carriers: CarrierEntry[]) => Promise<void>
+  onConfirm: (carriers: CarrierEntry[], shippingMode: ShippingModeChoice) => Promise<void>
   /** Back to the delivery window step. */
   onBack: () => void
   onClose: () => void
@@ -64,8 +70,15 @@ const CarrierForm: React.FC<Omit<CarrierModalProps, 'shipment'> & { shipment: In
       ])
     )
   )
-  // Amazon is only told once; going Back to correct a booking can keep an earlier pickup date
-  const amazonNotToldYet = !legs.every((l) => l.shippingSolution === 'USE_YOUR_OWN_CARRIER')
+  // The mode Amazon already has (truckload when any leg is freight), else small parcel
+  const savedMode: ShippingModeChoice | undefined = legs.some((l) => l.shippingMode?.startsWith('FREIGHT'))
+    ? 'LTL_FTL'
+    : legs.some((l) => l.shippingMode === 'GROUND_SMALL_PARCEL')
+    ? 'SPD'
+    : undefined
+  const [shippingMode, setShippingMode] = useState<ShippingModeChoice>(savedMode ?? 'SPD')
+  // Amazon is told on a first entry, or again when the mode changes; otherwise an earlier pickup date can stay
+  const amazonNotToldYet = !legs.every((l) => l.shippingSolution === 'USE_YOUR_OWN_CARRIER') || (savedMode !== undefined && savedMode !== shippingMode)
   const { data: carriers = [], isFetching: loadingCarriers } = useGetShipmentCarriersQuery()
   const [touched, setTouched] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
@@ -95,7 +108,8 @@ const CarrierForm: React.FC<Omit<CarrierModalProps, 'shipment'> & { shipment: In
             deliveryDate: b.deliveryDate,
             amazonAppointmentId: b.amazonAppointmentId.trim() || undefined,
           }
-        })
+        }),
+        shippingMode
       )
       onClose()
     } catch (err) {
@@ -115,6 +129,33 @@ const CarrierForm: React.FC<Omit<CarrierModalProps, 'shipment'> & { shipment: In
           {shipment.reference} · {formatUnits(getShipmentUnits(shipment))} units
         </span>
       </p>
+
+      <fieldset className="mb-4">
+        <legend className="mb-2 text-sm font-medium text-text-primary">Shipping mode</legend>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {SHIPPING_MODES.map((mode) => {
+            const active = shippingMode === mode.value
+            return (
+              <button
+                key={mode.value}
+                type="button"
+                aria-pressed={active}
+                onClick={() => setShippingMode(mode.value)}
+                className={cn(
+                  'rounded-lg border p-3 text-left transition-colors',
+                  active ? 'border-primary-600 bg-primary-50 ring-1 ring-primary-600' : 'border-border hover:bg-secondary-50'
+                )}
+              >
+                <span className="block text-sm font-semibold text-text-primary">{mode.label}</span>
+                <span className="block text-xs text-text-muted">{mode.hint}</span>
+              </button>
+            )
+          })}
+        </div>
+        {savedMode && savedMode !== shippingMode && (
+          <p className="mt-2 text-xs text-warning-700">Amazon has this as {savedMode === 'SPD' ? 'small parcel' : 'truckload'}; saving tells Amazon about the change.</p>
+        )}
+      </fieldset>
 
       {legs.length === 0 && <p className="text-sm text-danger-700">Amazon hasn't created any shipments for this plan yet.</p>}
 

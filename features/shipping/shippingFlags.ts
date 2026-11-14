@@ -1,8 +1,8 @@
 /**
- * Manual shipments (Create shipment: Address Info › Shipment Info › Rates › Booking) are hidden for now: parcels are
- * booked from channel orders instead. The screens and the route stay; flip this to bring the entry points back.
+ * Manual shipments (Create shipment: Sales channel + Address Info › Shipment Info › Rates › Booking), next to booking
+ * channel orders. A manual shipment records its platform and marketplace; no channel order is linked or updated.
  */
-export const MANUAL_SHIPMENT_FLOW = false
+export const MANUAL_SHIPMENT_FLOW = true
 
 /**
  * The Bookings list is hidden from the Shipping menu for now: orders are followed from Shipping › Orders. The screen
