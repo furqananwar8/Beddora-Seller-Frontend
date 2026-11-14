@@ -7,7 +7,8 @@ import { BackgroundIllustration } from './BackgroundIllustration'
 import { FlowStep } from './FlowDiagram'
 
 export interface PromotionalSectionProps {
-  logo: React.ReactNode
+  /** Optional: pages that show their brand elsewhere leave it out. */
+  logo?: React.ReactNode
   heading: string
   subtitle: string
   features: FeatureCardProps[]
@@ -32,7 +33,7 @@ export const PromotionalSection: React.FC<PromotionalSectionProps> = ({
       <div className="relative z-10 flex flex-col h-full p-8 xl:p-10 overflow-y-auto">
         <div className="flex flex-col h-full">
           {/* Logo */}
-          <div className="flex items-center gap-3 mb-6">{logo}</div>
+          {logo && <div className="flex items-center gap-3 mb-6">{logo}</div>}
 
           {/* Main Heading */}
           <div className="mb-6">

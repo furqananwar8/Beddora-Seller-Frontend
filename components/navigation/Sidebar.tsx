@@ -4,6 +4,7 @@ import React from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/utils/cn'
+import { BeddoraBrand } from '@/components/brand/BeddoraBrand'
 import { useAppSelector, useAppDispatch } from '@/store/hooks'
 import { setSidebarOpen } from '@/store/ui.slice'
 
@@ -84,11 +85,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ sections, user }) => {
         )}
       >
         <div className="flex flex-col h-full">
-          {/* Keeps the sidebar in line with the top bar; holds the close button on small screens */}
-          <div className="ds-sidebar-header">
+          {/* In line with the top bar: the brand, and the close button on small screens */}
+          <div className="ds-sidebar-header relative justify-center">
+            <BeddoraBrand align="center" />
             <button
               onClick={() => dispatch(setSidebarOpen(false))}
-              className="ml-auto lg:hidden text-text-muted hover:text-text-secondary"
+              aria-label="Close menu"
+              className="absolute right-4 top-1/2 -translate-y-1/2 lg:hidden text-text-muted hover:text-text-secondary"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

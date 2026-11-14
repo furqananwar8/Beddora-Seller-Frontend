@@ -7,8 +7,9 @@ import { useLoginMutation } from '@/services/api/auth.api'
 import { useAppDispatch } from '@/store/hooks'
 import { setCredentials } from '@/store/auth.slice'
 import { Button } from '@/design-system/buttons'
-import { Logo, PromotionalSection, SocialLoginButton, InputWithIcon } from '@/components/marketing'
+import { PromotionalSection, SocialLoginButton, InputWithIcon } from '@/components/marketing'
 import { Footer } from '@/components/layout'
+import { BeddoraBrand } from '@/components/brand/BeddoraBrand'
 import { marketingFeatures, marketingTestimonial, marketingContent } from '@/components/marketing/marketingData'
 import { beddoraFlowSteps } from '@/components/marketing/flowData'
 
@@ -111,7 +112,7 @@ export default function LoginPage() {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-surface">
         <div className="mb-8">
-          <Logo variant="dark" />
+          <BeddoraBrand size="xl" align="center" />
         </div>
         <p className="mt-5 text-text-muted text-sm font-medium animate-pulse">
           Loading your dashboard...
@@ -126,7 +127,6 @@ export default function LoginPage() {
       <div className="flex flex-1 overflow-hidden">
         {/* Left Side - Promotional Content with Flow */}
         <PromotionalSection
-          logo={<Logo variant="light" />}
           heading={marketingContent.heading}
           subtitle={marketingContent.subtitle}
           features={marketingFeatures}
@@ -138,18 +138,10 @@ export default function LoginPage() {
         <div className="w-full lg:w-1/2 bg-surface flex flex-col">
           <div className="flex-1 flex items-center justify-center p-8 lg:p-12 overflow-y-auto">
             <div className="w-full max-w-md space-y-8">
-              {/* Mobile Logo */}
-              <div className="lg:hidden">
-                <Logo variant="dark" />
-              </div>
-
-              <div>
-                <h2 className="text-3xl lg:text-4xl font-bold text-text-primary mb-3">
-                  Welcome back
-                </h2>
-                <p className="text-text-muted text-lg">
-                  Sign in to your account to continue.
-                </p>
+              {/* Brand, centred above the form */}
+              <div className="flex flex-col items-center gap-4">
+                <BeddoraBrand size="xl" align="center" />
+                <p className="text-text-muted text-lg">Sign in to your account to continue.</p>
               </div>
 
               {/* Login Form */}
