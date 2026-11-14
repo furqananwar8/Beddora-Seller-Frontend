@@ -144,7 +144,8 @@ export const barcodeApi = baseApi.injectEndpoints({
     endScanSession: b.mutation<ScanSession, { id: number; confirmed: boolean }>({
       query: ({ id, confirmed }) => ({ url: `/barcode/sessions/${id}/end`, method: 'POST', body: { confirmed } }),
       transformResponse: unwrap,
-      invalidatesTags: ['Barcode'],
+      // Ending moves stock and can make a shipment Scanned and Shipped
+      invalidatesTags: ['Barcode', 'InboundShipments', 'Inventory'],
     }),
     discardScanSession: b.mutation<{ id: number }, number>({
       query: (id) => ({ url: `/barcode/sessions/${id}/discard`, method: 'POST' }),

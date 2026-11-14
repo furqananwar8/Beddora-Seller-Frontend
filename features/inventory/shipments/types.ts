@@ -25,6 +25,13 @@ export type ShipmentStatus =
   | 'cancelled'
 
 /**
+ * Our own status, next to the partner's `status`: `booked` once it is marked as shipped with the partner (labels
+ * printed, confirmed), `scanned_and_shipped` once every booked unit was scanned out of the warehouse. Scanning can
+ * happen right after booking or days later; it is the only thing that takes the units out of stock.
+ */
+export type WarehouseStatus = 'pending' | 'booked' | 'scanned_and_shipped'
+
+/**
  * Progress through the partner's inbound workflow while `in_progress`.
  * Each stage is the LAST completed step. FBA uses them all; WFS skips
  * placement_confirmed and window_confirmed (Walmart assigns the FCs and takes
@@ -182,6 +189,10 @@ export interface InboundShipment {
   channel?: ShipmentChannel
   marketplace: Marketplace
   status: ShipmentStatus
+  /** Missing only from servers that predate it; treat as pending. */
+  warehouseStatus?: WarehouseStatus
+  /** When the last booked unit was scanned out. */
+  scannedOutAt?: string
   stage: ShipmentStage
   items: InboundShipmentItem[]
   amazonInboundPlanId?: string

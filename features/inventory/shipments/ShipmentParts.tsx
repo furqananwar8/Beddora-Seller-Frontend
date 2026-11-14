@@ -5,9 +5,9 @@ import { createPortal } from 'react-dom'
 import { Button } from '@/design-system/buttons'
 import { Spinner } from '@/design-system/loaders'
 import { cn } from '@/utils/cn'
-import { DeliveryWindow, InboundShipment, LabelFileStatus, ShipmentChannel, ShipmentStatus } from './types'
+import { DeliveryWindow, InboundShipment, LabelFileStatus, ShipmentChannel, ShipmentStatus, WarehouseStatus } from './types'
 import type { RewindTarget } from '@/services/api/inboundShipments.api'
-import { NextAction, STATUS_META, getActiveStepIndex } from './workflow'
+import { NextAction, STATUS_META, WAREHOUSE_STATUS_META, getActiveStepIndex } from './workflow'
 import { SHIPMENT_CHANNELS, channelOf } from './channels'
 
 /** "FBA" / "WFS" chip in the channel's colours. */
@@ -65,6 +65,24 @@ export const StatusBadge: React.FC<{ status: ShipmentStatus }> = ({ status }) =>
   const meta = STATUS_META[status]
   return (
     <span
+      className={cn(
+        'inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-xs font-medium',
+        meta.className
+      )}
+    >
+      <span className={cn('h-1.5 w-1.5 rounded-full', meta.dotClassName)} />
+      {meta.label}
+    </span>
+  )
+}
+
+/** Our own status (Booked / Scanned & shipped) under the partner's; nothing while the shipment is still pending. */
+export const WarehouseStatusBadge: React.FC<{ status?: WarehouseStatus }> = ({ status }) => {
+  if (!status || status === 'pending') return null
+  const meta = WAREHOUSE_STATUS_META[status]
+  return (
+    <span
+      title={meta.hint}
       className={cn(
         'inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-xs font-medium',
         meta.className
