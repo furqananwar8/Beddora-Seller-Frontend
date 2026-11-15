@@ -21,6 +21,7 @@ export type EditableField =
   | 'landedCost'
   | 'commissionPct'
   | 'fbaFee'
+  | 'inboundPlacementFee'
   | 'daysInStock'
   | 'overheadPct'
   | 'marketingPct'
@@ -60,6 +61,7 @@ function defaultsOf(row: AmazonPricingRow, globals: PricingGlobals): Record<Edit
     landedCost: row.landedCost,
     commissionPct: row.referralRate === null ? DEFAULT_COMMISSION_PCT : Math.round(row.referralRate * 10_000) / 100,
     fbaFee: row.fbaFee,
+    inboundPlacementFee: null,
     daysInStock: globals.daysInStock,
     overheadPct: globals.overheadPct,
     marketingPct: globals.marketingPct,
@@ -147,6 +149,8 @@ export function useAmazonPricing(country: PricingCountry, searchTerm: string) {
           overheadRate: pct(values.overheadPct) ?? 0,
           commissionRate: pct(values.commissionPct),
           fbaFee: values.fbaFee,
+          // Amazon charges the inbound placement service fee in the USA only
+          inboundPlacementFee: country === 'US' ? values.inboundPlacementFee : null,
           marketingRate: pct(values.marketingPct) ?? 0,
           promoRate: pct(values.promoPct) ?? 0,
           returnRate: pct(values.returnPct) ?? 0,
@@ -158,7 +162,7 @@ export function useAmazonPricing(country: PricingCountry, searchTerm: string) {
       )
       return { key, row, values, edited: new Set(Object.keys(own) as EditableField[]), sessionMode, sessionModeEdited: ownMode !== undefined, result, duplicate: (copies.get(row.sku) ?? 0) > 1 }
     })
-  }, [query.data, rates, edits, globals])
+  }, [query.data, rates, edits, globals, country])
 
   const term = searchTerm.trim().toLowerCase()
   const visible = useMemo(

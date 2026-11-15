@@ -59,7 +59,7 @@ export const CellInput: React.FC<CellInputProps> = ({ value, edited, onChange, p
           if (text === '') onChange(undefined)
           else if (Number.isFinite(parsed)) onChange(parsed)
         }}
-        className="w-full min-w-0 bg-transparent text-right tabular-nums outline-none disabled:cursor-not-allowed"
+        className="w-full min-w-0 bg-transparent text-center tabular-nums outline-none disabled:cursor-not-allowed"
       />
       {suffix && <span className="text-text-muted">{suffix}</span>}
     </div>
