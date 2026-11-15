@@ -186,6 +186,54 @@ export interface ScanSession extends ScanSessionSummary {
   pending: number
 }
 
+/* ─────────────── Manual returns ─────────────── */
+
+export interface ManualReturnOption {
+  id: string
+  label: string
+  markets: Array<{ country: string; label: string }>
+}
+
+/** A channel listing mapped to our products, offered when picking the returned item. */
+export interface ManualReturnProduct {
+  channelSku: string
+  name: string
+  components: Array<{ sku: string; name: string; quantity: number }>
+}
+
+export interface ManualReturnMetadata {
+  name: string
+  value: string
+}
+
+export interface ManualReturn {
+  id: number
+  channel: string
+  channelLabel: string
+  marketplace: string
+  channelSku: string
+  productName: string | null
+  units: number
+  sellableUnits: number
+  damagedUnits: number
+  remarks: string | null
+  metadata: ManualReturnMetadata[]
+  by: { id: number; name: string | null }
+  createdAt: string
+  lines: Array<{ sku: string; sellableQty: number; damagedQty: number }>
+}
+
+export interface NewManualReturn {
+  channel: string
+  marketplace: string
+  channelSku: string
+  units: number
+  /** Of `units`: how many were damaged; the rest were sellable. */
+  damagedUnits: number
+  remarks?: string
+  metadata: ManualReturnMetadata[]
+}
+
 export const barcodeApi = baseApi.injectEndpoints({
   endpoints: (b) => ({
     getScanSource: b.query<ScanSourceInfo, { scenario: ScanScenario; sourceId: string }>({
@@ -258,6 +306,25 @@ export const barcodeApi = baseApi.injectEndpoints({
       query: (id) => ({ url: `/barcode/sessions/${id}/heartbeat`, method: 'POST' }),
       transformResponse: unwrap,
     }),
+    getManualReturnOptions: b.query<ManualReturnOption[], void>({
+      query: () => '/barcode/manual-returns/options',
+      transformResponse: unwrap,
+      keepUnusedDataFor: 600,
+    }),
+    getManualReturnProducts: b.query<ManualReturnProduct[], { channel: string; marketplace: string; search?: string }>({
+      query: ({ search, ...params }) => ({ url: '/barcode/manual-returns/products', params: { ...params, search: search || undefined } }),
+      transformResponse: unwrap,
+    }),
+    getManualReturns: b.query<Page<ManualReturn>, PageParams>({
+      query: ({ search, ...params }) => ({ url: '/barcode/manual-returns', params: { ...params, search: search || undefined } }),
+      providesTags: ['Barcode'],
+    }),
+    // Puts the units back into stock, so the inventory screens refresh too
+    createManualReturn: b.mutation<ManualReturn, NewManualReturn>({
+      query: (body) => ({ url: '/barcode/manual-returns', method: 'POST', body }),
+      transformResponse: unwrap,
+      invalidatesTags: ['Barcode', 'Inventory', 'InboundShipments'],
+    }),
     getBarcodeScans: b.query<Page<BarcodeScan>, PageParams>({
       query: ({ search, ...params }) => ({ url: '/barcode/scans', params: { ...params, search: search || undefined } }),
       providesTags: ['Barcode'],
@@ -282,6 +349,10 @@ export const {
   useStartScanSessionMutation,
   useAddSessionScanMutation,
   useLazyGetScanLineScansQuery,
+  useGetManualReturnOptionsQuery,
+  useGetManualReturnProductsQuery,
+  useGetManualReturnsQuery,
+  useCreateManualReturnMutation,
   useCloseScanRecordMutation,
   useUndoSessionScanMutation,
   useEndScanSessionMutation,

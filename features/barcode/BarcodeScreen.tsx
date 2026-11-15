@@ -6,10 +6,13 @@ import { Button } from '@/design-system/buttons'
 import { Card, CardContent } from '@/design-system/cards'
 import { Input } from '@/design-system/inputs'
 import { Spinner } from '@/design-system/loaders'
+import { useAppAbility } from '@/hooks/useAppAbility'
 import { useGetBarcodeScansQuery } from '@/services/api/barcode.api'
 import { BAUD_RATES, useBarcodeScanner } from './BarcodeScannerProvider'
 import { HandheldScanField } from './HandheldScanField'
 import { ScanCard } from './ScanCard'
+import { ManualReturnModal } from './manual-return/ManualReturnModal'
+import { ManualReturnsList } from './manual-return/ManualReturnsList'
 import { SessionsListing } from './session/SessionsListing'
 import { DESKTOP_SCANNERS_ENABLED } from './scannerConfig'
 
@@ -85,11 +88,15 @@ function ScannerStatus() {
 
 const TABS = [
   { key: 'sessions', label: 'Scan sessions' },
+  { key: 'manual', label: 'Manual returns' },
   { key: 'codes', label: 'Scanned codes' },
 ] as const
 
 export function BarcodeScreen() {
   const [tab, setTab] = useState<(typeof TABS)[number]['key']>('sessions')
+  // Putting stock back by hand is what the Scan Items permission allows
+  const canEnter = useAppAbility().can('write', 'barcode:scan-items')
+  const [manualOpen, setManualOpen] = useState(false)
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const { data, isFetching } = useGetBarcodeScansQuery(
@@ -114,15 +121,34 @@ export function BarcodeScreen() {
     </div>
   )
 
+  const manualModal = manualOpen ? <ManualReturnModal onClose={() => setManualOpen(false)} /> : null
+
   if (tab === 'sessions')
     return (
       <div className="space-y-5 px-6 py-6">
-        <div>
-          <h1 className="text-2xl font-bold text-text-primary">Scan sessions</h1>
-          <p className="text-sm text-text-muted">Every scanning session started from Shipments, Shipping orders or Inbound receiving. Scanning itself happens in each screen&apos;s Scan items modal.</p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-bold text-text-primary">Scanning Sessions</h1>
+            <p className="text-sm text-text-muted">Every scanning session started from Shipments, Shipping orders or Inbound receiving. Scanning itself happens in each screen&apos;s Scan items modal. Returns whose product matches nothing by UPC are entered by hand.</p>
+          </div>
+          {canEnter && <Button onClick={() => setManualOpen(true)}>＋ Manual return</Button>}
         </div>
         {tabs}
         <SessionsListing />
+        {manualModal}
+      </div>
+    )
+
+  if (tab === 'manual')
+    return (
+      <div className="space-y-5 px-6 py-6">
+        <div>
+          <h1 className="text-2xl font-bold text-text-primary">Scanning Sessions</h1>
+          <p className="text-sm text-text-muted">Returns entered by hand because the returned product matched nothing by UPC. Their units were added back to inventory when they were saved.</p>
+        </div>
+        {tabs}
+        <ManualReturnsList onAdd={canEnter ? () => setManualOpen(true) : undefined} />
+        {manualModal}
       </div>
     )
 
