@@ -216,6 +216,13 @@ const LegPanel: React.FC<LegPanelProps> = ({ view, leg, shipmentId, rows, setRow
       ) : null}
 
       <div className="space-y-1.5 rounded-lg border border-border p-3 text-sm">
+        <div className="text-xs text-text-secondary">
+          Shipment total for {leg.fulfillmentCenter}:{' '}
+          <span className="font-semibold text-text-primary">
+            {formatUnits(leg.totals.boxes)} boxes · {formatUnits(leg.totals.units)} units
+          </span>{' '}
+          (from the SKUs in this shipment) · {formatUnits(check.unassigned.boxes)} boxes and {formatUnits(check.unassigned.units)} units left to put on a trailer
+        </div>
         <Allocation label="Boxes" used={check.used.boxes} total={leg.totals.boxes} width={bar(check.used.boxes, leg.totals.boxes)} over={check.overBoxes > 0} />
         <Allocation label="Units" used={check.used.units} total={leg.totals.units} width={bar(check.used.units, leg.totals.units)} over={check.overUnits > 0} />
         <div className="flex items-center gap-3 text-xs text-text-muted">
@@ -237,7 +244,13 @@ const LegPanel: React.FC<LegPanelProps> = ({ view, leg, shipmentId, rows, setRow
               max={20}
               value={planCount}
               disabled={disabled}
-              onChange={(e) => setPlanCount(e.target.value)}
+              onKeyDown={(e) => {
+                if (['-', '+', 'e', 'E', '.', ','].includes(e.key)) e.preventDefault()
+              }}
+              onChange={(e) => {
+                const digits = e.target.value.replace(/\D/g, '')
+                setPlanCount(digits === '' ? '' : String(Math.min(20, Number(digits))))
+              }}
               className="w-20 rounded-md border border-border px-3 py-2 text-sm"
             />
             <Button disabled={disabled || !(Number(planCount) >= 1)} onClick={() => setRows(plannedTrailers(view, leg, Math.min(20, Math.floor(Number(planCount)))))}>
@@ -275,7 +288,11 @@ const LegPanel: React.FC<LegPanelProps> = ({ view, leg, shipmentId, rows, setRow
                     step={step ?? '1'}
                     value={row[field]}
                     disabled={disabled}
-                    onChange={(e) => update(row.key, { [field]: e.target.value })}
+                    onKeyDown={(e) => {
+                      // No negatives or exponents anywhere, and no decimals in whole-number columns.
+                      if (['-', '+', 'e', 'E'].includes(e.key) || (field !== 'weight' && ['.', ','].includes(e.key))) e.preventDefault()
+                    }}
+                    onChange={(e) => update(row.key, { [field]: e.target.value.replace(/-/g, '') })}
                     className={cn(
                       'rounded-md border px-2 py-1.5 text-sm', field === 'weight' ? 'w-24' : 'w-[72px]',
                       errors[field] || ((field === 'boxes' && check.overBoxes > 0) || (field === 'units' && check.overUnits > 0)) ? 'border-danger-500 bg-danger-50' : 'border-border'

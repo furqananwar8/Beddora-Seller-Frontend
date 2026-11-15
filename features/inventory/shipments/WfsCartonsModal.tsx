@@ -7,6 +7,7 @@ import { Spinner } from '@/design-system/loaders'
 import { cn } from '@/utils/cn'
 import { InboundShipment, ShipmentLeg, WfsCartons, legId } from './types'
 import { DialogFooter, formatUnits } from './ShipmentParts'
+import { nonNegativeNumber } from './numberInput'
 
 /**
  * WFS cartons: for each Walmart shipment, how many carton labels it needs by
@@ -242,6 +243,7 @@ const CountField: React.FC<{ label: string; value: string; disabled?: boolean; o
       step={1}
       value={value}
       disabled={disabled}
+      {...nonNegativeNumber()}
       onChange={(e) => onChange(e.target.value)}
       className="h-9 rounded-md border border-border bg-surface px-3 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-secondary-200"
     />
@@ -257,6 +259,7 @@ const MeasureField: React.FC<{ label: string; value: string; disabled?: boolean;
       step="any"
       value={value}
       disabled={disabled}
+      {...nonNegativeNumber(true)}
       onChange={(e) => onChange(e.target.value)}
       className={cn('h-8 w-full rounded-md border border-border bg-surface px-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-secondary-200')}
     />

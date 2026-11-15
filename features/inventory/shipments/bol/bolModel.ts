@@ -129,9 +129,15 @@ export function nextTrailer(view: BolView, leg: BolLeg, drafts: TrailerDraft[]):
   }
 }
 
+/** Only a real, positive number counts toward the totals: blanks, negatives and junk add nothing. */
+const counted = (value: string) => {
+  const n = num(value)
+  return Number.isFinite(n) && n > 0 ? n : 0
+}
+
 export function usedOf(drafts: TrailerDraft[]) {
   return drafts.reduce(
-    (sum, d) => ({ boxes: sum.boxes + (num(d.boxes) || 0), units: sum.units + (num(d.units) || 0), pallets: sum.pallets + (num(d.pallets) || 0), weight: sum.weight + (num(d.weight) || 0) }),
+    (sum, d) => ({ boxes: sum.boxes + counted(d.boxes), units: sum.units + counted(d.units), pallets: sum.pallets + counted(d.pallets), weight: sum.weight + counted(d.weight) }),
     { boxes: 0, units: 0, pallets: 0, weight: 0 }
   )
 }
@@ -170,7 +176,7 @@ export function checkLeg(leg: BolLeg, drafts: TrailerDraft[]) {
       : overUnits > 0
       ? `${overUnits} units over the shipment: ${leg.fulfillmentCenter} has ${leg.totals.units}`
       : firstRow >= 0
-      ? `Trailer ${firstRow + 1}: ${Object.values(rows[firstRow])[0]}`
+      ? `Trailer ${firstRow + 1}: ${Object.values(rows[firstRow]).join('; ')}`
       : null
   return {
     used,

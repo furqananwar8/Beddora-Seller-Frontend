@@ -12,6 +12,7 @@ import { InboundShipment, Marketplace, ReservedPoolItem, ShipmentChannel } from 
 import { CreateShipmentInput } from './useShipments'
 import { MARKETPLACE_META, getUnassignedUnits, isOpen as isOpenShipment, ofChannel } from './workflow'
 import { formatUnits, unitsLabel, ChannelChip } from './ShipmentParts'
+import { nonNegativeNumber } from './numberInput'
 import { ShipFromChoice, ShipFromPicker, shipFromRequest } from './ShipFromPicker'
 import { CHANNEL_ORDER, SHIPMENT_CHANNELS } from './channels'
 import { charge, fitUnits, internalHolders, internalRemaining, overbookings } from './bookingCapacity'
@@ -277,7 +278,7 @@ const DrawerPanel: React.FC<Omit<CreateShipmentDrawerProps, 'isOpen'>> = ({
     }
   }
 
-  const columns = wfs ? 'grid-cols-[48px_340px_100px_minmax(240px,1fr)_100px_110px_280px]' : 'grid-cols-[48px_340px_100px_minmax(240px,1fr)_100px_280px]'
+  const columns = wfs ? 'grid-cols-[48px_340px_minmax(240px,1fr)_100px_110px_280px]' : 'grid-cols-[48px_340px_minmax(240px,1fr)_100px_280px]'
 
   return createPortal(
     <div className="fixed inset-0 z-50 overscroll-none" role="dialog" aria-modal="true" aria-labelledby="create-shipment-title">
@@ -419,7 +420,6 @@ const DrawerPanel: React.FC<Omit<CreateShipmentDrawerProps, 'isOpen'>> = ({
             <div className={cn('grid border-b border-slate-200 bg-slate-100 text-xs font-semibold text-slate-700', columns)}>
               <div className="px-3 py-3" aria-hidden />
               <div className="px-4 py-3">Product</div>
-              <div className="px-2 py-3 text-right">{def.program} pool</div>
               <div className="px-4 py-3">Held by other shipments</div>
               <div className="px-2 py-3 text-right">Available</div>
               {wfs && <div className="px-3 py-3">Units / case</div>}
@@ -461,15 +461,14 @@ const DrawerPanel: React.FC<Omit<CreateShipmentDrawerProps, 'isOpen'>> = ({
                       {p.sku}
                       {wfs && p.gtin && <span className="text-xs font-normal text-slate-600">{` · GTIN ${p.gtin}`}</span>}
                     </span>
-                    {/* What booking this SKU deducts: its internal SKUs, per unit, with what each has allocated to this channel */}
+                    {/* What booking this SKU deducts: its internal SKUs, per unit, per unit */}
                     {(p.mapping ?? []).map((m) => (
                       <span key={m.sku} className="break-words text-[11px] text-slate-600" title={m.name}>
                         <span aria-hidden>↳ </span>
-                        <span className="font-mono">{m.sku}</span> × {formatUnits(m.perUnit)} · {formatUnits(m.allocated)} allocated
+                        <span className="font-mono">{m.sku}</span> × {formatUnits(m.perUnit)}
                       </span>
                     ))}
                   </div>
-                  <div className="px-2 py-2.5 text-right">{formatUnits(p.reserved)}</div>
                   <div className="px-4 py-2.5 text-[13px] text-slate-700">
                     {held}
                     {/* Under it, what those shipments hold in this SKU's own units: the shared internal units divided by the units this SKU takes per sale */}
@@ -496,6 +495,7 @@ const DrawerPanel: React.FC<Omit<CreateShipmentDrawerProps, 'isOpen'>> = ({
                           value={perCaseOf(p)}
                           placeholder="—"
                           disabled={!!submitting}
+                          {...nonNegativeNumber()}
                           onChange={(e) => patch({ unitsPerCase: { ...unitsPerCase, [p.productId]: e.target.value } })}
                           aria-label={`Units per case for ${p.title}`}
                           className="h-10 w-full !rounded-lg border border-slate-300 bg-white px-3 text-[15px] focus:outline-none focus:ring-2 focus:ring-slate-300"
@@ -521,6 +521,7 @@ const DrawerPanel: React.FC<Omit<CreateShipmentDrawerProps, 'isOpen'>> = ({
                           value={book[p.productId] ?? ''}
                           placeholder="0"
                           disabled={!!submitting}
+                          {...nonNegativeNumber()}
                           onChange={(e) => patch({ book: { ...book, [p.productId]: e.target.value } })}
                           aria-label={`${wfs ? 'Cases' : 'Units'} for ${p.title}`}
                           aria-invalid={!!error}
