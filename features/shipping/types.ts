@@ -412,6 +412,18 @@ export interface ChannelOrderListItem extends ChannelOrderRef {
   booking: ChannelOrderBooking | null
 }
 
+/** Where a row of the orders list came from: a sales channel, or a shipment created by hand (Create shipment). */
+export type OrderOrigin = 'CHANNEL' | 'MANUAL'
+
+/** A shipment created by hand, listed with the orders: no channel order behind it (its "order" is the booking number), so no amounts, details or scanning. */
+export interface ManualOrderListItem extends Omit<ChannelOrderListItem, 'channel'> {
+  origin: 'MANUAL'
+  /** The platform it was created for, or "manual" when none was picked. */
+  channel: ChannelId | 'manual'
+}
+
+export type OrderListItem = (ChannelOrderListItem & { origin: 'CHANNEL' }) | ManualOrderListItem
+
 export interface ChannelOrderListParams {
   page: number
   limit: number
@@ -420,6 +432,8 @@ export interface ChannelOrderListParams {
   /** Marketplace countries: "CA", "US", "MX". */
   countries?: string[]
   states?: Fulfillment[]
+  /** Channel orders, shipments created by hand, or both (default). */
+  origin?: OrderOrigin | 'ALL'
   /** yyyy-mm-dd, on the order date. */
   from?: string
   to?: string

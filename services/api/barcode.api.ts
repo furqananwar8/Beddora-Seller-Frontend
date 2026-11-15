@@ -60,6 +60,8 @@ export interface ScanSourceInfo {
   /** Someone else holds this record right now. */
   lockedBy: { id: number; name: string | null; since: string } | null
   resume: { id: number; direction: ScanDirection } | null
+  /** Directions whose scanning was closed for good, and who closed them. */
+  closed: Record<ScanDirection, { by: string | null; at: string } | null>
   conditions: Array<{ value: ReturnCondition; label: string }>
 }
 
@@ -73,6 +75,12 @@ export interface ScanSessionLine {
   expected: number
   scanned: number
   state: ScanLineState
+}
+
+export interface ScanLineScans {
+  items: Array<{ id: number; upc: string; scannedAt: string; condition: ReturnCondition | null }>
+  total: number
+  hasMore: boolean
 }
 
 export interface ScanSessionScan {
@@ -215,17 +223,28 @@ export const barcodeApi = baseApi.injectEndpoints({
       invalidatesTags: ['Barcode'],
     }),
     // The scan is only queued; the open modal polls the session, and each read matches the queued scans in one batch
-    addSessionScan: b.mutation<{ queued: true }, { id: number; upc: string; condition?: ReturnCondition }>({
+    addSessionScan: b.mutation<{ queued: true }, { id: number; upc: string }>({
       query: ({ id, ...body }) => ({ url: `/barcode/sessions/${id}/scans`, method: 'POST', body }),
       transformResponse: unwrap,
+    }),
+    getScanLineScans: b.query<ScanLineScans, { id: number; inventoryItemId: number; offset: number; limit: number }>({
+      query: ({ id, inventoryItemId, ...params }) => ({ url: `/barcode/sessions/${id}/lines/${inventoryItemId}/scans`, params }),
+      transformResponse: unwrap,
+    }),
+    // Closes a record's scanning for good; an open session of yours is ended first
+    closeScanRecord: b.mutation<{ closed: true }, { scenario: ScanScenario; sourceId: string; direction: ScanDirection }>({
+      query: (body) => ({ url: '/barcode/sessions/close', method: 'POST', body }),
+      transformResponse: unwrap,
+      invalidatesTags: ['Barcode', 'InboundShipments', 'Inventory'],
     }),
     undoSessionScan: b.mutation<ScanSession, { id: number; scanId: number }>({
       query: ({ id, scanId }) => ({ url: `/barcode/sessions/${id}/scans/${scanId}`, method: 'DELETE' }),
       transformResponse: unwrap,
       invalidatesTags: ['Barcode'],
     }),
-    endScanSession: b.mutation<ScanSession, { id: number; confirmed: boolean }>({
-      query: ({ id, confirmed }) => ({ url: `/barcode/sessions/${id}/end`, method: 'POST', body: { confirmed } }),
+    // `conditions`: per inventory item id, how many units were damaged / a normal return; the rest are sellable
+    endScanSession: b.mutation<ScanSession, { id: number; confirmed: boolean; conditions?: Record<number, Partial<Record<ReturnCondition, number>>> }>({
+      query: ({ id, ...body }) => ({ url: `/barcode/sessions/${id}/end`, method: 'POST', body }),
       transformResponse: unwrap,
       // Ending moves stock and can make a shipment Scanned and Shipped
       invalidatesTags: ['Barcode', 'InboundShipments', 'Inventory'],
@@ -262,6 +281,8 @@ export const {
   useGetScanStartersQuery,
   useStartScanSessionMutation,
   useAddSessionScanMutation,
+  useLazyGetScanLineScansQuery,
+  useCloseScanRecordMutation,
   useUndoSessionScanMutation,
   useEndScanSessionMutation,
   useDiscardScanSessionMutation,

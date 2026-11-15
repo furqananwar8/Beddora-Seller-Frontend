@@ -5,18 +5,15 @@ import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Button } from '@/design-system/buttons'
-import { Select } from '@/design-system/inputs'
 import { Spinner } from '@/design-system/loaders'
 import { Modal } from '@/design-system/modals'
 import { useApiFeedback } from '@/hooks/useApiFeedback'
-import { useGetScanSourceQuery, useStartScanSessionMutation, type ScanDirection } from '@/services/api/barcode.api'
+import { apiErrorMessage } from '@/hooks/useApiFeedback'
+import { useCloseScanRecordMutation, useGetScanSourceQuery, useStartScanSessionMutation, type ScanDirection } from '@/services/api/barcode.api'
 import { ScanSessionModal } from './ScanSessionModal'
-import { DIRECTION_META, conditionName, conditionsFor, inHint, isReceipt, type ScanTarget } from './scanSession'
+import { DIRECTION_META, inHint, type ScanTarget } from './scanSession'
 
-const schema = z.object({
-  direction: z.enum(['IN', 'OUT']),
-  condition: z.enum(['SELLABLE', 'NORMAL_RETURN', 'DAMAGED']),
-})
+const schema = z.object({ direction: z.enum(['IN', 'OUT']) })
 type FormValues = z.infer<typeof schema>
 
 const DIRECTIONS: ScanDirection[] = ['OUT', 'IN']
@@ -40,11 +37,11 @@ export function ScanItemsDialog({ target, onClose }: Props) {
 
   const { register, watch, setValue, handleSubmit } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { direction: 'OUT', condition: 'SELLABLE' },
+    defaultValues: { direction: 'OUT' },
   })
   const direction = watch('direction')
-  // The condition picked here is the scan modal's first one; it can still be changed between scans
-  const [initialCondition, setInitialCondition] = useState<FormValues['condition']>('SELLABLE')
+  const [confirmingClose, setConfirmingClose] = useState(false)
+  const [closeRecord, { isLoading: closing }] = useCloseScanRecordMutation()
 
   // Start on the first open direction, so the common case is one click
   const firstOpen = useMemo(() => (info ? DIRECTIONS.find((d) => !info.availability[d]) : undefined), [info])
@@ -52,19 +49,31 @@ export function ScanItemsDialog({ target, onClose }: Props) {
     if (firstOpen) setValue('direction', firstOpen)
   }, [firstOpen, setValue])
 
-  const submit = handleSubmit(async ({ direction: dir, condition }) => {
+  const submit = handleSubmit(async ({ direction: dir }) => {
     try {
       const session = await start({ ...target, direction: dir }).unwrap()
-      setInitialCondition(condition)
       setSessionId(session.id)
     } catch (e) {
       feedback.failure(e, 'Could not start scanning')
     }
   })
 
-  if (sessionId !== null) return <ScanSessionModal sessionId={sessionId} initialCondition={initialCondition} onClose={onClose} />
+  const closeScanning = async () => {
+    try {
+      await closeRecord({ ...target, direction }).unwrap()
+      feedback.success('Scanning closed. This record takes no more scans')
+      setConfirmingClose(false)
+      onClose()
+    } catch (e) {
+      setConfirmingClose(false)
+      feedback.error(apiErrorMessage(e, 'Could not close scanning'))
+    }
+  }
+
+  if (sessionId !== null) return <ScanSessionModal sessionId={sessionId} onClose={onClose} />
 
   return (
+    <>
     <Modal isOpen onClose={onClose} title={info ? `Scan items · ${info.ref}` : 'Scan items'} size="md">
       {isLoading && (
         <div className="flex justify-center p-8">
@@ -103,16 +112,10 @@ export function ScanItemsDialog({ target, onClose }: Props) {
             })}
           </fieldset>
 
-          {direction === 'IN' && (
-            <Select
-              label={isReceipt(target.scenario) ? 'Condition of the received items' : 'Condition of the returned items'}
-              helperText="Sets where the units are added. You can change it between scans."
-              options={info.conditions.filter((c) => conditionsFor(target.scenario).includes(c.value)).map((c) => ({ value: c.value, label: conditionName(target.scenario, c.value, c.label) }))}
-              {...register('condition')}
-            />
-          )}
-
-          <div className="flex justify-end gap-2">
+          <div className="flex items-center justify-end gap-2">
+            <Button type="button" variant="outline" className="mr-auto" disabled={!firstOpen || Boolean(info.availability[direction])} onClick={() => setConfirmingClose(true)} title="Stop scanning this record for good, even with units still missing">
+              Close scanning
+            </Button>
             <Button type="button" variant="ghost" onClick={onClose}>
               Cancel
             </Button>
@@ -123,5 +126,19 @@ export function ScanItemsDialog({ target, onClose }: Props) {
         </form>
       )}
     </Modal>
+    <Modal isOpen={confirmingClose} onClose={() => setConfirmingClose(false)} title="Close scanning for good?" size="md">
+      <p className="text-sm text-text-secondary">
+        {info?.ref} will <b>not accept scanning again</b>, even if some units were never scanned. Anything already scanned stays counted. To stop for now and come back later, just leave it open.
+      </p>
+      <div className="mt-5 flex justify-end gap-3">
+        <Button variant="outline" onClick={() => setConfirmingClose(false)} disabled={closing}>
+          Keep it open
+        </Button>
+        <Button onClick={() => void closeScanning()} disabled={closing}>
+          {closing ? 'Closing…' : 'Close scanning'}
+        </Button>
+      </div>
+    </Modal>
+    </>
   )
 }

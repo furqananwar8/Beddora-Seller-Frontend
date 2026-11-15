@@ -3,7 +3,7 @@ import type {
   BookShipmentBody,
   ChannelInfo,
   ChannelOrderDetail,
-  ChannelOrderListItem,
+  OrderListItem,
   ChannelOrderListParams,
   ChannelOrderRef,
   HsCodeOption,
@@ -126,7 +126,7 @@ export const shippingApi = baseApi.injectEndpoints({
       transformResponse: (response: Envelope<ChannelInfo[]>) => unwrap(response),
       keepUnusedDataFor: 600,
     }),
-    getChannelOrders: builder.query<Page<ChannelOrderListItem>, ChannelOrderListParams>({
+    getChannelOrders: builder.query<Page<OrderListItem>, ChannelOrderListParams>({
       query: ({ search, channels, countries, states, ...params }) => ({
         url: '/shipping/channel-orders',
         params: { ...params, search: search || undefined, channels: csv(channels), countries: csv(countries), states: csv(states) },

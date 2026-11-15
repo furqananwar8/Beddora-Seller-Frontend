@@ -10,7 +10,7 @@ import { Tooltip } from '@/design-system/tooltips'
 import { ChannelBadge } from '../shared/ChannelBadge'
 import { CarrierPageLink, TrackingNumber } from '../shared/TrackingNumber'
 import { bookingHref, bookOrderHref, FULFILLMENT_META, money, shortDateTime, STATUS_TONE } from '../shippingMeta'
-import type { ChannelOrderListItem } from '../types'
+import type { OrderListItem as ChannelOrderListItem } from '../types'
 
 interface OrdersTableProps {
   rows: ChannelOrderListItem[]
@@ -100,10 +100,16 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ rows, isLoading, isErr
       </div>
     )
   if (isError) return <p className="p-8 text-center text-sm text-danger-600">Could not load the orders.</p>
-  if (rows.length === 0) return <p className="p-8 text-center text-sm text-text-muted">{filtered ? 'No order matches these filters.' : 'No channel orders yet.'}</p>
+  if (rows.length === 0) return <p className="p-8 text-center text-sm text-text-muted">{filtered ? 'No order matches these filters.' : 'No orders yet.'}</p>
 
   /** What can be done with the order, by its state; Get details is always there. */
   const actionsOf = (row: ChannelOrderListItem): RowActionItem[] => {
+    // a shipment created by hand has no channel order: its details are the booking, and there is nothing to book, invoice or scan
+    if (row.origin === 'MANUAL') {
+      const manual: RowActionItem[] = [{ key: 'booking', label: 'View booking', onSelect: () => row.bookingId !== null && router.push(bookingHref(row.bookingId)) }]
+      manual.push({ key: 'label', label: 'Get label', onSelect: () => row.booking && onPrintLabel(row.booking.id), disabled: !row.booking, disabledReason: 'No label for this shipment' })
+      return manual
+    }
     const items: RowActionItem[] = [{ key: 'details', label: 'Get details', onSelect: () => onOpen(row) }]
     if (row.fulfillment === 'TO_BOOK' && canWrite) items.push({ key: 'rates', label: 'Get rates', onSelect: () => router.push(bookOrderHref(row)) })
     items.push({ key: 'invoice', label: 'Download invoice', onSelect: () => onDownloadInvoice(row), disabled: invoiceBusy, disabledReason: 'An invoice is being prepared' })
@@ -140,6 +146,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ rows, isLoading, isErr
     <table className="w-full">
       <thead className="sticky top-0 z-10 bg-surface">
         <tr className="border-b border-border">
+          <th className={HEAD}>Origin</th>
           <th className={HEAD}>Channel</th>
           <th className={HEAD}>Market</th>
           <th className={HEAD}>Order</th>
@@ -162,6 +169,9 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ rows, isLoading, isErr
           const tracking = trackingOf(row)
           return (
             <tr key={`${row.channel}:${row.market}:${row.orderId}`} className="border-b border-border last:border-0 hover:bg-secondary-50">
+              <td className={CELL}>
+                <StatusBadge label={row.origin === 'MANUAL' ? 'Manual' : 'Channel'} tone={row.origin === 'MANUAL' ? 'warning' : 'info'} />
+              </td>
               <td className={CELL}>
                 <span className="flex justify-center" title={row.channelLabel}>
                   <ChannelBadge channel={row.channel} />
@@ -212,9 +222,10 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ rows, isLoading, isErr
               </td>
               <td className={CELL}>{tracking?.url ? <CarrierPageLink url={tracking.url} /> : MUTED}</td>
               {/* what the order is before tax: items, shipping and discounts */}
-              <td className={`${CELL} whitespace-nowrap tabular-nums`}>{money(row.amounts.items + row.amounts.shipping + row.amounts.discount, row.currency)}</td>
-              <td className={`${CELL} whitespace-nowrap tabular-nums`}>{row.amounts.tax === null ? MUTED : money(row.amounts.tax, row.currency)}</td>
-              <td className={`${CELL} whitespace-nowrap tabular-nums`}>{money(row.total, row.currency)}</td>
+              {/* a shipment created by hand has no order behind it, so no amounts */}
+              <td className={`${CELL} whitespace-nowrap tabular-nums`}>{row.origin === 'MANUAL' ? MUTED : money(row.amounts.items + row.amounts.shipping + row.amounts.discount, row.currency)}</td>
+              <td className={`${CELL} whitespace-nowrap tabular-nums`}>{row.origin === 'MANUAL' || row.amounts.tax === null ? MUTED : money(row.amounts.tax, row.currency)}</td>
+              <td className={`${CELL} whitespace-nowrap tabular-nums`}>{row.origin === 'MANUAL' ? MUTED : money(row.total, row.currency)}</td>
               <td className={CELL}>
                 <div className="flex justify-center">
                   <RowActionsMenu label={row.orderId} items={actionsOf(row)} />

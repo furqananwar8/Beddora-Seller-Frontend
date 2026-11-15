@@ -1,15 +1,15 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
 import { skipToken } from '@reduxjs/toolkit/query'
 import { Badge } from '@/design-system/badges'
 import { Button } from '@/design-system/buttons'
-import { Select } from '@/design-system/inputs'
 import { Spinner } from '@/design-system/loaders'
 import { Modal } from '@/design-system/modals'
 import { useApiFeedback, apiErrorMessage } from '@/hooks/useApiFeedback'
 import {
   useAddSessionScanMutation,
+  useCloseScanRecordMutation,
   useDiscardScanSessionMutation,
   useEndScanSessionMutation,
   useGetScanSessionQuery,
@@ -20,18 +20,16 @@ import {
 } from '@/services/api/barcode.api'
 import { ScanFieldSource } from '../scanner/ScanFieldSource'
 import { LiveChip } from './StatusChip'
+import { MatchedScans } from './MatchedScans'
 import { DIRECTION_META, channelName, conditionName, conditionsFor, isReceipt, sessionCode } from './scanSession'
 
 /** The server's lock lapses after 90 s; this keeps it alive for as long as the modal is open. */
 const HEARTBEAT_MS = 30_000
 const SCAN_POLL_MS = 1_000
-const CONDITIONS: ReturnCondition[] = ['SELLABLE', 'NORMAL_RETURN', 'DAMAGED']
 const time = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })
 
 interface Props {
   sessionId: number
-  /** The condition the first scans of a return or receipt are recorded with. */
-  initialCondition?: ReturnCondition
   /** Called when the modal goes away; `ended` is true when the session was ended or discarded (inventory may have changed). */
   onClose: (ended: boolean) => void
 }
@@ -41,7 +39,7 @@ interface Props {
  * UPC is listed under them as Matched or Not matched. Nothing touches inventory until the session is ended, and ending
  * (the button or the ×) always asks first.
  */
-export function ScanSessionModal({ sessionId, initialCondition = 'SELLABLE', onClose }: Props) {
+export function ScanSessionModal({ sessionId, onClose }: Props) {
   const feedback = useApiFeedback()
   // While scanning, the session is read once a second: each read matches the scans queued since the last one in one batch
   const [scanning, setScanning] = useState(true)
@@ -50,9 +48,20 @@ export function ScanSessionModal({ sessionId, initialCondition = 'SELLABLE', onC
   const [endSession, { isLoading: ending }] = useEndScanSessionMutation()
   const [discard, { isLoading: discarding }] = useDiscardScanSessionMutation()
   const [heartbeat] = useScanSessionHeartbeatMutation()
+  const [closeRecord, { isLoading: closing }] = useCloseScanRecordMutation()
 
-  const [condition, setCondition] = useState<ReturnCondition>(initialCondition)
   const [confirming, setConfirming] = useState(false)
+  const [confirmingClose, setConfirmingClose] = useState(false)
+  // Inventory-in: per product, how many units were damaged / a normal return (asked once, when ending); the rest are sellable
+  const [split, setSplit] = useState<ConditionCounts>({})
+  // Products whose matched UPCs are opened under their row
+  const [expanded, setExpanded] = useState<Set<number>>(new Set())
+  const toggleExpanded = (inventoryItemId: number) =>
+    setExpanded((current) => {
+      const next = new Set(current)
+      if (!next.delete(inventoryItemId)) next.add(inventoryItemId)
+      return next
+    })
   const [lastSaved, setLastSaved] = useState<Date | null>(null)
   // Scans sent but not yet matched: each shows as a skeleton row until the session read that matches it arrives
   const [waiting, setWaiting] = useState<Array<{ key: number; upc: string }>>([])
@@ -80,22 +89,32 @@ export function ScanSessionModal({ sessionId, initialCondition = 'SELLABLE', onC
   const { data: source } = useGetScanSourceQuery(session ? { scenario: session.scenario, sourceId: session.sourceId } : skipToken)
   const conditionLabel = (value: ReturnCondition) => source?.conditions.find((c) => c.value === value)?.label ?? value
 
-  // The condition is read at scan time, so a change applies to the next scan only
-  const conditionRef = useRef(condition)
-  conditionRef.current = condition
-
   const onScan = useCallback(
     async (upc: string) => {
       try {
-        await addScan({ id: sessionId, upc, condition: isReturn ? conditionRef.current : undefined }).unwrap()
+        await addScan({ id: sessionId, upc }).unwrap()
         setLastSaved(new Date())
         setWaiting((w) => [...w, { key: ++waitingKey.current, upc }])
       } catch (e) {
         feedback.failure(e, 'Could not save the scan')
       }
     },
-    [addScan, feedback, isReturn, sessionId]
+    [addScan, feedback, sessionId]
   )
+
+  /** Ends this session (adding what it scanned to inventory) and closes the record: it takes no more scanning. */
+  const closeScanning = async () => {
+    if (!session) return
+    try {
+      await closeRecord({ scenario: session.scenario, sourceId: session.sourceId, direction: session.direction }).unwrap()
+      feedback.success('Scanning closed. This record takes no more scans')
+      setConfirmingClose(false)
+      onClose(true)
+    } catch (e) {
+      setConfirmingClose(false)
+      feedback.error(apiErrorMessage(e, 'Could not close scanning'))
+    }
+  }
 
   // Handheld scanners type into the field; it keeps focus so every scan lands in it
   useEffect(() => {
@@ -119,7 +138,7 @@ export function ScanSessionModal({ sessionId, initialCondition = 'SELLABLE', onC
         await discard(sessionId).unwrap()
         feedback.success('Session closed. Nothing was scanned, so inventory is unchanged')
       } else {
-        await endSession({ id: sessionId, confirmed: true }).unwrap()
+        await endSession({ id: sessionId, confirmed: true, ...(isReturn ? { conditions: split } : {}) }).unwrap()
         feedback.success(isReturn ? (isReceipt(session.scenario) ? 'Received units added to inventory' : 'Returned units added to inventory') : 'Inventory updated')
       }
       setConfirming(false)
@@ -148,6 +167,8 @@ export function ScanSessionModal({ sessionId, initialCondition = 'SELLABLE', onC
   }
 
   const meta = DIRECTION_META[session.direction]
+  // Matched UPCs are grouped under their SKU; this list is for the ones that did not match
+  const notMatchedScans = session.latest.filter((scan) => scan.state !== 'COUNTED')
   const receipt = isReceipt(session.scenario)
   const overLines = session.lines.filter((l) => l.state === 'OVER')
   const stillToScan = session.lines.filter((l) => l.scanned < l.expected).length
@@ -203,21 +224,44 @@ export function ScanSessionModal({ sessionId, initialCondition = 'SELLABLE', onC
                 </thead>
                 <tbody>
                   {session.lines.map((line) => (
-                    <tr key={line.inventoryItemId} className={`border-t border-border ${line.state === 'OVER' ? 'bg-warning-50' : ''}`}>
-                      <td className="px-3 py-2.5 text-center align-middle">
-                        <div className="font-mono text-xs text-text-primary">{line.sku}</div>
-                        {line.channelSku && <div className="text-xs text-text-muted">{line.channelSku}</div>}
-                      </td>
-                      <td className="px-3 py-2.5 font-mono text-xs text-center align-middle">{line.upc ?? <Badge variant="warning" size="sm">No UPC</Badge>}</td>
-                      <td className="px-3 py-2.5 text-center align-middle">{line.expected}</td>
-                      <td className={`px-3 py-2.5 text-right font-semibold ${line.state === 'MATCHED' ? 'text-success-700' : line.state === 'OVER' ? 'text-warning-700' : ''}`}>{line.scanned}</td>
-                      <td className="px-3 py-2.5 text-center align-middle">
-                        <div className="h-1.5 w-24 overflow-hidden rounded-full bg-secondary-200">
-                          <div className={`h-full rounded-full ${line.state === 'OVER' ? 'bg-warning-600' : 'bg-primary-600'}`} style={{ width: `${Math.min(100, line.expected ? (line.scanned / line.expected) * 100 : 0)}%` }} />
-                        </div>
-                        {line.state === 'OVER' && <span className="text-xs font-semibold text-warning-700">+{line.scanned - line.expected} over</span>}
-                      </td>
-                    </tr>
+                    <Fragment key={line.inventoryItemId}>
+                      <tr className={`border-t border-border ${line.state === 'OVER' ? 'bg-warning-50' : ''}`}>
+                        <td className="px-3 py-2.5 text-center align-middle">
+                          <div className="font-mono text-xs text-text-primary">{line.sku}</div>
+                          {line.channelSku && <div className="text-xs text-text-muted">{line.channelSku}</div>}
+                          {line.scanned > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => toggleExpanded(line.inventoryItemId)}
+                              aria-expanded={expanded.has(line.inventoryItemId)}
+                              className="mt-1 text-xs font-medium text-primary-700 hover:underline"
+                            >
+                              {expanded.has(line.inventoryItemId) ? 'Hide scanned UPCs' : `Show ${line.scanned} scanned UPC${line.scanned === 1 ? '' : 's'}`}
+                            </button>
+                          )}
+                        </td>
+                        <td className="px-3 py-2.5 font-mono text-xs text-center align-middle">{line.upc ?? <Badge variant="warning" size="sm">No UPC</Badge>}</td>
+                        <td className="px-3 py-2.5 text-center align-middle">{line.expected}</td>
+                        <td className={`px-3 py-2.5 text-center align-middle font-semibold ${line.state === 'MATCHED' ? 'text-success-700' : line.state === 'OVER' ? 'text-warning-700' : ''}`}>{line.scanned}</td>
+                        <td className="px-3 py-2.5 text-center align-middle">
+                          <div className="mx-auto h-1.5 w-24 overflow-hidden rounded-full bg-secondary-200">
+                            <div className={`h-full rounded-full ${line.state === 'OVER' ? 'bg-warning-600' : 'bg-primary-600'}`} style={{ width: `${Math.min(100, line.expected ? (line.scanned / line.expected) * 100 : 0)}%` }} />
+                          </div>
+                          {line.state === 'OVER' && <span className="text-xs font-semibold text-warning-700">+{line.scanned - line.expected} over</span>}
+                        </td>
+                      </tr>
+                      {expanded.has(line.inventoryItemId) && line.scanned > 0 && (
+                        <tr className="bg-secondary-50">
+                          <td colSpan={5} className="p-0">
+                            <MatchedScans
+                              sessionId={sessionId}
+                              inventoryItemId={line.inventoryItemId}
+                              scanned={line.scanned}
+                            />
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
                   ))}
                   <tr className="border-t border-border bg-secondary-50 font-bold">
                     <td className="px-3 py-2 text-center align-middle">Total</td>
@@ -235,14 +279,12 @@ export function ScanSessionModal({ sessionId, initialCondition = 'SELLABLE', onC
             <div className="overflow-hidden rounded-lg border border-border">
               <div className="flex items-center justify-between border-b border-border px-3 py-2.5 text-sm font-bold">
                 <span>
-                  Scanned UPCs <span className="font-normal text-text-muted">· latest first</span>
+                  Not matched UPCs <span className="font-normal text-text-muted">· latest first</span>
                 </span>
-                <span className="text-xs font-medium text-text-muted">
-                  Showing {session.latest.length} of {session.scanned}
-                </span>
+                <span className="text-xs font-medium text-text-muted">{session.notMatched} not matched</span>
               </div>
-              {session.latest.length === 0 && waiting.length === 0 ? (
-                <p className="p-4 text-sm text-text-muted">Nothing scanned yet. Scan a UPC to start.</p>
+              {notMatchedScans.length === 0 && waiting.length === 0 ? (
+                <p className="p-4 text-sm text-text-muted">{session.scanned === 0 ? 'Nothing scanned yet. Scan a UPC to start.' : 'Every scanned UPC matched. Matched UPCs are listed under their SKU above.'}</p>
               ) : (
                 <table className="w-full text-sm">
                   <tbody>
@@ -260,7 +302,7 @@ export function ScanSessionModal({ sessionId, initialCondition = 'SELLABLE', onC
                         </td>
                       </tr>
                     ))}
-                    {session.latest.slice(0, 8).map((scan) => (
+                    {notMatchedScans.slice(0, 8).map((scan) => (
                       <tr key={scan.id} className={`border-t border-border first:border-0 ${scan.state === 'COUNTED' ? '' : 'bg-warning-50'}`}>
                         <td className="w-24 px-3 py-2 font-mono text-xs text-center align-middle">{time(scan.scannedAt)}</td>
                         <td className="px-3 py-2 font-mono text-xs text-center align-middle">{scan.upc}</td>
@@ -292,15 +334,7 @@ export function ScanSessionModal({ sessionId, initialCondition = 'SELLABLE', onC
               <div className="mb-2 text-xs font-semibold text-secondary-600">Scanner</div>
               {open ? (
                 <>
-                  {isReturn && (
-                    <Select
-                      className="mb-3"
-                      label="Condition of the next scans"
-                      value={condition}
-                      onChange={(event) => setCondition(event.target.value as ReturnCondition)}
-                      options={conditionsFor(session.scenario).map((value) => ({ value, label: conditionName(session.scenario, value, conditionLabel(value)) }))}
-                    />
-                  )}
+                  {isReturn && <p className="mb-3 text-xs text-text-muted">When you end the session you will say how many units were damaged; the rest are added as sellable.</p>}
                   <input
                     ref={inputRef}
                     aria-label="Scan an item UPC"
@@ -343,7 +377,12 @@ export function ScanSessionModal({ sessionId, initialCondition = 'SELLABLE', onC
             {lastSaved ? `Last saved ${time(lastSaved.toISOString())} · ` : ''}started {new Date(session.startedAt).toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false })} by {session.startedBy.name}
           </span>
           {open ? (
-            <Button onClick={() => setConfirming(true)}>End session</Button>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" disabled={isReturn && session.scanned > 0} onClick={() => setConfirmingClose(true)} title={isReturn && session.scanned > 0 ? 'End the session first (you say how many were damaged), then close scanning' : 'Stop scanning this record for good, even with units still missing'}>
+                Close scanning
+              </Button>
+              <Button onClick={() => setConfirming(true)}>End session</Button>
+            </div>
           ) : (
             <Button variant="outline" onClick={() => onClose(false)}>
               Close
@@ -352,17 +391,59 @@ export function ScanSessionModal({ sessionId, initialCondition = 'SELLABLE', onC
         </div>
       </Modal>
 
-      <EndConfirm session={session} open={confirming} busy={ending || discarding} matchedUnits={matchedUnits} onKeep={() => setConfirming(false)} onConfirm={() => void finish()} />
+      <CloseConfirm session={session} open={confirmingClose} busy={closing} onKeep={() => setConfirmingClose(false)} onConfirm={() => void closeScanning()} />
+      <EndConfirm session={session} open={confirming} busy={ending || discarding} matchedUnits={matchedUnits} split={split} onSplit={setSplit} receipt={receipt} onKeep={() => setConfirming(false)} onConfirm={() => void finish()} />
     </>
   )
 }
 
-function EndConfirm({ session, open, busy, matchedUnits, onKeep, onConfirm }: { session: ScanSession; open: boolean; busy: boolean; matchedUnits: number; onKeep: () => void; onConfirm: () => void }) {
+function CloseConfirm({ session, open, busy, onKeep, onConfirm }: { session: ScanSession; open: boolean; busy: boolean; onKeep: () => void; onConfirm: () => void }) {
+  const missing = session.lines.reduce((sum, l) => sum + Math.max(0, l.expected - l.scanned), 0)
+  return (
+    <Modal isOpen={open} onClose={onKeep} title="Close scanning for good?" size="md">
+      <p className="-mt-2 mb-3 text-sm text-text-muted">
+        {session.ref} · {channelName(session.channel)}
+      </p>
+      <ul className="list-disc space-y-1.5 pl-5 text-sm text-text-secondary">
+        <li>What you have scanned so far is {session.direction === 'IN' ? 'added to' : 'taken out of'} inventory, as when you end the session.</li>
+        <li>
+          This {session.scenario === 'FBM_ORDER' ? 'order' : session.scenario === 'CONTAINER' ? 'receiving' : 'shipment'} will <b>not accept scanning again</b>
+          {missing > 0 ? `, even though ${missing} expected unit${missing === 1 ? ' is' : 's are'} still not scanned` : ''}.
+        </li>
+        <li>If you only want to stop for now, use End session instead: you can come back and scan the rest until everything is scanned.</li>
+      </ul>
+      <div className="mt-5 flex justify-end gap-3">
+        <Button variant="outline" onClick={onKeep} disabled={busy}>
+          Keep scanning
+        </Button>
+        <Button onClick={onConfirm} disabled={busy}>
+          {busy ? 'Closing…' : 'Close scanning'}
+        </Button>
+      </div>
+    </Modal>
+  )
+}
+
+/** Per inventory item id: units that were damaged or a normal return. */
+type ConditionCounts = Record<number, Partial<Record<ReturnCondition, number>>>
+type Line = ScanSession['lines'][number]
+
+function EndConfirm({ session, open, busy, matchedUnits, split, onSplit, receipt, onKeep, onConfirm }: { session: ScanSession; open: boolean; busy: boolean; matchedUnits: number; split: ConditionCounts; onSplit: (next: ConditionCounts) => void; receipt: boolean; onKeep: () => void; onConfirm: () => void }) {
   const isIn = session.direction === 'IN'
   const unscanned = session.lines.reduce((sum, l) => sum + Math.max(0, l.expected - l.scanned), 0)
   const unscannedSkus = session.lines.filter((l) => l.scanned === 0).length
   const nothing = session.scanned === 0
   const matchedSkus = session.lines.filter((l) => l.scanned > 0)
+  // Units that go into inventory per product: receiving counts every scan, the rest stop at what the record holds
+  const counted = (l: Line) => (receipt && isIn ? l.scanned : Math.min(l.scanned, l.expected))
+  const otherConditions = conditionsFor(session.scenario).filter((c) => c !== 'SELLABLE')
+  const otherOf = (l: Line) => otherConditions.reduce((sum, c) => sum + (split[l.inventoryItemId]?.[c] ?? 0), 0)
+  const invalid = isIn && matchedSkus.some((l) => otherOf(l) > counted(l))
+  const setCount = (l: Line, condition: ReturnCondition, raw: string) => {
+    const value = Math.max(0, Math.floor(Number(raw.replace(/[^0-9]/g, '')) || 0))
+    onSplit({ ...split, [l.inventoryItemId]: { ...split[l.inventoryItemId], [condition]: value } })
+  }
+  const otherLabel = (c: ReturnCondition) => conditionName(session.scenario, c, c === 'DAMAGED' ? 'Damaged' : 'Normal return')
 
   return (
     <Modal isOpen={open} onClose={onKeep} title="End this scan session?" size="md">
@@ -410,12 +491,55 @@ function EndConfirm({ session, open, busy, matchedUnits, onKeep, onConfirm }: { 
           )}
         </ul>
       )}
+      {isIn && !nothing && (
+        <div className="mt-4">
+          <div className="mb-2 text-sm font-bold">How many of each were {receipt ? 'good and damaged' : 'sellable and damaged'}?</div>
+          <div className="overflow-hidden rounded-lg border border-border text-sm">
+            <table className="w-full">
+              <thead className="bg-secondary-100 text-xs text-secondary-600">
+                <tr>
+                  <th className="px-3 py-2 text-center font-semibold">SKU</th>
+                  <th className="px-3 py-2 text-center font-semibold">Counted</th>
+                  <th className="px-3 py-2 text-center font-semibold">{receipt ? 'Good' : 'Sellable'}</th>
+                  {otherConditions.map((c) => (
+                    <th key={c} className="px-3 py-2 text-center font-semibold">
+                      {otherLabel(c)}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {matchedSkus.map((l) => (
+                  <tr key={l.inventoryItemId} className="border-t border-border">
+                    <td className="px-3 py-2 text-center align-middle font-mono text-xs">{l.sku}</td>
+                    <td className="px-3 py-2 text-center align-middle">{counted(l)}</td>
+                    <td className={`px-3 py-2 text-center align-middle font-semibold ${otherOf(l) > counted(l) ? 'text-danger-600' : 'text-success-700'}`}>{counted(l) - otherOf(l)}</td>
+                    {otherConditions.map((c) => (
+                      <td key={c} className="px-3 py-2 text-center align-middle">
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          aria-label={`${otherLabel(c)} units of ${l.sku}`}
+                          value={split[l.inventoryItemId]?.[c] ?? 0}
+                          onChange={(event) => setCount(l, c, event.target.value)}
+                          className="w-16 rounded border border-border bg-surface px-2 py-1 text-center text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                        />
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {invalid && <p className="mt-2 text-xs text-danger-600">A product has more damaged or returned units than were counted.</p>}
+        </div>
+      )}
       <p className="mt-3 rounded-md border border-border bg-secondary-50 p-2.5 text-xs text-secondary-600">This cannot be undone from the modal. The same confirmation shows if you close the window with the ×.</p>
       <div className="mt-5 flex justify-end gap-3">
         <Button variant="outline" onClick={onKeep} disabled={busy}>
           Keep scanning
         </Button>
-        <Button onClick={onConfirm} disabled={busy}>
+        <Button onClick={onConfirm} disabled={busy || invalid}>
           {busy ? 'Saving…' : nothing ? 'Close session' : 'End session and update inventory'}
         </Button>
       </div>

@@ -161,8 +161,9 @@ export function SessionsListing() {
                     return (
                       <tr key={s.id} className="border-t border-border">
                         <td className="px-3.5 py-3.5 font-mono text-xs align-middle">{sessionCode(s.id)}</td>
-                        <td className="whitespace-nowrap px-3.5 py-3.5 align-middle">
-                          <b>{SOURCE_LABEL[s.scenario]}</b> {s.ref}
+                        <td className="px-3.5 py-3.5 align-middle">
+                          <div className="font-bold">{SOURCE_LABEL[s.scenario]}</div>
+                          <div className="break-all text-xs text-text-muted">{s.ref}</div>
                         </td>
                         <td className="whitespace-nowrap px-3.5 py-3.5 align-middle">{channelName(s.channel)}</td>
                         <td className="whitespace-nowrap px-3.5 py-3.5 align-middle">{s.startedBy.name ?? '-'}</td>
