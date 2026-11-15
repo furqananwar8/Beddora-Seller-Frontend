@@ -11,7 +11,9 @@ import { Button } from '@/design-system/buttons'
 import type { PricingCountry } from '@/services/api/amazonPricing.api'
 import { useDebounce } from '@/utils/debounce'
 import { cn } from '@/utils/cn'
-import { PRICING_COLUMNS, type ColumnContext } from './amazonPricingColumns'
+import { useColumnResize } from '@/hooks/useColumnResize'
+import { ColumnResizeHandle } from '@/components/column-resize-handle/ColumnResizeHandle'
+import { columnsFor, FROZEN_WIDTHS, type ColumnContext, type PricingColumn } from './amazonPricingColumns'
 import type { Fulfillment, SessionMode } from './amazonPricing.calc'
 import { useAmazonPricing, type PricingGlobals } from './useAmazonPricing'
 import { ApplyFiltersButton } from '@/features/profit/dashboard/components/ApplyFiltersButton'
@@ -40,10 +42,13 @@ const FULFILLMENT_OPTIONS: { id: PricingGlobals['fulfillment']; name: string }[]
   { id: 'FBM', name: 'FBM' },
 ]
 
-/** The columns that stay put at the left, and how far from the edge each one sits. */
-const FROZEN = PRICING_COLUMNS.filter((column) => column.frozen)
-const FROZEN_LEFT = FROZEN.map((_, index) => FROZEN.slice(0, index).reduce((sum, column) => sum + column.width, 0))
-const TABLE_WIDTH = PRICING_COLUMNS.reduce((sum, column) => sum + column.width, 0)
+interface Layout {
+  columns: PricingColumn[]
+  frozen: PricingColumn[]
+  /** How far from the left edge each frozen column sits. */
+  frozenLeft: number[]
+  tableWidth: number
+}
 
 export const AmazonPricingScreen: React.FC = () => {
   const [country, setCountry] = useState<PricingCountry>('CA')
@@ -72,7 +77,21 @@ const AmazonPricingBoard: React.FC<{ country: PricingCountry; onCountryChange: (
 
   const totalPages = Math.max(1, Math.ceil(lines.length / PAGE_SIZE))
   const pageLines = useMemo(() => lines.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [lines, page])
-  const context = useMemo<ColumnContext>(() => ({ currency: data?.currency ?? "CAD", globals, setEdit, setMode }), [data?.currency, globals, setEdit, setMode])
+  const context = useMemo<ColumnContext>(() => ({ currency: data?.currency ?? 'CAD', country, globals, setEdit, setMode }), [data?.currency, country, globals, setEdit, setMode])
+
+  // SKU and ASIN can be dragged wider or narrower, like the product column of the settlement report
+  const skuResize = useColumnResize({ initial: FROZEN_WIDTHS[0], min: 140, max: 520, storageKey: 'breakeven-amazon-sku-column-width' })
+  const asinResize = useColumnResize({ initial: FROZEN_WIDTHS[1], min: 130, max: 360, storageKey: 'breakeven-amazon-asin-column-width' })
+  const resizeOf: Record<string, ReturnType<typeof useColumnResize>> = { sku: skuResize, asin: asinResize }
+  const layout = useMemo<Layout>(() => {
+    const columns = columnsFor(country).map((column) => (resizeOf[column.id] ? { ...column, width: resizeOf[column.id].width } : column))
+    const frozen = columns.filter((column) => column.frozen)
+    const frozenLeft = frozen.map((_, index) => frozen.slice(0, index).reduce((sum, column) => sum + column.width, 0))
+    return { columns, frozen, frozenLeft, tableWidth: columns.reduce((sum, column) => sum + column.width, 0) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [country, skuResize.width, asinResize.width])
+  const { columns, frozen } = layout
+  const lastFrozenId = frozen[frozen.length - 1].id
 
   const rates = data?.storageRates
   const rateNote =
@@ -139,17 +158,18 @@ const AmazonPricingBoard: React.FC<{ country: PricingCountry; onCountryChange: (
 
       <div className="rounded-xl border border-border bg-surface">
         <div className={cn('max-h-[calc(100vh-330px)] min-h-[320px] overflow-auto rounded-t-xl', isFetching && !isLoading && 'opacity-70 transition-opacity')}>
-          <table className="border-separate border-spacing-0 text-sm" style={{ tableLayout: 'fixed', width: TABLE_WIDTH }}>
+          <table className="border-separate border-spacing-0 text-sm" style={{ tableLayout: 'fixed', width: layout.tableWidth }}>
             <colgroup>
-              {PRICING_COLUMNS.map((column) => (
+              {columns.map((column) => (
                 <col key={column.id} style={{ width: column.width }} />
               ))}
             </colgroup>
             <thead>
               <tr>
-                {PRICING_COLUMNS.map((column) => (
-                  <th key={column.id} scope="col" style={frozenStyle(column, 'head')} className={cn(HEAD, ALIGN[column.align ?? 'right'], column.id === FROZEN[FROZEN.length - 1].id && EDGE)}>
+                {columns.map((column) => (
+                  <th key={column.id} scope="col" style={frozenStyle(layout, column, 'head')} className={cn(HEAD, column.id === lastFrozenId && EDGE)}>
                     <span className="block leading-tight">{column.header}</span>
+                    {resizeOf[column.id] && <ColumnResizeHandle resize={resizeOf[column.id]} column={column.header} />}
                   </th>
                 ))}
               </tr>
@@ -164,8 +184,8 @@ const AmazonPricingBoard: React.FC<{ country: PricingCountry; onCountryChange: (
               ) : (
                 pageLines.map((line) => (
                   <tr key={line.key} className="group">
-                    {PRICING_COLUMNS.map((column) => (
-                      <td key={column.id} style={frozenStyle(column, 'body')} className={cn(CELL, ALIGN[column.align ?? 'right'], column.frozen ? 'bg-surface' : 'group-hover:bg-secondary-50', column.id === FROZEN[FROZEN.length - 1].id && EDGE)}>
+                    {columns.map((column) => (
+                      <td key={column.id} style={frozenStyle(layout, column, 'body')} className={cn(CELL, column.frozen ? 'bg-surface' : 'group-hover:bg-secondary-50', column.id === lastFrozenId && EDGE)}>
                         {column.cell(line, context)}
                       </td>
                     ))}
@@ -183,24 +203,24 @@ const AmazonPricingBoard: React.FC<{ country: PricingCountry; onCountryChange: (
   )
 }
 
-const HEAD = 'border-b border-border bg-surface px-3 py-2.5 text-xs font-semibold uppercase tracking-wide text-text-muted'
-const CELL = 'overflow-hidden border-b border-border/60 px-3 py-2 align-middle whitespace-nowrap'
+// every header and cell is centred both ways; long text (a SKU, a header) wraps onto the next line instead of being cut off
+const HEAD = 'relative !whitespace-normal break-words !overflow-visible border-b border-border bg-surface px-3 py-2.5 text-center align-middle text-xs font-semibold uppercase tracking-wide text-text-muted'
+const CELL = 'break-words border-b border-border/60 px-3 py-2 text-center align-middle'
 const EDGE = 'border-r border-border shadow-[2px_0_4px_rgba(0,0,0,0.05)]'
-const ALIGN = { left: 'text-left', center: 'text-center', right: 'text-right' } as const
 
 /**
  * The first two columns stick to the left, each after the one before; the header row sticks to the top. Corner cells sit
  * above the rest so the other columns pass behind them.
  */
-function frozenStyle(column: (typeof PRICING_COLUMNS)[number], part: 'head' | 'body'): React.CSSProperties | undefined {
-  const index = FROZEN.findIndex((frozen) => frozen.id === column.id)
-  if (part === 'head') return { position: 'sticky', top: 0, left: index === -1 ? undefined : FROZEN_LEFT[index], zIndex: index === -1 ? 20 : 40 }
-  return index === -1 ? undefined : { position: 'sticky', left: FROZEN_LEFT[index], zIndex: 10 }
+function frozenStyle(layout: Layout, column: PricingColumn, part: 'head' | 'body'): React.CSSProperties | undefined {
+  const index = layout.frozen.findIndex((frozen) => frozen.id === column.id)
+  if (part === 'head') return { position: 'sticky', top: 0, left: index === -1 ? undefined : layout.frozenLeft[index], zIndex: index === -1 ? 20 : 40 }
+  return index === -1 ? undefined : { position: 'sticky', left: layout.frozenLeft[index], zIndex: 10 }
 }
 
 const StatusRow: React.FC<{ children: React.ReactNode; tone?: 'danger' }> = ({ children, tone }) => (
   <tr>
-    <td colSpan={PRICING_COLUMNS.length} className="p-0">
+    <td colSpan={99} className="p-0">
       <div className={cn('sticky left-0 flex min-h-[16rem] w-full max-w-[100vw] items-center justify-center px-4 text-sm', tone === 'danger' ? 'text-danger-600' : 'text-text-muted')}>{children}</div>
     </td>
   </tr>

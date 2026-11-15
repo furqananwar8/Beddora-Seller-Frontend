@@ -4,6 +4,8 @@ import React from 'react'
 import { formatCurrency } from '@/utils/format'
 import { CellInput, Figure } from './PricingCells'
 import { SkuDetails } from './SkuDetails'
+import { ProfitabilityCalculator } from './ProfitabilityCalculator'
+import type { PricingCountry } from '@/services/api/amazonPricing.api'
 import type { SessionMode } from './amazonPricing.calc'
 import type { EditableField, PricingGlobals, PricingLine } from './useAmazonPricing'
 
@@ -14,6 +16,7 @@ import type { EditableField, PricingGlobals, PricingLine } from './useAmazonPric
 
 export interface ColumnContext {
   currency: string
+  country: PricingCountry
   globals: PricingGlobals
   setEdit: (key: string, field: EditableField, value: number | undefined) => void
   setMode: (key: string, mode: SessionMode | undefined) => void
@@ -30,6 +33,8 @@ export interface PricingColumn {
   align?: 'left' | 'center' | 'right'
   /** SKU and ASIN: they stay put while the others scroll sideways. */
   frozen?: boolean
+  /** Only shown for the USA marketplace. */
+  usOnly?: boolean
   cell: (line: PricingLine, context: ColumnContext) => React.ReactNode
 }
 
@@ -59,11 +64,24 @@ const symbol = () => '$'
 /** Profit is green above zero and red below it. */
 const profitTone = (value: number | null) => (value === null ? undefined : value >= 0 ? 'good' : 'bad')
 
-export const FROZEN_WIDTHS = [190, 130] as const
+export const FROZEN_WIDTHS = [220, 170] as const
 
 export const PRICING_COLUMNS: PricingColumn[] = [
-  { id: 'sku', letter: 'A', header: 'Beddora Seller SKU', width: FROZEN_WIDTHS[0], align: 'left', frozen: true, cell: (line) => <SkuDetails line={line} /> },
-  { id: 'asin', letter: 'C', header: 'ASIN', width: FROZEN_WIDTHS[1], align: 'left', frozen: true, cell: ({ row }) => text(row.asin) },
+  { id: 'sku', letter: 'A', header: 'Beddora Seller SKU', width: FROZEN_WIDTHS[0], align: 'center', frozen: true, cell: (line) => <SkuDetails line={line} /> },
+  {
+    id: 'asin',
+    letter: 'C',
+    header: 'ASIN',
+    width: FROZEN_WIDTHS[1],
+    align: 'center',
+    frozen: true,
+    cell: (line, { currency, country }) => (
+      <div className="flex items-center justify-center gap-1.5">
+        <span className="break-all">{line.row.asin || '—'}</span>
+        <ProfitabilityCalculator line={line} currency={currency} country={country} />
+      </div>
+    ),
+  },
 
   {
     id: 'session',
@@ -77,7 +95,7 @@ export const PRICING_COLUMNS: PricingColumn[] = [
         aria-label={`Season / Mode of ${line.row.sku}`}
         value={line.sessionMode}
         onChange={(event) => setMode(line.key, event.target.value as SessionMode)}
-        className={`w-full rounded border px-1.5 py-1 text-xs outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 ${line.sessionModeEdited ? 'border-warning-300 bg-warning-50' : 'border-border bg-surface'}`}
+        className={`w-full rounded border text-center px-1.5 py-1 text-xs outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 ${line.sessionModeEdited ? 'border-warning-300 bg-warning-50' : 'border-border bg-surface'}`}
       >
         {SESSION_MODES.map((mode) => (
           <option key={mode} value={mode}>
@@ -96,6 +114,18 @@ export const PRICING_COLUMNS: PricingColumn[] = [
   { id: 'commissionPct', letter: 'Z', header: 'Amazon Commission %', width: 120, align: 'right', cell: input('commissionPct', 'Commission', { suffix: '%' }) },
   { id: 'commission', letter: 'AA', header: 'Amazon Commission', width: 120, align: 'right', cell: ({ result }, { currency }) => money(result.commission, currency) },
   { id: 'fbaFee', letter: 'AB', header: 'Amazon FBA Fees', width: 120, align: 'right', cell: input('fbaFee', 'FBA fee', { prefix: symbol }) },
+  {
+    id: 'inboundPlacement',
+    header: 'Inbound Placement Fee',
+    width: 130,
+    align: 'right',
+    usOnly: true,
+    cell: input('inboundPlacementFee', 'Inbound placement fee', {
+      prefix: symbol,
+      disabled: ({ row }) => row.fulfillment !== 'FBA',
+      title: ({ row }) => (row.fulfillment !== 'FBA' ? 'Only FBA inbound shipments pay this' : 'Per unit, charged by Amazon when inventory is sent to FBA'),
+    }),
+  },
   { id: 'storageUnit', letter: 'AC', header: 'Storage Cost per Unit Sold', width: 130, align: 'right', cell: ({ result }, { currency }) => money(result.storagePerUnitSold, currency) },
   { id: 'marketingPct', letter: 'AD', header: 'Marketing Cost %', width: 110, align: 'right', cell: input('marketingPct', 'Marketing', { suffix: '%' }) },
   { id: 'marketing', letter: 'AE', header: 'Marketing Cost', width: 110, align: 'right', cell: ({ result }, { currency }) => money(result.marketingCost, currency) },
@@ -159,3 +189,10 @@ export const PRICING_COLUMNS: PricingColumn[] = [
       ),
   },
 ]
+
+/** Narrowest a data column gets, so its header reads in full (a long header wraps onto a second line). */
+const MIN_COLUMN_WIDTH = 140
+
+/** A marketplace's columns (the inbound placement fee is USA only), each data column wide enough for its header. */
+export const columnsFor = (country: PricingCountry): PricingColumn[] =>
+  PRICING_COLUMNS.filter((column) => !column.usOnly || country === 'US').map((column) => (column.frozen ? column : { ...column, width: Math.max(column.width, MIN_COLUMN_WIDTH) }))

@@ -34,6 +34,8 @@ export interface PricingInputs {
   commissionRate: number | null
   /** AB */
   fbaFee: number | null
+  /** Amazon's inbound placement service fee per unit (USA only; null elsewhere or when not charged). */
+  inboundPlacementFee: number | null
   /** AD */
   marketingRate: number
   /** AK */
@@ -166,7 +168,7 @@ export function calculatePricing(inputs: PricingInputs, rates: StorageRateTable)
   const commission = hasPrice && isNum(commissionRate) ? discounted! * commissionRate : null
   const marketingCost = hasPrice ? price * num(inputs.marketingRate) : null
   // AF: the commission is on the promo price, marketing on the list price
-  const totalAmazonFee = commission === null ? null : commission + num(marketingCost) + num(inputs.fbaFee) + num(storagePerUnitSold)
+  const totalAmazonFee = commission === null ? null : commission + num(marketingCost) + num(inputs.fbaFee) + num(inputs.inboundPlacementFee) + num(storagePerUnitSold)
   // AG
   const totalCost = !hasLanded || totalAmazonFee === null ? null : landed! + totalAmazonFee + (hasPrice ? price * num(inputs.overheadRate) : 0)
   // AH, AI
@@ -175,7 +177,7 @@ export function calculatePricing(inputs: PricingInputs, rates: StorageRateTable)
 
   // AJ: price at which the fixed costs are covered with nothing over
   const shareOfPrice = num(commissionRate) + num(inputs.marketingRate) + num(inputs.overheadRate)
-  const breakEvenPrice = !hasLanded || !isNum(commissionRate) || shareOfPrice >= 1 ? null : (landed! + num(inputs.fbaFee) + num(storagePerUnitSold)) / (1 - shareOfPrice)
+  const breakEvenPrice = !hasLanded || !isNum(commissionRate) || shareOfPrice >= 1 ? null : (landed! + num(inputs.fbaFee) + num(inputs.inboundPlacementFee) + num(storagePerUnitSold)) / (1 - shareOfPrice)
   // AL, AN
   const promoImpact = breakEvenPrice === null ? null : promo === 0 ? 0 : price! * promo
   const returnCost = breakEvenPrice === null ? null : (price ?? 0) * inputs.returnRate * RETURN_LOSS_SHARE
@@ -189,7 +191,7 @@ export function calculatePricing(inputs: PricingInputs, rates: StorageRateTable)
   const adjustedBreakEvenPrice =
     !hasLanded || !isNum(commissionRate) || !hasPrice || keep === null || keep <= 0
       ? null
-      : (landed! + num(inputs.fbaFee) + num(storagePerUnitSold) + (fba ? 0 : num(inputs.shippingCost))) / keep
+      : (landed! + num(inputs.fbaFee) + num(inputs.inboundPlacementFee) + num(storagePerUnitSold) + (fba ? 0 : num(inputs.shippingCost))) / keep
 
   // AU
   let recommendedPrice: PricingResult['recommendedPrice'] = null

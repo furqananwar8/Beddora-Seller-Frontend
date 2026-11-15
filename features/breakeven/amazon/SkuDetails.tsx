@@ -43,7 +43,7 @@ export const SkuDetails: React.FC<{ line: PricingLine }> = ({ line }) => {
         type="button"
         onClick={() => setOpen(true)}
         title="View product details"
-        className="block w-full truncate text-left font-medium text-primary-700 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
+        className="block w-full break-all text-center font-medium text-primary-700 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
       >
         {line.row.sku}
       </button>
