@@ -16,7 +16,7 @@ import { useGetChannelOrdersQuery, useGetOrderChannelsQuery, useRetryChannelSync
 import { cn } from '@/utils/cn'
 import { MARKETPLACES } from '@/utils/marketplaces'
 import { FULFILLMENT_META } from '../shippingMeta'
-import type { ChannelId, ChannelOrderRef, Fulfillment } from '../types'
+import type { ChannelId, ChannelOrderRef, Fulfillment, OrderOrigin } from '../types'
 import { PrintDialog } from '../print/PrintDialog'
 import { OrderDrawer } from './OrderDrawer'
 import { OrdersTable } from './OrdersTable'
@@ -30,13 +30,20 @@ interface Filters extends Record<string, unknown> {
   /** Marketplace countries: "CA", "US", "MX". */
   countries: string[]
   states: Fulfillment[]
+  /** Channel orders and/or shipments created by hand; none or both means all. */
+  origins: OrderOrigin[]
   ordered: DateRangeValue
 }
 
-const DEFAULT_FILTERS: Filters = { search: '', channels: [], countries: [], states: [], ordered: { startDate: null, endDate: null } }
+const DEFAULT_FILTERS: Filters = { search: '', channels: [], countries: [], states: [], origins: [], ordered: { startDate: null, endDate: null } }
 /** Canada, USA, Mexico: the marketplaces the profit screens offer, by country. */
 const MARKETPLACE_OPTIONS: FilterOption<string>[] = MARKETPLACES.map((marketplace) => ({ value: marketplace.code, label: marketplace.name }))
 const FULFILLMENT_OPTIONS: FilterOption<Fulfillment>[] = (Object.keys(FULFILLMENT_META) as Fulfillment[]).map((value) => ({ value, label: FULFILLMENT_META[value].label }))
+
+const ORIGIN_OPTIONS: FilterOption<OrderOrigin>[] = [
+  { value: 'CHANNEL', label: 'Channel orders' },
+  { value: 'MANUAL', label: 'Manual shipments' },
+]
 
 const day = (value: string | null) => (value ? value.slice(0, 10) : undefined)
 
@@ -73,6 +80,7 @@ export const OrdersScreen: React.FC = () => {
     channels: applied.channels,
     countries: applied.countries,
     states: applied.states,
+    origin: applied.origins.length === 1 ? applied.origins[0] : 'ALL',
     from: day(applied.ordered.startDate),
     to: day(applied.ordered.endDate),
   })
@@ -114,6 +122,11 @@ export const OrdersScreen: React.FC = () => {
             </FormField>
           </FilterItem>
           <FilterItem>
+            <FormField label="Origin" htmlFor="order-origin">
+              <FilterMultiSelect id="order-origin" options={ORIGIN_OPTIONS} value={draft.origins} onChange={(value) => setDraft('origins', value)} anyLabel="Manual and channel" highlighted={changed.has('origins')} />
+            </FormField>
+          </FilterItem>
+          <FilterItem>
             <FormField label="Channel" htmlFor="order-channel">
               <FilterMultiSelect id="order-channel" options={channelOptions} value={draft.channels} onChange={(value) => setDraft('channels', value)} anyLabel="All channels" highlighted={changed.has('channels')} loading={loadingChannels} />
             </FormField>
@@ -149,11 +162,11 @@ export const OrdersScreen: React.FC = () => {
             canWrite={canWrite}
             retrying={retrying}
             onRetrySync={(id) => void retry(id)}
-            onOpen={({ channel, market, orderId }) => setOpened({ channel, market, orderId })}
+            onOpen={(row) => row.origin === 'CHANNEL' && setOpened({ channel: row.channel, market: row.market, orderId: row.orderId })}
             onPrintLabel={setPrinting}
-            onDownloadInvoice={downloadInvoice}
+            onDownloadInvoice={(row) => row.origin === 'CHANNEL' && downloadInvoice(row)}
             onScanItems={canScan ? ({ channel, market, orderId }) => scanItems.open({ scenario: 'FBM_ORDER', sourceId: `${channel}:${market}:${orderId}` }) : undefined}
-            scanLockedBy={({ channel, market, orderId }) => scanItems.lockedBy({ scenario: 'FBM_ORDER', sourceId: `${channel}:${market}:${orderId}` })}
+            scanLockedBy={({ origin, channel, market, orderId }) => (origin === 'MANUAL' ? null : scanItems.lockedBy({ scenario: 'FBM_ORDER', sourceId: `${channel}:${market}:${orderId}` }))}
             invoiceBusy={invoiceBusy}
           />
         </div>
