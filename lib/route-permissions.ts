@@ -10,6 +10,7 @@ export interface RoutePermission {
 export const ROUTE_PERMISSIONS: RoutePermission[] = [
   // Profit
   { pattern: '/dashboard/profit/dashboard', subject: 'profit:dashboard' },
+  { pattern: '/dashboard/profit/settlement-report', subject: 'profit:settlement-report' },
   { pattern: '/dashboard/profit/products', subject: 'profit:products' },
   { pattern: '/dashboard/profit/pm-incentive', subject: 'profit:pm-incentive' },
   { pattern: '/dashboard/profit', subject: 'profit' },
@@ -49,9 +50,9 @@ export const ROUTE_PERMISSIONS: RoutePermission[] = [
   { pattern: '/dashboard/procurement', subject: 'procurement' },
 
   // Shipping
-  { pattern: '/dashboard/shipping/orders', subject: 'shipping:parcels' },
-  { pattern: '/dashboard/shipping/create', subject: 'shipping:parcels' },
-  { pattern: '/dashboard/shipping/bookings', subject: 'shipping:parcels' },
+  { pattern: '/dashboard/shipping/orders', subject: 'shipping:orders' },
+  { pattern: '/dashboard/shipping/create', subject: 'shipping:orders' },
+  { pattern: '/dashboard/shipping/bookings', subject: 'shipping:orders' },
 
   // Containers
   { pattern: '/dashboard/containers/cost-analysis', subject: 'containers:cost-analysis' },
@@ -59,6 +60,8 @@ export const ROUTE_PERMISSIONS: RoutePermission[] = [
   { pattern: '/dashboard/containers', subject: 'containers:containers' },
 
   // Breakeven
+  { pattern: '/breakeven-analysis/period-analysis', subject: 'breakeven-analysis:period-analysis' },
+  { pattern: '/breakeven-analysis/amazon', subject: 'breakeven-analysis:amazon' },
   { pattern: '/breakeven-analysis', subject: 'breakeven-analysis' },
 
   // Alerts
@@ -96,8 +99,9 @@ export const SUBJECT_ROUTE_MAP: Record<string, string> = {
   'inventory:planner': '/dashboard/inventory/planner',
   'finance:payment-request': '/dashboard/finance/payment-request',
   'procurement:products': '/dashboard/procurement/products',
-  'shipping:parcels': '/dashboard/shipping/orders',
-  'breakeven-analysis:sku-wise': '/breakeven-analysis',
+  'shipping:orders': '/dashboard/shipping/orders',
+  'breakeven-analysis:period-analysis': '/breakeven-analysis/period-analysis',
+  'breakeven-analysis:amazon': '/breakeven-analysis/amazon',
   'alerts:dashboard': '/dashboard/alerts/dashboard',
   'alerts:settings': '/dashboard/alerts/settings',
   'settings:general': '/dashboard/settings/general',

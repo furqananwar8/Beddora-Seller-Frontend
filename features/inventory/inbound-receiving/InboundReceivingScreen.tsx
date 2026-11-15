@@ -42,7 +42,7 @@ export const InboundReceivingScreen: React.FC = () => {
   const router = useRouter()
   const ability = useAppAbility()
   const canWrite = ability.can('write', 'inventory:inbound-receiving')
-  const canScan = ability.can('write', 'barcode:scans')
+  const canScan = ability.can('write', 'barcode:scan-items')
   const scanItems = useScanItems()
   const scanItem = (id: number) => {
     const target = { scenario: 'CONTAINER' as const, sourceId: String(id) }

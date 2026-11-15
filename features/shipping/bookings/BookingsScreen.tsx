@@ -64,7 +64,7 @@ function useOpenShipment() {
 /** Shipping › Bookings: every shipment from every provider, with summary cards, filters and the detail drawer. */
 export const BookingsScreen: React.FC = () => {
   const fit = useFitToViewport<HTMLDivElement>()
-  const canWrite = useAppAbility().can('write', 'shipping:parcels')
+  const canWrite = useAppAbility().can('write', 'shipping:orders')
   const [page, setPage] = useState(1)
   const filters = useStagedFilters(DEFAULT_FILTERS, () => setPage(1))
   const { draft, setDraft, applied, changed } = filters
