@@ -16,6 +16,8 @@
   @page p9 { size: 1800px 1020px; margin: 0 }
   @page p10 { size: 1800px 1180px; margin: 0 }
   @page p11 { size: 1800px 1040px; margin: 0 }
+  @page p12 { size: 1800px 1130px; margin: 0 }
+  @page p13 { size: 1600px 1420px; margin: 0 }
   :root { --ink: #0f172a; --text: #111827; --muted: #64748b; --faint: #94a3b8; --line: #e2e8f0; --head: #f1f5f9; --bg: #f8fafc;
           --dark: #111827; --ok-bg: #dcfce7; --ok: #166534; --warn-bg: #fef3c7; --warn: #92400e; --bad-bg: #fee2e2; --bad: #991b1b; --chip: #f1f5f9; --chip-t: #334155; --new: #2563eb; }
   * { box-sizing: border-box; }
@@ -499,6 +501,79 @@
   <div class="two" style="margin-top:26px">
     <div class="card" style="padding:20px 26px"><div class="b" style="color:var(--ink);margin-bottom:6px">Channel order · row menu</div><div class="muted">Get details · Get rates · Download invoice · Get label · View booking · Scan items.</div></div>
     <div class="card" style="padding:20px 26px;background:#fffbeb;border-color:#fcd34d"><div class="b" style="color:var(--warn);margin-bottom:6px">Manual shipment · row menu</div><div style="color:var(--warn)">View booking · Get label only. No channel order behind it: its Order column is the booking number, there are no order amounts, and it cannot be opened, rated, invoiced or scanned. “MN” means no platform was picked.</div></div>
+  </div>
+</section>
+
+<!-- 12 · Scanning Sessions with Manual return (NEW) -->
+<section class="pg light" style="page:p12;width:1800px;height:1130px">
+  <div class="crumb">Inventory › Scanning Sessions</div>
+  <div style="display:flex;justify-content:space-between;align-items:flex-start">
+    <div><h1>Scanning Sessions</h1><p class="lead">Every scanning session started from Shipments, Shipping orders or Inbound receiving. Returns whose product matches nothing by UPC are entered by hand.</p></div>
+    <span style="display:flex;gap:14px;margin-top:6px"><span class="btn">Export CSV</span><span class="btn dark">＋ Manual return <span class="newtag" style="background:#fff;color:#111827">NEW</span></span></span>
+  </div>
+  <div style="display:flex;gap:6px;border-bottom:1px solid var(--line);margin-top:26px">
+    <span style="padding:12px 22px;color:var(--muted);font-weight:600">Sessions</span>
+    <span style="padding:12px 22px;border-bottom:3px solid #111827;margin-bottom:-1px;font-weight:700;color:var(--ink)">Manual returns <span class="newtag">NEW</span></span>
+    <span style="padding:12px 22px;color:var(--muted);font-weight:600">Scans</span>
+  </div>
+  <div class="kpis" style="margin-top:24px">
+    <div class="card kpi"><div class="l">Manual returns (last 30 days)</div><div class="v">18</div><div class="s">Entered by hand</div></div>
+    <div class="card kpi"><div class="l">Units returned</div><div class="v">64</div><div class="s">Added back to inventory</div></div>
+    <div class="card kpi"><div class="l">Sellable</div><div class="v" style="color:var(--ok)">51</div><div class="s">Back in the FBM pool</div></div>
+    <div class="card kpi"><div class="l">Damaged</div><div class="v" style="color:var(--bad)">13</div><div class="s">In the damaged bucket</div></div>
+  </div>
+  <div class="card tcard" style="margin-top:26px">
+    <table>
+      <thead><tr><th>Date</th><th>Channel</th><th>Marketplace</th><th style="width:26%">Product</th><th class="r">Units</th><th class="r">Sellable</th><th class="r">Damaged</th><th>Remarks</th><th>Entered by</th></tr></thead>
+      <tbody>
+        <tr><td style="white-space:nowrap">15 Nov,<br>09:41</td><td>Amazon</td><td>Canada (CA)</td><td><div class="b">Queen sheet set, dark grey</div><div class="mono muted">BDQUEENSHEETDGREY-CA</div></td><td class="r">4</td><td class="r green">3</td><td class="r" style="color:var(--bad);font-weight:600">1</td><td>Parcel had no label, customer pack different</td><td>Furqan Anwar</td></tr>
+        <tr><td style="white-space:nowrap">14 Nov,<br>16:12</td><td>Walmart</td><td>United States (US)</td><td><div class="b">Gusset pillow king, set of 2</div><div class="mono muted">WM-GUSSET-KING-2PK</div></td><td class="r">2</td><td class="r green">2</td><td class="r">0</td><td class="muted">—</td><td>Ayesha Khan</td></tr>
+        <tr><td style="white-space:nowrap">14 Nov,<br>11:05</td><td>Temu</td><td>Canada (CA)</td><td><div class="b">Bundle: towel set 6 pack</div><div class="mono muted">TEMU-TOWEL-6PK</div></td><td class="r">1</td><td class="r green">0</td><td class="r" style="color:var(--bad);font-weight:600">1</td><td>Water damaged</td><td>Furqan Anwar</td></tr>
+        <tr><td style="white-space:nowrap">13 Nov,<br>15:30</td><td>Amazon</td><td>United States (US)</td><td><div class="b">Terry mattress protector, queen</div><div class="mono muted">BDMATTRESSTERRY1PQUEENWHITE</div></td><td class="r">6</td><td class="r green">6</td><td class="r">0</td><td class="muted">—</td><td>Ayesha Khan</td></tr>
+      </tbody>
+    </table>
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:18px 26px;border-top:1px solid var(--line);color:var(--muted)"><span>Showing 1–4 of 18 manual returns</span><span style="display:flex;gap:12px"><span class="btn sm">Previous</span><span class="btn sm">Next</span></span></div>
+  </div>
+  <div class="two" style="margin-top:26px">
+    <div class="card" style="padding:20px 26px"><div class="b" style="color:var(--ink);margin-bottom:6px">Who sees it</div><div class="muted">The Manual return button needs the <b>Scan Items</b> permission, the same one that shows the Scan items button. Everyone with Scanning Sessions access can read the list.</div></div>
+    <div class="card" style="padding:20px 26px"><div class="b" style="color:var(--ink);margin-bottom:6px">What saving does</div><div class="muted">Adds the units back to inventory right away (sellable to the FBM pool, damaged to the damaged bucket) and records the entry, who made it and when. It cannot be undone from this screen.</div></div>
+  </div>
+</section>
+
+<!-- 13 · Manual return modal (NEW) -->
+<section class="pg dark" style="page:p13;width:1600px;height:1420px">
+  <div class="modal" style="left:230px;top:50px;width:1140px;height:1320px">
+    <div class="mh"><div><h2>Manual return</h2><div class="sub">For a returned item that matches nothing by UPC. The units go back into inventory when you save.</div></div><div class="pills"><span class="x">✕</span></div></div>
+    <div style="padding:26px 34px;flex:1;display:flex;flex-direction:column;gap:20px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:22px">
+        <div class="field"><label>Channel</label><div class="inp sel">Amazon</div></div>
+        <div class="field"><label>Marketplace</label><div class="inp sel">Canada (CA)</div></div>
+      </div>
+      <div class="field"><label>Product <span class="muted" style="font-weight:400">· the channel's listings that are mapped to our products</span></label>
+        <div class="inp" style="border-color:#111827;box-shadow:0 0 0 1px #111827"><span>queen sheet</span><span class="muted" style="font-size:14px">3 results</span></div>
+        <div class="card" style="box-shadow:none;margin-top:8px;overflow:hidden">
+          <div style="padding:12px 18px;border-bottom:1px solid var(--line);background:#f1f5f9"><div class="b">Queen sheet set, dark grey</div><div class="mono muted">BDQUEENSHEETDGREY-CA</div></div>
+          <div style="padding:12px 18px;border-bottom:1px solid var(--line)"><div class="b">Queen sheet set, harbour grey</div><div class="mono muted">BDQUEENSHEETHGRAY-CA</div></div>
+          <div style="padding:12px 18px"><div class="b">Queen sheet set + pillowcases (bundle)</div><div class="mono muted">BDQUEENSHEETBUNDLE-CA · 2 products</div></div>
+        </div>
+      </div>
+      <div style="border:1px solid #86efac;background:#f0fdf4;border-radius:12px;padding:14px 18px;display:flex;justify-content:space-between;align-items:center">
+        <div><div class="b" style="color:var(--ok)">Selected: Queen sheet set, dark grey</div><div class="mono" style="color:var(--ok)">BDQUEENSHEETDGREY-CA → BD-MFSS-4PC-QUEEN-DGREY × 1</div></div><span class="u muted">Change</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:22px;align-items:end">
+        <div class="field"><label>Units returned</label><div class="inp">4</div></div>
+        <div class="field"><label>How many were damaged?</label><div class="inp">1</div></div>
+        <div class="field"><label>Sellable <span class="muted" style="font-weight:400">· what is left</span></label><div class="inp" style="background:#f8fafc;font-weight:700;color:var(--ok)">3</div></div>
+      </div>
+      <div class="field"><label>Remarks <span class="muted" style="font-weight:400">· optional</span></label><div class="inp" style="height:84px;align-items:flex-start;padding-top:14px">Parcel had no label, customer pack different</div></div>
+      <div class="field"><label>Extra details <span class="muted" style="font-weight:400">· optional name and value pairs, e.g. RMA number, carrier, condition notes</span></label>
+        <div style="display:grid;grid-template-columns:1fr 1.4fr 44px;gap:12px;margin-bottom:10px"><div class="inp">RMA number</div><div class="inp">RMA-20931</div><div class="inp" style="justify-content:center;color:var(--muted)">✕</div></div>
+        <div style="display:grid;grid-template-columns:1fr 1.4fr 44px;gap:12px;margin-bottom:10px"><div class="inp">Return carrier</div><div class="inp">Canada Post</div><div class="inp" style="justify-content:center;color:var(--muted)">✕</div></div>
+        <span class="btn sm">＋ Add detail</span>
+      </div>
+      <div class="note" style="margin-top:auto"><b style="color:var(--ink)">On save:</b> 3 units go to the FBM pool as sellable and 1 goes to the damaged bucket for BD-MFSS-4PC-QUEEN-DGREY. The entry is kept with your name and the time.</div>
+    </div>
+    <div class="mf" style="justify-content:flex-end;gap:14px"><span class="btn">Cancel</span><span class="btn dark">Save return</span></div>
   </div>
 </section>
 
