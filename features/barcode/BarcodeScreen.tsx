@@ -10,6 +10,7 @@ import { useGetBarcodeScansQuery } from '@/services/api/barcode.api'
 import { BAUD_RATES, useBarcodeScanner } from './BarcodeScannerProvider'
 import { HandheldScanField } from './HandheldScanField'
 import { ScanCard } from './ScanCard'
+import { SessionsListing } from './session/SessionsListing'
 import { DESKTOP_SCANNERS_ENABLED } from './scannerConfig'
 
 const PAGE_SIZE = 24
@@ -82,7 +83,13 @@ function ScannerStatus() {
   )
 }
 
+const TABS = [
+  { key: 'sessions', label: 'Scan sessions' },
+  { key: 'codes', label: 'Scanned codes' },
+] as const
+
 export function BarcodeScreen() {
+  const [tab, setTab] = useState<(typeof TABS)[number]['key']>('sessions')
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const { data, isFetching } = useGetBarcodeScansQuery(
@@ -90,8 +97,38 @@ export function BarcodeScreen() {
     { pollingInterval: REFRESH_MS }
   )
 
+  const tabs = (
+    <div role="tablist" className="flex gap-1 border-b border-border">
+      {TABS.map(({ key, label }) => (
+        <button
+          key={key}
+          role="tab"
+          type="button"
+          aria-selected={tab === key}
+          onClick={() => setTab(key)}
+          className={`-mb-px border-b-2 px-4 py-2 text-sm font-semibold ${tab === key ? 'border-primary-600 text-text-primary' : 'border-transparent text-text-muted hover:text-text-primary'}`}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  )
+
+  if (tab === 'sessions')
+    return (
+      <div className="space-y-5 px-6 py-6">
+        <div>
+          <h1 className="text-2xl font-bold text-text-primary">Scan sessions</h1>
+          <p className="text-sm text-text-muted">Every scanning session started from Shipments, Shipping orders or Inbound receiving. Scanning itself happens in each screen&apos;s Scan items modal.</p>
+        </div>
+        {tabs}
+        <SessionsListing />
+      </div>
+    )
+
   return (
     <div className="space-y-6 px-6 py-6">
+      {tabs}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold text-text-primary">Bar Code</h1>

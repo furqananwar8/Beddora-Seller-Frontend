@@ -706,6 +706,7 @@ export const ShipmentsScreen: React.FC = () => {
                       onCancel={() => openDialog({ type: 'cancel', id: s.id })}
                       onDelete={() => openDialog({ type: 'delete', id: s.id })}
                       onScanItems={canScan ? () => scanItems.open({ scenario: 'FBA_WFS', sourceId: String(s.id) }) : undefined}
+                      scanLockedBy={scanItems.lockedBy({ scenario: 'FBA_WFS', sourceId: String(s.id) })}
                       onBillOfLading={channel === 'amazon_fba' ? () => setBolShipmentId(s.id) : undefined}
                       onGoBack={(to) => handleBack(s.id, to)}
                       onDownloadLabel={(type) => handleDownloadLabel(s.id, type)}
