@@ -8,7 +8,7 @@ import { Alert } from '@/design-system/alerts'
 import { Spinner } from '@/design-system/loaders'
 import { useAppAbility } from '@/hooks/useAppAbility'
 import { useGetChannelOrderQuery, useGetShipFromOptionsQuery } from '@/services/api/shipping.api'
-import { defaultShipFrom, ShipFromSection, ShipToSection } from '../create/AddressStep'
+import { defaultShipFrom, lockFilledShipTo, ShipFromSection, ShipToSection, type ShipToLock } from '../create/AddressStep'
 import { BookingConfirmed } from '../create/BookingConfirmed'
 import { BookingStep } from '../create/BookingStep'
 import { RatesStep } from '../create/RatesStep'
@@ -51,11 +51,15 @@ export const BookOrderScreen: React.FC = () => {
   const { form, values, step, setStep, shipFrom, crossBorder, rate, stream } = wizard
   const [loaded, setLoaded] = useState(false)
   const [booked, setBooked] = useState<ParcelShipmentDto | null>(null)
+  const [locked, setLocked] = useState<ShipToLock>({})
 
   // The form is filled once, when the order and the ship-from addresses are in; step 1 is the first one shown
   useEffect(() => {
     if (loaded || !detail || loadingAddresses) return
-    load(valuesFromOrder(detail, defaultShipFrom(addresses)?.id ?? ''), 1)
+    const values = valuesFromOrder(detail, defaultShipFrom(addresses)?.id ?? '')
+    // What the order filled in can't be edited; what it lacked stays editable (decided once, not as the user types)
+    setLocked(lockFilledShipTo(values.shipTo))
+    load(values, 1)
     setLoaded(true)
   }, [loaded, detail, loadingAddresses, addresses, load])
 
@@ -73,8 +77,9 @@ export const BookOrderScreen: React.FC = () => {
   if (booked) return <BookingConfirmed shipment={booked} onShipmentChange={setBooked} next={{ label: 'Back to Orders', onClick: backToOrders }} />
   if (isLoading || (detail && !loaded))
     return (
-      <div className="flex justify-center p-16">
+      <div className="flex flex-col items-center gap-3 p-16">
         <Spinner size="lg" />
+        <p className="text-sm text-text-muted">{orderRef.channel === 'amazon' ? 'Loading the order and looking up the customer…' : 'Loading the order…'}</p>
       </div>
     )
   if (isError || !detail) return <Alert variant="danger">Could not load order {orderRef.orderId}.</Alert>
@@ -107,7 +112,7 @@ export const BookOrderScreen: React.FC = () => {
           {detail.shipToError && <Alert variant="warning">{detail.shipToError}</Alert>}
           <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
             <ShipFromSection addresses={addresses} loadingAddresses={loadingAddresses} shipFrom={shipFrom} />
-            <ShipToSection />
+            <ShipToSection locked={locked} />
           </div>
           <ShipmentStep
             lane={crossBorder ? `${shipFrom?.countryCode} → ${values.shipTo.address.country}` : null}

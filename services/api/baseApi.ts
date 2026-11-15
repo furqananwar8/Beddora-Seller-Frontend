@@ -98,6 +98,7 @@ export const tagTypes = [
   'ShippingConfig',
   'ShippingShipments',
   'ShippingChannelOrders',
+  'ShippingDrafts',
   'ShipmentBols'
 ] as const
 

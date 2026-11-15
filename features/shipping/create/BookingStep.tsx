@@ -6,15 +6,16 @@ import { Alert } from '@/design-system/alerts'
 import { Button } from '@/design-system/buttons'
 import { useApiFeedback } from '@/hooks/useApiFeedback'
 import type { ShipFromOption } from '../types'
-import { useBookShipmentMutation } from '@/services/api/shipping.api'
+import { bookedMessage, claimAnnouncement, failedMessage, SELF_HANDLED_CODES } from '../bookingAnnounce'
+import { useBookingJob } from './useBookingJob'
 import { useLabelFormats } from '../shared/useLabelFormats'
 import { CartonIllustration } from '../shared/CartonIllustration'
 import { SectionCard } from '../shared/Card'
 import { PriceBreakdownTable } from '../shared/PriceBreakdownTable'
 import { CarrierLogo } from '../shared/CarrierLogo'
 import { RadioCards } from '../shared/RadioCards'
-import { apiErrorCode, CHANNEL_LABEL, INCOTERM_META, money, transitDays } from '../shippingMeta'
-import type { ChannelOrderRef, LabelFormat, ParcelShipmentDto, Rate, ShipmentChannelRef } from '../types'
+import { CHANNEL_LABEL, INCOTERM_META, money, transitDays } from '../shippingMeta'
+import type { BookingJobDto, ChannelOrderRef, LabelFormat, ParcelShipmentDto, Rate, ShipmentChannelRef } from '../types'
 import { numberOf, UNITS, type WizardStep } from './shipmentForm'
 import type { ShipmentFormValues } from './shipmentSchema'
 import { WizardFooter } from './WizardFooter'
@@ -41,8 +42,6 @@ interface BookingStepProps {
   editable?: boolean
 }
 
-const isConflict = (error: unknown, code: string) => (error as { status?: number } | undefined)?.status === 409 && apiErrorCode(error) === code
-const isQuoteExpired = (error: unknown) => isConflict(error, 'QUOTE_EXPIRED')
 
 /** One review block with an Edit link back to its step. */
 const ReviewItem: React.FC<{ label: string; onEdit?: () => void; children: React.ReactNode }> = ({ label, onEdit, children }) => (
@@ -61,10 +60,37 @@ const ReviewItem: React.FC<{ label: string; onEdit?: () => void; children: React
 
 /** Step 4: review, label format, price, and Book & buy label. */
 export const BookingStep: React.FC<BookingStepProps> = ({ values, labelFormat: picked, onLabelFormatChange, onGoTo, shipFrom, rate, quoteId, onBooked, onQuoteExpired, order, channel, onOrderNotBookable, editable = true }) => {
-  const { failure, info } = useApiFeedback()
-  const [book, { isLoading, error }] = useBookShipmentMutation()
-  // Booking buys postage, so the button only asks; the booking is made once it is confirmed in the dialog
+  const { failure, info, success } = useApiFeedback()
+  // Booking buys postage, so the button only asks; the booking is started once it is confirmed in the dialog
   const [confirming, setConfirming] = useState(false)
+  const [failed, setFailed] = useState<BookingJobDto | null>(null)
+  // One key per attempt (quote, rate, format): a retry of the same attempt resends it, so it can't book twice
+  const attempt = useRef<{ signature: string; key: string } | null>(null)
+  const idempotencyKey = (signature: string) => {
+    if (attempt.current?.signature !== signature) attempt.current = { signature, key: crypto.randomUUID() }
+    return attempt.current.key
+  }
+
+  // The booking runs on the server: this follows it, and finds it again after a refresh (see useBookingJob)
+  const { begin, running: isLoading } = useBookingJob({
+    order,
+    onBooked: (shipment, job) => {
+      attempt.current = null
+      if (claimAnnouncement(job)) success(bookedMessage(job))
+      onBooked(shipment)
+    },
+    onFailed: (job) => {
+      attempt.current = null // a retry is a new attempt, not a replay of this failed one
+      setFailed(job)
+      if (job.error?.status === 409 && job.error.code === 'QUOTE_EXPIRED') {
+        info('The quote expired, so the rates are fetched again. Pick the service once more.')
+        onQuoteExpired()
+      } else if (onOrderNotBookable && job.error?.status === 409 && job.error.code === 'ORDER_NOT_BOOKABLE') {
+        failure(null, job.error.message || 'This order can no longer be booked')
+        onOrderNotBookable()
+      } else if (claimAnnouncement(job)) failure(null, failedMessage(job))
+    },
+  })
   const formats = useLabelFormats(rate.provider)
   const labelFormat = formats.some((option) => option.id === picked) ? picked : null
 
@@ -73,34 +99,23 @@ export const BookingStep: React.FC<BookingStepProps> = ({ values, labelFormat: p
     if (!labelFormat && formats[0]) onLabelFormatChange(formats[0].id)
   }, [labelFormat, formats, onLabelFormatChange])
 
-  // One key per attempt (quote, rate, format): a retry of the same attempt resends it, so it can't book twice
-  const attempt = useRef<{ signature: string; key: string } | null>(null)
-  const idempotencyKey = (signature: string) => {
-    if (attempt.current?.signature !== signature) attempt.current = { signature, key: crypto.randomUUID() }
-    return attempt.current.key
-  }
-
   const submit = async () => {
     if (!labelFormat) return
     const body = { quoteId, rateId: rate.rateId, labelFormat, order, channel }
+    setFailed(null)
     try {
-      const shipment = await book({ body, idempotencyKey: idempotencyKey(JSON.stringify(body)) }).unwrap()
-      attempt.current = null
-      onBooked(shipment)
+      await begin(body, idempotencyKey(JSON.stringify(body)))
+      info('Booking started. You can leave this page: you will be told here when it is done.')
     } catch (err) {
-      if (isQuoteExpired(err)) {
-        info('The quote expired, so the rates are fetched again. Pick the service once more.')
-        onQuoteExpired()
-      } else if (onOrderNotBookable && isConflict(err, 'ORDER_NOT_BOOKABLE')) {
-        failure(err, 'This order can no longer be booked')
-        onOrderNotBookable()
-      } else failure(err, 'Could not book the shipment')
+      // The booking didn't start (validation, permission, another booking of this order running)
+      attempt.current = null
+      failure(err, 'Could not start the booking')
     }
   }
 
   const confirmBooking = async () => {
-    await submit()
     setConfirming(false)
+    await submit()
   }
 
   const edit = (step: WizardStep) => () => onGoTo(step)
@@ -186,12 +201,17 @@ export const BookingStep: React.FC<BookingStepProps> = ({ values, labelFormat: p
           }
         >
           <PriceBreakdownTable price={rate} incoterm={values.incoterm} total={rate.total} currency={rate.currency} />
-          {error !== undefined && !isQuoteExpired(error) && !isConflict(error, 'ORDER_NOT_BOOKABLE') && (
-            <Alert variant="danger" className="mt-3">
-              The booking did not go through. Trying again is safe: it won&apos;t book twice.
+          {isLoading && (
+            <Alert variant="info" className="mt-3">
+              Booking in progress. This can take a little while; it keeps going if you refresh or leave the page.
             </Alert>
           )}
-          <Button className="mt-4 w-full" onClick={() => setConfirming(true)} isLoading={isLoading} disabled={!labelFormat}>
+          {failed && !isLoading && !SELF_HANDLED_CODES.includes(failed.error?.code ?? '') && (
+            <Alert variant="danger" className="mt-3">
+              {failed.error?.message ?? 'The booking did not go through.'} Trying again is safe: it won&apos;t book twice.
+            </Alert>
+          )}
+          <Button className="mt-4 w-full" onClick={() => setConfirming(true)} isLoading={isLoading} disabled={!labelFormat || isLoading}>
             Book &amp; buy label · {money(rate.total, rate.currency)}
           </Button>
           <p className="mt-2 text-xs text-text-muted">Quotes are valid for 30 minutes; an expired one is fetched again automatically.</p>
@@ -202,7 +222,6 @@ export const BookingStep: React.FC<BookingStepProps> = ({ values, labelFormat: p
         isOpen={confirming}
         title="Book this shipment?"
         confirmLabel={`Yes, book · ${money(rate.total, rate.currency)}`}
-        busy={isLoading}
         onConfirm={() => void confirmBooking()}
         onClose={() => setConfirming(false)}
       >

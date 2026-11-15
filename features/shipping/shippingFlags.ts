@@ -5,7 +5,7 @@
 export const MANUAL_SHIPMENT_FLOW = true
 
 /**
- * The Bookings list is hidden from the Shipping menu for now: orders are followed from Shipping › Orders. The screen
- * and its route stay (an order's "View booking" still opens a booking there); flip this to show the tab again.
+ * The Bookings list is in the Shipping menu: every booking with its Source (manual or channel order), and the manual
+ * shipments saved as drafts. Set this to false to hide the tab (the route stays; an order's "View booking" opens it).
  */
-export const BOOKINGS_TAB = false
+export const BOOKINGS_TAB = true

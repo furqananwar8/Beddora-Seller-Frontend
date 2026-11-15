@@ -11,14 +11,18 @@ import { useStagedFilters } from '@/components/filter-bar/useStagedFilters'
 import { FormField } from '@/components/form-field/FormField'
 import { PaginationFooter } from '@/components/pagination-footer/PaginationFooter'
 import { useAppAbility } from '@/hooks/useAppAbility'
-import { useGetShipmentsQuery } from '@/services/api/shipping.api'
+import { ConfirmDialog } from '@/components/confirm-dialog/ConfirmDialog'
+import { Tabs } from '@/design-system/tabs'
+import { useApiFeedback } from '@/hooks/useApiFeedback'
+import { useDeleteShipmentDraftMutation, useGetShipmentDraftsQuery, useGetShipmentsQuery } from '@/services/api/shipping.api'
 import { cn } from '@/utils/cn'
 import { PrintDialog } from '../print/PrintDialog'
 import { CREATE_HREF, PROVIDER_LABEL, PROVIDERS, STATUS_LABEL } from '../shippingMeta'
-import type { ParcelShipmentListItem, ParcelStatus, ProviderId } from '../types'
+import type { ParcelShipmentListItem, ParcelStatus, ProviderId, ShipmentDraftSummary } from '../types'
 import { BookingDrawer } from './BookingDrawer'
 import { BookingsTable } from './BookingsTable'
 import { CancelShipmentDialog } from './CancelShipmentDialog'
+import { DraftsTable } from './DraftsTable'
 import { ShipmentSummaryCards } from './ShipmentSummaryCards'
 import { MANUAL_SHIPMENT_FLOW } from '../shippingFlags'
 
@@ -67,6 +71,13 @@ export const BookingsScreen: React.FC = () => {
   const { openId, open } = useOpenShipment()
   const [printing, setPrinting] = useState<number | null>(null)
   const [cancelling, setCancelling] = useState<ParcelShipmentListItem | null>(null)
+  // Booked parcels, or the manual shipments saved unfinished
+  const [view, setView] = useState<'bookings' | 'drafts'>('bookings')
+  const [draftPage, setDraftPage] = useState(1)
+  const [deletingDraft, setDeletingDraft] = useState<ShipmentDraftSummary | null>(null)
+  const [deleteDraft, { isLoading: deleting }] = useDeleteShipmentDraftMutation()
+  const { success, failure } = useApiFeedback()
+  const drafts = useGetShipmentDraftsQuery({ page: draftPage, limit: PAGE_SIZE })
 
   const { data, isLoading, isFetching, isError } = useGetShipmentsQuery({
     page,
@@ -90,6 +101,27 @@ export const BookingsScreen: React.FC = () => {
       </div>
 
       <ShipmentSummaryCards />
+
+      <Tabs
+        items={[
+          { id: 'bookings', label: 'Bookings' },
+          { id: 'drafts', label: `Drafts${drafts.data?.totalRecords ? ` (${drafts.data.totalRecords})` : ''}` },
+        ]}
+        activeTab={view}
+        onChange={(id) => setView(id as 'bookings' | 'drafts')}
+      />
+
+      {view === 'drafts' ? (
+        <div className={cn('overflow-hidden rounded-lg border border-border bg-surface shadow-sm', drafts.isFetching && 'opacity-70 transition-opacity')}>
+          <div className="max-h-[calc(100vh-420px)] min-h-[240px] overflow-auto">
+            <DraftsTable rows={drafts.data?.data ?? []} isLoading={drafts.isLoading} isError={drafts.isError} canWrite={canWrite} onDelete={setDeletingDraft} />
+          </div>
+          {drafts.data && drafts.data.totalRecords > 0 && (
+            <PaginationFooter page={drafts.data.page} pageSize={drafts.data.limit} totalItems={drafts.data.totalRecords} totalPages={drafts.data.totalPages} onPageChange={setDraftPage} itemLabel="drafts" />
+          )}
+        </div>
+      ) : (
+        <>
 
       <div className="rounded-lg border border-border bg-surface p-3 shadow-sm sm:p-4">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -145,6 +177,28 @@ export const BookingsScreen: React.FC = () => {
         </div>
         {data && data.totalRecords > 0 && <PaginationFooter page={data.page} pageSize={data.limit} totalItems={data.totalRecords} totalPages={data.totalPages} onPageChange={setPage} itemLabel="bookings" />}
       </div>
+
+        </>
+      )}
+
+      <ConfirmDialog
+        isOpen={deletingDraft !== null}
+        title="Delete this draft?"
+        confirmLabel="Delete draft"
+        tone="danger"
+        busy={deleting}
+        onClose={() => setDeletingDraft(null)}
+        onConfirm={() => {
+          if (!deletingDraft) return
+          void deleteDraft(deletingDraft.id)
+            .unwrap()
+            .then(() => success(`${deletingDraft.draftNo} deleted.`))
+            .catch((error) => failure(error, 'Could not delete the draft'))
+            .finally(() => setDeletingDraft(null))
+        }}
+      >
+        <p>{deletingDraft?.draftNo} and the customer details saved in it will be removed. This can&apos;t be undone.</p>
+      </ConfirmDialog>
 
       <BookingDrawer shipmentId={openId} canWrite={canWrite} onClose={() => open(null)} />
       <PrintDialog shipmentId={printing} onClose={() => setPrinting(null)} />

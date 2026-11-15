@@ -9,6 +9,7 @@ import { RouteGuard } from '@/components/navigation/RouteGuard'
 import { PersistGate } from 'redux-persist/integration/react'
 import { AbilityProvider } from '@/casl/AbilityProvider'
 import { SyncEventListener } from '@/components/sync/SyncEventListener'
+import { BookingEventListener } from '@/features/shipping/BookingEventListener'
 import { RealtimeProvider } from '@/components/realtime/RealtimeProvider'
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -21,6 +22,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
               {/* One SSE connection per tab; the inventory sync listener rides it too */}
               <RealtimeProvider>
                 <SyncEventListener />
+                <BookingEventListener />
                 {children}
               </RealtimeProvider>
               <ToastContainer />
