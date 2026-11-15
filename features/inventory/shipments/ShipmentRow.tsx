@@ -69,6 +69,8 @@ interface ShipmentRowProps {
   onDelete: () => void
   /** Opens the Scan items dialog (In or Out) for this shipment; omitted when the user can't scan. */
   onScanItems?: () => void
+  /** Opens the shipment's bills of lading; omitted for channels without them (Amazon FBA only). */
+  onBillOfLading?: () => void
   /** Redo a completed step from the stepper. */
   onGoBack: (to: RewindTarget) => void
   onDownloadLabel: (type: LabelType) => void
@@ -92,6 +94,7 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({
   onCancel,
   onDelete,
   onScanItems,
+  onBillOfLading,
   onGoBack,
   onDownloadLabel,
   downloadingLabels,
@@ -128,6 +131,8 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({
   const labelsAvailable = shipment.stage === 'labels_ready' && shipment.status === 'in_progress'
   const next = nextActionOf(shipment)
   const labels = channel.labels.filter((l) => !l.appliesTo || l.appliesTo(shipment))
+  // Bills of lading are made per FC shipment, which Amazon creates when the placement is confirmed
+  const hasFcShipments = shipment.legs.some((l) => l.amazonShipmentId)
   const planRef = shipment.externalRef ?? shipment.amazonInboundPlanId
   const legRefs = shipment.legs.map(legReference).filter(Boolean)
 
@@ -352,6 +357,15 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({
                     {downloadingLabels[l.type] ? `Downloading ${l.label.toLowerCase()}…` : `Download ${l.label.toLowerCase()}`}
                   </MenuItem>
                 ))}
+                {onBillOfLading && (
+                  <MenuItem
+                    disabled={!hasFcShipments}
+                    title={hasFcShipments ? undefined : 'Available once the warehouse (placement) is confirmed and Amazon has created the FC shipments'}
+                    onClick={() => { setIsMenuOpen(false); onBillOfLading() }}
+                  >
+                    Bill of lading
+                  </MenuItem>
+                )}
                 {onScanItems && (
                   <MenuItem onClick={() => { setIsMenuOpen(false); onScanItems() }}>
                     Scan items
@@ -824,13 +838,15 @@ const Detail: React.FC<{ label: string; value: React.ReactNode }> = ({ label, va
 const MenuItem: React.FC<{
   onClick: () => void
   disabled?: boolean
+  title?: string
   danger?: boolean
   children: React.ReactNode
-}> = ({ onClick, disabled, danger, children }) => (
+}> = ({ onClick, disabled, title, danger, children }) => (
   <button
     type="button"
     onClick={onClick}
     disabled={disabled}
+    title={title}
     className={cn(
       'w-full px-3 py-2 text-left text-sm hover:bg-secondary-50 disabled:cursor-not-allowed disabled:opacity-40',
       danger ? 'text-danger-600' : 'text-text-primary'

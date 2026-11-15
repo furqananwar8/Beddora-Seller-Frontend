@@ -11,7 +11,8 @@ import { OptionKind } from './useShipments'
 import { LabelDownloadControl, isSizedLabelType } from './labelFormats'
 import { DialogFooter, LabelButton, ProductThumb, formatUnits, formatWindow, unitsLabel } from './ShipmentParts'
 import { MARKETPLACE_META, getShipmentUnits } from './workflow'
-import { channelOf } from './channels'
+import { channelIdOf, channelOf } from './channels'
+import { useGetShipmentBolsQuery } from '@/services/api/shipmentBols.api'
 
 // ============================================
 // OPTION PICKER (placement / delivery window)
@@ -299,6 +300,10 @@ export const MarkShippedModal: React.FC<MarkShippedModalProps> = ({
   const [boxTracking, setBoxTracking] = useState<Record<string, string>>({})
   const [freight, setFreight] = useState<Record<string, { bol: string; bills: string }>>({})
   const [numbers, setNumbers] = useState<Record<string, string>>({})
+  // Freight legs: the BOL number and PRO numbers come from the shipment's bills of lading when there are any
+  const hasBols = !!shipment && channelIdOf(shipment) === 'amazon_fba' && shipment.legs.some((l) => l.amazonShipmentId)
+  const { data: bolView } = useGetShipmentBolsQuery(shipment?.id ?? '', { skip: !hasBols, refetchOnMountOrArgChange: true })
+  const [prefilled, setPrefilled] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     setAcknowledged(false)
@@ -322,6 +327,25 @@ export const MarkShippedModal: React.FC<MarkShippedModalProps> = ({
     // Ask again only when the dialog opens for a different shipment
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shipment?.id])
+
+  // Fills a freight leg's BOL and freight bill numbers from its bills of lading, once, only where nothing is typed yet
+  useEffect(() => {
+    if (!legs || !bolView) return
+    const filled: Record<string, { bol: string; bills: string }> = {}
+    for (const leg of legs) {
+      if (leg.solution !== 'own' || leg.mode !== 'freight' || leg.tracking === 'numbers') continue
+      const bols = bolView.legs.find((l) => l.amazonShipmentId === leg.shipmentId)?.bols ?? []
+      if (bols.length === 0) continue
+      filled[leg.shipmentId] = { bol: bols[0].reference, bills: bols.map((b) => b.proNo).filter(Boolean).join(', ') }
+    }
+    if (Object.keys(filled).length === 0) return
+    setFreight((current) => {
+      const next = { ...current }
+      for (const [id, value] of Object.entries(filled)) if (!current[id]?.bol && !current[id]?.bills) next[id] = value
+      return next
+    })
+    setPrefilled(new Set(Object.keys(filled)))
+  }, [legs, bolView])
 
   if (!shipment) return null
   const units = getShipmentUnits(shipment)
@@ -477,6 +501,9 @@ export const MarkShippedModal: React.FC<MarkShippedModalProps> = ({
                   </div>
                 ) : leg.mode === 'freight' ? (
                   <div className="mt-1 grid grid-cols-1 gap-2 md:grid-cols-2">
+                    {prefilled.has(leg.shipmentId) && (
+                      <p className="text-xs text-text-muted md:col-span-2">Filled in from this FC&apos;s bills of lading (first BOL #, every trailer&apos;s PRO #). Change them if Amazon needs others.</p>
+                    )}
                     <input
                       placeholder="Bill of lading number"
                       value={freight[leg.shipmentId]?.bol ?? ''}

@@ -24,7 +24,8 @@ export type ExportReport =
   | "sku-mapping"
   | "warehouse-inventory"
   | "order-invoice-pdf"
-  | "inbound-receiving-pdf";
+  | "inbound-receiving-pdf"
+  | "shipment-bol";
 
 export interface ExportRequest {
   report: ExportReport;
