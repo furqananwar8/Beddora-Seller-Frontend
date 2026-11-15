@@ -75,5 +75,3 @@ graphify-out/
 .claude/
 CLAUDE.md
 
-# Local documents (guides, designs, exports): kept out of the repo
-docs/*
