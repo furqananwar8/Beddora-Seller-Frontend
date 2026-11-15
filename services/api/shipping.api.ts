@@ -1,4 +1,5 @@
 import type {
+  BookingJobDto,
   BookShipmentBody,
   ChannelInfo,
   ChannelOrderDetail,
@@ -8,6 +9,8 @@ import type {
   HsCodeOption,
   ParcelShipmentDto,
   ParcelShipmentListItem,
+  ShipmentDraftDto,
+  ShipmentDraftSummary,
   ShipmentListParams,
   ShipmentSummary,
   ShippingConfig,
@@ -69,6 +72,39 @@ export const shippingApi = baseApi.injectEndpoints({
       transformResponse: (response: Envelope<ParcelShipmentDto>) => unwrap(response),
       invalidatesTags: ['ShippingShipments', 'ShippingChannelOrders'],
     }),
+    /** Starts a booking in the background (202). Same key again joins the running one. */
+    startBooking: builder.mutation<BookingJobDto, { body: BookShipmentBody; idempotencyKey: string }>({
+      query: ({ body, idempotencyKey }) => ({ url: '/shipping/shipments/jobs', method: 'POST', body, headers: { 'Idempotency-Key': idempotencyKey } }),
+      transformResponse: (response: Envelope<BookingJobDto>) => unwrap(response),
+    }),
+    /** The latest booking attempt for an order (or none): how a refreshed page finds one still running. */
+    getOrderBookingJob: builder.query<BookingJobDto | null, ChannelOrderRef>({
+      query: ({ channel, market, orderId }) => `/shipping/shipments/jobs/by-order/${channel}/${encodeURIComponent(market)}/${encodeURIComponent(orderId)}`,
+      transformResponse: (response: Envelope<{ job: BookingJobDto | null }>) => unwrap(response).job,
+    }),
+    getBookingJob: builder.query<BookingJobDto, string>({
+      query: (key) => `/shipping/shipments/jobs/${encodeURIComponent(key)}`,
+      transformResponse: (response: Envelope<BookingJobDto>) => unwrap(response),
+    }),
+    getShipmentDrafts: builder.query<Page<ShipmentDraftSummary>, { page: number; limit: number }>({
+      query: (params) => ({ url: '/shipping/shipments/drafts', params }),
+      providesTags: ['ShippingDrafts'],
+    }),
+    getShipmentDraft: builder.query<ShipmentDraftDto, number>({
+      query: (id) => `/shipping/shipments/drafts/${id}`,
+      transformResponse: (response: Envelope<ShipmentDraftDto>) => unwrap(response),
+      keepUnusedDataFor: 0,
+    }),
+    /** Creates the draft, or updates it when `id` is given. */
+    saveShipmentDraft: builder.mutation<ShipmentDraftDto, { id?: number | null; values: Record<string, unknown> }>({
+      query: (body) => ({ url: '/shipping/shipments/drafts', method: 'PUT', body }),
+      transformResponse: (response: Envelope<ShipmentDraftDto>) => unwrap(response),
+      invalidatesTags: ['ShippingDrafts'],
+    }),
+    deleteShipmentDraft: builder.mutation<void, number>({
+      query: (id) => ({ url: `/shipping/shipments/drafts/${id}`, method: 'DELETE' }),
+      invalidatesTags: ['ShippingDrafts'],
+    }),
     cancelShipment: builder.mutation<ParcelShipmentDto, number>({
       query: (id) => ({ url: `/shipping/shipments/${id}/cancel`, method: 'POST' }),
       transformResponse: (response: Envelope<ParcelShipmentDto>) => unwrap(response),
@@ -114,6 +150,13 @@ export const {
   useGetShipmentSummaryQuery,
   useGetShipmentQuery,
   useBookShipmentMutation,
+  useStartBookingMutation,
+  useGetShipmentDraftsQuery,
+  useGetShipmentDraftQuery,
+  useSaveShipmentDraftMutation,
+  useDeleteShipmentDraftMutation,
+  useGetOrderBookingJobQuery,
+  useGetBookingJobQuery,
   useCancelShipmentMutation,
   useRefreshTrackingMutation,
   useRetryChannelSyncMutation,

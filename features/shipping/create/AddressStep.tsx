@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { Controller, useFormContext } from 'react-hook-form'
 import { AddressFields } from '@/components/address-fields/AddressFields'
 import { FormField, fieldClass } from '@/components/form-field/FormField'
+import { cn } from '@/utils/cn'
 import { PhoneField } from '@/components/phone-field/PhoneField'
 import { SearchableSelect } from '@/components/searchable-select/SearchableSelect'
 import { Button } from '@/design-system/buttons'
@@ -102,8 +103,25 @@ export const ShipFromSection: React.FC<{ addresses: ShipFromOption[]; loadingAdd
   )
 }
 
+/** Which ship-to fields came from the order and so can't be edited; the ones it lacked stay editable. */
+export type ShipToLock = Partial<Record<'name' | 'company' | 'address1' | 'address2' | 'email' | 'phone' | 'address', boolean>>
+
+/** Decided once, from the values the order filled in (not as the user types, or a field would lock under their hands). */
+export const lockFilledShipTo = (shipTo: ShipmentFormValues['shipTo']): ShipToLock => ({
+  name: Boolean(shipTo.name.trim()),
+  company: Boolean(shipTo.company.trim()),
+  address1: Boolean(shipTo.address1.trim()),
+  address2: Boolean(shipTo.address2.trim()),
+  email: Boolean(shipTo.email.trim()),
+  phone: Boolean(shipTo.phone.number.trim()),
+  // the address group is one control: locked only when the order gave all of it
+  address: Boolean(shipTo.address.country && shipTo.address.city.trim() && shipTo.address.postalCode.trim()),
+})
+
+const LOCKED_CLASS = 'cursor-not-allowed bg-secondary-50 text-text-secondary'
+
 /** The customer's (residential) address, phone and email; prefilled from a channel order. Invalid fields are only marked: the toast on submit names them. */
-export const ShipToSection: React.FC = () => {
+export const ShipToSection: React.FC<{ locked?: ShipToLock }> = ({ locked = {} }) => {
   const {
     register,
     control,
@@ -112,20 +130,22 @@ export const ShipToSection: React.FC = () => {
     formState: { errors },
   } = useFormContext<ShipmentFormValues>()
   const e = errors.shipTo
+  const lock = (field: keyof ShipToLock) => (locked[field] ? { readOnly: true, tabIndex: -1, 'aria-readonly': true as const, title: 'Filled from the order' } : {})
+  const cls = (field: keyof ShipToLock, error?: string) => cn(fieldClass(error), locked[field] && LOCKED_CLASS)
   return (
     <SectionCard title="Ship to" subtitle="customer">
       <div className="grid gap-3 sm:grid-cols-2">
         <FormField label="Full name" htmlFor="ship-to-name" required>
-          <input id="ship-to-name" autoComplete="off" className={fieldClass(e?.name?.message)} {...register('shipTo.name')} />
+          <input id="ship-to-name" autoComplete="off" className={cls('name', e?.name?.message)} {...lock('name')} {...register('shipTo.name')} />
         </FormField>
         <FormField label="Company" htmlFor="ship-to-company">
-          <input id="ship-to-company" autoComplete="off" placeholder="Optional" className={fieldClass()} {...register('shipTo.company')} />
+          <input id="ship-to-company" autoComplete="off" placeholder="Optional" className={cls('company')} {...lock('company')} {...register('shipTo.company')} />
         </FormField>
         <FormField label="Address line 1" htmlFor="ship-to-address1" required>
-          <input id="ship-to-address1" autoComplete="off" className={fieldClass(e?.address1?.message)} {...register('shipTo.address1')} />
+          <input id="ship-to-address1" autoComplete="off" className={cls('address1', e?.address1?.message)} {...lock('address1')} {...register('shipTo.address1')} />
         </FormField>
         <FormField label="Address line 2" htmlFor="ship-to-address2">
-          <input id="ship-to-address2" autoComplete="off" placeholder="Apt, suite, unit" className={fieldClass()} {...register('shipTo.address2')} />
+          <input id="ship-to-address2" autoComplete="off" placeholder="Apt, suite, unit" className={cls('address2')} {...lock('address2')} {...register('shipTo.address2')} />
         </FormField>
         <Controller
           control={control}
@@ -141,15 +161,16 @@ export const ShipToSection: React.FC = () => {
                 field.onChange(address)
               }}
               quietErrors
+              disabled={locked.address}
               errors={{ country: e?.address?.country?.message, province: e?.address?.province?.message, city: e?.address?.city?.message, postalCode: e?.address?.postalCode?.message }}
             />
           )}
         />
         <FormField label="Phone" htmlFor="ship-to-phone-number" required hint="The calling code follows the country">
-          <Controller control={control} name="shipTo.phone" render={({ field }) => <PhoneField idPrefix="ship-to-phone" value={field.value} onChange={field.onChange} error={e?.phone?.message} />} />
+          <Controller control={control} name="shipTo.phone" render={({ field }) => <PhoneField idPrefix="ship-to-phone" value={field.value} onChange={field.onChange} error={e?.phone?.message} disabled={locked.phone} />} />
         </FormField>
         <FormField label="Email" htmlFor="ship-to-email" hint="Used for carrier delivery notifications">
-          <input id="ship-to-email" autoComplete="off" className={fieldClass(e?.email?.message)} {...register('shipTo.email')} />
+          <input id="ship-to-email" autoComplete="off" className={cls('email', e?.email?.message)} {...lock('email')} {...register('shipTo.email')} />
         </FormField>
       </div>
     </SectionCard>

@@ -5,7 +5,7 @@ import { RowActionsMenu, type RowActionItem } from '@/components/row-actions-men
 import { StatusBadge } from '@/components/status-badge/StatusBadge'
 import { Spinner } from '@/design-system/loaders'
 import { ProviderLogo } from '../shared/ProviderLogo'
-import { money, shortDateTime, STATUS_TONE } from '../shippingMeta'
+import { CHANNEL_LABEL, money, shortDateTime, STATUS_TONE } from '../shippingMeta'
 import type { ParcelShipmentListItem, ParcelStatus } from '../types'
 
 interface BookingsTableProps {
@@ -52,6 +52,7 @@ export const BookingsTable: React.FC<BookingsTableProps> = ({ rows, isLoading, i
         <tr className="border-b border-border">
           <th className={HEAD}>Booking</th>
           <th className={HEAD}>Created</th>
+          <th className={HEAD}>Source</th>
           <th className={HEAD}>Recipient</th>
           <th className={HEAD}>Provider · Service</th>
           <th className={HEAD}>Tracking #</th>
@@ -68,6 +69,15 @@ export const BookingsTable: React.FC<BookingsTableProps> = ({ rows, isLoading, i
               <span className="block text-xs text-text-muted">{row.reference ?? '—'}</span>
             </td>
             <td className={`${CELL} whitespace-nowrap`}>{shortDateTime(row.createdAt)}</td>
+            <td className={CELL}>
+              <StatusBadge label={row.source === 'MANUAL' ? 'Manual' : 'Channel order'} tone={row.source === 'MANUAL' ? 'neutral' : 'info'} />
+              {row.channel && (
+                <span className="block text-xs text-text-muted">
+                  {CHANNEL_LABEL[row.channel.channel]}
+                  {row.channel.market ? ` · ${row.channel.market.toUpperCase()}` : ''}
+                </span>
+              )}
+            </td>
             <td className={CELL}>
               {row.recipient.name}
               <span className="block text-xs text-text-muted">

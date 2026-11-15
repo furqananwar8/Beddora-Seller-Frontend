@@ -233,6 +233,10 @@ export interface ParcelShipmentListItem {
   /** "SHP-000184" */
   bookingNo: string
   reference: string | null
+  /** From a channel order, or created by hand in Create shipment. */
+  source: 'CHANNEL' | 'MANUAL'
+  /** The platform and marketplace (a manual shipment records the one it is for). */
+  channel: { channel: ChannelId; market: string | null } | null
   provider: ProviderId
   providerLabel: string
   carrier: string
@@ -442,4 +446,35 @@ export interface ChannelOrderDetail {
   shipToError: string | null
   /** A bundle SKU yields several entries with the same lineNumber. */
   lines: ChannelOrderDetailLine[]
+}
+
+/** A booking running (or finished) in the background; its state lives on the server, so a refreshed page finds it. */
+export interface BookingJobDto {
+  key: string
+  status: 'RUNNING' | 'SUCCEEDED' | 'FAILED'
+  order: ChannelOrderRef | null
+  shipmentId: number | null
+  bookingNo: string | null
+  error: { message: string; status: number; code: string | null } | null
+  startedAt: string
+  finishedAt: string | null
+}
+
+/** An unfinished manual shipment saved to continue later (always source MANUAL; never linked to an order). */
+export interface ShipmentDraftSummary {
+  id: number
+  /** "DRAFT-000012" */
+  draftNo: string
+  source: 'MANUAL'
+  channel: { channel: ChannelId; market: string | null } | null
+  reference: string | null
+  recipient: { name: string | null; city: string | null; province: string | null; country: string | null }
+  createdBy: { id: number; name: string } | null
+  createdAt: string
+  updatedAt: string
+}
+
+/** A draft with the form it holds. */
+export interface ShipmentDraftDto extends ShipmentDraftSummary {
+  values: Record<string, unknown>
 }
