@@ -60,12 +60,8 @@ export default function DashboardLayout({
                 action: 'read',
                 href: '/dashboard/profit/dashboard',
               },
-              {
-                label: 'Settlement Report',
-                subject: 'profit:settlement-report',
-                action: 'read',
-                href: '/dashboard/profit/settlement-report',
-              },
+              // The newer Settlement Report screen (/dashboard/profit/settlement-report, permission profit:settlement-report)
+              // is still in development: it stays out of the menu so there is one Settlement Report until it is ready.
               {
                 label: 'Live Report',
                 subject: 'profit:channel-report',
