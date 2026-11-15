@@ -7,11 +7,8 @@ import { useLoginMutation } from '@/services/api/auth.api'
 import { useAppDispatch } from '@/store/hooks'
 import { setCredentials } from '@/store/auth.slice'
 import { Button } from '@/design-system/buttons'
-import { PromotionalSection, SocialLoginButton, InputWithIcon } from '@/components/marketing'
-import { Footer } from '@/components/layout'
+import { InputWithIcon } from '@/components/marketing'
 import { BeddoraBrand } from '@/components/brand/BeddoraBrand'
-import { marketingFeatures, marketingTestimonial, marketingContent } from '@/components/marketing/marketingData'
-import { beddoraFlowSteps } from '@/components/marketing/flowData'
 
 type LoginPhase = 'idle' | 'authenticating' | 'redirecting'
 
@@ -125,17 +122,8 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex flex-col">
       <div className="flex flex-1 overflow-hidden">
-        {/* Left Side - Promotional Content with Flow */}
-        <PromotionalSection
-          heading={marketingContent.heading}
-          subtitle={marketingContent.subtitle}
-          features={marketingFeatures}
-          testimonial={marketingTestimonial}
-          flowSteps={beddoraFlowSteps}
-        />
-
-        {/* Right Side - Login Form */}
-        <div className="w-full lg:w-1/2 bg-surface flex flex-col">
+        {/* Login Form */}
+        <div className="w-full bg-surface flex flex-col">
           <div className="flex-1 flex items-center justify-center p-8 lg:p-12 overflow-y-auto">
             <div className="w-full max-w-md space-y-8">
               {/* Brand, centred above the form */}
@@ -243,9 +231,6 @@ export default function LoginPage() {
               </div>
             </div>
           </div>
-
-          {/* Footer */}
-          <Footer />
         </div>
       </div>
     </div>

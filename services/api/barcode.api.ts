@@ -57,6 +57,8 @@ export interface ScanSourceInfo {
   ref: string
   /** Null when the direction can be scanned, else why not. */
   availability: Record<ScanDirection, string | null>
+  /** Someone else holds this record right now. */
+  lockedBy: { id: number; name: string | null; since: string } | null
   resume: { id: number; direction: ScanDirection } | null
   conditions: Array<{ value: ReturnCondition; label: string }>
 }
@@ -96,18 +98,84 @@ export interface ScanSessionSummary {
   status: ScanSessionStatus
   ref: string
   sourceId: string
+  channel: string | null
+  /** Holds the session now. */
   by: { id: number; name: string | null }
+  /** Started it; unchanged after a takeover. */
+  startedBy: { id: number; name: string | null }
   startedAt: string
   endedAt: string | null
   expected: number
   scanned: number
+  matched: number
+  notMatched: number
+  /** Units the stock movement used; 0 until the session ends. */
+  unitsApplied: number
   differences: ScanDifferences
+}
+
+export interface ScanAppliedLine {
+  inventoryItemId: number
+  sku: string
+  upc: string | null
+  expected: number
+  scanned: number
+  applied: number
+}
+
+export interface ScanUnmatched {
+  upc: string
+  reason: 'NOT_IN_CATALOG' | 'NOT_ON_RECORD'
+  sku: string | null
+  count: number
+  firstScannedAt: string
+  lastScannedAt: string
+}
+
+export interface ScanSessionStats {
+  sessions: number
+  inProgress: number
+  matched: number
+  notMatched: number
+  matchedPercent: number
+  unitsIn: number
+  unitsOut: number
+  unitsAdjusted: number
+}
+
+export interface ScanLock {
+  sessionId: number
+  scenario: ScanScenario
+  sourceId: string
+  by: { id: number; name: string | null }
+  mine: boolean
+  since: string
+  /** False once the owner stopped renewing the lock: the record can be taken over. */
+  live: boolean
+}
+
+export type ScanListStatus = 'IN_PROGRESS' | 'COMPLETED' | 'COMPLETED_UNMATCHED' | 'DISCARDED'
+
+export interface ScanSessionFilters {
+  scenario?: ScanScenario
+  direction?: ScanDirection
+  status?: ScanListStatus
+  channel?: string
+  startedBy?: number
+  from?: string
+  to?: string
 }
 
 export interface ScanSession extends ScanSessionSummary {
   mine: boolean
   lines: ScanSessionLine[]
   latest: ScanSessionScan[]
+  applied: ScanAppliedLine[]
+  unmatched: ScanUnmatched[]
+  /** Scans past the quantity a shipment or order holds, refused since the last read (reported once). */
+  refused: Array<{ upc: string; sku: string; expected: number; at: number }>
+  /** Scans still waiting to be matched. */
+  pending: number
 }
 
 export const barcodeApi = baseApi.injectEndpoints({
@@ -122,8 +190,23 @@ export const barcodeApi = baseApi.injectEndpoints({
       transformResponse: unwrap,
       providesTags: ['Barcode'],
     }),
-    getScanSessions: b.query<Page<ScanSessionSummary>, PageParams & { scenario?: ScanScenario; direction?: ScanDirection }>({
+    getScanSessions: b.query<Page<ScanSessionSummary>, PageParams & ScanSessionFilters>({
       query: ({ search, ...params }) => ({ url: '/barcode/sessions', params: { ...params, search: search || undefined } }),
+      providesTags: ['Barcode'],
+    }),
+    getScanSessionStats: b.query<ScanSessionStats, void>({
+      query: () => '/barcode/sessions/stats',
+      transformResponse: unwrap,
+      providesTags: ['Barcode'],
+    }),
+    getScanStarters: b.query<Array<{ id: number; name: string | null }>, void>({
+      query: () => '/barcode/sessions/starters',
+      transformResponse: unwrap,
+      providesTags: ['Barcode'],
+    }),
+    getScanLocks: b.query<ScanLock[], { scenario?: ScanScenario } | void>({
+      query: (params) => ({ url: '/barcode/sessions/locks', params: params ?? undefined }),
+      transformResponse: unwrap,
       providesTags: ['Barcode'],
     }),
     startScanSession: b.mutation<ScanSession, { scenario: ScanScenario; sourceId: string; direction: ScanDirection }>({
@@ -131,10 +214,10 @@ export const barcodeApi = baseApi.injectEndpoints({
       transformResponse: unwrap,
       invalidatesTags: ['Barcode'],
     }),
-    addSessionScan: b.mutation<ScanSession, { id: number; upc: string; condition?: ReturnCondition }>({
+    // The scan is only queued; the open modal polls the session, and each read matches the queued scans in one batch
+    addSessionScan: b.mutation<{ queued: true }, { id: number; upc: string; condition?: ReturnCondition }>({
       query: ({ id, ...body }) => ({ url: `/barcode/sessions/${id}/scans`, method: 'POST', body }),
       transformResponse: unwrap,
-      invalidatesTags: ['Barcode'],
     }),
     undoSessionScan: b.mutation<ScanSession, { id: number; scanId: number }>({
       query: ({ id, scanId }) => ({ url: `/barcode/sessions/${id}/scans/${scanId}`, method: 'DELETE' }),
@@ -174,6 +257,9 @@ export const {
   useGetScanSourceQuery,
   useGetScanSessionQuery,
   useGetScanSessionsQuery,
+  useGetScanSessionStatsQuery,
+  useGetScanLocksQuery,
+  useGetScanStartersQuery,
   useStartScanSessionMutation,
   useAddSessionScanMutation,
   useUndoSessionScanMutation,

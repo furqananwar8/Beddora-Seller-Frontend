@@ -4,6 +4,7 @@ import React from 'react'
 import { cn } from '@/utils/cn'
 import { DimensionUnit, PackingGroup, PackingGroupItem, WeightUnit } from './types'
 import { formatUnits } from './ShipmentParts'
+import { nonNegativeNumber } from './numberInput'
 import { Carton, CartonLine, SkuProgress, addableItems, isMixed, unitsPerCarton } from './packingModel'
 
 const isPositive = (s: string) => s.trim() !== '' && Number(s) > 0
@@ -117,6 +118,7 @@ export const CartonCard: React.FC<CartonCardProps> = ({ carton, index, group, di
                 min={0}
                 step={f.step}
                 value={carton[f.field]}
+                {...nonNegativeNumber(String(f.step) !== '1')}
                 onChange={(e) => setField(f.field, e.target.value)}
                 aria-label={`${f.label} for ${label}`}
                 className={inputClass(isPositive(carton[f.field]))}
@@ -150,6 +152,7 @@ export const CartonCard: React.FC<CartonCardProps> = ({ carton, index, group, di
                   step="1"
                   value={line.unitsPerBox}
                   placeholder="Units"
+                  {...nonNegativeNumber()}
                   onChange={(e) => setLine(lineIndex, { unitsPerBox: e.target.value })}
                   aria-label={`Units per box of ${line.sku} in ${label}`}
                   className={inputClass(isPositive(line.unitsPerBox))}

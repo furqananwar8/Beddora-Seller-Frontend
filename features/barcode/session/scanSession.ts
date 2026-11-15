@@ -1,11 +1,33 @@
 import type { BadgeProps } from '@/design-system/badges'
-import type { ReturnCondition, ScanDirection, ScanLineState, ScanScenario, ScanSessionScan } from '@/services/api/barcode.api'
+import type { ReturnCondition, ScanDirection, ScanLineState, ScanScenario, ScanSessionScan, ScanSessionSummary } from '@/services/api/barcode.api'
 
 /** The record a scan is started from; the scan screen and the stock movement follow from it. */
 export interface ScanTarget {
   scenario: ScanScenario
   sourceId: string
 }
+
+/** Where each kind of record is scanned from, for the listing and the detail page. */
+export const SOURCE_LABEL: Record<ScanScenario, string> = { FBA_WFS: 'Shipment', FBM_ORDER: 'Order', CONTAINER: 'Receiving' }
+
+export const CHANNEL_LABEL: Record<string, string> = {
+  AMAZON_FBA: 'Amazon FBA',
+  WALMART_WFS: 'Walmart WFS',
+  amazon: 'Amazon FBM',
+  walmart: 'Walmart',
+  temu: 'Temu',
+  INBOUND: 'Inbound',
+}
+export const channelName = (channel: string | null) => (channel ? CHANNEL_LABEL[channel] ?? channel : '-')
+
+/** The wording on the listing: in progress, completed, or completed with UPCs that did not match. */
+export function sessionStatus(session: Pick<ScanSessionSummary, 'status' | 'notMatched'>): { label: string; tone: 'live' | 'ok' | 'warn' | 'neutral' } {
+  if (session.status === 'IN_PROGRESS') return { label: 'In progress', tone: 'live' }
+  if (session.status === 'DISCARDED') return { label: 'Discarded', tone: 'neutral' }
+  return session.notMatched > 0 ? { label: 'Completed · unmatched', tone: 'warn' } : { label: 'Completed', tone: 'ok' }
+}
+
+export const sessionCode = (id: number) => `S-${id}`
 
 export const sessionHref = (id: number, condition?: ReturnCondition) => `/dashboard/barcode/session/${id}${condition ? `?condition=${condition}` : ''}`
 

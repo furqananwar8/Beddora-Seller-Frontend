@@ -1,7 +1,6 @@
 'use client'
 
-import { useEffect, useMemo } from 'react'
-import { useRouter } from 'next/navigation'
+import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -11,7 +10,8 @@ import { Spinner } from '@/design-system/loaders'
 import { Modal } from '@/design-system/modals'
 import { useApiFeedback } from '@/hooks/useApiFeedback'
 import { useGetScanSourceQuery, useStartScanSessionMutation, type ScanDirection } from '@/services/api/barcode.api'
-import { DIRECTION_META, conditionName, conditionsFor, inHint, isReceipt, sessionHref, type ScanTarget } from './scanSession'
+import { ScanSessionModal } from './ScanSessionModal'
+import { DIRECTION_META, conditionName, conditionsFor, inHint, isReceipt, type ScanTarget } from './scanSession'
 
 const schema = z.object({
   direction: z.enum(['IN', 'OUT']),
@@ -32,8 +32,9 @@ interface Props {
  * directions are open; a closed one says why.
  */
 export function ScanItemsDialog({ target, onClose }: Props) {
-  const router = useRouter()
   const feedback = useApiFeedback()
+  /** Once a session is running the scanning modal replaces this question. */
+  const [sessionId, setSessionId] = useState<number | null>(null)
   const { data: info, isLoading, isError, error } = useGetScanSourceQuery(target)
   const [start, { isLoading: starting }] = useStartScanSessionMutation()
 
@@ -42,6 +43,8 @@ export function ScanItemsDialog({ target, onClose }: Props) {
     defaultValues: { direction: 'OUT', condition: 'SELLABLE' },
   })
   const direction = watch('direction')
+  // The condition picked here is the scan modal's first one; it can still be changed between scans
+  const [initialCondition, setInitialCondition] = useState<FormValues['condition']>('SELLABLE')
 
   // Start on the first open direction, so the common case is one click
   const firstOpen = useMemo(() => (info ? DIRECTIONS.find((d) => !info.availability[d]) : undefined), [info])
@@ -52,11 +55,14 @@ export function ScanItemsDialog({ target, onClose }: Props) {
   const submit = handleSubmit(async ({ direction: dir, condition }) => {
     try {
       const session = await start({ ...target, direction: dir }).unwrap()
-      router.push(sessionHref(session.id, dir === 'IN' ? condition : undefined))
+      setInitialCondition(condition)
+      setSessionId(session.id)
     } catch (e) {
       feedback.failure(e, 'Could not start scanning')
     }
   })
+
+  if (sessionId !== null) return <ScanSessionModal sessionId={sessionId} initialCondition={initialCondition} onClose={onClose} />
 
   return (
     <Modal isOpen onClose={onClose} title={info ? `Scan items · ${info.ref}` : 'Scan items'} size="md">
@@ -72,7 +78,7 @@ export function ScanItemsDialog({ target, onClose }: Props) {
           {info.resume && (
             <div className="rounded-lg border border-border bg-surface-secondary p-3 text-sm">
               You have a {DIRECTION_META[info.resume.direction].label.toLowerCase()} scan open on this record.
-              <Button type="button" variant="outline" size="sm" className="ml-3" onClick={() => router.push(sessionHref(info.resume!.id))}>
+              <Button type="button" variant="outline" size="sm" className="ml-3" onClick={() => setSessionId(info.resume!.id)}>
                 Resume scanning
               </Button>
             </div>

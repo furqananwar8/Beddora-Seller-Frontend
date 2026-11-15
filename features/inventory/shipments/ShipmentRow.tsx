@@ -31,6 +31,7 @@ import {
   nextActionOf,
 } from './workflow'
 import { channelIdOf, channelOf } from './channels'
+import { nonNegativeNumber } from './numberInput'
 import {
   ChannelChip,
   ChevronIcon,
@@ -69,6 +70,8 @@ interface ShipmentRowProps {
   onDelete: () => void
   /** Opens the Scan items dialog (In or Out) for this shipment; omitted when the user can't scan. */
   onScanItems?: () => void
+  /** Who has this shipment open for scanning (null when free): the Scan items action then reads "Locked by …" and is disabled. */
+  scanLockedBy?: string | null
   /** Opens the shipment's bills of lading; omitted for channels without them (Amazon FBA only). */
   onBillOfLading?: () => void
   /** Redo a completed step from the stepper. */
@@ -94,6 +97,7 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({
   onCancel,
   onDelete,
   onScanItems,
+  scanLockedBy,
   onBillOfLading,
   onGoBack,
   onDownloadLabel,
@@ -367,8 +371,12 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({
                   </MenuItem>
                 )}
                 {onScanItems && (
-                  <MenuItem onClick={() => { setIsMenuOpen(false); onScanItems() }}>
-                    Scan items
+                  <MenuItem
+                    disabled={Boolean(scanLockedBy)}
+                    title={scanLockedBy ? 'Available once they end the session' : undefined}
+                    onClick={() => { setIsMenuOpen(false); onScanItems() }}
+                  >
+                    {scanLockedBy ? `Locked by ${scanLockedBy}` : 'Scan items'}
                   </MenuItem>
                 )}
                 <div className="my-1 border-t border-border" />
@@ -639,6 +647,7 @@ See ${item.sku} on Channel Inventory`}
                                   min={1}
                                   step={1}
                                   value={item.unitsPerCase ?? ''}
+                                  {...nonNegativeNumber()}
                                   onChange={(e) => setUnitsPerCase(item.productId, e.target.valueAsNumber)}
                                   aria-label={`Units per case for ${item.sku}`}
                                   className="w-20 rounded-md border border-border px-2 py-1 text-right text-sm focus:outline-none focus:ring-2 focus:ring-secondary-200"
@@ -675,6 +684,7 @@ See ${item.sku} on Channel Inventory`}
                                     max={max}
                                     step={1}
                                     value={Number.isNaN(item.quantity) ? '' : item.quantity}
+                                    {...nonNegativeNumber()}
                                     onChange={(e) => setQty(item.productId, e.target.valueAsNumber)}
                                     aria-label={`Quantity for ${item.sku}`}
                                     aria-invalid={!!error}

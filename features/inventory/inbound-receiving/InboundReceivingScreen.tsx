@@ -44,6 +44,16 @@ export const InboundReceivingScreen: React.FC = () => {
   const canWrite = ability.can('write', 'inventory:inbound-receiving')
   const canScan = ability.can('write', 'barcode:scans')
   const scanItems = useScanItems()
+  const scanItem = (id: number) => {
+    const target = { scenario: 'CONTAINER' as const, sourceId: String(id) }
+    const lockedBy = scanItems.lockedBy(target)
+    return {
+      key: 'scan',
+      label: lockedBy ? `Locked by ${lockedBy}` : 'Scan items',
+      onSelect: () => scanItems.open(target),
+      ...(lockedBy ? { disabled: true, disabledReason: 'Available once they end the session' } : {}),
+    }
+  }
   const [page, setPage] = useState(1)
   const [status, setStatus] = useState<StatusFilter>('ALL')
   const [search, setSearch] = useState('')
@@ -142,7 +152,7 @@ export const InboundReceivingScreen: React.FC = () => {
                                 ...(received || canWrite ? {} : { disabled: true, disabledReason: 'You cannot receive containers' }),
                               },
                               // Scanning the container's units in is what puts them into inventory; confirming the receipt only records it
-                              ...(canScan ? [{ key: 'scan', label: 'Scan items', onSelect: () => scanItems.open({ scenario: 'CONTAINER', sourceId: String(row.id) }) }] : []),
+                              ...(canScan ? [scanItem(row.id)] : []),
                               { key: 'pdf', label: 'Download PDF', onSelect: () => setPrinting(row) },
                             ]}
                           />

@@ -153,6 +153,7 @@ export const OrdersScreen: React.FC = () => {
             onPrintLabel={setPrinting}
             onDownloadInvoice={downloadInvoice}
             onScanItems={canScan ? ({ channel, market, orderId }) => scanItems.open({ scenario: 'FBM_ORDER', sourceId: `${channel}:${market}:${orderId}` }) : undefined}
+            scanLockedBy={({ channel, market, orderId }) => scanItems.lockedBy({ scenario: 'FBM_ORDER', sourceId: `${channel}:${market}:${orderId}` })}
             invoiceBusy={invoiceBusy}
           />
         </div>
