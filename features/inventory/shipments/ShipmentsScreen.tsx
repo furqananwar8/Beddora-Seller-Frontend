@@ -88,7 +88,7 @@ const ofChannelOrNull = (s: InboundShipment | null, channel: ShipmentChannel) =>
 
 export const ShipmentsScreen: React.FC = () => {
   const dispatch = useAppDispatch()
-  const canScan = useAppAbility().can('write', 'barcode:scans')
+  const canScan = useAppAbility().can('write', 'barcode:scan-items')
   const scanItems = useScanItems()
   const {
     shipments,

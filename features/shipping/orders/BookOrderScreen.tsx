@@ -42,7 +42,7 @@ function useOrderRef(): ChannelOrderRef | null {
  */
 export const BookOrderScreen: React.FC = () => {
   const router = useRouter()
-  const canWrite = useAppAbility().can('write', 'shipping:parcels')
+  const canWrite = useAppAbility().can('write', 'shipping:orders')
   const orderRef = useOrderRef()
   const { data: detail, isLoading, isError } = useGetChannelOrderQuery(orderRef ?? { channel: 'walmart', market: '', orderId: '' }, { skip: !orderRef })
   const { data: addresses = [], isLoading: loadingAddresses } = useGetShipFromOptionsQuery()

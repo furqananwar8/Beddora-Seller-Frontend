@@ -265,14 +265,14 @@ export default function DashboardLayout({
           },
           {
             label: 'Shipping',
-            subject: 'shipping:parcels',
+            subject: 'shipping:orders',
             action: 'read',
             href: '/dashboard/shipping/orders',
             icon: NavIcons.shipping,
             children: [
-              { label: 'Orders', subject: 'shipping:parcels', action: 'read', href: '/dashboard/shipping/orders' },
-              ...(MANUAL_SHIPMENT_FLOW ? [{ label: 'Create shipment', subject: 'shipping:parcels', action: 'write' as const, href: '/dashboard/shipping/create' }] : []),
-              ...(BOOKINGS_TAB ? [{ label: 'Bookings', subject: 'shipping:parcels', action: 'read' as const, href: '/dashboard/shipping/bookings' }] : []),
+              { label: 'Orders', subject: 'shipping:orders', action: 'read', href: '/dashboard/shipping/orders' },
+              ...(MANUAL_SHIPMENT_FLOW ? [{ label: 'Create shipment', subject: 'shipping:orders', action: 'write' as const, href: '/dashboard/shipping/create' }] : []),
+              ...(BOOKINGS_TAB ? [{ label: 'Bookings', subject: 'shipping:orders', action: 'read' as const, href: '/dashboard/shipping/bookings' }] : []),
             ],
           },
           {
@@ -291,11 +291,26 @@ export default function DashboardLayout({
             label: 'Breakeven Analysis',
             subject: 'breakeven-analysis',
             action: 'read',
-            href: '/breakeven-analysis',
+            href: '/breakeven-analysis/period-analysis',
             icon: NavIcons.products,
+            // One child per channel; add the next channel's analysis here and in the seed's breakeven-analysis subpages
+            children: [
+              {
+                label: 'Period Analysis',
+                subject: 'breakeven-analysis:period-analysis',
+                action: 'read',
+                href: '/breakeven-analysis/period-analysis',
+              },
+              {
+                label: 'Amazon Analysis',
+                subject: 'breakeven-analysis:amazon',
+                action: 'read',
+                href: '/breakeven-analysis/amazon',
+              },
+            ],
           },
           {
-            label: 'Bar Code',
+            label: 'Scanning Sessions',
             subject: 'barcode:scans',
             action: 'read',
             href: '/dashboard/barcode',

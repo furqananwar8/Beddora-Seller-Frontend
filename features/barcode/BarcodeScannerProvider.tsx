@@ -55,7 +55,7 @@ const readBaudSetting = (): BaudSetting => {
  */
 export function BarcodeScannerProvider({ children }: { children: React.ReactNode }) {
   const ability = useAppAbility()
-  const canScan = ability.can('write', 'barcode:scans')
+  const canScan = ability.can('write', 'barcode:scan-items')
 
   const [createScan] = useCreateBarcodeScanMutation()
   const [serialStatus, setSerialStatus] = useState<WebSerialStatus>({ connected: 0 })

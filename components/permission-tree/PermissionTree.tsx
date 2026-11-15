@@ -24,14 +24,17 @@ const ACRONYMS = new Set(['sku', 'po', 'ppc', 'ip', 'invp'])
 /** Screens whose name is not their slug read out (`sku-landed` is the SKU Landed Cost screen). */
 const DISPLAY_NAMES: Record<string, string> = { 'sku-landed': 'SKU Landed Cost' }
 
-const slugLabel = (node: PermissionNode) =>
+/** Top-level pages shown under their screen's name in the sidebar (`barcode` is the Scanning Sessions menu). */
+const PAGE_NAMES: Record<string, string> = { barcode: 'Scanning Sessions' }
+
+const slugLabel =(node: PermissionNode) =>
   (node.subpage ? (node.subpage.split('.').pop() ?? node.subpage) : node.page)
     .split('-')
     .map((word) => (ACRONYMS.has(word) ? word.toUpperCase() : word))
     .join(' ')
 
 /** The row's name: its display name, else the page or the last part of a subpage (`price-analysis.approval` → "approval"). */
-const labelOf = (node: PermissionNode) => (node.subpage && DISPLAY_NAMES[node.subpage]) || slugLabel(node)
+const labelOf = (node: PermissionNode) => (node.subpage ? DISPLAY_NAMES[node.subpage] : PAGE_NAMES[node.page]) || slugLabel(node)
 
 interface RowProps {
   node: PermissionNode

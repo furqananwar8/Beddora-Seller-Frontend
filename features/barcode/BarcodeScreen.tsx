@@ -131,7 +131,7 @@ export function BarcodeScreen() {
       {tabs}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold text-text-primary">Bar Code</h1>
+          <h1 className="text-xl font-semibold text-text-primary">Scanning Sessions</h1>
           <p className="text-sm text-text-muted">Every code scanned shows up here, newest first.</p>
         </div>
         <div className="w-full max-w-xs">

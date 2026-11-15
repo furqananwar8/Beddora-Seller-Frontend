@@ -30,7 +30,7 @@ import type { ShipmentFormValues } from './shipmentSchema'
  */
 export const CreateShipmentScreen: React.FC = () => {
   const router = useRouter()
-  const canWrite = useAppAbility().can('write', 'shipping:parcels')
+  const canWrite = useAppAbility().can('write', 'shipping:orders')
   const params = useSearchParams()
   const { success, failure } = useApiFeedback()
   const [booked, setBookedShipment] = useState<ParcelShipmentDto | null>(null)
