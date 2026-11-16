@@ -311,6 +311,11 @@ export default function DashboardLayout({
             action: 'read',
             href: '/dashboard/barcode',
             icon: NavIcons.barcode,
+            children: [
+              { label: 'Scan Sessions', subject: 'barcode:scans', action: 'read', href: '/dashboard/barcode' },
+              { label: 'Manual Returns', subject: 'barcode:manual-returns', action: 'read', href: '/dashboard/barcode/manual-returns' },
+              { label: 'Scanned Codes', subject: 'barcode:scanned-codes', action: 'read', href: '/dashboard/barcode/scanned-codes' },
+            ],
           },
           {
             label: 'Alerts',
