@@ -1,0 +1,693 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Scanning Sessions design v4</title>
+<style>
+  @font-face { font-family: "Inter"; src: url("fonts/inter-latin.woff2") format("woff2"); font-weight: 100 900; font-style: normal; }
+  @page p1 { size: 1800px 1350px; margin: 0 }
+  @page p2 { size: 1800px 1280px; margin: 0 }
+  @page p3 { size: 1600px 1660px; margin: 0 }
+  @page p4 { size: 1600px 1160px; margin: 0 }
+  @page p5 { size: 1600px 1180px; margin: 0 }
+  @page p6 { size: 1600px 1125px; margin: 0 }
+  @page p7 { size: 1600px 1125px; margin: 0 }
+  @page p8 { size: 1600px 1190px; margin: 0 }
+  @page p9 { size: 1800px 1080px; margin: 0 }
+  @page p10 { size: 1800px 1180px; margin: 0 }
+  @page p11 { size: 1800px 1040px; margin: 0 }
+  @page p12 { size: 1800px 1130px; margin: 0 }
+  @page p13 { size: 1600px 1500px; margin: 0 }
+  @page p14 { size: 1600px 1560px; margin: 0 }
+  @page p17 { size: 1600px 700px; margin: 0 }
+  @page p15 { size: 1800px 760px; margin: 0 }
+  @page p16 { size: 1800px 980px; margin: 0 }
+  :root { --ink: #0f172a; --text: #111827; --muted: #64748b; --faint: #94a3b8; --line: #e2e8f0; --head: #f1f5f9; --bg: #f8fafc;
+          --dark: #111827; --ok-bg: #dcfce7; --ok: #166534; --warn-bg: #fef3c7; --warn: #92400e; --bad-bg: #fee2e2; --bad: #991b1b; --chip: #f1f5f9; --chip-t: #334155; --new: #2563eb; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { font-family: "Inter", system-ui, sans-serif; color: var(--text); font-size: 16px; line-height: 1.4; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .pg { position: relative; overflow: hidden; break-after: page; page-break-after: always; }
+  .pg:last-child { break-after: auto; page-break-after: auto; }
+  .light { background: var(--bg); padding: 46px 50px; }
+  .dark { background: #334155; }
+  .darker { background: #1e293b; }
+  .mono { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 14.5px; }
+  .muted { color: var(--muted); }
+  .b { font-weight: 600; }
+  .crumb { font-size: 15px; color: var(--muted); margin-bottom: 6px; }
+  h1 { font-size: 32px; line-height: 1.15; margin: 0; font-weight: 700; color: var(--ink); letter-spacing: -.01em; }
+  .lead { font-size: 16px; color: var(--muted); margin: 6px 0 0; }
+  .card { background: #fff; border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 1px 3px rgba(15,23,42,.06); }
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 22px; margin-top: 26px; }
+  .kpi { padding: 22px 26px; }
+  .kpi .l { font-size: 15px; color: var(--muted); font-weight: 500; }
+  .kpi .v { font-size: 36px; font-weight: 700; color: var(--ink); line-height: 1.2; margin: 4px 0 2px; }
+  .kpi .s { font-size: 15px; color: var(--muted); }
+  .btn { display: inline-flex; align-items: center; justify-content: center; height: 50px; padding: 0 26px; border-radius: 10px; font-weight: 600; font-size: 16px; border: 1px solid var(--line); background: #fff; color: var(--text); white-space: nowrap; }
+  .btn.dark { background: var(--dark); color: #fff; border-color: var(--dark); }
+  .btn.sm { height: 44px; padding: 0 22px; }
+  .btn.off { opacity: .45; }
+  .pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 13px; border-radius: 999px; font-size: 14px; font-weight: 600; background: var(--chip); color: var(--chip-t); white-space: nowrap; }
+  .pill.ok { background: var(--ok-bg); color: var(--ok); } .pill.warn { background: var(--warn-bg); color: var(--warn); } .pill.bad { background: var(--bad-bg); color: var(--bad); }
+  .pill.live { background: var(--dark); color: #fff; } .pill.live::before { content: "●"; font-size: 9px; }
+  .field label { display: block; font-size: 15px; font-weight: 600; color: #475569; margin-bottom: 8px; }
+  .inp { height: 50px; border: 1px solid #cbd5e1; border-radius: 9px; padding: 0 16px; display: flex; align-items: center; justify-content: space-between; background: #fff; font-size: 16px; }
+  .inp.ph { color: var(--faint); }
+  .inp.sel::after { content: "⌄"; color: #334155; font-size: 14px; }
+  table { width: 100%; border-collapse: collapse; }
+  th { background: var(--head); font-size: 15px; font-weight: 500; color: #475569; text-align: left; padding: 14px 16px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  td { padding: 14px 16px; border-bottom: 1px solid var(--line); font-size: 16px; vertical-align: middle; }
+  tr:last-child td { border-bottom: 0; }
+  .r { text-align: right; } .c { text-align: center; }
+  .tcard { overflow: hidden; }
+  .ttl { padding: 20px 26px; font-weight: 700; font-size: 20px; color: var(--ink); display: flex; justify-content: space-between; align-items: center; }
+  .ttl .hint { font-size: 16px; font-weight: 400; color: var(--muted); }
+  .bar { width: 126px; height: 7px; background: #e2e8f0; border-radius: 99px; overflow: hidden; } .bar i { display: block; height: 100%; background: var(--dark); border-radius: 99px; }
+  .bar.amber i { background: #d97706; }
+  .green { color: var(--ok); font-weight: 600; } .amber { color: var(--warn); font-weight: 700; }
+  .u { text-decoration: underline; }
+  .newtag { display: inline-block; background: var(--new); color: #fff; font-size: 11px; font-weight: 700; letter-spacing: .05em; padding: 2px 8px; border-radius: 99px; margin-left: 8px; vertical-align: middle; }
+  /* modal pages */
+  .modal { position: absolute; background: #fff; border-radius: 22px; box-shadow: 0 20px 50px rgba(0,0,0,.25); overflow: hidden; display: flex; flex-direction: column; }
+  .mh { display: flex; justify-content: space-between; align-items: flex-start; padding: 28px 34px 22px; border-bottom: 1px solid var(--line); }
+  .mh h2 { font-size: 28px; margin: 0; font-weight: 700; color: var(--ink); } .mh .sub { color: var(--muted); font-size: 16px; margin-top: 4px; }
+  .mh .pills { display: flex; align-items: center; gap: 12px; } .x { font-size: 20px; color: var(--muted); margin-left: 6px; }
+  .mb { padding: 26px 34px; display: grid; grid-template-columns: 1fr 408px; gap: 30px; flex: 1; }
+  .mf { background: var(--bg); border-top: 1px solid var(--line); padding: 20px 34px; display: flex; align-items: center; justify-content: space-between; font-size: 14.5px; color: var(--muted); }
+  .col { display: flex; flex-direction: column; gap: 22px; min-width: 0; }
+  .scanner { border: 3px solid var(--dark); border-radius: 16px; padding: 18px 22px; background: #fff; }
+  .scanner .k { font-weight: 600; font-size: 15px; color: #334155; margin-bottom: 12px; }
+  .scanner .in { height: 56px; border: 1px solid var(--line); background: var(--bg); border-radius: 9px; padding: 0 20px; display: flex; align-items: center; color: var(--faint); font-size: 17px; }
+  .scanner .rdy { margin-top: 12px; font-size: 14.5px; font-weight: 600; color: var(--ok); }
+  .stats { border: 1px solid var(--line); border-radius: 16px; padding: 0 24px; background: #fff; }
+  .stats > div { display: flex; justify-content: space-between; align-items: center; padding: 18px 0; border-bottom: 1px solid var(--line); font-size: 17px; color: var(--muted); }
+  .stats > div:last-child { border-bottom: 0; } .stats b { font-size: 25px; color: var(--ink); }
+  .note { border: 1px solid var(--line); border-radius: 16px; background: var(--bg); padding: 22px 24px; font-size: 16px; color: #475569; line-height: 1.55; }
+  .banner { border: 1px solid #fcd34d; background: #fffbeb; color: var(--warn); border-radius: 14px; padding: 20px 26px; font-size: 17px; line-height: 1.6; }
+  .banner.green-b { border-color: #86efac; background: #f0fdf4; color: var(--ok); font-weight: 600; padding: 16px 26px; }
+  .exp { background: var(--bg); padding: 16px 22px 18px; }
+  .exp .list { background: #fff; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  .exp .it { display: grid; grid-template-columns: 110px 190px 140px 1fr; align-items: center; padding: 6px 20px; border-bottom: 1px solid var(--line); font-size: 15px; }
+  .exp .it:last-child { border-bottom: 0; }
+  .exp .more { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; color: var(--muted); font-size: 15px; }
+  .exp .more .btn { height: 38px; padding: 0 18px; font-size: 15px; }
+  .twisty { color: #1d4ed8; font-weight: 600; font-size: 14px; }
+  .modal .tcard td, .modal .tcard th { padding-top: 13px; padding-bottom: 13px; }
+  .dim { position: absolute; inset: 0; background: rgba(15,23,42,.0); }
+  .ghost { position: absolute; background: #6b7280; border-radius: 22px; left: 100px; top: 50px; right: 100px; bottom: 50px; }
+  .confirm { position: absolute; background: #fff; border-radius: 22px; box-shadow: 0 20px 60px rgba(0,0,0,.35); padding: 40px 44px 36px; }
+  .confirm h3 { font-size: 30px; margin: 0; color: var(--ink); } .confirm .sub { color: var(--muted); font-size: 18px; margin: 10px 0 26px; }
+  .li { display: grid; grid-template-columns: 24px 1fr; padding: 16px 0; border-bottom: 1px solid var(--line); }
+  .li:last-of-type { border-bottom: 0; }
+  .li .d { width: 13px; height: 13px; border-radius: 50%; margin-top: 8px; } .li b { font-size: 20px; color: var(--ink); } .li div div { color: var(--muted); font-size: 18px; margin-top: 4px; line-height: 1.4; }
+  .warnbox { border: 1px solid var(--line); background: var(--bg); border-radius: 12px; padding: 16px 20px; color: #475569; font-size: 17px; margin-top: 8px; }
+  .acts { display: flex; justify-content: flex-end; gap: 16px; margin-top: 28px; }
+  .acts .btn { height: 60px; font-size: 19px; padding: 0 32px; }
+  .steps { display: grid; grid-template-columns: repeat(6, 1fr); gap: 26px; margin-top: 28px; position: relative; }
+  .step { padding: 24px; position: relative; } .step.new { border-color: #93c5fd; background: #eff6ff; }
+  .step .n { width: 38px; height: 38px; border-radius: 50%; background: var(--dark); color: #fff; font-weight: 700; display: flex; align-items: center; justify-content: center; font-size: 17px; margin-bottom: 10px; }
+  .step h4 { margin: 0 0 8px; font-size: 21px; color: var(--ink); } .step p { margin: 0; font-size: 16px; line-height: 1.6; color: #475569; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; margin-top: 28px; }
+  .lock-pill { display: inline-flex; align-items: center; gap: 10px; background: var(--head); border: 1px solid var(--line); color: #64748b; font-weight: 600; font-size: 19px; padding: 14px 22px; border-radius: 12px; }
+  .lrow { display: grid; grid-template-columns: 230px 1fr; gap: 6px; align-items: start; margin-bottom: 18px; } .lrow .k { color: var(--muted); font-size: 17px; padding-top: 14px; } .lrow .s { color: var(--muted); font-size: 15.5px; margin-top: 8px; line-height: 1.5; }
+  .nlist .it { display: grid; grid-template-columns: 52px 1fr; padding: 16px 24px; border-bottom: 1px solid var(--line); font-size: 17.5px; line-height: 1.55; color: #475569; }
+  .nlist .it:last-child { border-bottom: 0; } .nlist .it b { color: var(--ink); }
+  .nlist .num { width: 30px; height: 30px; border-radius: 50%; background: var(--dark); color: #fff; font-weight: 700; font-size: 15px; display: flex; align-items: center; justify-content: center; margin-top: 2px; }
+  code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 15px; }
+  .tick { display: inline-block; width: 18px; height: 18px; border: 2px solid #94a3b8; border-radius: 5px; vertical-align: -3px; margin-right: 10px; } .tick.on { background: var(--dark); border-color: var(--dark); }
+  .opt { border: 1px solid var(--line); border-radius: 12px; padding: 16px 20px; margin-bottom: 12px; } .opt.dis { opacity: .5; }
+  .opt b { font-size: 18px; } .opt .s { color: var(--muted); margin: 4px 0 0 28px; font-size: 16px; }
+  /* row actions: the app's vertical-dots button with a floating dropdown (RowActionsMenu) */
+  .actcell { position: relative; text-align: center; width: 78px; }
+  .dots { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; border-radius: 8px; color: var(--muted); }
+  .dots.on { background: var(--head); color: var(--ink); }
+  .dots svg { width: 22px; height: 22px; fill: currentColor; }
+  .menu { position: absolute; right: 12px; top: 50px; z-index: 5; min-width: 200px; background: #fff; border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 10px 24px rgba(15,23,42,.18); padding: 4px 0; text-align: left; font-size: 15px; font-weight: 400; color: var(--text); }
+  .menu div { padding: 9px 14px; white-space: nowrap; }
+  .menu div.hl { background: var(--head); }
+  .menu div.off { color: #94a3b8; } .menu div.off small { display: block; font-size: 12.5px; margin-top: 2px; }
+  .split input { width: 84px; height: 42px; border: 1px solid #cbd5e1; border-radius: 8px; text-align: center; font: 600 17px Inter; }
+</style>
+</head>
+<body>
+
+<!-- 1 · Listing -->
+<section class="pg light" style="page:p1;width:1800px;height:1350px">
+  <div class="crumb">Inventory › Scanning Sessions</div>
+  <div style="display:flex;justify-content:space-between;align-items:flex-start">
+    <div><h1>Scanning Sessions<span class="newtag">RENAMED</span></h1><p class="lead">Every scanning session started from Shipments, Shipping orders or Inbound receiving. Scanning itself happens in each screen’s Scan items modal.</p></div>
+  </div>
+  <div class="kpis">
+    <div class="card kpi"><div class="l">Sessions (last 7 days)</div><div class="v">24</div><div class="s">1 in progress</div></div>
+    <div class="card kpi"><div class="l">UPCs matched</div><div class="v">1,284</div><div class="s" style="color:var(--ok)">96.9% of scans</div></div>
+    <div class="card kpi"><div class="l">UPCs not matched</div><div class="v">41</div><div class="s" style="color:var(--warn)">Fix the product UPC, then scan again</div></div>
+    <div class="card kpi"><div class="l">Units adjusted in inventory</div><div class="v">3,906</div><div class="s">3,214 out · 692 in</div></div>
+  </div>
+  <div class="card" style="margin-top:26px;padding:26px 28px">
+    <div style="display:grid;grid-template-columns:2.2fr 1fr 1fr 1fr 1fr;gap:22px">
+      <div class="field"><label>Search</label><div class="inp ph">Session ID, shipment / order / receiving no., or UPC</div></div>
+      <div class="field"><label>Source</label><div class="inp sel">All sources</div></div>
+      <div class="field"><label>Channel</label><div class="inp sel">All channels</div></div>
+      <div class="field"><label>Status</label><div class="inp sel">Any status</div></div>
+      <div class="field"><label>Inventory direction</label><div class="inp sel">In and out</div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:240px 240px 270px 1fr auto auto;gap:22px;align-items:end;margin-top:22px">
+      <div class="field"><label>From</label><div class="inp">2026-11-09</div></div>
+      <div class="field"><label>To</label><div class="inp">2026-11-15</div></div>
+      <div class="field"><label>Started by</label><div class="inp sel">Anyone</div></div><div></div>
+      <span class="btn">Reset</span><span class="btn dark">Apply filters</span>
+    </div>
+  </div>
+  <div class="card" style="margin-top:26px;padding:16px 26px;background:#eff6ff;border-color:#93c5fd;color:#1e3a8a;font-size:16px"><b>Row actions:</b> the last column is now the three vertical dots. Clicking it opens a small dropdown: <b>Open</b> while the session is in progress, <b>View</b> once it has ended.</div>
+  <div class="card tcard" style="margin-top:22px">
+    <table>
+      <thead><tr><th>Session</th><th style="width:15%">Source <span class="newtag" style="margin-left:6px">CHANGED</span></th><th>Channel</th><th>Started by</th><th>Started</th><th>Ended</th><th class="r">Scanned</th><th class="r">Matched</th><th class="r">Not matched</th><th class="r">Units adjusted</th><th>Direction</th><th>Status</th><th class="c">Actions <span class="newtag" style="margin-left:6px">CHANGED</span></th></tr></thead>
+      <tbody>
+        <tr><td class="mono">S-1042</td><td><div class="b">Shipment</div><div class="mono muted">SHP-0019</div></td><td>Amazon FBA</td><td>Ayesha Khan</td><td style="white-space:nowrap">15 Nov,<br>05:10</td><td>—</td><td class="r">38</td><td class="r">35</td><td class="r amber">3</td><td class="r">—</td><td><span class="pill">Out</span></td><td><span class="pill live">In progress</span></td><td class="actcell"><span class="dots on"><svg viewBox="0 0 20 20"><circle cx="10" cy="4" r="1.5"/><circle cx="10" cy="10" r="1.5"/><circle cx="10" cy="16" r="1.5"/></svg></span><div class="menu"><div class="hl">Open</div></div></td></tr>
+        <tr><td class="mono">S-1041</td><td><div class="b">Order</div><div class="mono muted">114-8820731</div></td><td>Amazon FBM</td><td>Furqan Anwar</td><td style="white-space:nowrap">15 Nov,<br>04:52</td><td style="white-space:nowrap">15 Nov,<br>04:58</td><td class="r">6</td><td class="r">6</td><td class="r">0</td><td class="r">6</td><td><span class="pill">Out</span></td><td><span class="pill ok">Completed</span></td><td class="actcell"><span class="dots"><svg viewBox="0 0 20 20"><circle cx="10" cy="4" r="1.5"/><circle cx="10" cy="10" r="1.5"/><circle cx="10" cy="16" r="1.5"/></svg></span></td></tr>
+        <tr><td class="mono">S-1040</td><td><div class="b">Receiving</div><div class="mono muted">RCV-0087</div></td><td>Inbound</td><td>Furqan Anwar</td><td style="white-space:nowrap">14 Nov,<br>16:20</td><td style="white-space:nowrap">14 Nov,<br>16:41</td><td class="r">120</td><td class="r">112</td><td class="r amber">8</td><td class="r">112</td><td><span class="pill">In</span></td><td><span class="pill warn">Completed · unmatched</span></td><td class="actcell"><span class="dots"><svg viewBox="0 0 20 20"><circle cx="10" cy="4" r="1.5"/><circle cx="10" cy="10" r="1.5"/><circle cx="10" cy="16" r="1.5"/></svg></span></td></tr>
+        <tr><td class="mono">S-1039</td><td><div class="b">Order return</div><div class="mono muted">114-5531904</div></td><td>Amazon FBM</td><td>Furqan Anwar</td><td style="white-space:nowrap">14 Nov,<br>15:02</td><td style="white-space:nowrap">14 Nov,<br>15:09</td><td class="r">2</td><td class="r">2</td><td class="r">0</td><td class="r">2</td><td><span class="pill">In</span></td><td><span class="pill ok">Completed</span></td><td class="actcell"><span class="dots"><svg viewBox="0 0 20 20"><circle cx="10" cy="4" r="1.5"/><circle cx="10" cy="10" r="1.5"/><circle cx="10" cy="16" r="1.5"/></svg></span></td></tr>
+        <tr><td class="mono">S-1038</td><td><div class="b">Shipment</div><div class="mono muted">SHP-0018</div></td><td>Walmart WFS</td><td>Ayesha Khan</td><td style="white-space:nowrap">14 Nov,<br>11:30</td><td style="white-space:nowrap">14 Nov,<br>12:12</td><td class="r">210</td><td class="r">204</td><td class="r amber">6</td><td class="r">204</td><td><span class="pill">Out</span></td><td><span class="pill warn">Completed · unmatched</span></td><td class="actcell"><span class="dots"><svg viewBox="0 0 20 20"><circle cx="10" cy="4" r="1.5"/><circle cx="10" cy="10" r="1.5"/><circle cx="10" cy="16" r="1.5"/></svg></span></td></tr>
+        <tr><td class="mono">S-1037</td><td><div class="b">Shipment</div><div class="mono muted">SHP-0017</div></td><td>Amazon FBA</td><td>Ayesha Khan</td><td style="white-space:nowrap">13 Nov,<br>17:45</td><td style="white-space:nowrap">13 Nov,<br>18:20</td><td class="r">96</td><td class="r">96</td><td class="r">0</td><td class="r">96</td><td><span class="pill">Out</span></td><td><span class="pill ok">Completed</span></td><td class="actcell"><span class="dots"><svg viewBox="0 0 20 20"><circle cx="10" cy="4" r="1.5"/><circle cx="10" cy="10" r="1.5"/><circle cx="10" cy="16" r="1.5"/></svg></span></td></tr>
+        <tr><td class="mono">S-1036</td><td><div class="b">Receiving</div><div class="mono muted">RCV-0086</div></td><td>Inbound</td><td>Furqan Anwar</td><td style="white-space:nowrap">13 Nov,<br>10:05</td><td style="white-space:nowrap">13 Nov,<br>10:48</td><td class="r">64</td><td class="r">40</td><td class="r amber">24</td><td class="r">40</td><td><span class="pill">In</span></td><td><span class="pill warn">Completed · unmatched</span></td><td class="actcell"><span class="dots"><svg viewBox="0 0 20 20"><circle cx="10" cy="4" r="1.5"/><circle cx="10" cy="10" r="1.5"/><circle cx="10" cy="16" r="1.5"/></svg></span></td></tr>
+      </tbody>
+    </table>
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:18px 26px;border-top:1px solid var(--line);color:var(--muted)"><span>Showing 1–7 of 24 sessions</span><span style="display:flex;gap:12px"><span class="btn sm">Previous</span><span class="btn sm">Next</span></span></div>
+  </div>
+</section>
+
+<!-- 2 · Detail -->
+<section class="pg light" style="page:p2;width:1800px;height:1280px">
+  <div><span class="btn sm">Back to scan sessions</span></div>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px">
+    <h1>Session S-1040 · Receiving RCV-0087 <span class="pill warn" style="vertical-align:middle;margin-left:10px">Completed · unmatched</span> <span class="pill" style="vertical-align:middle">Inventory in</span></h1>
+    <span class="muted" style="font-size:15px;text-align:right;max-width:340px">An open session of yours shows <b>Resume scanning</b> here instead.</span>
+  </div>
+  <div class="card" style="margin-top:28px;padding:24px 28px;display:grid;grid-template-columns:repeat(6,1fr);gap:18px">
+    <div><div class="muted" style="font-size:15px">Source</div><div class="b" style="font-size:18px;margin-top:4px">Inbound receiving</div></div>
+    <div><div class="muted" style="font-size:15px">Channel</div><div class="b" style="font-size:18px;margin-top:4px">Inbound</div></div>
+    <div><div class="muted" style="font-size:15px">Started</div><div class="b" style="font-size:18px;margin-top:4px">14 Nov 2026, 16:20</div></div>
+    <div><div class="muted" style="font-size:15px">Ended</div><div class="b" style="font-size:18px;margin-top:4px">14 Nov 2026, 16:41</div></div>
+    <div><div class="muted" style="font-size:15px">Started by</div><div class="b" style="font-size:18px;margin-top:4px">Furqan Anwar</div></div>
+    <div><div class="muted" style="font-size:15px">Inventory updated</div><div class="b" style="font-size:18px;margin-top:4px">14 Nov, 16:41 · 112 units in</div></div>
+  </div>
+  <div class="kpis" style="margin-top:26px">
+    <div class="card kpi" style="padding:20px 26px"><div class="l">UPCs scanned</div><div class="v">120</div></div>
+    <div class="card kpi" style="padding:20px 26px"><div class="l">Matched (3 SKUs)</div><div class="v" style="color:var(--ok)">112</div></div>
+    <div class="card kpi" style="padding:20px 26px"><div class="l">Not matched (2 UPCs)</div><div class="v" style="color:var(--warn)">8</div></div>
+    <div class="card kpi" style="padding:20px 26px"><div class="l">Units adjusted in inventory</div><div class="v">112</div></div>
+  </div>
+  <div class="card tcard" style="margin-top:30px">
+    <div class="ttl">Matched SKUs · inventory adjusted</div>
+    <table>
+      <thead><tr><th class="c">SKU</th><th class="c">UPC</th><th class="c">Expected</th><th class="c">Scanned</th><th class="c">Inventory change</th></tr></thead>
+      <tbody>
+        <tr><td class="mono c">BD-MFSS-4PC-QUEEN-DGREY</td><td class="mono c">850012345671</td><td class="c">60</td><td class="c">60</td><td class="c"><span class="pill ok">+60 in</span></td></tr>
+        <tr><td class="mono c">BD-MFSS-4PC-QUEEN-HGRAY</td><td class="mono c">850012345688</td><td class="c">40</td><td class="c">36</td><td class="c"><span class="pill ok">+36 in</span></td></tr>
+        <tr><td class="mono c">BD-MFSS-4PC-KING-WHITE</td><td class="mono c">850012345695</td><td class="c">20</td><td class="c">16</td><td class="c"><span class="pill ok">+16 in</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="card tcard" style="margin-top:30px">
+    <div class="ttl">Not matched · not adjusted <span class="hint">Add the UPC to the product, then scan these again in a new session.</span></div>
+    <table>
+      <thead><tr><th class="c">Scanned UPC</th><th class="c">Reason</th><th class="c">Product</th><th class="c">Times scanned</th><th class="c">First / last scanned</th></tr></thead>
+      <tbody>
+        <tr><td class="mono c">850012345701</td><td class="c"><span class="pill warn">Not on this record</span></td><td class="mono c">BD-MFSS-4PC-KING-WHITE</td><td class="c">4</td><td class="c">16:33 / 16:38</td></tr>
+        <tr><td class="mono c">0099887766</td><td class="c"><span class="pill bad">UPC not in catalog</span></td><td class="c">-</td><td class="c">4</td><td class="c">16:27 / 16:35</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- 3 · Scan modal, shipment out -->
+<section class="pg dark" style="page:p3;width:1600px;height:1660px">
+  <div class="modal" style="left:100px;top:56px;width:1400px;height:1548px">
+    <div class="mh"><div><h2>Scan items · SHP-0019</h2><div class="sub">Amazon FBA · 5 SKUs, 62 units expected</div></div><div class="pills"><span class="pill mono" style="font-size:14px">S-1042</span><span class="pill live">Live</span><span class="pill">Inventory out</span><span class="x">✕</span></div></div>
+    <div class="mb">
+      <div class="col">
+        <div class="card tcard" style="box-shadow:none">
+          <table>
+            <thead><tr><th>SKU</th><th>UPC</th><th class="r">Expected</th><th class="r">Scanned</th><th>Progress</th></tr></thead>
+            <tbody>
+              <tr><td><span class="mono">BD-MFSS-4PC-QUEEN-DGREY</span><div class="twisty">▾ Hide scanned UPCs <span style="color:#1d4ed8;margin-left:14px">Edit count</span> <span class="newtag">NEW</span></div><div style="display:flex;align-items:center;gap:10px;margin-top:8px"><span style="width:64px;height:34px;border:1px solid #cbd5e1;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;font-weight:600">19</span><span class="btn" style="height:34px;padding:0 14px;font-size:14px">Save</span><span style="color:var(--muted);font-size:14px;font-weight:600">Cancel</span></div><div class="muted" style="font-size:13px;margin-top:6px">Lowers the count by removing the newest scans. A count can only go down.</div></td><td class="mono">850012345671</td><td class="r">20</td><td class="r green">20</td><td><div class="bar"><i style="width:100%"></i></div></td></tr>
+              <tr><td colspan="5" style="padding:0"><div class="exp">
+                <div class="list">
+                  <div class="it"><span class="mono">05:14:19</span><span class="mono">850012345671</span><span><span class="pill ok">Matched</span></span><span style="text-align:right;color:var(--bad);font-weight:600;font-size:14px">Remove</span></div>
+                  <div class="it"><span class="mono">05:14:15</span><span class="mono">850012345671</span><span><span class="pill ok">Matched</span></span><span style="text-align:right;color:var(--bad);font-weight:600;font-size:14px">Remove</span></div>
+                  <div class="it"><span class="mono">05:14:11</span><span class="mono">850012345671</span><span><span class="pill ok">Matched</span></span><span style="text-align:right;color:var(--bad);font-weight:600;font-size:14px">Remove</span></div>
+                  <div class="it"><span class="mono">05:14:08</span><span class="mono">850012345671</span><span><span class="pill ok">Matched</span></span><span style="text-align:right;color:var(--bad);font-weight:600;font-size:14px">Remove</span></div>
+                  <div class="it"><span class="mono">05:14:05</span><span class="mono">850012345671</span><span><span class="pill ok">Matched</span></span><span style="text-align:right;color:var(--bad);font-weight:600;font-size:14px">Remove</span></div>
+                  <div class="it"><span class="mono">05:14:02</span><span class="mono">850012345671</span><span><span class="pill ok">Matched</span></span><span style="text-align:right;color:var(--bad);font-weight:600;font-size:14px">Remove</span></div>
+                  <div class="it"><span class="mono">05:13:58</span><span class="mono">850012345671</span><span><span class="pill ok">Matched</span></span><span style="text-align:right;color:var(--bad);font-weight:600;font-size:14px">Remove</span></div>
+                  <div class="it"><span class="mono">05:13:55</span><span class="mono">850012345671</span><span><span class="pill ok">Matched</span></span><span style="text-align:right;color:var(--bad);font-weight:600;font-size:14px">Remove</span></div>
+                  <div class="it"><span class="mono">05:13:51</span><span class="mono">850012345671</span><span><span class="pill ok">Matched</span></span><span style="text-align:right;color:var(--bad);font-weight:600;font-size:14px">Remove</span></div>
+                  <div class="it"><span class="mono">05:13:48</span><span class="mono">850012345671</span><span><span class="pill ok">Matched</span></span><span style="text-align:right;color:var(--bad);font-weight:600;font-size:14px">Remove</span></div>
+                </div>
+                <div class="more"><span>Showing 10 of 20</span><span class="btn">See more</span></div>
+              </div></td></tr>
+              <tr><td><span class="mono">BD-MFSS-4PC-QUEEN-HGRAY</span><div class="twisty">▸ Show 12 scanned UPCs <span style="margin-left:14px">Edit count</span></div></td><td class="mono">850012345688</td><td class="r">16</td><td class="r b">12</td><td><div class="bar"><i style="width:75%"></i></div></td></tr>
+              <tr><td><span class="mono">BD-MFSS-4PC-KING-WHITE</span><div class="twisty">▸ Show 3 scanned UPCs <span style="margin-left:14px">Edit count</span></div></td><td><span class="pill warn">No UPC</span></td><td class="r">12</td><td class="r b">3</td><td><div class="bar"><i style="width:25%"></i></div></td></tr>
+              <tr><td class="mono">BD-MFSS-4PC-QUEEN-WHITE</td><td class="mono">850012345718</td><td class="r">8</td><td class="r b">0</td><td><div class="bar"><i style="width:0"></i></div></td></tr>
+              <tr><td class="mono">BD-MFSS-4PC-TWIN-GREY</td><td class="mono">850012345725</td><td class="r">6</td><td class="r b">0</td><td><div class="bar"><i style="width:0"></i></div></td></tr>
+              <tr style="background:var(--bg)"><td class="b">Total</td><td></td><td class="r b">62</td><td class="r b">35 / 62</td><td></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="card tcard" style="box-shadow:none">
+          <div style="padding:16px 22px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center"><span><b style="font-size:18px;color:var(--ink)">Not matched UPCs</b> <span class="muted">· one row per UPC <span class="newtag">CHANGED</span></span></span><span style="display:flex;align-items:center;gap:16px"><span class="muted" style="font-size:15px">3 not matched</span><span class="btn sm" style="height:38px;font-size:15px">Re-check <span class="newtag" style="margin-left:6px">NEW</span></span></span></div>
+          <table><tbody>
+            <tr style="background:#fffbeb"><td class="mono">05:14:20</td><td class="mono">850012345701</td><td><span class="pill warn">Not matched × 2</span></td><td>Product has no UPC (closest: KING-WHITE)</td><td class="r" style="color:var(--bad);font-weight:600;font-size:15px">Remove</td></tr>
+            <tr style="background:#fffbeb"><td class="mono">05:14:17</td><td class="mono">0099887766</td><td><span class="pill warn">Not matched</span></td><td>UPC not in catalog</td><td class="r" style="color:var(--bad);font-weight:600;font-size:15px">Remove</td></tr>
+          </tbody></table>
+          <div style="padding:14px 22px;border-top:1px solid var(--line);background:var(--bg);color:#475569;font-size:15px;line-height:1.5"><b style="color:var(--ink)">Fixing an unmatched UPC:</b> after the product’s UPC is corrected, <b>Re-check</b> matches the unmatched scans again, up to the quantity the record holds. Scanning the item again also works: a rescan that now matches replaces one of its unmatched entries. <b>Remove</b> drops every scan of that UPC from the session.</div>
+        </div>
+      </div>
+      <div class="col">
+        <div class="scanner"><div class="k">Scanner</div><div class="in">Scan or type a UPC, then Enter</div><div class="rdy">● Scanner ready</div></div>
+        <div class="stats"><div>UPCs scanned<b>38</b></div><div>Matched<b style="color:var(--ok)">35</b></div><div>Not matched<b style="color:var(--warn)">3</b></div><div>SKUs still to scan<b>3</b></div></div>
+        <div class="note">Scans are saved as you go. <b style="color:var(--ink)">Inventory changes only when you close scanning</b>: 35 units out for the matched SKUs. Not matched UPCs are kept on the session.</div>
+      </div>
+    </div>
+    <div class="mf"><span>Last saved 05:14:22 · started 05:10 by Ayesha Khan</span><span style="display:flex;gap:14px"><span class="btn dark">Finish scanning <span class="newtag" style="background:#fff;color:#111827">CHANGED</span></span></span></div>
+  </div>
+</section>
+
+<!-- 4 · Scan modal, order return -->
+<section class="pg dark" style="page:p4;width:1600px;height:1160px">
+  <div class="modal" style="left:100px;top:56px;width:1400px;height:1048px">
+    <div class="mh"><div><h2>Scan items · Order 114-5531904</h2><div class="sub">Amazon FBM · 2 SKUs, 3 units</div></div><div class="pills"><span class="pill mono">S-1039</span><span class="pill live">Live</span><span class="pill">Inventory in</span><span class="x">✕</span></div></div>
+    <div class="mb">
+      <div class="col">
+        <div class="muted" style="font-size:15px;line-height:1.45">Direction (Inventory in, a return) was chosen in the Scan items dialog before scanning started and is fixed for the session (see the Scan items dialog page).</div>
+        <div class="card tcard" style="box-shadow:none">
+          <table>
+            <thead><tr><th>SKU</th><th>UPC</th><th class="r">In this order</th><th class="r">Scanned</th><th>Progress</th></tr></thead>
+            <tbody>
+              <tr><td><span class="mono">BD-MFSS-4PC-QUEEN-DGREY</span><div class="twisty">▸ Show 2 scanned UPCs</div></td><td class="mono">850012345671</td><td class="r">2</td><td class="r green">2</td><td><div class="bar"><i style="width:100%"></i></div></td></tr>
+              <tr><td><span class="mono">BD-MFSS-4PC-KING-WHITE</span><div class="twisty">▸ Show 1 scanned UPC</div></td><td class="mono">850012345701</td><td class="r">1</td><td class="r green">1</td><td><div class="bar"><i style="width:100%"></i></div></td></tr>
+              <tr style="background:var(--bg)"><td class="b">Total</td><td></td><td class="r b">3</td><td class="r b">3 / 3</td><td></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="card tcard" style="box-shadow:none">
+          <div style="padding:16px 22px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between"><span><b style="font-size:18px;color:var(--ink)">Not matched UPCs</b> <span class="muted">· latest first</span></span><span class="muted" style="font-size:15px">0 not matched</span></div>
+          <div style="padding:26px 22px;color:var(--muted)">Every scanned UPC matched. Matched UPCs are listed under their SKU above.</div>
+        </div>
+      </div>
+      <div class="col">
+        <div class="scanner"><div class="k">Scanner</div><div class="in">Scan or type a UPC, then Enter</div><div class="rdy">● Scanner ready</div></div>
+        <div class="stats"><div>UPCs scanned<b>3</b></div><div>Matched<b style="color:var(--ok)">3</b></div><div>Not matched<b>0</b></div></div>
+        <div class="note">When scanning is closed: <b style="color:var(--ink)">3 units back in</b> for this FBM order. You will be asked how many were sellable and how many damaged: the rest are added as sellable. <span class="newtag">NEW</span></div>
+      </div>
+    </div>
+    <div class="mf"><span>Last saved 04:58:41 · started 04:52 by Furqan Anwar</span><span style="display:flex;gap:14px"><span class="btn dark">Finish scanning</span></span></div>
+  </div>
+  <div style="position:absolute;left:100px;top:1114px;color:#cbd5e1;font-size:14.5px">One Finish scanning button replaces the old End session and Close scanning pair, so the sellable / damaged question is never skipped: review first, then choose to save for later or close (next pages).</div>
+</section>
+
+<!-- 5 · Scan modal, receiving -->
+<section class="pg dark" style="page:p5;width:1600px;height:1180px">
+  <div class="modal" style="left:100px;top:56px;width:1400px;height:1068px">
+    <div class="mh"><div><h2>Scan items · RCV-0088</h2><div class="sub">Inbound receiving · 3 SKUs, 60 units expected</div></div><div class="pills"><span class="pill mono">S-1043</span><span class="pill live">Live</span><span class="pill">Inventory in</span><span class="x">✕</span></div></div>
+    <div class="mb">
+      <div class="col">
+        <div class="banner"><b>4 more than expected for BD-MFSS-4PC-QUEEN-DGREY.</b> Receiving counts what is physically scanned, so all 34 go into inventory and the 4 extra are flagged on the session. Check the delivery against the purchase order.</div>
+        <div class="card tcard" style="box-shadow:none">
+          <table>
+            <thead><tr><th>SKU</th><th>UPC</th><th class="r">Expected</th><th class="r">Scanned</th><th>Progress</th></tr></thead>
+            <tbody>
+              <tr style="background:#fffbeb"><td><span class="mono">BD-MFSS-4PC-QUEEN-DGREY</span><div class="twisty">▸ Show 34 scanned UPCs <span style="margin-left:14px">Edit count</span></div></td><td class="mono">850012345671</td><td class="r">30</td><td class="r amber">34</td><td><div class="bar amber"><i style="width:100%"></i></div><div class="amber" style="font-size:13px">+4 over</div></td></tr>
+              <tr><td><span class="mono">BD-MFSS-4PC-QUEEN-HGRAY</span><div class="twisty">▸ Show 12 scanned UPCs <span style="margin-left:14px">Edit count</span></div></td><td class="mono">850012345688</td><td class="r">20</td><td class="r b">12</td><td><div class="bar"><i style="width:60%"></i></div></td></tr>
+              <tr><td class="mono">BD-MFSS-4PC-KING-WHITE</td><td class="mono">850012345695</td><td class="r">10</td><td class="r b">0</td><td><div class="bar"><i style="width:0"></i></div></td></tr>
+              <tr style="background:var(--bg)"><td class="b">Total</td><td></td><td class="r b">60</td><td class="r b">46</td><td></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="card tcard" style="box-shadow:none">
+          <div style="padding:16px 22px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between"><span><b style="font-size:18px;color:var(--ink)">Not matched UPCs</b> <span class="muted">· latest first</span></span><span class="muted" style="font-size:15px">2 not matched</span></div>
+          <table><tbody>
+            <tr style="background:#fffbeb"><td class="mono">10:22:07</td><td class="mono">0099887766</td><td><span class="pill warn">Not matched</span></td><td>UPC not in catalog</td></tr>
+            <tr style="background:#fffbeb"><td class="mono">10:22:03</td><td class="mono">850012345701</td><td><span class="pill warn">Not matched</span></td><td>Product has no UPC (KING-WHITE)</td></tr>
+          </tbody></table>
+        </div>
+      </div>
+      <div class="col">
+        <div class="scanner"><div class="k">Scanner</div><div class="in">Scan or type a UPC, then Enter</div><div class="rdy">● Scanner ready</div></div>
+        <div class="stats"><div>UPCs scanned<b>48</b></div><div>Matched<b style="color:var(--ok)">46</b></div><div>Not matched<b style="color:var(--warn)">2</b></div><div>Over expected<b style="color:var(--warn)">4</b></div></div>
+        <div class="note">On end: <b style="color:var(--ink)">46 units in</b>, then you say how many were good and how many damaged. Shipments and orders work differently: they stop at the quantity they hold, and a scan beyond it is refused.</div>
+      </div>
+    </div>
+    <div class="mf"><span>Last saved 10:22:09 · started 10:01 by Furqan Anwar</span><span style="display:flex;gap:14px"><span class="btn dark">Finish scanning</span></span></div>
+  </div>
+</section>
+
+<!-- 6 · End confirm, shipment out -->
+<section class="pg darker" style="page:p6;width:1600px;height:1125px">
+  <div class="ghost"><div style="padding:34px 38px;display:flex;justify-content:space-between"><b style="font-size:28px;color:#1f2937">Scan items · SHP-0019</b><span style="display:flex;gap:10px"><span class="pill mono" style="background:#868f9c">S-1042</span><span class="pill live">Live</span></span></div></div>
+  <div class="confirm" style="left:450px;top:270px;width:700px">
+    <h3>Review the count <span class="newtag" style="font-size:12px">CHANGED</span></h3><div class="sub">Session S-1042 · Shipment SHP-0019 · Amazon FBA</div>
+    <div class="li"><span class="d" style="background:#16a34a"></span><div><b>35 units will be taken out of inventory when scanning is closed</b><div>Matched across 3 SKUs: QUEEN-DGREY 20, QUEEN-HGRAY 12, KING-WHITE 3.</div></div></div>
+    <div class="li"><span class="d" style="background:#d97706"></span><div><b>3 scanned UPCs did not match</b><div>They change nothing in inventory. They stay on the session, so you can fix the product UPC and scan them again in a new session.</div></div></div>
+    <div class="li"><span class="d" style="background:#94a3b8"></span><div><b>27 expected units were not scanned</b><div>2 SKUs have nothing scanned yet. Inventory is only adjusted for what was scanned.</div></div></div>
+    <div class="warnbox">Nothing changes yet. Next you choose to save for later or close scanning. The same review shows if you close the window with the ×.</div>
+    <div class="acts"><span class="btn">Keep scanning</span><span class="btn dark">Continue</span></div>
+  </div>
+</section>
+
+<!-- 7 · End confirm, inventory in (NEW) -->
+<section class="pg darker" style="page:p7;width:1600px;height:1125px">
+  <div class="ghost"><div style="padding:34px 38px;display:flex;justify-content:space-between"><b style="font-size:28px;color:#1f2937">Scan items · RCV-0087</b><span style="display:flex;gap:10px"><span class="pill mono" style="background:#868f9c">S-1040</span><span class="pill live">Live</span></span></div></div>
+  <div class="confirm" style="left:430px;top:120px;width:740px">
+    <h3>Review the count and damaged units <span class="newtag" style="font-size:12px">CHANGED</span></h3><div class="sub">Session S-1040 · Receiving RCV-0087 · Inbound</div>
+    <div class="li"><span class="d" style="background:#16a34a"></span><div><b>112 units will be added to inventory</b><div>Matched across 3 SKUs: QUEEN-DGREY 60, QUEEN-HGRAY 36, KING-WHITE 16.</div></div></div>
+    <div class="li"><span class="d" style="background:#d97706"></span><div><b>8 scanned UPCs did not match</b><div>They change nothing in inventory. They stay on the session.</div></div></div>
+    <div style="font-weight:700;font-size:19px;color:var(--ink);margin:14px 0 10px">How many of each were good and damaged?</div>
+    <div class="card tcard split" style="box-shadow:none">
+      <table>
+        <thead><tr><th>SKU</th><th class="c">Counted</th><th class="c">Good</th><th class="c">Damaged</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">BD-MFSS-4PC-QUEEN-DGREY</td><td class="c">60</td><td class="c green">58</td><td class="c"><input value="2"></td></tr>
+          <tr><td class="mono">BD-MFSS-4PC-QUEEN-HGRAY</td><td class="c">36</td><td class="c green">36</td><td class="c"><input value="0"></td></tr>
+          <tr><td class="mono">BD-MFSS-4PC-KING-WHITE</td><td class="c">16</td><td class="c green">15</td><td class="c"><input value="1"></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="warnbox" style="margin-top:14px">Asked once, after scanning is done. Good is what is left after Damaged. A return also has a Normal return column. More damaged than counted turns Good red and blocks Continue. Shipment and order returns ask the same question when they are closed; a shipment going out skips it. If a shipment or order return is then saved for later instead of closed, the answer is not kept and is asked again at close.</div>
+    <div class="acts" style="margin-top:22px"><span class="btn">Keep scanning</span><span class="btn dark">Continue</span></div>
+  </div>
+</section>
+
+<!-- 8 · Save for later or close scanning (CHANGED) -->
+<section class="pg darker" style="page:p8;width:1600px;height:1190px">
+  <div class="ghost"><div style="padding:34px 38px;display:flex;justify-content:space-between"><b style="font-size:28px;color:#1f2937">Scan items · SHP-0019</b><span style="display:flex;gap:10px"><span class="pill mono" style="background:#868f9c">S-1042</span><span class="pill live">Live</span></span></div></div>
+  <div class="confirm" style="left:80px;top:90px;width:680px;padding:34px 38px">
+    <div style="font-size:14px;font-weight:700;color:var(--new);letter-spacing:.05em;margin-bottom:8px">SHIPMENTS AND ORDERS · inventory moves when scanning is closed <span class="newtag">NEW</span></div>
+    <h3 style="font-size:27px">Save for later or close scanning?</h3><div class="sub" style="margin-bottom:16px">SHP-0019 · Amazon FBA</div>
+    <p style="margin:0 0 18px;font-size:17px;color:#475569;line-height:1.5">Inventory is reduced by what you scanned only when scanning is closed. 27 expected units are still not scanned.</p>
+    <div class="opt"><b>Save and continue later</b><div class="s" style="margin-left:0">Your scans are kept and inventory does not change. Anyone can pick this shipment up again and keep scanning.</div></div>
+    <div class="opt"><b>Close scanning and update inventory</b><div class="s" style="margin-left:0">No more scans can happen on this shipment, even with units missing. Inventory is updated now. The shipment becomes Scanned and Shipped.</div></div>
+    <div class="acts" style="margin-top:18px"><span class="btn">Back</span></div>
+  </div>
+  <div class="confirm" style="left:820px;top:90px;width:700px;padding:34px 38px">
+    <div style="font-size:14px;font-weight:700;color:#64748b;letter-spacing:.05em;margin-bottom:8px">RECEIVING · inventory moves as each session ends</div>
+    <h3 style="font-size:27px">How do you want to end this session?</h3><div class="sub" style="margin-bottom:16px">RCV-0087 · Inbound</div>
+    <p style="margin:0 0 18px;font-size:17px;color:#475569;line-height:1.5">Inventory is updated with what you scanned either way. 8 expected units are still not scanned.</p>
+    <div class="opt"><b>End session, keep scanning open</b><div class="s" style="margin-left:0">This receiving can be scanned again later for the units still missing.</div></div>
+    <div class="opt"><b>End session and close scanning</b><div class="s" style="margin-left:0">No more scans can happen on this receiving, even with units missing.</div></div>
+    <div class="acts" style="margin-top:18px"><span class="btn">Back</span></div>
+  </div>
+  <div class="confirm" style="left:80px;top:690px;width:1440px;padding:26px 32px">
+    <div class="card tcard" style="box-shadow:none"><table>
+      <thead><tr><th>Record</th><th>Choice</th><th>Inventory</th><th>Scan again?</th><th>Lock</th></tr></thead>
+      <tbody>
+        <tr><td>Shipment or order</td><td class="b">Save and continue later</td><td>Nothing applied yet</td><td>Yes: Resume, or anyone with scan rights takes it over</td><td>Released</td></tr>
+        <tr><td>Shipment or order</td><td class="b">Close scanning and update inventory</td><td>Everything scanned is applied once; shipment becomes Scanned and Shipped</td><td>No, closed for good</td><td>Released</td></tr>
+        <tr><td>Receiving</td><td class="b">End session, keep scanning open</td><td>Scanned units applied</td><td>Yes, for what is still missing</td><td>Released</td></tr>
+        <tr><td>Receiving</td><td class="b">End session and close scanning</td><td>Scanned units applied</td><td>No, closed for good</td><td>Released</td></tr>
+      </tbody></table></div>
+    <div style="margin-top:14px;color:var(--muted);font-size:15px;line-height:1.5">A shipment or order refuses “end without closing” on the server too, so inventory can never move early. After a close, the Scan items dialog shows “Scanning closed by …” for that direction and Start scanning stays disabled.</div>
+  </div>
+</section>
+
+<!-- 8b · Scan items dialog, before scanning -->
+<section class="pg darker" style="page:p17;width:1600px;height:700px">
+  <div class="confirm" style="left:90px;top:70px;width:680px;padding:34px 38px">
+    <h3 style="font-size:26px">Scan items · SHP-0019</h3>
+    <div class="card" style="box-shadow:none;margin:18px 0;padding:14px 18px;background:var(--bg);display:flex;justify-content:space-between;align-items:center;font-size:16px"><span>You have an inventory out scan open on this record.</span><span class="btn sm">Resume scanning</span></div>
+    <div class="b" style="font-size:16px;margin-bottom:10px;color:var(--ink)">Is this inventory in or out?</div>
+    <div class="opt"><b><span class="tick on"></span>Inventory out</b><div class="s">Units are leaving: shipping to a customer or to the channel.</div></div>
+    <div class="opt dis"><b><span class="tick"></span>Inventory in</b><div class="s">Shipment hasn’t been scanned out yet</div></div>
+    <div style="display:flex;align-items:center;gap:12px;margin-top:20px"><span class="btn sm" style="margin-right:auto">Close scanning</span><span class="btn sm" style="border-color:transparent">Cancel</span><span class="btn sm dark">Start scanning</span></div>
+    <div class="muted" style="font-size:14.5px;margin-top:16px;line-height:1.5">The direction is chosen here, before scanning, and is fixed for the session. A direction the record does not allow is disabled with the reason (“Mark it as shipped with Amazon first”, “Already scanned out”, “Locked by Ayesha Khan”, “Scanning closed by …”).</div>
+  </div>
+  <div class="confirm" style="left:830px;top:70px;width:680px;padding:34px 38px">
+    <h3 style="font-size:26px">Close scanning for good?</h3>
+    <p style="font-size:17px;color:#475569;line-height:1.6;margin:16px 0 0">SHP-0019 will <b>not accept scanning again</b>, even if some units were never scanned. Anything already scanned stays counted. To stop for now and come back later, just leave it open.</p>
+    <div class="acts" style="margin-top:26px"><span class="btn">Keep it open</span><span class="btn dark">Close scanning</span></div>
+    <div class="note" style="margin-top:26px;font-size:15px">This is the quick way to close a record from the dialog, without opening the scan screen. With a session of yours open and scanned, it applies the scans first (a return asks for the sellable / damaged split in the scan screen instead). Inside the scan screen, <b>Finish scanning</b> is the one button for both saving and closing.</div>
+  </div>
+</section>
+
+<!-- 9 · How a scan session works -->
+<section class="pg light" style="page:p9;width:1800px;height:1080px">
+  <h1 style="font-size:30px">How a scan session works</h1>
+  <p class="lead">The same lifecycle for Shipments, Shipping orders and Inbound receiving. Only the inventory direction differs.</p>
+  <div class="steps">
+    <div class="card step"><div class="n">1</div><h4>Start</h4><p>Scan items opens with the expected SKUs and counts already known. A session row is created with its source and channel.</p></div>
+    <div class="card step"><div class="n">2</div><h4>Scan</h4><p>Each UPC is pushed to Redis the moment it is scanned, so fast scanning never waits on the database.</p></div>
+    <div class="card step"><div class="n">3</div><h4>Match in batches</h4><p>Queued UPCs are looked up against product UPCs in batches. Matched UPCs group under their SKU; the rest show as Not matched, with the reason.</p></div>
+    <div class="card step"><div class="n">4</div><h4>Review</h4><p>Finish scanning, or the ×, opens a review of the counts and what will change in inventory. Scans can be corrected before this: remove one, lower a count, drop or re-check unmatched UPCs.</p></div>
+    <div class="card step new"><div class="n">5</div><h4>Sellable or damaged</h4><p>Inventory in only: asked once, here, per product. The rest are sellable.</p></div>
+    <div class="card step new"><div class="n">6</div><h4>Save or close</h4><p>Shipments and orders: save for later (inventory untouched, resume any time) or close scanning (applied once). Receiving: end the session (applied), keep scanning open or close it.</p></div>
+  </div>
+  <div class="two">
+    <div class="card tcard"><table>
+      <thead><tr><th>Started from</th><th>Mode</th><th>Inventory moves <span class="newtag" style="margin-left:6px">CHANGED</span></th><th>Condition asked <span class="newtag" style="margin-left:6px">NEW</span></th></tr></thead>
+      <tbody>
+        <tr><td>Shipment</td><td>Ship</td><td class="b">Out · when scanning is closed</td><td>No</td></tr>
+        <tr><td>Shipment return</td><td>Return</td><td class="b">In · when scanning is closed</td><td>Sellable / Damaged / Normal return</td></tr>
+        <tr><td>Shipping order (FBM)</td><td>Ship</td><td class="b">Out · when scanning is closed</td><td>No</td></tr>
+        <tr><td>Shipping order (FBM)</td><td>Return</td><td class="b">In · when scanning is closed</td><td>Sellable / Damaged / Normal return</td></tr>
+        <tr><td>Inbound receiving</td><td>Receive</td><td class="b">In · as each session ends</td><td>Good / Damaged</td></tr>
+      </tbody></table></div>
+    <div class="card tcard"><table>
+      <thead><tr><th>Stored on each session</th><th>Why</th></tr></thead>
+      <tbody>
+        <tr><td>Source and channel</td><td>Filter the listing</td></tr>
+        <tr><td>Started, ended, started by</td><td>Audit trail</td></tr>
+        <tr><td>Scanned, matched, not matched counts</td><td>Quality of the scan</td></tr>
+        <tr><td>Not matched UPCs with reasons</td><td>Fix the UPC, rescan in a new session</td></tr>
+        <tr><td>Units adjusted per SKU, with the sellable / damaged split <span class="newtag" style="margin-left:6px">NEW</span></td><td>Proof of the inventory change</td></tr>
+        <tr><td>Closed records and who closed them <span class="newtag" style="margin-left:6px">NEW</span></td><td>Scanning closed for good</td></tr>
+      </tbody></table></div>
+  </div>
+  <div class="card" style="margin-top:28px;padding:22px 28px;display:grid;grid-template-columns:420px 1fr;gap:30px;align-items:start">
+    <div><div class="b" style="font-size:19px;color:var(--ink)">Permissions <span class="newtag">NEW</span></div><div class="muted" style="margin-top:6px;font-size:15px">Settings › Users › Feature access</div></div>
+    <div style="font-size:16px;line-height:1.9"><span class="tick on"></span><b>Scanning Sessions</b> <span class="muted">(was Barcode)</span><br>
+      <span style="margin-left:28px"><span class="tick on"></span>Scans <span class="muted">· see the listing and session details</span></span><br>
+      <span style="margin-left:28px"><span class="tick on"></span>Scan Items <span class="muted">· shows the Scan items button; lets the person scan, end, discard and close. Checked on the server too.</span></span></div>
+  </div>
+</section>
+
+<!-- 10 · One live session -->
+<section class="pg light" style="page:p10;width:1800px;height:1180px">
+  <h1 style="font-size:30px">One live session per shipment, order or receiving</h1>
+  <p class="lead">Starting a session takes a lock. While it is held, everyone else sees who has it and cannot start another. Ending the session releases it.</p>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:30px;margin-top:26px">
+    <div class="card" style="padding:30px 32px">
+      <div class="b" style="font-size:16px;color:#334155;margin-bottom:18px">The Scan items button, in every screen that has it</div>
+      <div class="lrow"><div class="k">No session running</div><div><span class="btn dark">Scan items</span></div></div>
+      <div class="lrow"><div class="k">Someone else has it</div><div><span class="lock-pill">🔒 Locked by Ayesha Khan</span><div class="s">Scanning since 05:10 · session S-1042. Available once they end the session.</div></div></div>
+      <div class="lrow"><div class="k">You have it</div><div><span class="btn">Resume scanning</span><div class="s">Shown in the Scan items dialog and on the session page: “You have an inventory out scan open on this record.” Started by you at 05:10. Your scans are kept.</div></div></div>
+      <div class="lrow"><div class="k">Lock went quiet</div><div><span class="lock-pill">🔒 Locked by Ayesha Khan · no activity 4 min</span><div class="s">Her browser stopped checking in. After 90 seconds of silence anyone can take over: the scans she made are kept and the session continues under the new name.</div></div></div>
+      <div class="lrow"><div class="k">Closed for good <span class="newtag">NEW</span></div><div><span class="lock-pill">🔒 Scanning closed by Ayesha Khan</span><div class="s">The direction is disabled in the Scan items dialog. No session can start on it.</div></div></div>
+      <div style="border-top:1px solid var(--line);padding-top:18px"><div class="b" style="color:#334155;margin-bottom:6px">Where it shows</div><div style="color:#475569;line-height:1.6">Shipments row action · Shipping › Orders row action (channel orders only) · Inbound receiving screen. The Scanning Sessions listing shows the same name in a <b>Started by</b> column, and the detail page keeps it afterwards.</div></div>
+    </div>
+    <div>
+      <div class="card nlist">
+        <div class="it"><span class="num">1</span><span><b>Start:</b> try to take the lock <code>scan-lock:shipment:19</code> in one atomic step, only if it is free, with a 90 second life. It holds the session ID, user ID and name. If it is taken, the button shows who has it.</span></div>
+        <div class="it"><span class="num">2</span><span><b>While scanning:</b> the open modal renews the lock every 30 seconds. A closed tab or lost connection stops the renewals and the lock expires on its own.</span></div>
+        <div class="it"><span class="num">3</span><span><b>End or close:</b> release the lock only if it is still yours, then save. Release comes after the inventory update, so nobody can start a new session before the first one is saved. <b>Save and continue later</b> (shipments, orders) matches the queued scans and releases the lock at once, leaving the session open.</span></div>
+        <div class="it"><span class="num">4</span><span><b>Backstop:</b> the session table has a unique rule of one open session per shipment, order or receiving, so a Redis hiccup can never create two.</span></div>
+        <div class="it" style="background:#eff6ff"><span class="num" style="background:var(--new)">5</span><span><b>Close scanning <span class="newtag" style="margin-left:2px">NEW</span>:</b> one row per record and direction (<code>scan_closures</code>). The server refuses to start a session on a closed record.</span></div>
+      </div>
+      <div class="card tcard" style="margin-top:28px"><table>
+        <thead><tr><th>Case</th><th>What happens</th></tr></thead>
+        <tbody>
+          <tr><td>Two people click at once</td><td>One gets the lock; the other sees “Locked by …” straight away.</td></tr>
+          <tr><td>Owner closes the browser</td><td>Lock expires; session stays open with its scans; Resume or Take over.</td></tr>
+          <tr><td>Owner presses ×</td><td>Same review as Finish scanning; nothing is released until they choose.</td></tr>
+          <tr><td>Owner saves for later <span class="newtag" style="margin-left:6px">NEW</span></td><td>Lock released at once; scans kept; inventory untouched. The owner sees Resume; anyone with scan rights can take it over.</td></tr>
+          <tr><td>Record was closed <span class="newtag" style="margin-left:6px">NEW</span></td><td>“Scanning closed by …”; Start scanning is disabled for that direction.</td></tr>
+        </tbody></table></div>
+    </div>
+  </div>
+</section>
+
+<!-- 11 · Orders (NEW) -->
+<section class="pg light" style="page:p11;width:1800px;height:1040px">
+  <div class="crumb">Shipping › Orders</div>
+  <h1>Orders <span class="newtag">NEW</span></h1>
+  <p class="lead">Shipments created by hand (Create shipment) now appear next to channel orders. The Origin column says Manual or Channel, and the Origin filter narrows to one kind.</p>
+  <div class="card" style="margin-top:26px;padding:26px 28px">
+    <div style="display:grid;grid-template-columns:2.2fr 1.2fr 1fr 1fr 1fr 1.2fr;gap:22px">
+      <div class="field"><label>Search</label><div class="inp ph">Order #, customer order #, SKU, tracking #…</div></div>
+      <div class="field"><label>Origin <span class="newtag" style="margin-left:6px">NEW</span></label><div class="inp sel" style="border-color:#f59e0b;box-shadow:0 0 0 1px #f59e0b">Manual and channel</div></div>
+      <div class="field"><label>Channel</label><div class="inp sel ph">All channels</div></div>
+      <div class="field"><label>Marketplace</label><div class="inp sel ph">All marketplaces</div></div>
+      <div class="field"><label>Fulfillment</label><div class="inp sel ph">Any fulfillment</div></div>
+      <div class="field"><label>Order date</label><div class="inp ph">Any date</div></div>
+    </div>
+  </div>
+  <div class="card tcard" style="margin-top:30px">
+    <table>
+      <thead><tr><th>Origin <span class="newtag" style="margin-left:6px">NEW</span></th><th>Channel</th><th>Market</th><th>Order</th><th>Order date</th><th>SKU</th><th class="r">Qty</th><th>Fulfillment</th><th>Tracking status</th><th>Carrier</th><th>Tracking #</th><th>Carrier page</th><th class="r">Net total</th><th class="r">Total</th><th class="c">Actions <span class="newtag" style="margin-left:6px">CHANGED</span></th></tr></thead>
+      <tbody>
+        <tr><td><span class="pill" style="background:#dbeafe;color:#1e40af">Channel</span></td><td><span class="pill" style="background:#2563eb;color:#fff;padding:3px 9px">WM</span></td><td>CA</td><td><div class="b">1089234571</div><div class="muted" style="font-size:13px">C-30981</div></td><td>15 Nov, 09:12</td><td class="mono">BD-SHEET-QUEEN…</td><td class="r">2</td><td><span class="pill ok">Booked</span></td><td>In transit</td><td>UPS · Standard</td><td class="mono">1Z999AA1</td><td class="u">Open</td><td class="r">$84.00</td><td class="r">$94.92</td><td class="actcell"><span class="dots on"><svg viewBox="0 0 20 20"><circle cx="10" cy="4" r="1.5"/><circle cx="10" cy="10" r="1.5"/><circle cx="10" cy="16" r="1.5"/></svg></span><div class="menu"><div>Get details</div><div>Get rates</div><div>Download invoice</div><div>Get label</div><div>View booking</div><div class="hl">Scan items</div></div></td></tr>
+        <tr><td><span class="pill warn">Manual</span></td><td><span class="pill" style="background:#f59e0b;color:#111827;padding:3px 9px">AZ</span></td><td>US</td><td><div class="b">SHP-000184</div></td><td>15 Nov, 08:40</td><td class="mono">BD-PILLOW-KING…</td><td class="r">4</td><td><span class="pill ok">Booked</span></td><td>Label created</td><td>Canada Post · Expedited</td><td class="mono">7123 4410</td><td class="u">Open</td><td class="r muted">—</td><td class="r muted">—</td><td class="actcell"><span class="dots"><svg viewBox="0 0 20 20"><circle cx="10" cy="4" r="1.5"/><circle cx="10" cy="10" r="1.5"/><circle cx="10" cy="16" r="1.5"/></svg></span></td></tr>
+        <tr><td><span class="pill" style="background:#dbeafe;color:#1e40af">Channel</span></td><td><span class="pill" style="background:#ea580c;color:#fff;padding:3px 9px">TM</span></td><td>US</td><td><div class="b">PO-211-0049381</div></td><td>14 Nov, 17:55</td><td class="mono">BD-TOWEL-6PK…</td><td class="r">1</td><td><span class="pill">To book</span></td><td class="muted">—</td><td class="muted">—</td><td class="muted">—</td><td class="muted">—</td><td class="r">$31.50</td><td class="r">$35.60</td><td class="actcell"><span class="dots"><svg viewBox="0 0 20 20"><circle cx="10" cy="4" r="1.5"/><circle cx="10" cy="10" r="1.5"/><circle cx="10" cy="16" r="1.5"/></svg></span></td></tr>
+        <tr><td><span class="pill warn">Manual</span></td><td><span class="pill" style="padding:3px 9px">MN</span></td><td class="muted">—</td><td><div class="b">SHP-000183</div></td><td>14 Nov, 11:03</td><td class="mono">BD-DUVET-QUEEN…</td><td class="r">1</td><td><span class="pill">Cancelled</span></td><td class="muted">—</td><td>UniUni · Ground</td><td class="mono">UU88120</td><td class="u">Open</td><td class="r muted">—</td><td class="r muted">—</td><td class="actcell"><span class="dots"><svg viewBox="0 0 20 20"><circle cx="10" cy="4" r="1.5"/><circle cx="10" cy="10" r="1.5"/><circle cx="10" cy="16" r="1.5"/></svg></span></td></tr>
+      </tbody>
+    </table>
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:18px 26px;border-top:1px solid var(--line);color:var(--muted)"><span>Showing 1–4 of 38 orders</span><span style="display:flex;gap:12px"><span class="btn sm">Previous</span><span class="btn sm">Next</span></span></div>
+  </div>
+  <div class="two" style="margin-top:26px">
+    <div class="card" style="padding:20px 26px"><div class="b" style="color:var(--ink);margin-bottom:6px">Channel order · row menu (⋮)</div><div class="muted">Get details · Get rates · Download invoice · Get label · View booking · Scan items. Opened from the three vertical dots; Scan items shows “Locked by …” and is disabled while someone else is scanning.</div></div>
+    <div class="card" style="padding:20px 26px;background:#fffbeb;border-color:#fcd34d"><div class="b" style="color:var(--warn);margin-bottom:6px">Manual shipment · row menu</div><div style="color:var(--warn)">View booking · Get label only. No channel order behind it: its Order column is the booking number, there are no order amounts, and it cannot be opened, rated, invoiced or scanned. “MN” means no platform was picked.</div></div>
+  </div>
+</section>
+
+<!-- 12 · Scanning Sessions with Manual return (NEW) -->
+<section class="pg light" style="page:p12;width:1800px;height:1130px">
+  <div class="crumb">Inventory › Scanning Sessions › Manual Returns</div>
+  <div><h1>Manual Returns <span class="newtag">NEW</span></h1><p class="lead">Returns entered by hand because the returned product matched nothing by UPC. Their units were added back to inventory when they were saved. It is its own page under Scanning Sessions in the sidebar, next to Scanned Codes.</p></div>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-top:26px">
+    <div class="inp ph" style="width:460px">Search SKU, order, product or remarks</div>
+    <span class="btn dark">＋ Manual return</span>
+  </div>
+  <div class="card tcard" style="margin-top:22px">
+    <table>
+      <thead><tr><th>Date</th><th>Channel</th><th>Marketplace</th><th style="width:26%">Product</th><th class="r">Units</th><th class="r">Sellable</th><th class="r">Damaged</th><th>Remarks</th><th>Entered by</th></tr></thead>
+      <tbody>
+        <tr><td style="white-space:nowrap">15 Nov,<br>09:41</td><td>Amazon</td><td>Canada (CA)</td><td><div class="b">Queen sheet set, dark grey</div><div class="mono muted">BDQUEENSHEETDGREY-CA</div></td><td class="r">4</td><td class="r green">3</td><td class="r" style="color:var(--bad);font-weight:600">1</td><td>Parcel had no label, customer pack different</td><td>Furqan Anwar</td></tr>
+        <tr><td style="white-space:nowrap">14 Nov,<br>16:12</td><td>Walmart</td><td>United States (US)</td><td><div class="b">Gusset pillow king, set of 2</div><div class="mono muted">WM-GUSSET-KING-2PK</div><div class="muted" style="font-size:13.5px">FBM order 2000123456789 <span class="newtag" style="margin-left:4px">NEW</span></div></td><td class="r">2</td><td class="r green">2</td><td class="r">0</td><td class="muted">—</td><td>Ayesha Khan</td></tr>
+        <tr><td style="white-space:nowrap">14 Nov,<br>11:05</td><td>Temu</td><td>Canada (CA)</td><td><div class="b">Bundle: towel set 6 pack</div><div class="mono muted">TEMU-TOWEL-6PK</div></td><td class="r">1</td><td class="r green">0</td><td class="r" style="color:var(--bad);font-weight:600">1</td><td>Water damaged</td><td>Furqan Anwar</td></tr>
+        <tr><td style="white-space:nowrap">13 Nov,<br>15:30</td><td>Amazon</td><td>United States (US)</td><td><div class="b">Terry mattress protector, queen</div><div class="mono muted">BDMATTRESSTERRY1PQUEENWHITE</div></td><td class="r">6</td><td class="r green">6</td><td class="r">0</td><td class="muted">—</td><td>Ayesha Khan</td></tr>
+      </tbody>
+    </table>
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:18px 26px;border-top:1px solid var(--line);color:var(--muted)"><span>Showing 1–4 of 18 manual returns</span><span style="display:flex;gap:12px"><span class="btn sm">Previous</span><span class="btn sm">Next</span></span></div>
+  </div>
+  <div class="two" style="margin-top:26px">
+    <div class="card" style="padding:20px 26px"><div class="b" style="color:var(--ink);margin-bottom:6px">Who sees it</div><div class="muted">The Manual return button needs the <b>Scan Items</b> permission, the same one that shows the Scan items button. Everyone with Scanning Sessions access can read the list.</div></div>
+    <div class="card" style="padding:20px 26px"><div class="b" style="color:var(--ink);margin-bottom:6px">What saving does</div><div class="muted">Adds the units back to inventory right away (sellable to the FBM pool, damaged to the damaged bucket) and records the entry, who made it and when. An FBM return also records its order and cannot return more units than that order still has out. It cannot be undone from this screen.</div></div>
+  </div>
+</section>
+
+<!-- 13 · Manual return modal (NEW) -->
+<section class="pg dark" style="page:p13;width:1600px;height:1500px">
+  <div class="modal" style="left:230px;top:50px;width:1140px;height:1400px">
+    <div class="mh"><div><h2>Manual return</h2><div class="sub">For a returned item that matches nothing by UPC. The units go back into inventory when you save.</div></div><div class="pills"><span class="x">✕</span></div></div>
+    <div style="padding:26px 34px;flex:1;display:flex;flex-direction:column;gap:20px">
+      <div style="display:flex;align-items:center;gap:16px"><div style="display:inline-flex;border:1px solid var(--line);border-radius:10px;padding:3px"><span style="padding:9px 18px;border-radius:8px;background:var(--dark);color:#fff;font-weight:600;font-size:15px">Channel return (FBA)</span><span style="padding:9px 18px;font-weight:600;font-size:15px;color:#475569">Order return (FBM)</span></div><span class="newtag" style="margin-left:0">NEW</span><span class="muted" style="font-size:14.5px">FBA: pick the channel listing. FBM: find the order the item was sent on (next page).</span></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:22px">
+        <div class="field"><label>Channel</label><div class="inp sel">Amazon</div></div>
+        <div class="field"><label>Marketplace</label><div class="inp sel">Canada (CA)</div></div>
+      </div>
+      <div class="field"><label>Product <span class="muted" style="font-weight:400">· the channel's listings that are mapped to our products</span></label>
+        <div class="inp" style="border-color:#111827;box-shadow:0 0 0 1px #111827"><span>queen sheet</span><span class="muted" style="font-size:14px">3 results</span></div>
+        <div class="card" style="box-shadow:none;margin-top:8px;overflow:hidden">
+          <div style="padding:12px 18px;border-bottom:1px solid var(--line);background:#f1f5f9"><div class="b">Queen sheet set, dark grey</div><div class="mono muted">BDQUEENSHEETDGREY-CA</div></div>
+          <div style="padding:12px 18px;border-bottom:1px solid var(--line)"><div class="b">Queen sheet set, harbour grey</div><div class="mono muted">BDQUEENSHEETHGRAY-CA</div></div>
+          <div style="padding:12px 18px"><div class="b">Queen sheet set + pillowcases (bundle)</div><div class="mono muted">BDQUEENSHEETBUNDLE-CA · 2 products</div></div>
+        </div>
+      </div>
+      <div style="border:1px solid #86efac;background:#f0fdf4;border-radius:12px;padding:14px 18px;display:flex;justify-content:space-between;align-items:center">
+        <div><div class="b" style="color:var(--ok)">Selected: Queen sheet set, dark grey</div><div class="mono" style="color:var(--ok)">BDQUEENSHEETDGREY-CA → BD-MFSS-4PC-QUEEN-DGREY × 1</div></div><span class="u muted">Change</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:22px;align-items:end">
+        <div class="field"><label>Units returned</label><div class="inp">4</div></div>
+        <div class="field"><label>How many were damaged?</label><div class="inp">1</div></div>
+        <div class="field"><label>Sellable <span class="muted" style="font-weight:400">· what is left</span></label><div class="inp" style="background:#f8fafc;font-weight:700;color:var(--ok)">3</div></div>
+      </div>
+      <div class="field"><label>Remarks <span class="muted" style="font-weight:400">· optional</span></label><div class="inp" style="height:84px;align-items:flex-start;padding-top:14px">Parcel had no label, customer pack different</div></div>
+      <div class="field"><label>Extra details <span class="muted" style="font-weight:400">· optional name and value pairs, e.g. RMA number, carrier, condition notes</span></label>
+        <div style="display:grid;grid-template-columns:1fr 1.4fr 44px;gap:12px;margin-bottom:10px"><div class="inp">RMA number</div><div class="inp">RMA-20931</div><div class="inp" style="justify-content:center;color:var(--muted)">✕</div></div>
+        <div style="display:grid;grid-template-columns:1fr 1.4fr 44px;gap:12px;margin-bottom:10px"><div class="inp">Return carrier</div><div class="inp">Canada Post</div><div class="inp" style="justify-content:center;color:var(--muted)">✕</div></div>
+        <span class="btn sm">＋ Add detail</span>
+      </div>
+      <div class="note" style="margin-top:auto"><b style="color:var(--ink)">On save:</b> 3 units go to the FBM pool as sellable and 1 goes to the damaged bucket for BD-MFSS-4PC-QUEEN-DGREY. The entry is kept with your name and the time.</div>
+    </div>
+    <div class="mf" style="justify-content:flex-end;gap:14px"><span class="btn">Cancel</span><span class="btn dark">Save return</span></div>
+  </div>
+</section>
+
+<!-- 14 · Manual return, FBM order (NEW) -->
+<section class="pg dark" style="page:p14;width:1600px;height:1560px">
+  <div class="modal" style="left:230px;top:50px;width:1140px;height:1460px">
+    <div class="mh"><div><h2>Manual return <span class="newtag">NEW</span></h2><div class="sub">Order return (FBM): find the order, then pick the item that came back. The units go back into inventory when you save.</div></div><div class="pills"><span class="x">✕</span></div></div>
+    <div style="padding:26px 34px;flex:1;display:flex;flex-direction:column;gap:20px">
+      <div style="display:inline-flex;align-self:flex-start;border:1px solid var(--line);border-radius:10px;padding:3px"><span style="padding:9px 18px;font-weight:600;font-size:15px;color:#475569">Channel return (FBA)</span><span style="padding:9px 18px;border-radius:8px;background:var(--dark);color:#fff;font-weight:600;font-size:15px">Order return (FBM)</span></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:22px">
+        <div class="field"><label>Channel</label><div class="inp sel">Walmart</div></div>
+        <div class="field"><label>Marketplace</label><div class="inp sel">Walmart.com (US)</div></div>
+      </div>
+      <div class="field"><label>Order <span class="muted" style="font-weight:400">· the order the item was sent on; only a shipped order can be returned</span></label>
+        <div style="display:flex;gap:12px"><div class="inp" style="flex:1;border-color:#111827;box-shadow:0 0 0 1px #111827">2000123456789</div><span class="btn">Find order</span></div>
+        <div class="card" style="box-shadow:none;margin-top:10px;overflow:hidden">
+          <div style="padding:10px 18px;border-bottom:1px solid var(--line);background:#f1f5f9;font-size:14px;font-weight:600;color:#475569">Order C-30981</div>
+          <div style="padding:12px 18px;border-bottom:1px solid var(--line);background:#f8fafc"><div class="b">Queen sheet set, dark grey</div><div class="mono muted">BDQUEENSHEETDGREY-US · 1 of 3 left to return</div></div>
+          <div style="padding:12px 18px;border-bottom:1px solid var(--line);opacity:.5"><div class="b">Gusset pillow king, set of 2</div><div class="mono muted">WM-GUSSET-KING-2PK · 0 of 1 left to return</div></div>
+          <div style="padding:12px 18px;opacity:.5"><div class="b">Towel set, 6 pack</div><div class="mono muted">WM-TOWEL-6PK · 2 of 2 left to return · not mapped in SKU Mapping</div></div>
+        </div>
+        <div class="muted" style="font-size:14px;margin-top:8px">A line with nothing left, or with no SKU mapping, cannot be picked. Unshipped or cancelled orders are refused with the reason.</div>
+      </div>
+      <div style="border:1px solid #86efac;background:#f0fdf4;border-radius:12px;padding:14px 18px;display:flex;justify-content:space-between;align-items:center">
+        <div><div class="b" style="color:var(--ok)">Selected: Queen sheet set, dark grey</div><div class="mono" style="color:var(--ok)">BDQUEENSHEETDGREY-US → BD-MFSS-4PC-QUEEN-DGREY × 1</div></div><span class="u muted">Change</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:22px;align-items:end">
+        <div class="field"><label>Units returned</label><div class="inp" style="border-color:#dc2626">2</div></div>
+        <div class="field"><label>How many were damaged?</label><div class="inp">0</div></div>
+        <div class="field"><label>Sellable <span class="muted" style="font-weight:400">· what is left</span></label><div class="inp" style="background:#f8fafc;font-weight:700;color:var(--ok)">2</div></div>
+      </div>
+      <div class="banner" style="padding:14px 20px;font-size:16px;border-color:#fca5a5;background:#fef2f2;color:var(--bad)">Only 1 unit is left to return on this order. Save stays disabled until the units fit.</div>
+      <div class="field"><label>Remarks <span class="muted" style="font-weight:400">· optional</span></label><div class="inp" style="height:84px;align-items:flex-start;padding-top:14px">Customer kept the pillowcases</div></div>
+      <div class="note" style="margin-top:auto"><b style="color:var(--ink)">On save:</b> the units go to the FBM pool (sellable) or the damaged bucket, the entry records order 2000123456789, and the order’s remaining units drop by the same amount. The Manual returns list shows the order under the product and can be searched by order number.</div>
+    </div>
+    <div class="mf" style="justify-content:flex-end;gap:14px"><span class="btn">Cancel</span><span class="btn dark off">Save return</span></div>
+  </div>
+</section>
+
+<!-- 15 · Inbound Receiving list, in units (CHANGED) -->
+<section class="pg light" style="page:p15;width:1800px;height:760px">
+  <div class="crumb">Inventory › Inbound Receiving</div>
+  <h1>Inbound Receiving <span class="newtag">CHANGED</span></h1>
+  <p class="lead">Scanning counts <b>units</b>, not cartons, so every number on this list is in units. The packing list’s cartons stay as small text under Expected. Until the receipt is signed, Received, Short and Damaged show what scanning has counted so far.</p>
+  <div class="card tcard" style="margin-top:26px">
+    <table>
+      <thead><tr><th>Container</th><th>PO #</th><th>PL #</th><th class="c">Expected (units)</th><th class="c">Received (units)</th><th class="c">Short (units)</th><th class="c">Damaged (units)</th><th class="c">Status</th><th class="c">Actions</th></tr></thead>
+      <tbody>
+        <tr style="background:#eff6ff"><td><div class="b">MSKU7783021</div><div class="mono muted">CID#23132</div></td><td class="mono">PO-1776</td><td class="mono">PL#5568</td>
+          <td class="c"><div>50</div><div class="muted" style="font-size:13px">5 ctn</div></td><td class="c b">6</td><td class="c" style="color:var(--bad);font-weight:600">44</td><td class="c" style="color:var(--bad);font-weight:600">1</td>
+          <td class="c"><span class="pill">Delivered to warehouse</span><div class="muted" style="font-size:13px;margin-top:4px">Scanning open</div></td>
+          <td class="actcell"><span class="dots on"><svg viewBox="0 0 20 20"><circle cx="10" cy="4" r="1.5"/><circle cx="10" cy="10" r="1.5"/><circle cx="10" cy="16" r="1.5"/></svg></span><div class="menu" style="min-width:150px"><div class="hl">Update</div><div>Scan items</div><div>Download PDF</div></div></td></tr>
+        <tr><td><div class="b">TGHU4410982</div><div class="mono muted">CID#23130</div></td><td class="mono">PO-1774</td><td class="mono">PL#5566</td><td class="c"><div>20</div><div class="muted" style="font-size:13px">2 ctn</div></td><td class="c muted">—</td><td class="c muted">—</td><td class="c muted">—</td><td class="c"><span class="pill">Delivered to warehouse</span></td><td class="actcell"><span class="dots"><svg viewBox="0 0 20 20"><circle cx="10" cy="4" r="1.5"/><circle cx="10" cy="10" r="1.5"/><circle cx="10" cy="16" r="1.5"/></svg></span></td></tr>
+        <tr><td><div class="b">CAIU9921470</div><div class="mono muted">CID#23122</div></td><td class="mono">PO-1760</td><td class="mono">PL#5551</td><td class="c"><div>120</div><div class="muted" style="font-size:13px">12 ctn</div></td><td class="c">120</td><td class="c">0</td><td class="c">0</td><td class="c"><span class="pill ok">Goods received</span><div class="muted" style="font-size:13px;margin-top:4px">12 Nov</div></td><td class="actcell"><span class="dots"><svg viewBox="0 0 20 20"><circle cx="10" cy="4" r="1.5"/><circle cx="10" cy="10" r="1.5"/><circle cx="10" cy="16" r="1.5"/></svg></span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="two" style="margin-top:26px">
+    <div class="card" style="padding:20px 26px"><div class="b" style="color:var(--ink);margin-bottom:6px">Where the 6 units show</div><div class="muted">On this list (Received 6, Short 44, Damaged 1), inside the receiving form (next page) per SKU, and on the scanning session’s detail page. Short is expected minus scanned, per product. “Scanning open” or “Scanning closed” says whether more units can still come in.</div></div>
+    <div class="card" style="padding:20px 26px"><div class="b" style="color:var(--ink);margin-bottom:6px">What stays manual</div><div class="muted">Scanning never confirms the receipt. The receiver reviews the units in the form, signs, and only then does the container move to Goods received.</div></div>
+  </div>
+</section>
+
+<!-- 16 · Receiving form, in units, per SKU (CHANGED) -->
+<section class="pg light" style="page:p16;width:1800px;height:980px">
+  <div class="crumb">← Inbound Receiving</div>
+  <h1>Receive container <span class="newtag">CHANGED</span></h1>
+  <div class="card" style="margin-top:22px;padding:22px 28px">
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:18px"><div><div class="muted" style="font-size:14px">CONTAINER #</div><div class="mono b" style="margin-top:4px">MSKU7783021</div></div><div><div class="muted" style="font-size:14px">PO #</div><div class="mono b" style="margin-top:4px">PO-1776</div></div><div><div class="muted" style="font-size:14px">PL #</div><div class="mono b" style="margin-top:4px">PL#5568</div></div></div>
+    <div style="margin-top:14px;color:#475569;font-size:16px"><span class="pill">Delivered to warehouse</span> <span style="margin-left:10px">Scanned so far: <b>6 units</b> · 5 good, 1 damaged, 44 short of 50 · scanning still open. The fields below start from the scan; change any of them before signing.</span></div>
+  </div>
+  <div class="card tcard" style="margin-top:22px">
+    <table>
+      <thead><tr><th class="c">S#</th><th>SKU</th><th class="c">Expected (units)</th><th class="c">Good condition (units)</th><th class="c">Damaged (units)</th><th class="c">Shortage (units)</th><th class="c">Actual received (units)</th></tr></thead>
+      <tbody>
+        <tr><td class="c">1</td><td><div class="b">BD-MFSS-4PC-QUEEN-DGREY</div><div class="muted" style="font-size:13.5px">Queen sheet set, dark grey</div></td><td class="c"><div>30</div><div class="muted" style="font-size:13px">3 ctn × 10</div></td><td class="c"><div class="inp" style="width:100px;margin:auto;justify-content:center">3</div></td><td class="c"><div class="inp" style="width:100px;margin:auto;justify-content:center;border-color:#dc2626">1</div></td><td class="c"><div class="inp" style="width:100px;margin:auto;justify-content:center;border-color:#dc2626">26</div></td><td class="c b">4</td></tr>
+        <tr><td class="c">2</td><td><div class="b">BD-MFSS-4PC-QUEEN-HGRAY</div><div class="muted" style="font-size:13.5px">Queen sheet set, harbour grey</div></td><td class="c"><div>20</div><div class="muted" style="font-size:13px">2 ctn × 10</div></td><td class="c"><div class="inp" style="width:100px;margin:auto;justify-content:center">2</div></td><td class="c"><div class="inp" style="width:100px;margin:auto;justify-content:center">0</div></td><td class="c"><div class="inp" style="width:100px;margin:auto;justify-content:center;border-color:#dc2626">18</div></td><td class="c b">2</td></tr>
+        <tr style="background:var(--bg);font-weight:600"><td class="c" colspan="2">Total</td><td class="c">50</td><td class="c">5</td><td class="c" style="color:var(--bad)">1</td><td class="c" style="color:var(--bad)">44</td><td class="c">6</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="two" style="margin-top:24px">
+    <div class="card" style="padding:22px 28px"><div class="b" style="color:var(--ink);margin-bottom:8px">How each column is filled, per SKU</div>
+      <div class="muted" style="line-height:1.7"><b style="color:var(--ink)">Damaged</b>: the number said at the review step for that SKU (1 for the dark grey set).<br><b style="color:var(--ink)">Good condition</b>: every other scanned unit, already good (4 scanned − 1 damaged = 3).<br><b style="color:var(--ink)">Shortage</b>: expected minus scanned (30 − 4 = 26).<br>Good + Damaged + Shortage must add up to Expected for each SKU, and any figure can be edited before signing.</div></div>
+    <div class="card" style="padding:22px 28px"><div class="b" style="color:var(--ink);margin-bottom:8px">Signature</div><div class="muted" style="margin-bottom:12px">Still required. Confirming records the receipt and moves the container to Goods received.</div><div style="height:90px;border:1px dashed #94a3b8;border-radius:12px;display:flex;align-items:center;justify-content:center;color:var(--faint)">Sign here</div><div style="display:flex;justify-content:flex-end;gap:12px;margin-top:14px"><span class="btn">Cancel</span><span class="btn">Download PDF</span><span class="btn dark">Confirm receipt</span></div></div>
+  </div>
+  <div class="card" style="margin-top:20px;padding:16px 26px;background:#fffbeb;border-color:#fcd34d;color:var(--warn);font-size:16px;line-height:1.55"><b>Decision needed before building:</b> the signed receipt stores cartons today (good, damaged and shortage cartons per line). Showing units means either storing units on the receipt (new columns) or turning units back into cartons when it is signed, which loses any part-carton counts.</div>
+</section>
+
+</body>
+</html>

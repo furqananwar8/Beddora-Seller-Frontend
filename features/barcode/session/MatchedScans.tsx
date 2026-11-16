@@ -13,13 +13,15 @@ interface Props {
   /** How many of this product are matched now: a change reloads what is shown, so live scans appear. */
   scanned: number
   conditionLabel?: (value: NonNullable<ScanLineScans['items'][number]['condition']>) => string
+  /** Present while the session is open and yours: each row can then be removed (an accidental double scan). */
+  onRemove?: (scanId: number) => Promise<void>
 }
 
 /**
  * One product's matched UPCs, newest first: ten at a time, with See more for the rest. A product scanned many times
  * stays one row in the session table; this is what opens under it.
  */
-export function MatchedScans({ sessionId, inventoryItemId, scanned, conditionLabel }: Props) {
+export function MatchedScans({ sessionId, inventoryItemId, scanned, conditionLabel, onRemove }: Props) {
   const [load] = useLazyGetScanLineScansQuery()
   const [items, setItems] = useState<ScanLineScans['items']>([])
   const [total, setTotal] = useState(0)
@@ -62,6 +64,11 @@ export function MatchedScans({ sessionId, inventoryItemId, scanned, conditionLab
             <span className="text-text-muted">
               {row.condition && conditionLabel ? `${conditionLabel(row.condition)} · ` : ''}
               {time(row.scannedAt)}
+              {onRemove && (
+                <button type="button" aria-label={`Remove scan ${row.upc}`} title="Remove this scan" onClick={() => void onRemove(row.id)} className="ml-3 font-semibold text-danger-600 hover:underline">
+                  Remove
+                </button>
+              )}
             </span>
           </li>
         ))}

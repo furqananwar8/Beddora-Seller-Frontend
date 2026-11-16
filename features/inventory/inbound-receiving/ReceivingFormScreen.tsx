@@ -17,7 +17,7 @@ import { useConfirmReceivingMutation, useGetReceivingQuery, type ReceivingDetail
 import { applyServerIssues } from '@/utils/apiErrors'
 import { cn } from '@/utils/cn'
 import { formatCalendarDay } from '@/utils/format'
-import { actualOf, defaultsFor, receivingSchema, toCartons, type ReceivingFormValues } from './receivingForm'
+import { actualOf, defaultsFor, receivingSchema, toUnits, type ReceivingFormValues } from './receivingForm'
 import { ReceivingPdfModal } from './ReceivingPdfModal'
 import { RECEIVING_ROUTES } from './routes'
 
@@ -33,9 +33,9 @@ const Fact: React.FC<{ label: string; children: React.ReactNode }> = ({ label, c
 )
 
 /**
- * The receiving sheet of one container (S#, SKU, expected, units per carton, good, damaged, shortage, actual received)
- * with a mandatory signature. Expected quantity and units per carton come from the packaging list; actual received is
- * good + damaged, worked out here. Confirming asks first, then records the receipt and receives the container.
+ * The receiving sheet of one container (S#, SKU, expected, good, damaged, shortage, actual received), counted in units
+ * because scanning counts units, with a mandatory signature. Expected units come from the packaging list; actual received is
+ * good + damaged, worked out here. After scanning the figures start from the scan and can be changed before signing. Confirming asks first, then records the receipt and receives the container.
  */
 export const ReceivingFormScreen: React.FC<{ containerId: number }> = ({ containerId }) => {
   const router = useRouter()
@@ -75,7 +75,7 @@ const ReceivingForm: React.FC<{ detail: ReceivingDetail }> = ({ detail }) => {
   const [confirming, setConfirming] = useState(false)
   const [printing, setPrinting] = useState(false)
 
-  const form = useForm<ReceivingFormValues>({ resolver: zodResolver(receivingSchema), defaultValues: defaultsFor(detail.lines), mode: 'onChange' })
+  const form = useForm<ReceivingFormValues>({ resolver: zodResolver(receivingSchema), defaultValues: defaultsFor(detail.lines, detail.scanned.started), mode: 'onChange' })
   const { control, register, handleSubmit, setError, reset, formState } = form
   const { fields } = useFieldArray({ control, name: 'lines' })
   const lines = useWatch({ control, name: 'lines' })
@@ -86,10 +86,10 @@ const ReceivingForm: React.FC<{ detail: ReceivingDetail }> = ({ detail }) => {
     reset({
       lines: detail.lines.map((line) => ({
         lineId: line.lineId,
-        expected: line.expectedCartons,
-        good: String(line.goodCartons ?? 0),
-        damaged: String(line.damagedCartons ?? 0),
-        shortage: String(line.shortageCartons ?? 0),
+        expected: line.expectedUnits,
+        good: String(line.goodUnits ?? 0),
+        damaged: String(line.damagedUnits ?? 0),
+        shortage: String(line.shortageUnits ?? 0),
       })),
       signature: detail.receipt.signature,
     })
@@ -98,13 +98,12 @@ const ReceivingForm: React.FC<{ detail: ReceivingDetail }> = ({ detail }) => {
   const totals = (lines ?? []).reduce(
     (sum, line) => ({
       expected: sum.expected + line.expected,
-      good: sum.good + toCartons(line.good),
-      damaged: sum.damaged + toCartons(line.damaged),
-      shortage: sum.shortage + toCartons(line.shortage),
+      good: sum.good + toUnits(line.good),
+      damaged: sum.damaged + toUnits(line.damaged),
+      shortage: sum.shortage + toUnits(line.shortage),
     }),
     { expected: 0, good: 0, damaged: 0, shortage: 0 }
   )
-  const damagedUnits = (lines ?? []).reduce((sum, line, index) => sum + toCartons(line.damaged) * (detail.lines[index]?.unitsPerCarton ?? 0), 0)
 
   const confirm = handleSubmit(
     async (values) => {
@@ -112,7 +111,7 @@ const ReceivingForm: React.FC<{ detail: ReceivingDetail }> = ({ detail }) => {
         await confirmReceiving({
           id: detail.id,
           body: {
-            lines: values.lines.map((line) => ({ lineId: line.lineId, goodCartons: toCartons(line.good), damagedCartons: toCartons(line.damaged), shortageCartons: toCartons(line.shortage) })),
+            lines: values.lines.map((line) => ({ lineId: line.lineId, goodUnits: toUnits(line.good), damagedUnits: toUnits(line.damaged), shortageUnits: toUnits(line.shortage) })),
             signature: values.signature,
           },
         }).unwrap()
@@ -120,7 +119,7 @@ const ReceivingForm: React.FC<{ detail: ReceivingDetail }> = ({ detail }) => {
         router.push(RECEIVING_ROUTES.list)
       } catch (error) {
         setConfirming(false)
-        // "lines.3.shortageCartons" from the server lands on that row's shortage cell
+        // "lines.3.shortageUnits" from the server lands on that row's shortage cell
         const placed = applyServerIssues(error, setError, (field) => /^lines\.\d+\./.test(field))
         if (!placed) failure(error, 'Could not confirm the receipt')
       }
@@ -143,6 +142,12 @@ const ReceivingForm: React.FC<{ detail: ReceivingDetail }> = ({ detail }) => {
               Received by {detail.receipt.receivedBy} on {formatCalendarDay(detail.receipt.receivedAt)}
             </span>
           )}
+          {detail.scanned.started && !received && (
+            <span>
+              Scanned so far: {qty(detail.scanned.goodUnits)} good, {qty(detail.scanned.damagedUnits)} damaged, {qty(detail.scanned.shortUnits)} short of {qty(detail.scanned.expectedUnits)} units
+              {detail.scanned.overUnits > 0 ? `, ${qty(detail.scanned.overUnits)} over` : ''} · scanning {detail.scanned.closed ? 'closed' : 'still open'}. The figures below start from the scan; change any of them before signing.
+            </span>
+          )}
         </div>
       </div>
 
@@ -151,7 +156,7 @@ const ReceivingForm: React.FC<{ detail: ReceivingDetail }> = ({ detail }) => {
           <Table className="min-w-full" wrapperClassName="overflow-visible">
             <TableHeader className="bg-surface">
               <TableRow>
-                {['S#', 'SKU', 'Expected Qty (Ctn)', 'Units per Ctn', 'Good Condition (Sellable)', 'Damaged', 'Shortage', 'Actual Received'].map((title) => (
+                {['S#', 'SKU', 'Expected (units)', 'Good condition (units)', 'Damaged (units)', 'Shortage (units)', 'Actual received (units)'].map((title) => (
                   <TableHead key={title} className="whitespace-nowrap text-center">
                     {title}
                   </TableHead>
@@ -160,7 +165,7 @@ const ReceivingForm: React.FC<{ detail: ReceivingDetail }> = ({ detail }) => {
             </TableHeader>
             <TableBody>
               {fields.length === 0 ? (
-                <TableStatusRow colSpan={8}>This container has no packed products.</TableStatusRow>
+                <TableStatusRow colSpan={7}>This container has no packed products.</TableStatusRow>
               ) : (
                 fields.map((field, index) => {
                   const line = detail.lines[index]
@@ -173,8 +178,12 @@ const ReceivingForm: React.FC<{ detail: ReceivingDetail }> = ({ detail }) => {
                         <div className="font-semibold text-text-primary">{line.sku}</div>
                         <div className="text-xs text-text-muted">{line.name}</div>
                       </TableCell>
-                      <TableCell className={cn(CELL, 'tabular-nums')}>{qty(line.expectedCartons)}</TableCell>
-                      <TableCell className={cn(CELL, 'tabular-nums')}>{qty(line.unitsPerCarton)}</TableCell>
+                      <TableCell className={cn(CELL, 'tabular-nums')}>
+                        <div>{qty(line.expectedUnits)}</div>
+                        <div className="text-xs text-text-muted">
+                          {qty(line.expectedCartons)} ctn × {qty(line.unitsPerCarton)}
+                        </div>
+                      </TableCell>
                       {(['good', 'damaged', 'shortage'] as const).map((key) => {
                         // The row's "must add up" message sits on its last cell
                         const error = errors?.[key]?.message
@@ -202,7 +211,6 @@ const ReceivingForm: React.FC<{ detail: ReceivingDetail }> = ({ detail }) => {
                     Total
                   </TableCell>
                   <TableCell className={cn(CELL, 'tabular-nums')}>{qty(totals.expected)}</TableCell>
-                  <TableCell className={CELL} />
                   <TableCell className={cn(CELL, 'tabular-nums')}>{qty(totals.good)}</TableCell>
                   <TableCell className={cn(CELL, 'tabular-nums')}>{qty(totals.damaged)}</TableCell>
                   <TableCell className={cn(CELL, 'tabular-nums', totals.shortage > 0 && 'text-danger-600')}>{qty(totals.shortage)}</TableCell>
@@ -244,10 +252,10 @@ const ReceivingForm: React.FC<{ detail: ReceivingDetail }> = ({ detail }) => {
 
       <ConfirmDialog isOpen={confirming} title="Confirm receipt" confirmLabel="Confirm" busy={saving} onClose={() => setConfirming(false)} onConfirm={() => void confirm()}>
         <p>
-          Record <strong>{qty(totals.good)}</strong> good, <strong>{qty(totals.damaged)}</strong> damaged and <strong>{qty(totals.shortage)}</strong> short cartons for {detail.containerNumber ?? detail.containerNo}?
+          Record <strong>{qty(totals.good)}</strong> good, <strong>{qty(totals.damaged)}</strong> damaged and <strong>{qty(totals.shortage)}</strong> short units for {detail.containerNumber ?? detail.containerNo}?
         </p>
         <p className="mt-2">
-          The container becomes <strong>Goods Received</strong>, its shortage is shown on the container, and {qty(damagedUnits)} damaged units are added to Warehouse Inventory. This cannot be undone.
+          The container becomes <strong>Goods Received</strong>, its shortage is shown on the container, and {qty(totals.damaged)} damaged units are added to Warehouse Inventory. This cannot be undone.
         </p>
       </ConfirmDialog>
 

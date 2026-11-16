@@ -184,6 +184,8 @@ export interface ScanSession extends ScanSessionSummary {
   refused: Array<{ upc: string; sku: string; expected: number; at: number }>
   /** Scans still waiting to be matched. */
   pending: number
+  /** 'CLOSE': inventory moves only when scanning is closed (shipments, orders); 'END': when each session ends (receiving). */
+  appliesOn: 'END' | 'CLOSE'
 }
 
 /* ─────────────── Manual returns ─────────────── */
@@ -212,6 +214,8 @@ export interface ManualReturn {
   channelLabel: string
   marketplace: string
   channelSku: string
+  /** The FBM order it was for; null for a plain channel (FBA) return. */
+  orderId: string | null
   productName: string | null
   units: number
   sellableUnits: number
@@ -223,10 +227,31 @@ export interface ManualReturn {
   lines: Array<{ sku: string; sellableQty: number; damagedQty: number }>
 }
 
+/** An FBM order's lines for the return form. */
+export interface ManualReturnOrderLine {
+  channelSku: string
+  name: string
+  ordered: number
+  /** Already taken back by earlier manual returns. */
+  returned: number
+  remaining: number
+  /** False when SKU Mapping has no binding for it yet. */
+  mapped: boolean
+  components: Array<{ sku: string; name: string; quantity: number }>
+}
+
+export interface ManualReturnOrder {
+  orderId: string
+  ref: string
+  lines: ManualReturnOrderLine[]
+}
+
 export interface NewManualReturn {
   channel: string
   marketplace: string
   channelSku: string
+  /** Set for an FBM order return. */
+  orderId?: string
   units: number
   /** Of `units`: how many were damaged; the rest were sellable. */
   damagedUnits: number
@@ -283,7 +308,7 @@ export const barcodeApi = baseApi.injectEndpoints({
     closeScanRecord: b.mutation<{ closed: true }, { scenario: ScanScenario; sourceId: string; direction: ScanDirection }>({
       query: (body) => ({ url: '/barcode/sessions/close', method: 'POST', body }),
       transformResponse: unwrap,
-      invalidatesTags: ['Barcode', 'InboundShipments', 'Inventory'],
+      invalidatesTags: ['Barcode', 'InboundShipments', 'InboundReceiving', 'Inventory'],
     }),
     undoSessionScan: b.mutation<ScanSession, { id: number; scanId: number }>({
       query: ({ id, scanId }) => ({ url: `/barcode/sessions/${id}/scans/${scanId}`, method: 'DELETE' }),
@@ -291,11 +316,33 @@ export const barcodeApi = baseApi.injectEndpoints({
       invalidatesTags: ['Barcode'],
     }),
     // `conditions`: per inventory item id, how many units were damaged / a normal return; the rest are sellable
-    endScanSession: b.mutation<ScanSession, { id: number; confirmed: boolean; conditions?: Record<number, Partial<Record<ReturnCondition, number>>> }>({
+    endScanSession: b.mutation<ScanSession, { id: number; confirmed: boolean; closeScanning?: boolean; conditions?: Record<number, Partial<Record<ReturnCondition, number>>> }>({
       query: ({ id, ...body }) => ({ url: `/barcode/sessions/${id}/end`, method: 'POST', body }),
       transformResponse: unwrap,
       // Ending moves stock and can make a shipment Scanned and Shipped
-      invalidatesTags: ['Barcode', 'InboundShipments', 'Inventory'],
+      invalidatesTags: ['Barcode', 'InboundShipments', 'InboundReceiving', 'Inventory'],
+    }),
+    // Edit what was scanned: lower a product's count (removes its newest scans), drop an unmatched UPC, match the unmatched ones again
+    setScanLineCount: b.mutation<ScanSession, { id: number; inventoryItemId: number; count: number }>({
+      query: ({ id, inventoryItemId, count }) => ({ url: `/barcode/sessions/${id}/lines/${inventoryItemId}/count`, method: 'PUT', body: { count } }),
+      transformResponse: unwrap,
+      invalidatesTags: ['Barcode'],
+    }),
+    dismissUnmatchedUpc: b.mutation<ScanSession, { id: number; upc: string }>({
+      query: ({ id, upc }) => ({ url: `/barcode/sessions/${id}/unmatched/dismiss`, method: 'POST', body: { upc } }),
+      transformResponse: unwrap,
+      invalidatesTags: ['Barcode'],
+    }),
+    recheckUnmatchedScans: b.mutation<ScanSession, number>({
+      query: (id) => ({ url: `/barcode/sessions/${id}/unmatched/recheck`, method: 'POST' }),
+      transformResponse: unwrap,
+      invalidatesTags: ['Barcode'],
+    }),
+    // Leaves the session open for later: scans are kept, the lock is released, inventory is untouched
+    pauseScanSession: b.mutation<{ id: number }, number>({
+      query: (id) => ({ url: `/barcode/sessions/${id}/pause`, method: 'POST' }),
+      transformResponse: unwrap,
+      invalidatesTags: ['Barcode'],
     }),
     discardScanSession: b.mutation<{ id: number }, number>({
       query: (id) => ({ url: `/barcode/sessions/${id}/discard`, method: 'POST' }),
@@ -313,6 +360,10 @@ export const barcodeApi = baseApi.injectEndpoints({
     }),
     getManualReturnProducts: b.query<ManualReturnProduct[], { channel: string; marketplace: string; search?: string }>({
       query: ({ search, ...params }) => ({ url: '/barcode/manual-returns/products', params: { ...params, search: search || undefined } }),
+      transformResponse: unwrap,
+    }),
+    getManualReturnOrderLines: b.query<ManualReturnOrder, { channel: string; marketplace: string; orderId: string }>({
+      query: (params) => ({ url: '/barcode/manual-returns/order-lines', params }),
       transformResponse: unwrap,
     }),
     getManualReturns: b.query<Page<ManualReturn>, PageParams>({
@@ -351,11 +402,16 @@ export const {
   useLazyGetScanLineScansQuery,
   useGetManualReturnOptionsQuery,
   useGetManualReturnProductsQuery,
+  useLazyGetManualReturnOrderLinesQuery,
   useGetManualReturnsQuery,
   useCreateManualReturnMutation,
   useCloseScanRecordMutation,
   useUndoSessionScanMutation,
+  useSetScanLineCountMutation,
+  useDismissUnmatchedUpcMutation,
+  useRecheckUnmatchedScansMutation,
   useEndScanSessionMutation,
   useDiscardScanSessionMutation,
+  usePauseScanSessionMutation,
   useScanSessionHeartbeatMutation,
 } = barcodeApi

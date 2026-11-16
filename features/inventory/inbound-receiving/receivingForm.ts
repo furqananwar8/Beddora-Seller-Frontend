@@ -1,17 +1,17 @@
 import { z } from 'zod'
 import type { ReceivingLine } from '@/services/api/inboundReceiving.api'
 
-/** A whole number of cartons typed into a cell; blank counts as zero when the cartons are added up. */
-const cartons = z
+/** A whole number of units typed into a cell; blank counts as zero when the units are added up. */
+const units = z
   .string()
   .trim()
-  .regex(/^\d*$/, 'Whole cartons only')
+  .regex(/^\d*$/, 'Whole units only')
   .max(9, 'Too large')
 
 const lineSchema = z
-  .object({ lineId: z.number(), expected: z.number(), good: cartons, damaged: cartons, shortage: cartons })
+  .object({ lineId: z.number(), expected: z.number(), good: units, damaged: units, shortage: units })
   .superRefine((line, ctx) => {
-    const counted = toCartons(line.good) + toCartons(line.damaged) + toCartons(line.shortage)
+    const counted = toUnits(line.good) + toUnits(line.damaged) + toUnits(line.shortage)
     if (counted !== line.expected) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['shortage'], message: `Good, damaged and short must add up to ${line.expected} (now ${counted})` })
     }
@@ -25,16 +25,28 @@ export const receivingSchema = z.object({
 
 export type ReceivingFormValues = z.infer<typeof receivingSchema>
 
-export const toCartons = (value: string): number => (value === '' ? 0 : Number(value))
+export const toUnits = (value: string): number => (value === '' ? 0 : Number(value))
 
 /** Good + damaged: what physically arrived. */
-export const actualOf = (line: Pick<ReceivingFormValues['lines'][number], 'good' | 'damaged'>): number => toCartons(line.good) + toCartons(line.damaged)
+export const actualOf = (line: Pick<ReceivingFormValues['lines'][number], 'good' | 'damaged'>): number => toUnits(line.good) + toUnits(line.damaged)
 
 /**
- * Starting figures: everything is assumed good and nothing damaged or short, so the receiver only types the
- * exceptions (the cartons still have to add up to what the list expected).
+ * One line's starting units. With scanning done for the container they follow the scan: damaged is what was said at the
+ * review step, good is every other scanned unit, and shortage is whatever of the expected units was not scanned. Without a
+ * scan everything is assumed good and nothing damaged or short, so the receiver only types the exceptions. Either way the
+ * three add up to the expected units.
  */
-export const defaultsFor = (lines: ReceivingLine[]): ReceivingFormValues => ({
-  lines: lines.map((line) => ({ lineId: line.lineId, expected: line.expectedCartons, good: String(line.expectedCartons), damaged: '0', shortage: '0' })),
+export function startingUnits(line: ReceivingLine, scanStarted: boolean): { good: number; damaged: number; shortage: number } {
+  if (!scanStarted) return { good: line.expectedUnits, damaged: 0, shortage: 0 }
+  const damaged = Math.min(line.expectedUnits, line.scanned.damagedUnits)
+  const good = Math.min(line.expectedUnits - damaged, line.scanned.goodUnits)
+  return { good, damaged, shortage: line.expectedUnits - damaged - good }
+}
+
+export const defaultsFor = (lines: ReceivingLine[], scanStarted = false): ReceivingFormValues => ({
+  lines: lines.map((line) => {
+    const start = startingUnits(line, scanStarted)
+    return { lineId: line.lineId, expected: line.expectedUnits, good: String(start.good), damaged: String(start.damaged), shortage: String(start.shortage) }
+  }),
   signature: '',
 })

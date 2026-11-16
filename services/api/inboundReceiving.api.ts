@@ -5,14 +5,32 @@ import type { ContainerStatus } from './procurement.api'
 /** The statuses Inbound Receiving shows: waiting to be counted, and already counted. */
 export type ReceivingStatus = Extract<ContainerStatus, 'DELIVERED_AT_WAREHOUSE' | 'GOODS_RECEIVED'>
 
-/** Cartons per outcome across a container's lines (zero for those not received yet). */
+/** Units per outcome across a container's lines (zero for those not received yet); the packing list's cartons are kept for the heading. */
 export interface ReceivingTotals {
+  expectedUnits: number
   expectedCartons: number
-  goodCartons: number
-  damagedCartons: number
-  shortageCartons: number
-  actualCartons: number
+  goodUnits: number
+  damagedUnits: number
+  shortageUnits: number
+  actualUnits: number
 }
+
+/** What barcode scanning has received so far, in units (the receipt is only confirmed when it is signed). */
+export interface ReceivingScanned {
+  expectedUnits: number
+  goodUnits: number
+  damagedUnits: number
+  /** Expected units not scanned in, per product. */
+  shortUnits: number
+  /** Scanned units beyond what the packaging list expected. */
+  overUnits: number
+  /** Anything was scanned in yet. */
+  started: boolean
+  /** Scanning was closed for good, so short is final. */
+  closed: boolean
+}
+
+export type ReceivingLineScanned = Pick<ReceivingScanned, 'goodUnits' | 'damagedUnits' | 'shortUnits' | 'overUnits'>
 
 export interface ReceivingIdentity {
   id: number
@@ -30,6 +48,7 @@ export interface ReceivingListItem extends ReceivingIdentity {
   receivedAt: string | null
   receivedBy: string | null
   totals: ReceivingTotals
+  scanned: ReceivingScanned
 }
 
 export interface ReceivingLine {
@@ -39,20 +58,23 @@ export interface ReceivingLine {
   productId: number
   sku: string
   name: string
-  /** Cartons the packaging list says are in the container. */
+  /** What the packaging list says is in the line, in units (counted by the receiver) and in cartons. */
+  expectedUnits: number
   expectedCartons: number
   unitsPerCarton: number
   /** Null until the receipt is confirmed. */
-  goodCartons: number | null
-  damagedCartons: number | null
-  shortageCartons: number | null
-  actualCartons: number | null
+  goodUnits: number | null
+  damagedUnits: number | null
+  shortageUnits: number | null
+  actualUnits: number | null
+  scanned: ReceivingLineScanned
 }
 
 export interface ReceivingDetail extends ReceivingIdentity {
   status: ReceivingStatus
   lines: ReceivingLine[]
   totals: ReceivingTotals
+  scanned: ReceivingScanned
   receipt: { receivedAt: string; receivedBy: string; signature: string } | null
 }
 
@@ -64,7 +86,7 @@ export interface ReceivingListParams {
 }
 
 export interface ConfirmReceivingBody {
-  lines: Array<{ lineId: number; goodCartons: number; damagedCartons: number; shortageCartons: number }>
+  lines: Array<{ lineId: number; goodUnits: number; damagedUnits: number; shortageUnits: number }>
   /** PNG data URL of the drawn signature. */
   signature: string
 }
