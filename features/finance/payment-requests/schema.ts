@@ -28,11 +28,15 @@ export const lineSchema = z.object({
   costCenterId: z.string().min(1, 'Choose an expense'),
   /** The GST % (id of a rate in Settings > GST) this amount is worked out at; needed unless GST does not apply. */
   gstRateId: z.string(),
+  /** The GST on this amount: worked out from the percentage, or typed in (`gstManual`). Empty when GST does not apply. */
+  gstAmount: z.string().refine((value) => value === '' || (Number.isFinite(parseAmount(value)) && parseAmount(value) >= 0), 'Enter a valid GST amount'),
+  /** True once the GST was typed in; changing the amount, percentage or GST type goes back to working it out. */
+  gstManual: z.boolean(),
 })
 
 export type RequestLineValues = z.infer<typeof lineSchema>
 
-export const emptyLine: RequestLineValues = { amount: '', costCenterId: '', gstRateId: '' }
+export const emptyLine: RequestLineValues = { amount: '', costCenterId: '', gstRateId: '', gstAmount: '', gstManual: false }
 
 export const baseSchema = z.object({
   partnerId: z.string().min(1, 'Choose a partner'),
@@ -64,7 +68,15 @@ export const requestTotal = (lines: Array<Pick<RequestLineValues, 'amount'>>): n
 
 /** The amounts entered with the percentage picked for each (null when GST does not apply or none is picked yet). */
 export const gstInputsOf = (values: Pick<PaymentRequestFormValues, 'gstType'> & { lines: RequestLineValues[] }, rates: GstRate[]): GstInput[] =>
-  values.lines.map((line) => ({ amount: amountOf(line.amount), rate: values.gstType === 'NOT_APPLICABLE' ? null : (rates.find((rate) => String(rate.id) === line.gstRateId)?.rate ?? null) }))
+  values.lines.map((line) => ({
+    amount: amountOf(line.amount),
+    rate: values.gstType === 'NOT_APPLICABLE' ? null : (rates.find((rate) => String(rate.id) === line.gstRateId)?.rate ?? null),
+    gstAmount: values.gstType !== 'NOT_APPLICABLE' && line.gstManual ? amountOf(line.gstAmount) : null,
+  }))
+
+/** The GST a line works out to from its percentage alone (what its GST field shows until it is typed over); '' when there is nothing to show. */
+export const autoGstText = (amount: string, rate: number | null, type: PaymentRequestFormValues['gstType']): string =>
+  type === 'NOT_APPLICABLE' || amountOf(amount) <= 0 ? '' : formatMoney(splitGst([{ amount: amountOf(amount), rate }], type).gst)
 
 /** The amounts entered split into the amount before GST (what limits and cost analysis use), the GST, and the total paid. */
 export const gstSplitOf = (values: Pick<PaymentRequestFormValues, 'gstType'> & { lines: RequestLineValues[] }, rates: GstRate[]) => splitGst(gstInputsOf(values, rates), values.gstType)
@@ -89,6 +101,9 @@ export function addReferenceIssues(values: ReferenceFields, ctx: z.RefinementCtx
   if (values.gstType !== 'NOT_APPLICABLE') {
     values.lines.forEach((line, index) => {
       if (!line.gstRateId) ctx.addIssue({ code: 'custom', path: [...path, 'lines', index, 'gstRateId'], message: 'Choose a GST %' })
+      if (values.gstType === 'INCLUSIVE' && line.gstManual && amountOf(line.gstAmount) > amountOf(line.amount)) {
+        ctx.addIssue({ code: 'custom', path: [...path, 'lines', index, 'gstAmount'], message: 'GST cannot be more than the amount' })
+      }
     })
   }
 }
@@ -124,7 +139,13 @@ export const emptyFormValues: PaymentRequestFormValues = {
 /** The lines as they were entered: an inclusive request's amounts held their GST. */
 export const linesFromDetail = (detail: PaymentRequestDetail): RequestLineValues[] =>
   detail.lines.length
-    ? detail.lines.map((line) => ({ amount: formatMoney(detail.gstType === 'INCLUSIVE' ? line.amount + line.gstAmount : line.amount), costCenterId: line.costCenter ? String(line.costCenter.id) : '', gstRateId: line.gstRateId ? String(line.gstRateId) : '' }))
+    ? detail.lines.map((line) => {
+        const amount = formatMoney(detail.gstType === 'INCLUSIVE' ? line.amount + line.gstAmount : line.amount)
+        // A stored GST that differs from what its percentage gives was typed in, and stays as it was
+        const auto = autoGstText(amount, line.gstRate, detail.gstType)
+        const stored = detail.gstType === 'NOT_APPLICABLE' ? '' : formatMoney(line.gstAmount)
+        return { amount, costCenterId: line.costCenter ? String(line.costCenter.id) : '', gstRateId: line.gstRateId ? String(line.gstRateId) : '', gstAmount: stored, gstManual: stored !== auto }
+      })
     : [emptyLine]
 
 const isPo = (values: PaymentRequestFormValues) => values.referenceType === 'PURCHASE_ORDER'
@@ -133,7 +154,13 @@ const isPo = (values: PaymentRequestFormValues) => values.referenceType === 'PUR
 const shipmentIdsOf = (values: PaymentRequestFormValues): number[] => (values.referenceType === 'SHIPMENT' ? values.shipments.map((shipment) => shipment.id) : [])
 
 const linesBody = (values: PaymentRequestFormValues) =>
-  values.lines.map((line) => ({ costCenterId: Number(line.costCenterId), amount: parseAmount(line.amount), gstRateId: values.gstType === 'NOT_APPLICABLE' || !line.gstRateId ? null : Number(line.gstRateId) }))
+  values.lines.map((line) => ({
+    costCenterId: Number(line.costCenterId),
+    amount: parseAmount(line.amount),
+    gstRateId: values.gstType === 'NOT_APPLICABLE' || !line.gstRateId ? null : Number(line.gstRateId),
+    // Only a GST that was typed in is sent; otherwise the server works it out from the percentage
+    ...(values.gstType !== 'NOT_APPLICABLE' && line.gstManual ? { gstAmount: parseAmount(line.gstAmount) || 0 } : {}),
+  }))
 
 /** JSON body for PATCH, shared by edit and the save-after-create retry path. */
 export function toUpdateBody(values: PaymentRequestFormValues) {

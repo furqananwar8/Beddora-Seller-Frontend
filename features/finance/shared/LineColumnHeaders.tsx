@@ -6,6 +6,8 @@ interface LineColumnHeadersProps {
   gridClassName: string
   /** Whether GST applies, which makes the GST % column required. */
   gstApplies: boolean
+  /** Whether each row has its own GST amount field, which adds a column after the GST %. */
+  showGstAmount?: boolean
 }
 
 const Required = () => <span className="text-danger-600"> *</span>
@@ -14,7 +16,7 @@ const Required = () => <span className="text-danger-600"> *</span>
  * The labels of the amount rows, shown once above them instead of on every row (the rows then hold only inputs).
  * From the `sm` breakpoint up; below it the columns stack, so each row keeps its own labels there.
  */
-export const LineColumnHeaders: React.FC<LineColumnHeadersProps> = ({ gridClassName, gstApplies }) => (
+export const LineColumnHeaders: React.FC<LineColumnHeadersProps> = ({ gridClassName, gstApplies, showGstAmount = false }) => (
   <div className={cn('mb-1 hidden', gridClassName, 'sm:grid')} aria-hidden>
     <span className="ds-input-label">
       Amount
@@ -23,6 +25,7 @@ export const LineColumnHeaders: React.FC<LineColumnHeadersProps> = ({ gridClassN
     <span className="ds-input-label">
       GST %{gstApplies && <Required />}
     </span>
+    {showGstAmount && <span className="ds-input-label">GST amount</span>}
     <span className="ds-input-label">
       Expense
       <Required />

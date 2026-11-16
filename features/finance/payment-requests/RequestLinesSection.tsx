@@ -1,20 +1,22 @@
 'use client'
 
-import React from 'react'
+import React, { useEffect } from 'react'
 import { Control, Controller, FieldErrors, UseFormRegister, UseFormSetValue, useFieldArray, useWatch } from 'react-hook-form'
 import { Button } from '@/design-system/buttons'
-import { Input, Select, Textarea } from '@/design-system/inputs'
+import { Select, Textarea } from '@/design-system/inputs'
 import type { CostCenterOption, GstType } from '@/services/api/finance.api'
+import { AmountInput } from '../shared/AmountInput'
 import { CostCenterField } from '../shared/CostCenterSelect'
 import { FormField } from '../shared/FormField'
 import { FormSection as Section } from '../shared/FormSection'
 import { formatMoney } from '../shared/format'
+import { distributeGst } from '../shared/gst'
 import { GstRateField, GstTypeField, useGstRates } from '../shared/GstFields'
 import { LineColumnHeaders } from '../shared/LineColumnHeaders'
 import { GstTotals } from '../shared/GstTotals'
 import { SelectShell } from '../shared/SelectShell'
 import { DueDateField } from './DueDateField'
-import { MAX_REQUEST_LINES, PaymentRequestFormValues, PoLimit, emptyLine, gstInputsOf, parseAmount, poLimitMessage } from './schema'
+import { MAX_REQUEST_LINES, PaymentRequestFormValues, PoLimit, autoGstText, emptyLine, gstInputsOf, parseAmount, poLimitMessage } from './schema'
 
 interface RequestLinesSectionProps {
   control: Control<PaymentRequestFormValues>
@@ -34,8 +36,8 @@ interface RequestLinesSectionProps {
   onAddCostCenter: () => void
 }
 
-/** One column grid for the header row and every amount row: currency over the amounts, GST over each amount's GST %, the due date over the expenses. */
-const ROW_GRID = 'grid items-start gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,2fr)_auto]'
+/** One column grid for the header row and every amount row: currency over the amounts, GST over each amount's GST %, the due date over its GST amount and expense. */
+const ROW_GRID = 'grid items-start gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,2fr)_auto]'
 /** The width of the remove button, kept free on rows that have none. */
 const REMOVE_SLOT = <span className="hidden w-8 sm:block" />
 
@@ -66,7 +68,35 @@ export const RequestLinesSection: React.FC<RequestLinesSectionProps> = ({
   /** How GST applies is the request's; each amount keeps (or starts with) its own percentage. */
   const changeGstType = (next: GstType) => {
     setValue('gstType', next, { shouldDirty: true, shouldValidate: true })
-    lines.forEach((line, index) => setValue(`lines.${index}.gstRateId`, next === 'NOT_APPLICABLE' ? '' : line.gstRateId || onlyRateId, { shouldDirty: true }))
+    lines.forEach((line, index) => {
+      setValue(`lines.${index}.gstRateId`, next === 'NOT_APPLICABLE' ? '' : line.gstRateId || onlyRateId, { shouldDirty: true })
+      setValue(`lines.${index}.gstManual`, false)
+    })
+  }
+
+  // Until typed over, each amount's GST follows its amount, percentage and the GST type
+  useEffect(() => {
+    lines.forEach((line, index) => {
+      if (line.gstManual) return
+      const rate = gstRates.find((candidate) => String(candidate.id) === line.gstRateId)?.rate ?? null
+      const want = autoGstText(line.amount, rate, gstType)
+      if (line.gstAmount !== want) setValue(`lines.${index}.gstAmount`, want)
+    })
+  }, [lines, gstRates, gstType, setValue])
+
+  const typeLineGst = (index: number, text: string) => {
+    setValue(`lines.${index}.gstAmount`, text, { shouldDirty: true, shouldValidate: true })
+    // Emptied again: back to working it out
+    setValue(`lines.${index}.gstManual`, text.trim() !== '')
+  }
+
+  /** A total GST typed in is spread over the amounts, which then hold it as typed. */
+  const typeTotalGst = (text: string) => {
+    const shares = distributeGst(parseAmount(text) || 0, gstInputsOf({ gstType, lines }, gstRates), gstType)
+    shares.forEach((share, index) => {
+      setValue(`lines.${index}.gstAmount`, formatMoney(share), { shouldDirty: true, shouldValidate: true })
+      setValue(`lines.${index}.gstManual`, true)
+    })
   }
   // A rule on the whole list (the PO cap) lands on `root` of a field array
   const linesError = errors.lines?.message ?? errors.lines?.root?.message
@@ -80,11 +110,13 @@ export const RequestLinesSection: React.FC<RequestLinesSectionProps> = ({
           </SelectShell>
         </FormField>
         <GstTypeField id="request" value={gstType} error={errors.gstType?.message} onChange={changeGstType} />
-        <DueDateField control={control} termDays={termDays} />
+        <div className="sm:col-span-2">
+          <DueDateField control={control} termDays={termDays} />
+        </div>
         {REMOVE_SLOT}
       </div>
 
-      <LineColumnHeaders gridClassName={ROW_GRID} gstApplies={gstApplies} />
+      <LineColumnHeaders gridClassName={ROW_GRID} gstApplies={gstApplies} showGstAmount />
       <div className="space-y-3">
         {fields.map((field, index) => {
           const rowErrors = errors.lines?.[index]
@@ -95,19 +127,17 @@ export const RequestLinesSection: React.FC<RequestLinesSectionProps> = ({
                   control={control}
                   name={`lines.${index}.amount`}
                   render={({ field: amount }) => (
-                    <Input
+                    <AmountInput
                       id={`lines.${index}.amount`}
-                      inputMode="decimal"
                       placeholder="0.00"
                       className="rounded-lg text-right"
                       value={amount.value}
                       ref={amount.ref}
-                      onChange={(event) => amount.onChange(event.target.value)}
-                      onBlur={() => {
-                        const parsed = parseAmount(amount.value)
-                        if (amount.value.trim() && Number.isFinite(parsed)) amount.onChange(formatMoney(parsed))
-                        amount.onBlur()
+                      onValueChange={(text) => {
+                        amount.onChange(text)
+                        setValue(`lines.${index}.gstManual`, false)
                       }}
+                      onBlur={amount.onBlur}
                     />
                   )}
                 />
@@ -118,8 +148,21 @@ export const RequestLinesSection: React.FC<RequestLinesSectionProps> = ({
                 applies={gstApplies}
                 value={lines[index]?.gstRateId ?? ''}
                 error={rowErrors?.gstRateId?.message}
-                onChange={(rateId) => setValue(`lines.${index}.gstRateId`, rateId, { shouldDirty: true, shouldValidate: true })}
+                onChange={(rateId) => {
+                  setValue(`lines.${index}.gstRateId`, rateId, { shouldDirty: true, shouldValidate: true })
+                  setValue(`lines.${index}.gstManual`, false)
+                }}
               />
+              <FormField label="GST amount" labelClassName="sm:sr-only" htmlFor={`lines.${index}.gstAmount`} error={rowErrors?.gstAmount?.message}>
+                <AmountInput
+                  id={`lines.${index}.gstAmount`}
+                  placeholder={gstApplies ? '0.00' : '—'}
+                  disabled={!gstApplies}
+                  className="rounded-lg text-right"
+                  value={lines[index]?.gstAmount ?? ''}
+                  onValueChange={(text) => typeLineGst(index, text)}
+                />
+              </FormField>
               <FormField label="Expense" labelClassName="sm:sr-only" htmlFor={`lines.${index}.costCenterId`} required error={rowErrors?.costCenterId?.message}>
                 <CostCenterField
                   control={control}
@@ -161,7 +204,7 @@ export const RequestLinesSection: React.FC<RequestLinesSectionProps> = ({
           {full && <span className="ml-2 text-xs text-text-muted">Limit of {MAX_REQUEST_LINES} reached</span>}
         </span>
       </div>
-      <GstTotals currency={currency} entered={gstInputsOf({ gstType, lines }, gstRates)} type={gstType} />
+      <GstTotals currency={currency} entered={gstInputsOf({ gstType, lines }, gstRates)} type={gstType} onGstChange={typeTotalGst} />
 
       <FormField label="Remarks" htmlFor="remarks" className="mt-4" error={errors.remarks?.message}>
         <Textarea id="remarks" rows={2} className="rounded-lg" placeholder="Ocean freight Shanghai to Vancouver, Sep batch." {...register('remarks')} />
