@@ -201,6 +201,8 @@ export interface PoPayment {
 export interface PurchaseOrderListItem {
   id: number
   poNo: string
+  /** The PO number from another system (the legacy sheet), when the PO came from there. */
+  externalRef: string | null
   supplier: { id: number; name: string }
   destination: PoDestination
   currency: PoCurrency
@@ -267,6 +269,8 @@ export interface SupplierRef {
 export interface PurchaseOrderDetail {
   id: number
   poNo: string
+  /** The PO number from another system (the legacy sheet), when the PO came from there. */
+  externalRef: string | null
   supplier: SupplierRef
   contactName: string | null
   destination: PoDestination

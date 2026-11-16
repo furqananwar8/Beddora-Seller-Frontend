@@ -171,6 +171,7 @@ export const PoFormScreen: React.FC<PoFormScreenProps> = ({ purchaseOrderId }) =
               {po && <PoStatusBadge status={po.status} />}
               {po && <PaymentBadge payment={po.payment} withPercent />}
             </div>
+            {po?.externalRef && <p className="text-xs text-text-muted">Sheet PO number: {po.externalRef}</p>}
             {fromSource && (
               <p className="text-xs text-text-muted">
                 Takes over units left on{' '}

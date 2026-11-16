@@ -159,6 +159,7 @@ export const PurchaseOrdersTable: React.FC<PurchaseOrdersTableProps> = ({ rows, 
           <TableRow key={row.id} className="hover:bg-secondary-50">
             <TableCell className={cn(CELL, 'whitespace-nowrap font-semibold text-text-primary')}>
               {row.poNo}
+              {row.externalRef && <span className="mt-0.5 block text-xs font-normal text-text-muted">{row.externalRef}</span>}
               {row.rejectionReason && <span className="mt-0.5 block text-xs font-normal text-danger-600">Rejected</span>}
             </TableCell>
             <TableCell className={CELL}>{row.supplier.name}</TableCell>

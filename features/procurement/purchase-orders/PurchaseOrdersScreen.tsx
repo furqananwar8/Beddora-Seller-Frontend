@@ -198,7 +198,7 @@ export const PurchaseOrdersScreen: React.FC = () => {
                   setSearch(event.target.value)
                   setPage(1)
                 }}
-                placeholder="PO #, supplier, contact, product or SKU"
+                placeholder="PO #, sheet PO #, supplier, contact, product or SKU"
                 className="ds-input ds-input-default rounded-lg"
               />
             </FormField>
