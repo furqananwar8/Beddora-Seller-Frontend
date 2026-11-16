@@ -88,6 +88,10 @@ export const variationSchema = z.object({
   /** Starts from the master's HS code (see useHsCodeSync) and may be changed per SKU. */
   hsCode: hsCodeField,
   description: z.string().trim().max(2000, 'Description is too long'),
+  /** Ecommerce (Beddora) or Retail (Northern Linen), chosen per variation. */
+  platform: z.enum(['ECOMMERCE', 'RETAIL'], { message: 'Pick Ecommerce or Retail' }),
+  /** The product's own dimensions as typed, apart from the packed L × W × H below. */
+  productDimensions: z.string().trim().max(60, 'Too long'),
   /** Optional barcode: UPC-A, or an 8/13/14-digit GTIN (same rule as the server). */
   upc: z
     .string()
@@ -133,7 +137,7 @@ export const variationSchema = z.object({
 export const productFormSchema = z
   .object({
     name: nameField,
-    /** Ecommerce (Beddora) or Retail (Northern Linen); every variation takes it. */
+    /** Only used while there are no variations (the product is ordered on its own); each variation has its own. */
     platform: z.enum(['ECOMMERCE', 'RETAIL'], { message: 'Pick Ecommerce or Retail' }),
     sku: skuField,
     category: z.custom<CategoryRef | null>(),
@@ -189,14 +193,17 @@ export const emptyProductValues: ProductFormValues = {
 
 /** A new variation row: the master's material as a default, and the units of the row above it (else KG and CM). */
 export function newVariation(
-  master: Pick<ProductFormValues, 'name' | 'material' | 'hsCode'>,
-  units: Pick<VariationFormValues, 'weightUnit' | 'dimensionUnit'> = { weightUnit: 'KG', dimensionUnit: 'CM' }
+  master: Pick<ProductFormValues, 'name' | 'material' | 'hsCode' | 'platform'>,
+  units: Pick<VariationFormValues, 'weightUnit' | 'dimensionUnit'> & { platform?: VariationFormValues['platform'] } = { weightUnit: 'KG', dimensionUnit: 'CM' }
 ): VariationFormValues {
   return {
     clientKey: crypto.randomUUID(),
     // Starts as the master's name; it becomes Name-Color-Size as the color and size are picked
     variantName: master.name.trim(),
     color: '',
+    // The platform of the row above it (else the master's)
+    platform: units.platform ?? master.platform,
+    productDimensions: '',
     material: master.material,
     packaging: '',
     sizeName: '',
@@ -263,6 +270,8 @@ export function toProductBody(values: ProductFormValues, expectedUpdatedAt?: str
     ...(variation.id !== undefined && { id: variation.id }),
     // The name is required, so it is always sent as it stands (auto-built unless edited)
     variantName: variation.variantName.trim(),
+    platform: variation.platform,
+    productDimensions: text(variation.productDimensions),
     // The first SKU and its marketplace are also sent on their own, for servers that read a single SKU
     sku: skuEntries(variation)[0]?.sku ?? null,
     marketplace: skuEntries(variation)[0]?.marketplace ?? null,
@@ -285,7 +294,7 @@ export function toProductBody(values: ProductFormValues, expectedUpdatedAt?: str
   }))
   return {
     name: values.name.trim(),
-    platform: values.platform,
+    platform: values.variations[0]?.platform ?? values.platform,
     sku: text(values.sku)?.toUpperCase() ?? null,
     categoryId: values.category?.id ?? null,
     color: null,
@@ -331,7 +340,7 @@ function skusFrom(variation: PoProduct, asCopy: boolean): VariationFormValues['s
 export function fromFamily(family: PoProductFamily, asCopy = false): ProductFormValues {
   return {
     name: family.name,
-    platform: family.platform,
+    platform: family.variations[0]?.platform ?? family.platform,
     sku: asCopy ? '' : (family.sku ?? ''),
     category: family.category,
     material: family.material ?? '',
@@ -345,6 +354,8 @@ export function fromFamily(family: PoProductFamily, asCopy = false): ProductForm
       variantName: variation.variantName ?? variantNameOf(family.name, variation.color ?? '', variation.sizeName ?? ''),
       skus: skusFrom(variation, asCopy),
       color: variation.color ?? '',
+      platform: variation.platform,
+      productDimensions: variation.productDimensions ?? '',
       material: variation.material ?? '',
       packaging: variation.packaging ?? '',
       sizeName: variation.sizeName ?? '',

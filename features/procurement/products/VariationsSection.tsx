@@ -12,6 +12,7 @@ import { ColorSelect } from '../shared/ColorSelect'
 import { CbmField, LENGTH_UNITS, WeightField } from '../shared/MeasurementFields'
 import { PhotoField } from './PhotoField'
 import { ProductHsCodeSelect } from './ProductHsCodeSelect'
+import { PlatformRadio } from './PlatformRadio'
 import { MarketplaceSkus } from './MarketplaceSkus'
 import { convertDimensionsText, derivedCbm, newVariation, type ProductFormValues } from './productForm'
 import { SkuInput } from './SkuInput'
@@ -81,10 +82,11 @@ export const VariationsSection: React.FC<VariationsSectionProps> = ({ form, prod
   const addRow = () => {
     // A new row starts in the units of the row above it, with the master's material and HS code
     const last = getValues('variations').at(-1)
-    const row = newVariation(getValues(), last && { weightUnit: last.weightUnit, dimensionUnit: last.dimensionUnit })
+    const row = newVariation(getValues(), last && { weightUnit: last.weightUnit, dimensionUnit: last.dimensionUnit, platform: last.platform })
     append(row, { shouldFocus: false })
     setOpen((current) => new Set(current).add(row.clientKey))
   }
+  const masterPlatform = useWatch({ control, name: 'platform' })
 
   const rowErrors = errors.variations
 
@@ -105,7 +107,14 @@ export const VariationsSection: React.FC<VariationsSectionProps> = ({ form, prod
       </CardHeader>
       <CardContent className="p-0 sm:p-0">
         {fields.length === 0 ? (
-          <p className="px-4 py-8 text-center text-sm text-text-muted">No variations. This product is ordered on its own SKU.</p>
+          <div className="space-y-4 px-4 py-6">
+            <p className="text-center text-sm text-text-muted">No variations. This product is ordered on its own SKU.</p>
+            <div className="mx-auto max-w-sm">
+              <p className="ds-input-label">Platform *</p>
+              <PlatformRadio id="product-platform" value={masterPlatform} onChange={(value) => setValue('platform', value, { shouldDirty: true })} disabled={readOnly} />
+              <p className="mt-1 text-xs text-text-muted">Containers show it as their Brand</p>
+            </div>
+          </div>
         ) : (
           <div className="divide-y-8 divide-secondary-100">
             {fields.map((field, index) => {
@@ -179,6 +188,12 @@ export const VariationsSection: React.FC<VariationsSectionProps> = ({ form, prod
                     <Field label="Size" error={err?.sizeName?.message}>
                       <input aria-label="Size" placeholder="e.g. Large" className={input(err?.sizeName?.message)} disabled={readOnly} {...register(`variations.${index}.sizeName`)} />
                     </Field>
+                    <Field label="Dimensions" error={err?.productDimensions?.message} note="The product itself (e.g. the sheet); packed dimensions are below">
+                      <input aria-label="Dimensions" autoComplete="off" placeholder="e.g. 90 x 100 in" className={input(err?.productDimensions?.message)} disabled={readOnly} {...register(`variations.${index}.productDimensions`)} />
+                    </Field>
+                    <Field label="Platform *" error={err?.platform?.message} note="Containers show it as their Brand">
+                      <Controller control={control} name={`variations.${index}.platform`} render={({ field: p }) => <PlatformRadio id={`variation-${index}-platform`} value={p.value} onChange={p.onChange} disabled={readOnly} />} />
+                    </Field>
                     <Field label="Material" error={err?.material?.message}>
                       <input aria-label="Material" className={input(err?.material?.message)} disabled={readOnly} {...register(`variations.${index}.material`)} />
                     </Field>
@@ -200,6 +215,9 @@ export const VariationsSection: React.FC<VariationsSectionProps> = ({ form, prod
                           />
                         )}
                       />
+                    </Field>
+                    <Field label="UPC (optional)" error={err?.upc?.message} note="8, 12, 13 or 14 digits; used to match barcode scans">
+                      <input id={`variation-${index}-upc`} inputMode="numeric" maxLength={14} className={input(err?.upc?.message)} disabled={readOnly} {...register(`variations.${index}.upc`)} />
                     </Field>
                   </div>
 
@@ -331,7 +349,7 @@ interface VariationDetailsProps {
   photo: React.ReactNode
 }
 
-/** More details: category from the master, UPC, ASIN, reorder point, description and photo. */
+/** More details: category from the master, ASIN, reorder point, description and photo. */
 const VariationDetails: React.FC<VariationDetailsProps> = ({ form, index, readOnly, categoryName, photo }) => {
   const {
     register,
@@ -342,9 +360,6 @@ const VariationDetails: React.FC<VariationDetailsProps> = ({ form, index, readOn
   return (
     <div className="grid gap-3 rounded-lg border border-border bg-secondary-50/60 p-3 sm:grid-cols-2 lg:grid-cols-4">
       <Readout label="Category" value={`${categoryName} · master`} />
-      <Field label="UPC (optional)" error={err?.upc?.message}>
-        <input id={`variation-${index}-upc`} inputMode="numeric" maxLength={14} className={fieldClass(err?.upc?.message)} disabled={readOnly} {...register(`variations.${index}.upc`)} />
-      </Field>
       <Field label="ASIN (optional)" error={err?.asin?.message}>
         <input
           id={`variation-${index}-asin`}

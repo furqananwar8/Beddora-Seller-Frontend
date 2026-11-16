@@ -35,7 +35,7 @@ export interface PoProduct {
   parentId: number | null
   tag: ProductTag
   name: string
-  /** Recorded on the master; a variation has its master's. */
+  /** Chosen per variation; a master without variations has its own. */
   platform: ProductPlatform
   variantName: string | null
   /** Optional; null when the product has none. */
@@ -47,6 +47,8 @@ export interface PoProduct {
   packaging: string | null
   /** Free text such as "Medium" or "750 ml". */
   sizeName: string | null
+  /** Variations only: the product's own dimensions as typed, apart from the packed ones. */
+  productDimensions: string | null
   /** Customs tariff code; a variation starts from its master's and may differ per SKU. */
   hsCode: string | null
   description: string | null
@@ -134,6 +136,9 @@ export interface VariationBody extends VariantInput, WeightInput, DimensionInput
   id?: number
   /** Blank falls back to `Name-Color-Size`. */
   variantName: string | null
+  platform: ProductPlatform
+  /** The product's own dimensions as typed (free text). */
+  productDimensions: string | null
   sku: string | null
   /** Optional UPC barcode. */
   upc: string | null
@@ -155,6 +160,7 @@ export interface VariationBody extends VariantInput, WeightInput, DimensionInput
 /** A master has a weight but no dimensions; `dimensionUnit` is the unit its variations' dimensions are typed in. */
 export interface ProductBody extends VariantInput, WeightInput, Pick<DimensionInput, 'dimensionUnit'> {
   name: string
+  /** Only meaningful without variations; each variation carries its own. */
   platform: ProductPlatform
   sku: string | null
   categoryId: number | null
