@@ -1,0 +1,369 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Purchase order samples design</title>
+<style>
+  @font-face { font-family: "Inter"; src: url("fonts/inter-latin.woff2") format("woff2"); font-weight: 100 900; font-style: normal; }
+  @page { size: 1600px 1100px; margin: 0 }
+  :root { --ink:#0f172a; --text:#111827; --muted:#64748b; --faint:#94a3b8; --line:#e2e8f0; --head:#f1f5f9; --bg:#f8fafc;
+          --dark:#111827; --ok-bg:#dcfce7; --ok:#166534; --warn-bg:#fef3c7; --warn:#92400e; --bad-bg:#fee2e2; --bad:#991b1b;
+          --chip:#f1f5f9; --chip-t:#334155; --new:#2563eb; --new-bg:#dbeafe; --new-line:#93c5fd; }
+  * { box-sizing:border-box; }
+  html, body { margin:0; padding:0; }
+  body { font-family:"Inter",system-ui,sans-serif; color:var(--text); font-size:16px; line-height:1.4; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  .pg { position:relative; overflow:hidden; width:1600px; height:1100px; padding:44px 52px; background:var(--bg); break-after:page; page-break-after:always; }
+  .pg:last-child { break-after:auto; page-break-after:auto; }
+  .crumb { font-size:14px; color:var(--muted); margin-bottom:6px; letter-spacing:.04em; text-transform:uppercase; font-weight:600; }
+  h1 { font-size:32px; margin:0; font-weight:700; color:var(--ink); letter-spacing:-.01em; line-height:1.15; }
+  h2 { font-size:19px; margin:0 0 10px; font-weight:700; color:var(--ink); }
+  .lead { font-size:16px; color:var(--muted); margin:8px 0 0; max-width:1300px; }
+  .muted { color:var(--muted); } .b { font-weight:600; } .mono { font-family:ui-monospace,Consolas,monospace; font-size:14px; }
+  .card { background:#fff; border:1px solid var(--line); border-radius:12px; box-shadow:0 1px 3px rgba(15,23,42,.06); }
+  .pad { padding:22px 26px; }
+  .row { display:flex; gap:26px; } .col { display:flex; flex-direction:column; gap:18px; }
+  .g2 { display:grid; grid-template-columns:1fr 1fr; gap:22px; } .g3 { display:grid; grid-template-columns:repeat(3,1fr); gap:22px; }
+  .mt { margin-top:24px; } .mt2 { margin-top:14px; }
+  .ct { font-size:17px; font-weight:700; color:var(--ink); } .ct small { font-size:13px; font-weight:500; color:var(--muted); margin-left:8px; }
+  .field label { display:block; font-size:14px; font-weight:600; color:#475569; margin-bottom:6px; } .req { color:#dc2626; }
+  .inp { height:44px; border:1px solid #cbd5e1; border-radius:8px; padding:0 14px; display:flex; align-items:center; justify-content:space-between; background:#fff; font-size:15px; }
+  .inp.ph { color:var(--faint); } .inp.sel::after { content:"⌄"; color:#334155; } .inp.dis { background:#f1f5f9; color:var(--faint); }
+  .inp.num { justify-content:center; width:120px; margin:0 auto; }
+  .tabs { display:inline-flex; background:var(--head); border-radius:8px; padding:4px; gap:2px; }
+  .tab { padding:9px 22px; font-size:15px; font-weight:600; color:#64748b; border-radius:6px; }
+  .tab.on { background:#fff; color:var(--ink); box-shadow:0 1px 2px rgba(0,0,0,.12); }
+  .tab.new { outline:2px solid var(--new); outline-offset:1px; }
+  .pill { display:inline-flex; align-items:center; padding:3px 12px; border-radius:999px; font-size:13px; font-weight:600; background:var(--chip); color:var(--chip-t); white-space:nowrap; }
+  .pill.ok { background:var(--ok-bg); color:var(--ok); } .pill.warn { background:var(--warn-bg); color:var(--warn); } .pill.bad { background:var(--bad-bg); color:var(--bad); }
+  .pill.blue { background:var(--new-bg); color:#1d4ed8; } .pill.dark { background:var(--dark); color:#fff; }
+  .btn { display:inline-flex; align-items:center; justify-content:center; height:42px; padding:0 22px; border-radius:8px; font-weight:600; font-size:15px; border:1px solid var(--line); background:#fff; white-space:nowrap; }
+  .btn.dark { background:var(--dark); color:#fff; border-color:var(--dark); } .btn.off { opacity:.45; }
+  .tgl { display:inline-flex; align-items:center; gap:10px; font-size:14px; font-weight:600; }
+  .tgl i { width:40px; height:22px; border-radius:999px; background:#cbd5e1; position:relative; display:inline-block; }
+  .tgl i::after { content:""; position:absolute; top:3px; left:3px; width:16px; height:16px; border-radius:50%; background:#fff; }
+  .tgl.on i { background:var(--dark); } .tgl.on i::after { left:21px; }
+  table { width:100%; border-collapse:collapse; }
+  th { background:var(--head); font-size:12.5px; font-weight:600; color:#475569; text-align:center; padding:11px 12px; border-bottom:1px solid var(--line); text-transform:uppercase; letter-spacing:.04em; white-space:nowrap; }
+  td { padding:12px; border-bottom:1px solid var(--line); font-size:15px; text-align:center; vertical-align:middle; }
+  th.l, td.l { text-align:left; }
+  tr:last-child td { border-bottom:0; }
+  .sku { font-weight:600; } .sub { font-size:13px; color:var(--muted); }
+  .newbox { outline:2px dashed var(--new); outline-offset:6px; border-radius:12px; position:relative; }
+  .tag { position:absolute; top:-15px; right:14px; background:var(--new); color:#fff; font-size:12px; font-weight:700; padding:2px 10px; border-radius:999px; letter-spacing:.04em; }
+  .note { background:var(--new-bg); border:1px solid var(--new-line); color:#1e3a8a; border-radius:10px; padding:12px 16px; font-size:14.5px; }
+  .note.w { background:var(--warn-bg); border-color:#fcd34d; color:#78350f; }
+  ul { margin:6px 0 0; padding-left:20px; } li { margin:5px 0; font-size:15px; }
+  .num { font-variant-numeric:tabular-nums; }
+  .step { flex:1; padding:16px 18px; border:1px solid var(--line); background:#fff; border-radius:10px; }
+  .step .n { font-size:12px; font-weight:700; color:var(--new); letter-spacing:.06em; text-transform:uppercase; }
+  .step .t { font-weight:700; margin:3px 0 4px; } .step .d { font-size:13.5px; color:var(--muted); }
+  .arrow { align-self:center; font-size:22px; color:var(--faint); }
+  .foot { position:absolute; left:52px; right:52px; bottom:22px; display:flex; justify-content:space-between; font-size:12.5px; color:var(--faint); }
+  .money { text-align:right; } .tot { display:flex; justify-content:space-between; font-size:15px; padding:5px 0; }
+  .tot.big { font-weight:700; font-size:17px; border-top:1px solid var(--line); margin-top:6px; padding-top:10px; }
+  .modal { background:#fff; border-radius:14px; box-shadow:0 20px 50px rgba(15,23,42,.28); border:1px solid var(--line); }
+  .scrim { background:rgba(15,23,42,.42); border-radius:12px; padding:34px 120px; }
+  .cb { display:inline-block; width:18px; height:18px; border:2px solid #94a3b8; border-radius:4px; vertical-align:middle; }
+  .cb.on { background:var(--dark); border-color:var(--dark); position:relative; } .cb.on::after { content:"✓"; color:#fff; position:absolute; font-size:12px; left:1px; top:-3px; }
+  .ann { font-size:13.5px; color:#1e3a8a; font-weight:600; } .ann b { display:inline-block; background:var(--new); color:#fff; border-radius:50%; width:20px; height:20px; text-align:center; line-height:20px; font-size:12px; margin-right:6px; }
+  .link { color:var(--new); font-weight:700; text-decoration:underline; }
+  @page po { size: 1600px 1380px; margin: 0 }
+  @page pr { size: 1600px 1760px; margin: 0 }
+  .pg.po { page: po; height: 1380px; } .pg.pr { page: pr; height: 1760px; }
+  .app { font-size: 14px; color: var(--text); }
+  .app .card { border-radius: 8px; box-shadow: 0 1px 2px rgba(15,23,42,.05); }
+  .app .hd { padding: 16px 20px 0; font-size: 16px; font-weight: 700; color: var(--ink); } .app .hd small { font-size: 12.5px; font-weight: 500; color: var(--muted); margin-left: 6px; }
+  .app .bd { padding: 14px 20px 20px; }
+  .app .inp { height: 38px; border-radius: 6px; font-size: 14px; padding: 0 12px; } .app .inp.num { width: 84px; justify-content: flex-end; }
+  .app .field label { font-size: 13px; margin-bottom: 5px; }
+  .app .hint { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .app table { font-size: 13px; } .app th { font-size: 11px; padding: 9px 6px; } .app td { padding: 9px 6px; font-size: 13px; }
+  .app .tw { border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .app tfoot td { background: var(--head); font-weight: 700; border-top: 1px solid var(--line); border-bottom: 0; }
+  .app .btn { height: 38px; font-size: 14px; padding: 0 18px; border-radius: 6px; } .app .btn.sm { height: 32px; font-size: 13px; padding: 0 12px; }
+  .grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; } .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .acts { display: flex; justify-content: flex-end; gap: 10px; align-items: center; }
+  .callout { position: absolute; width: 400px; right: 52px; background: #fff; border: 1px solid var(--new-line); border-left: 4px solid var(--new); border-radius: 8px; padding: 14px 16px; font-size: 14px; }
+  .callout b.n { display: inline-block; background: var(--new); color: #fff; border-radius: 50%; width: 22px; height: 22px; text-align: center; line-height: 22px; font-size: 12px; margin-right: 8px; }
+  .callout ul { margin: 6px 0 0; padding-left: 18px; } .callout li { font-size: 13.5px; margin: 3px 0; }
+  .badge { display: inline-block; font-size: 11.5px; font-weight: 700; padding: 3px 10px; border-radius: 999px; background: #e2e8f0; color: #334155; letter-spacing: .04em; }
+  .lock { background: #f1f5f9; color: #64748b; }
+</style>
+</head>
+<body>
+
+<!-- 1 · OVERVIEW -->
+<section class="pg">
+  <div class="crumb">Design proposal · Procurement · Finance · Inventory</div>
+  <h1>Supplier samples on purchase orders</h1>
+  <p class="lead">A PO can now carry samples next to its products. Samples are tracked on their own, paid through their own payment request type, and shown per SKU in inventory as a count. They never touch packaging lists, containers, ordered units or stock.</p>
+
+  <div class="g3 mt">
+    <div class="card pad"><h2>1 · Purchase order</h2>
+      <ul><li>New <b>Sample</b> switch column in the Products table.</li><li>On a sample row, an empty price per unit means free; a price means chargeable.</li><li>Free: units only, price is locked. Chargeable: units and price are both required.</li><li>Everything else on the form is unchanged.</li></ul></div>
+    <div class="card pad"><h2>2 · Payment request</h2>
+      <ul><li>Paying against gets a fourth tab: <b>Sample</b>.</li><li>Same partner / PO / date / container / destination selection as the Purchase order tab.</li><li>User ticks which chargeable samples of that PO this request pays for.</li><li>Rest of the form (lines, GST, documents, approval) is unchanged.</li></ul></div>
+    <div class="card pad"><h2>3 · Inventory &amp; Samples screen</h2>
+      <ul><li>A <b>Samples</b> column per SKU in warehouse inventory. Click the count to see its history.</li><li>New <b>Samples</b> screen: paginated list, search, filters applied only on <b>Apply filters</b>.</li><li>Samples have <b>no physical effect</b> on stock levels.</li></ul></div>
+  </div>
+
+  <h2 class="mt">Sample lifecycle</h2>
+  <div class="row" style="gap:10px">
+    <div class="step"><div class="n">Step 1</div><div class="t">Added on PO</div><div class="d">Free or chargeable, with units. Saved in the new <span class="mono">po_samples</span> table.</div></div><div class="arrow">›</div>
+    <div class="step"><div class="n">Step 2</div><div class="t">PO approved</div><div class="d">Samples are approved with the PO. Chargeable samples become <b>Unpaid</b>; free samples need no payment.</div></div><div class="arrow">›</div>
+    <div class="step"><div class="n">Step 3</div><div class="t">Payment requested</div><div class="d">Raised from the Sample tab. Sample shows <b>Payment requested</b>; a rejected request returns it to Unpaid.</div></div><div class="arrow">›</div>
+    <div class="step"><div class="n">Step 4</div><div class="t">Payment done</div><div class="d">Sample becomes <b>Paid</b> and is counted in the SKU's Samples column with the date.</div></div>
+  </div>
+
+  <h2 class="mt">Principle</h2>
+  <div class="card pad"><b>Samples live in their own table, not as PO lines.</b> Every existing flow (PO payments, packaging lists, containers, shipped units, ordered units, receiving, price analysis) reads <span class="mono">po_order_lines</span> only, so it keeps working untouched and a PO with 2 products + 1 sample behaves as a 2-product PO everywhere except the new sample surfaces. The same SKU can be both a product and a sample on one PO, which the existing unique key on PO lines would not allow.</div>
+  <div class="foot"><span>Purchase order samples · design v2 · PDF only, nothing implemented</span><span>1 / 8</span></div>
+</section>
+
+<!-- 2 · PO CREATE -->
+<section class="pg po">
+  <div class="crumb">Procurement › Purchase orders › New purchase order · same layout as today, blue = new</div>
+  <h1>PO create: Sample switch in the Products table</h1>
+  <p class="lead">Same Products table, same picker. One new column, Sample, turns a row into a sample; sample rows are tinted blue and skip the packaging columns.</p>
+
+  <div class="app" style="width:1040px;margin-top:24px;display:flex;flex-direction:column;gap:16px">
+    <div style="font-size:24px;font-weight:700;color:var(--ink)">New purchase order</div>
+
+    <div class="card"><div class="hd">Supplier</div><div class="bd grid3" style="grid-template-columns:1fr 1fr">
+      <div class="field"><label>Supplier <span class="req">*</span></label><div class="inp sel">Loyal Textile</div><div class="hint">Shared supplier list · includes “+ New supplier”</div></div>
+      <div class="field"><label>Supplier contact name</label><div class="inp">Mr. Chen</div></div></div></div>
+
+    <div class="card"><div class="hd">Order details</div><div class="bd grid3">
+      <div class="field"><label>Destination <span class="req">*</span></label><div class="inp sel">Canada</div></div>
+      <div class="field"><label>Currency <span class="req">*</span></label><div class="inp sel">USD</div></div>
+      <div class="field"><label>ERD <span class="req">*</span></label><div class="inp sel">30 Dec 2026</div></div></div></div>
+
+    <div class="card newbox"><span class="tag">CHANGED</span><div class="hd">Products</div><div class="bd">
+      <div class="field"><label>Add products</label><div class="inp sel ph">Search or pick products</div></div>
+      <div class="tw mt2"><table><thead><tr><th></th><th>SKU</th><th class="l">Product</th><th>Tag</th><th>Color</th><th>L × W × H</th><th style="background:#dbeafe">Sample</th><th>Units ordered</th><th>Unit rate (USD)</th><th>Amount (USD)</th><th>In packaging lists</th><th>Remaining</th><th></th></tr></thead><tbody>
+        <tr><td class="muted">▸</td><td class="mono" style="font-size:12px">LT-FLN-QN-GRY</td><td class="l">Flannel sheet set, Queen</td><td><span class="badge">Core</span></td><td>Grey</td><td>40×30×12 cm</td><td><span class="tgl"><i></i></span></td><td><div class="inp num">1,200</div></td><td><div class="inp num">8.40</div></td><td>$10,080.00</td><td class="muted">0</td><td>1,200</td><td class="muted">×</td></tr>
+        <tr><td class="muted">▸</td><td class="mono" style="font-size:12px">LT-FLN-KG-GRY</td><td class="l">Flannel sheet set, King</td><td><span class="badge">Core</span></td><td>Grey</td><td>42×32×14 cm</td><td><span class="tgl"><i></i></span></td><td><div class="inp num">800</div></td><td><div class="inp num">9.90</div></td><td>$7,920.00</td><td class="muted">0</td><td>800</td><td class="muted">×</td></tr>
+        <tr style="background:#eff6ff"><td class="muted">▸</td><td class="mono" style="font-size:12px">LT-FLN-QN-GRY<br><span class="pill blue" style="font-family:Inter;font-size:11px;padding:1px 8px">Sample</span></td><td class="l">Flannel sheet set, Queen</td><td><span class="badge">Core</span></td><td>Grey</td><td>40×30×12 cm</td><td><span class="tgl on"><i></i></span></td><td><div class="inp num">2</div></td><td><div class="inp num ph">Free</div></td><td>$0.00</td><td class="muted">—</td><td class="muted">—</td><td class="muted">×</td></tr>
+        <tr style="background:#eff6ff"><td class="muted">▸</td><td class="mono" style="font-size:12px">LT-FLN-KG-GRY<br><span class="pill blue" style="font-family:Inter;font-size:11px;padding:1px 8px">Sample</span></td><td class="l">Flannel sheet set, King</td><td><span class="badge">Core</span></td><td>Grey</td><td>42×32×14 cm</td><td><span class="tgl on"><i></i></span></td><td><div class="inp num">3</div></td><td><div class="inp num">12.50</div></td><td>$37.50</td><td class="muted">—</td><td class="muted">—</td><td class="muted">×</td></tr>
+        <tr style="background:#eff6ff"><td class="muted">▸</td><td class="mono" style="font-size:12px">LT-PLW-STD-WHT<br><span class="pill blue" style="font-family:Inter;font-size:11px;padding:1px 8px">Sample</span></td><td class="l">Pillow, Standard</td><td><span class="badge">New</span></td><td>White</td><td>70×45×15 cm</td><td><span class="tgl on"><i></i></span></td><td><div class="inp num">5</div></td><td><div class="inp num">4.00</div></td><td>$20.00</td><td class="muted">—</td><td class="muted">—</td><td class="muted">×</td></tr></tbody>
+        <tfoot><tr><td colspan="7" class="l">Total · 2 products</td><td>2,000</td><td></td><td>$18,000.00</td><td>0</td><td>2,000</td><td></td></tr>
+        <tr><td colspan="7" class="l" style="background:#eff6ff;color:#1e3a8a">Samples · 3 SKUs · 1 free <span style="font-weight:500">(not in PO amount)</span></td><td style="background:#eff6ff;color:#1e3a8a">10</td><td style="background:#eff6ff"></td><td style="background:#eff6ff;color:#1e3a8a">$57.50</td><td style="background:#eff6ff"></td><td style="background:#eff6ff"></td><td style="background:#eff6ff"></td></tr></tfoot></table></div>
+      <div class="hint">Switch on = the row is a sample, not a product of the PO. On a sample row, leave the unit rate empty (or 0) for a free sample; enter a rate for a chargeable one. A SKU that is both a product and a sample gets two rows.</div></div></div>
+
+    <div class="acts" style="margin-top:4px"><span class="muted" style="margin-right:auto;font-size:13px">Cancel</span><span class="btn">Save draft</span><span class="btn dark">Submit for approval</span></div>
+  </div>
+
+  <div class="callout" style="top:690px"><b class="n">1</b><b>One Sample switch</b> per row
+    <ul><li>Off: a normal product, exactly as today.</li><li>On: the row is a sample. Packaging columns show “—”: samples are never packed, shipped or counted in stock.</li></ul></div>
+  <div class="callout" style="top:840px"><b class="n">2</b><b>Free or chargeable</b> comes from the unit rate
+    <ul><li>Sample row with no unit rate (or 0): <b>free</b>. The rate box shows “Free”; units are still required.</li><li>Sample row with a unit rate: <b>chargeable</b>; amount = units × rate, payable from the Sample tab.</li></ul></div>
+  <div class="callout" style="top:1010px"><b class="n">3</b><b>Totals and rules</b>
+    <ul><li>“Total” stays products only, so PO amount, left to pay and payment % are unchanged.</li><li>A separate sample line shows units and chargeable amount.</li><li>At least one row must be a product.</li><li>One form, saved to two tables behind the scenes.</li></ul></div>
+  <div class="foot"><span>Purchase order samples · design v2</span><span>2 / 8</span></div>
+</section>
+
+<!-- 3 · PO VIEW + WHAT IGNORES SAMPLES -->
+<section class="pg">
+  <div class="crumb">Procurement › Purchase orders › PO-0214</div>
+  <h1>Existing PO flows leave samples out</h1>
+  <p class="lead">A PO with 2 products and 1 sample behaves as a 2-product PO for every existing action. The sample is only visible in the new places.</p>
+  <div class="row mt" style="align-items:flex-start">
+    <div class="col" style="flex:1.05">
+      <div class="card pad"><div class="ct">Products <span class="pill ok" style="margin-left:10px">2 lines</span></div>
+        <table class="mt2"><thead><tr><th class="l">Product</th><th>Ordered</th><th>Packed</th><th>Shipped</th></tr></thead><tbody>
+          <tr><td class="l sku">LT-FLN-QN-GRY</td><td>1,200</td><td>1,200</td><td>600</td></tr>
+          <tr><td class="l sku">LT-FLN-KG-GRY</td><td>800</td><td>400</td><td>0</td></tr></tbody></table></div>
+      <div class="card pad newbox" style="margin-top:14px"><span class="tag">NEW</span><div class="ct">Samples <small>read-only here; managed on the form and in Payment requests</small></div>
+        <table class="mt2"><thead><tr><th class="l">Product</th><th>Units</th><th>Price</th><th>Payment</th></tr></thead><tbody>
+          <tr><td class="l sku">LT-FLN-QN-GRY</td><td>2</td><td>Free</td><td><span class="pill">Free</span></td></tr>
+          <tr><td class="l sku">LT-FLN-KG-GRY</td><td>3</td><td class="num">12.50</td><td><span class="pill warn">Unpaid</span></td></tr>
+          <tr><td class="l sku">LT-PLW-STD-WHT</td><td>5</td><td class="num">4.00</td><td><span class="pill ok">Paid · 12 Nov</span></td></tr></tbody></table></div>
+    </div>
+    <div class="card pad" style="flex:1"><h2>Who reads what</h2>
+      <table><thead><tr><th class="l">Flow</th><th>Sees samples?</th></tr></thead><tbody>
+        <tr><td class="l">Packaging lists (unit cap per SKU)</td><td><span class="pill">No</span></td></tr>
+        <tr><td class="l">Containers, shipped units, ETD alerts</td><td><span class="pill">No</span></td></tr>
+        <tr><td class="l">Ordered units, allocation, planner</td><td><span class="pill">No</span></td></tr>
+        <tr><td class="l">Receiving and warehouse stock</td><td><span class="pill">No</span></td></tr>
+        <tr><td class="l">PO payment request (amount left)</td><td><span class="pill">No</span></td></tr>
+        <tr><td class="l">Price analysis, landed cost</td><td><span class="pill">No</span></td></tr>
+        <tr><td class="l">PO approval, edit lock, timeline</td><td><span class="pill blue">Yes, with the PO</span></td></tr>
+        <tr><td class="l">Payment request › Sample tab</td><td><span class="pill blue">Yes</span></td></tr>
+        <tr><td class="l">Inventory › Samples column, Samples screen</td><td><span class="pill blue">Yes</span></td></tr></tbody></table>
+      <div class="note mt2">The PO is selected as before; the system already knows its sample rows and product rows because they are two separate sets on the same PO.</div></div>
+  </div>
+  <div class="note w mt"><b>Edit rules:</b> samples are editable while the PO is editable. Once a sample is in <b>Payment requested</b> or <b>Paid</b> it is locked (units, price, free/chargeable) so the money matches what was approved. Removing a locked sample is blocked.</div>
+  <div class="foot"><span>Purchase order samples · design v2</span><span>3 / 8</span></div>
+</section>
+
+<!-- 4 · PAYMENT REQUEST -->
+<section class="pg pr">
+  <div class="crumb">Finance › Payment requests › Payment Request Creation · same layout as today, blue = new</div>
+  <h1>Payment request: Sample tab</h1>
+  <p class="lead">Partner card and the PO / date / container / destination fields are exactly as on the Purchase order tab. One new tab, one new block under the fields.</p>
+
+  <div class="app" style="width:900px;margin-top:24px;display:flex;flex-direction:column;gap:16px">
+    <div style="display:flex;align-items:center;gap:12px"><div style="font-size:24px;font-weight:700;color:var(--ink)">Payment Request Creation</div><span class="badge">DRAFT</span></div>
+
+    <div class="card"><div class="hd">Partner <small>who is being paid</small></div><div class="bd">
+      <div class="field"><label>Partner <span class="req">*</span></label><div class="inp sel">Loyal Textile</div></div>
+      <div class="mt2"><span class="pill">Supplier</span> <span class="pill">USD</span></div>
+      <div class="mt2" style="background:#f8fafc;border:1px solid var(--line);border-radius:6px;padding:12px 14px;display:flex;gap:70px"><div><div class="sub">Payment term</div><div>No payment term</div></div><div><div class="sub">Bank details</div><div>No payment method on file</div></div></div></div></div>
+
+    <div class="card"><div class="hd">Purchase order &amp; shipment</div><div class="bd">
+      <div class="field"><label>Paying against</label><div class="tabs"><span class="tab">Invoice</span><span class="tab">Purchase order</span><span class="tab on new">Sample</span><span class="tab">Shipment</span></div>
+        <div class="hint">Only approved, open purchase orders of this supplier with a chargeable sample left to pay are offered</div></div>
+      <div class="grid4 mt2">
+        <div class="field" style="grid-column:span 2"><label>Purchase order <span class="req">*</span></label><div class="inp sel">PO-0214</div></div>
+        <div class="field"><label>Date <span class="req">*</span></label><div class="inp sel ph">Select date</div></div>
+        <div class="field"><label>Container #</label><div class="inp sel ph">Select a container</div></div>
+        <div class="field"><label>Destination (Marketplace)</label><div class="inp sel lock">Canada</div><div class="hint">Set by the purchase order</div></div></div>
+
+      <div class="newbox" style="margin-top:26px;padding:16px 18px;border-radius:8px"><span class="tag">NEW</span>
+        <div style="display:flex;justify-content:space-between;align-items:center"><div class="b" style="font-size:15px">Samples to pay <span class="sub" style="font-weight:500">chargeable samples of PO-0214 not yet requested</span></div><span class="pill blue">2 of 2 selected · 57.50 USD</span></div>
+        <div class="tw mt2"><table><thead><tr><th style="width:44px"><span class="cb on"></span></th><th>SKU</th><th class="l">Product</th><th>Units</th><th>Unit rate</th><th>Amount</th></tr></thead><tbody>
+          <tr><td><span class="cb on"></span></td><td class="mono" style="font-size:12px">LT-FLN-KG-GRY</td><td class="l">Flannel sheet set, King</td><td>3</td><td>12.50</td><td>37.50</td></tr>
+          <tr><td><span class="cb on"></span></td><td class="mono" style="font-size:12px">LT-PLW-STD-WHT</td><td class="l">Pillow, Standard</td><td>5</td><td>4.00</td><td>20.00</td></tr></tbody></table></div>
+        <div class="hint">Free samples (1 on this PO) need no payment and are not listed. Already requested or paid samples are hidden.</div></div>
+    </div></div>
+
+    <div class="card"><div class="hd">Amount &amp; category <small>split across up to 5 expenses</small></div><div class="bd">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 2fr;gap:12px">
+        <div class="field"><label>Currency <span class="req">*</span></label><div class="inp sel lock">USD</div><div class="hint">Set by the purchase order</div></div>
+        <div class="field"><label>GST</label><div class="inp sel">Not applicable</div></div>
+        <div class="field" style="grid-column:span 2"><label>Due date</label><div class="inp sel ph">Select date</div></div></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 2fr;gap:12px;margin-top:14px" class="sub"><span>Amount</span><span>GST %</span><span>GST amount</span><span>Expense</span></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 2fr;gap:12px;margin-top:6px">
+        <div class="inp" style="justify-content:flex-end">57.50</div><div class="inp dis">—</div><div class="inp dis" style="justify-content:flex-end">—</div><div class="inp sel ph">Select expense</div></div>
+      <div class="hint">Amounts must add up to the 57.50 USD of the ticked samples.</div>
+      <div style="margin-top:12px"><span class="btn sm">+ Add amount</span></div>
+      <div class="field" style="margin-top:14px"><label>Remarks</label><div class="inp" style="height:62px">&nbsp;</div></div></div></div>
+
+    <div class="card"><div class="hd">Upload documents</div><div class="bd"><div style="border:2px dashed #cbd5e1;border-radius:8px;padding:20px;text-align:center;color:var(--muted)">Drop files here or click to browse</div></div></div>
+
+    <div class="acts"><span class="muted" style="margin-right:auto;font-size:13px">Cancel</span><span class="btn">Save draft</span><span class="btn dark">Process For Approval</span></div>
+  </div>
+
+  <div class="callout" style="top:395px"><b class="n">1</b><b>New “Sample” tab</b>
+    <ul><li>Fourth option in the same segmented toggle: Invoice · Purchase order · Sample · Shipment.</li><li>Same PO select, Date, Container and Destination behaviour as the Purchase order tab (destination and currency lock to the PO).</li></ul></div>
+  <div class="callout" style="top:735px"><b class="n">2</b><b>Samples to pay</b> (new block, same card)
+    <ul><li>Lists the PO's chargeable samples still unpaid; tick some or all.</li><li>It takes the place PO payment history has on the Purchase order tab.</li><li>Submitting moves ticked samples to <b>Payment requested</b>; reject or delete returns them to <b>Unpaid</b>.</li></ul></div>
+  <div class="callout" style="top:1000px"><b class="n">3</b><b>Amount &amp; category unchanged</b>
+    <ul><li>Same lines, GST and expense fields; the only addition is the total hint that mirrors the PO's “left to pay” hint.</li><li>When payment completes in Payment process the samples become <b>Paid</b> and count in the SKU's Samples section.</li></ul></div>
+  <div class="foot"><span>Purchase order samples · design v2</span><span>4 / 8</span></div>
+</section>
+
+<!-- 5 · DATA MODEL -->
+<section class="pg">
+  <div class="crumb">Backend · Prisma</div>
+  <h1>Data model</h1>
+  <p class="lead">One new table, one join table, and a new payment reference type. No column is added to existing PO line tables.</p>
+  <div class="g2 mt">
+    <div class="card pad"><div class="ct">po_samples <span class="pill blue" style="margin-left:8px">NEW</span></div>
+      <table class="mt2" style="font-size:14px"><tbody>
+        <tr><td class="l mono">id</td><td class="l muted">Int, PK</td></tr>
+        <tr><td class="l mono">purchaseOrderId</td><td class="l muted">FK → po_orders, cascade</td></tr>
+        <tr><td class="l mono">productId</td><td class="l muted">FK → po_products, restrict</td></tr>
+        <tr><td class="l mono">units</td><td class="l muted">Int</td></tr>
+        <tr><td class="l mono">isFree</td><td class="l muted">Boolean</td></tr>
+        <tr><td class="l mono">unitPrice</td><td class="l muted">Decimal(12,2); 0 when free</td></tr>
+        <tr><td class="l mono">paymentStatus</td><td class="l muted">NOT_REQUIRED · UNPAID · REQUESTED · PAID</td></tr>
+        <tr><td class="l mono">paidAt</td><td class="l muted">DateTime?, set when payment completes</td></tr>
+        <tr><td class="l mono">inventoryAt</td><td class="l muted">DateTime?, when counted in inventory (the "added in inventory" date)</td></tr>
+        <tr><td class="l mono">createdAt / updatedAt</td><td class="l muted"></td></tr></tbody></table>
+      <div class="sub mt2"><span class="mono">@@unique([purchaseOrderId, productId])</span> · indexes on productId, paymentStatus, inventoryAt</div></div>
+    <div class="col">
+      <div class="card pad"><div class="ct">payment_request_samples <span class="pill blue" style="margin-left:8px">NEW</span></div>
+        <div class="sub mt2">Same pattern as <span class="mono">payment_request_shipments</span>.</div>
+        <ul><li><span class="mono">paymentRequestId</span> → payment_requests, cascade</li><li><span class="mono">poSampleId</span> → po_samples, restrict</li><li>Unique on <span class="mono">poSampleId</span> among open requests, enforced in the service.</li></ul></div>
+      <div class="card pad"><div class="ct">Existing models, small additions</div>
+        <ul><li><span class="mono">PaymentReferenceType</span> gains <b>SAMPLE</b>; <span class="mono">purchaseOrderId</span> on the request is set for it too.</li><li><span class="mono">PoOrder</span> gains the <span class="mono">samples</span> relation.</li><li>PO timeline events record sample add / change / paid.</li></ul></div>
+      <div class="card pad"><div class="ct">Status transitions</div>
+        <div class="mt2" style="line-height:2">Free → <span class="pill">NOT_REQUIRED</span> · Chargeable → <span class="pill warn">UNPAID</span> → <span class="pill blue">REQUESTED</span> → <span class="pill ok">PAID</span><br><span class="sub">REQUESTED → UNPAID when the request is rejected or deleted</span></div></div>
+    </div>
+  </div>
+  <div class="note w mt">Chargeable samples appear in the SKU's Samples section when payment is <b>completed in Payment process</b> (<span class="mono">inventoryAt</span> = that date). Free samples appear when the PO is approved. They are a separate tally and are never added to on-hand units or any cost figure.</div>
+  <div class="foot"><span>Purchase order samples · design v2</span><span>5 / 8</span></div>
+</section>
+
+<!-- 6 · INVENTORY -->
+<section class="pg">
+  <div class="crumb">Inventory › Warehouse inventory</div>
+  <h1>Samples column and history</h1>
+  <p class="lead">Each SKU shows how many samples we have received. It is information only and is not added to on-hand, available or any stock figure.</p>
+  <div class="card pad mt newbox"><span class="tag">NEW COLUMN</span>
+    <table><thead><tr><th class="l">SKU</th><th class="l">Product</th><th>On hand</th><th>Reserved</th><th>Available</th><th>Samples</th></tr></thead><tbody>
+      <tr><td class="l sku">LT-FLN-QN-GRY</td><td class="l">Flannel sheet set, Queen, Grey</td><td class="num">3,420</td><td class="num">210</td><td class="num">3,210</td><td><span class="link">4</span></td></tr>
+      <tr><td class="l sku">LT-FLN-KG-GRY</td><td class="l">Flannel sheet set, King, Grey</td><td class="num">1,180</td><td class="num">96</td><td class="num">1,084</td><td><span class="link">3</span></td></tr>
+      <tr><td class="l sku">LT-PLW-STD-WHT</td><td class="l">Pillow, Standard, White</td><td class="num">8,050</td><td class="num">0</td><td class="num">8,050</td><td><span class="muted">—</span></td></tr></tbody></table></div>
+  <div class="scrim mt">
+    <div class="modal pad">
+      <div style="display:flex;justify-content:space-between"><div><div class="ct">Samples · LT-FLN-QN-GRY</div><div class="sub">Flannel sheet set, Queen, Grey · 4 units received</div></div><span class="muted" style="font-size:22px">✕</span></div>
+      <table class="mt2"><thead><tr><th class="l">PO</th><th>Units</th><th>Type</th><th>Payment made</th><th>Request date</th><th>Added to inventory</th></tr></thead><tbody>
+        <tr><td class="l b">PO-0214</td><td>2</td><td><span class="pill">Free</span></td><td>—</td><td>—</td><td>12 Nov 2026</td></tr>
+        <tr><td class="l b">PO-0188</td><td>2</td><td><span class="pill ok">Chargeable · 50.00 USD</span></td><td>03 Oct 2026</td><td>28 Sep 2026</td><td>03 Oct 2026</td></tr></tbody></table>
+      <div class="sub mt2">The PO number links to the PO; the payment date links to the payment request.</div>
+    </div>
+  </div>
+  <div class="note mt">The count is the sum of units of samples that are in inventory for that SKU. Clicking the count opens the modal; a SKU with no samples shows a dash and is not clickable.</div>
+  <div class="foot"><span>Purchase order samples · design v2</span><span>6 / 8</span></div>
+</section>
+
+<!-- 7 · SAMPLES SCREEN -->
+<section class="pg">
+  <div class="crumb">Inventory › Samples</div>
+  <h1>Samples screen</h1>
+  <p class="lead">One row per sample entry across all POs. Search and filters change nothing until Apply filters is pressed.</p>
+  <div class="card pad mt">
+    <div class="row" style="gap:14px;align-items:flex-end">
+      <div class="field" style="flex:1.5"><label>Search</label><div class="inp ph">SKU, product, PO number, supplier</div></div>
+      <div class="field" style="flex:1"><label>Supplier</label><div class="inp sel ph">All suppliers</div></div>
+      <div class="field" style="flex:1"><label>Type</label><div class="inp sel">Chargeable</div></div>
+      <div class="field" style="flex:1"><label>Payment status</label><div class="inp sel ph">Any</div></div>
+      <div class="field" style="flex:1"><label>Added to inventory</label><div class="inp sel ph">Any dates</div></div>
+      <span class="btn dark">Apply filters</span><span class="btn">Reset</span></div>
+  </div>
+  <div class="card mt2" style="margin-top:18px">
+    <table><thead><tr><th class="l" style="padding-left:24px">SKU</th><th class="l">Supplier</th><th>PO</th><th>Units</th><th>Type</th><th>Amount</th><th>Payment</th><th>Paid on</th><th>In inventory</th></tr></thead><tbody>
+      <tr><td class="l" style="padding-left:24px"><div class="sku">LT-FLN-KG-GRY</div><div class="sub">Flannel King Grey</div></td><td class="l">Loyal Textile</td><td class="link">PO-0214</td><td>3</td><td>Chargeable</td><td class="num">37.50</td><td><span class="pill warn">Unpaid</span></td><td>—</td><td>—</td></tr>
+      <tr><td class="l" style="padding-left:24px"><div class="sku">LT-PLW-STD-WHT</div><div class="sub">Pillow Standard White</div></td><td class="l">Loyal Textile</td><td class="link">PO-0214</td><td>5</td><td>Chargeable</td><td class="num">20.00</td><td><span class="pill ok">Paid</span></td><td>12 Nov 2026</td><td>12 Nov 2026</td></tr>
+      <tr><td class="l" style="padding-left:24px"><div class="sku">LT-FLN-QN-GRY</div><div class="sub">Flannel Queen Grey</div></td><td class="l">Loyal Textile</td><td class="link">PO-0214</td><td>2</td><td>Free</td><td>—</td><td><span class="pill">Free</span></td><td>—</td><td>12 Nov 2026</td></tr>
+      <tr><td class="l" style="padding-left:24px"><div class="sku">AK-TWL-BTH-NVY</div><div class="sub">Bath towel Navy</div></td><td class="l">Akbar Mills</td><td class="link">PO-0201</td><td>10</td><td>Chargeable</td><td class="num">85.00</td><td><span class="pill blue">Payment requested</span></td><td>—</td><td>—</td></tr>
+      <tr><td class="l" style="padding-left:24px"><div class="sku">LT-FLN-QN-GRY</div><div class="sub">Flannel Queen Grey</div></td><td class="l">Loyal Textile</td><td class="link">PO-0188</td><td>2</td><td>Chargeable</td><td class="num">50.00</td><td><span class="pill ok">Paid</span></td><td>03 Oct 2026</td><td>03 Oct 2026</td></tr></tbody></table>
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 24px;border-top:1px solid var(--line);font-size:14px" class="muted"><span>Showing 1–25 of 143</span><span>Rows per page <b style="color:var(--text)">25 ⌄</b> &nbsp;&nbsp; ‹ Prev &nbsp; <b style="color:var(--text)">1</b> 2 3 … 6 &nbsp; Next ›</span></div></div>
+  <div class="g2 mt"><div class="note"><b>Filters:</b> supplier, type (free / chargeable), payment status, added-to-inventory date range. Nothing is requested until Apply; Reset clears and reloads.</div>
+    <div class="note"><b>Server side:</b> pagination, search and filters run in one endpoint, same list pattern as the other report screens. Row actions: open PO, open payment request.</div></div>
+  <div class="foot"><span>Purchase order samples · design v2</span><span>7 / 8</span></div>
+</section>
+
+<!-- 8 · IMPLEMENTATION + OPEN QUESTIONS -->
+<section class="pg">
+  <div class="crumb">Delivery</div>
+  <h1>Change map and open questions</h1>
+  <div class="g2 mt">
+    <div class="card pad"><h2>Backend (bbeddora)</h2>
+      <ul><li><b>prisma</b>: <span class="mono">PoSample</span>, <span class="mono">PaymentRequestSample</span>, <span class="mono">SAMPLE</span> reference type, migration.</li>
+      <li><b>procurement/purchase-orders</b>: accept / validate a <span class="mono">samples[]</span> array on create and update, one sample service so rules live in one place.</li>
+      <li><b>finance/payment-requests</b>: Sample reference handler (picker query, amount from samples, status moves on submit / reject / payment done) beside the existing invoice, PO and shipment handlers.</li>
+      <li><b>inventory</b>: sample count per SKU in the warehouse report, sample history endpoint, paginated samples list endpoint.</li>
+      <li><b>permissions</b>: new read permission for the Samples screen, create/edit follows the PO and payment permissions.</li></ul></div>
+    <div class="card pad"><h2>Frontend (fbeddora)</h2>
+      <ul><li><b>PoFormScreen</b>: new <span class="mono">PoSamplesSection</span> reusing ProductPicker, NumericInput and form helpers; sample schema added to the zod PO schema (react-hook-form).</li>
+      <li><b>PaymentRequestFormScreen</b>: fourth tab and <span class="mono">SampleLinesPicker</span>; the reference selectors are reused, not copied.</li>
+      <li><b>Warehouse inventory</b>: a Samples figure column plus <span class="mono">SampleHistoryModal</span>.</li>
+      <li><b>Samples screen</b>: new route using the shared table, pagination and applied-filters pattern.</li>
+      <li>Feedback through <span class="mono">useApiFeedback</span>, as elsewhere.</li></ul></div>
+  </div>
+  <div class="card pad mt"><h2>Decisions</h2>
+    <table><thead><tr><th class="l" style="width:44px">#</th><th class="l">Question</th><th class="l">Decision</th><th style="width:110px">Status</th></tr></thead><tbody>
+      <tr><td class="l b">1</td><td class="l">Where do samples count?</td><td class="l">Only in the per-SKU Samples section. Never in actual inventory: 100 units with 3 samples stays 100.</td><td><span class="pill ok">Confirmed</span></td></tr>
+      <tr><td class="l b">2</td><td class="l">When does a <b>free</b> sample appear in that section?</td><td class="l">When the PO is approved (no payment exists to trigger it).</td><td><span class="pill ok">Confirmed</span></td></tr>
+      <tr><td class="l b">3</td><td class="l">What does "payment done" mean?</td><td class="l">Payment completed in Payment process.</td><td><span class="pill ok">Confirmed</span></td></tr>
+      <tr><td class="l b">4</td><td class="l">May a PO have samples only?</td><td class="l">No. A PO always has a product line; samples are flagged SKUs that do not belong to the PO's products.</td><td><span class="pill ok">Confirmed</span></td></tr>
+      <tr><td class="l b">5</td><td class="l">Price analysis or landed cost?</td><td class="l">Never. Samples are excluded from every cost and unit figure.</td><td><span class="pill ok">Confirmed</span></td></tr>
+      <tr><td class="l b">6</td><td class="l">Add samples to an already approved PO?</td><td class="l">Yes, through the existing unlock and approval rule.</td><td><span class="pill ok">Confirmed</span></td></tr>
+      <tr><td class="l b">7</td><td class="l">Can a request pay only some of a PO's chargeable samples?</td><td class="l">Yes, some or all, by ticking rows. Only samples whose payment is completed are added to the SKU's Samples section.</td><td><span class="pill ok">Confirmed</span></td></tr></tbody></table></div>
+  <div class="foot"><span>Purchase order samples · design v2</span><span>8 / 8</span></div>
+</section>
+</body>
+</html>

@@ -17,6 +17,8 @@ export interface WarehouseInventoryRow {
   landedCost: { cad: number; usd: number }
   /** Pipeline units at the CAD landed cost. */
   costCad: number
+  /** Samples received for this SKU: information only, never part of stock, pipeline or cost. */
+  samples: number
 }
 
 export interface WarehouseInventoryReport extends Page<WarehouseInventoryRow> {

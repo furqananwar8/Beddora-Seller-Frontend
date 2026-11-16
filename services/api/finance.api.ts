@@ -300,7 +300,7 @@ export interface DuplicateInvoice {
 }
 
 /** What a request pays against. */
-export type ReferenceType = 'INVOICE' | 'PURCHASE_ORDER' | 'SHIPMENT'
+export type ReferenceType = 'INVOICE' | 'PURCHASE_ORDER' | 'SHIPMENT' | 'SAMPLE'
 
 /** One of a carrier's FBA shipments, as a shipment request picks and shows it. */
 export interface CarrierShipment {
@@ -322,6 +322,25 @@ export interface PoRef {
 export interface PaymentReference {
   label: 'Invoice' | 'Purchase order'
   value: string
+}
+
+/** An approved PO of the supplier that still has chargeable samples to pay (the Sample tab's PO picker). */
+export interface SamplePurchaseOrder extends PoRef {
+  currency: string
+  destination: 'US' | 'CA'
+  etd: string
+  sampleCount: number
+  /** What its payable samples add up to, in the PO's currency. */
+  amount: number
+}
+
+/** One chargeable sample of a PO, as a sample request ticks and shows it. */
+export interface PayableSample {
+  id: number
+  product: { id: number; sku: string | null; name: string }
+  units: number
+  unitPrice: number
+  amount: number
 }
 
 export interface PayablePurchaseOrder extends PoRef {
@@ -445,6 +464,8 @@ export interface PaymentRequestDetail {
   lines: PaymentRequestLine[]
   /** Shipment requests: the FBA shipments the carrier's invoice is for. */
   shipments: CarrierShipment[]
+  /** Sample requests: the samples of the PO this request pays for. */
+  samples: PayableSample[]
   remarks: string | null
   decisionNote: string | null
   submittedAt: string | null
@@ -794,6 +815,18 @@ export const financeApi = baseApi.injectEndpoints({
       transformResponse: unwrap,
       providesTags: ['ProcurementPurchaseOrders'],
     }),
+    /** Approved POs of the chosen supplier with a chargeable sample left to pay, for sample requests. */
+    getSamplePurchaseOrders: b.query<SamplePurchaseOrder[], { partnerId: number; search?: string; excludeId?: number }>({
+      query: ({ partnerId, search, excludeId }) => ({ url: '/finance/payment-requests/sample-options', params: { partnerId, search: search || undefined, excludeId } }),
+      transformResponse: unwrap,
+      providesTags: ['ProcurementPurchaseOrders', 'FinanceRequests'],
+    }),
+    /** The chargeable samples of one PO that a request can still pay (a draft's own stay offered). */
+    getPayableSamples: b.query<PayableSample[], { purchaseOrderId: number; excludeId?: number }>({
+      query: (params) => ({ url: '/finance/payment-requests/payable-samples', params }),
+      transformResponse: unwrap,
+      providesTags: ['ProcurementPurchaseOrders', 'FinanceRequests'],
+    }),
     /** What has already been requested and paid against a PO (its own requests and its invoices'). */
     getPurchaseOrderPayments: b.query<PurchaseOrderPayment[], { purchaseOrderId: number; excludeId?: number }>({
       query: (params) => ({ url: '/finance/payment-requests/purchase-order-payments', params }),
@@ -981,6 +1014,8 @@ export const {
   useGetPurchaseOrderPaymentsQuery,
   useGetLeafCostCentersQuery,
   useGetPayablePurchaseOrdersQuery,
+  useGetSamplePurchaseOrdersQuery,
+  useGetPayableSamplesQuery,
   useAddPopDocumentsMutation,
   useRemovePopDocumentMutation,
   useUpdatePopReferenceMutation,

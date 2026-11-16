@@ -38,10 +38,12 @@ interface WarehouseInventoryTableProps {
   report: WarehouseInventoryReport | undefined
   isLoading: boolean
   isError: boolean
+  /** Opens a SKU's sample history (the Samples column's count). */
+  onOpenSamples?: (product: WarehouseInventoryRow['product']) => void
 }
 
 /** One row per internal SKU: its stock in every place, what is on its way, and the pipeline at landed cost. */
-export const WarehouseInventoryTable: React.FC<WarehouseInventoryTableProps> = ({ report, isLoading, isError }) => {
+export const WarehouseInventoryTable: React.FC<WarehouseInventoryTableProps> = ({ report, isLoading, isError, onOpenSamples }) => {
   const scroll = useScrollbarBelowHeader<HTMLDivElement>()
   // The frozen SKU column: drag the handle on its right edge to widen or narrow it
   const skuColumn = useColumnResize({ initial: 224, min: 160, max: 560, storageKey: 'warehouse-inventory-sku-column-width' })
@@ -105,7 +107,13 @@ export const WarehouseInventoryTable: React.FC<WarehouseInventoryTableProps> = (
                   <TableCell className={cn(CELL, 'whitespace-nowrap')}>{row.product.upc ?? <span className="text-text-muted">—</span>}</TableCell>
                   {FIGURE_COLUMNS.map((column) => (
                     <TableCell key={column.key} className={cn(NUM, column.strong && 'font-semibold')}>
-                      {figure(column, row)}
+                      {column.opensSamples && onOpenSamples && row.samples > 0 ? (
+                        <button type="button" className="font-semibold text-primary-600 hover:underline" onClick={() => onOpenSamples(row.product)}>
+                          {row.samples.toLocaleString()}
+                        </button>
+                      ) : (
+                        figure(column, row)
+                      )}
                     </TableCell>
                   ))}
                 </TableRow>

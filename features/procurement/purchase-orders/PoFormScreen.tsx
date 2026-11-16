@@ -27,7 +27,7 @@ import { formatCalendarDay } from '@/utils/format'
 import { isApprovedPo, PaymentBadge, PoStatusBadge } from '../shared/poMeta'
 import { DownloadPoPdfButton } from '../shared/DownloadPoPdfButton'
 import { ApprovalPanel } from './ApprovalPanel'
-import { emptyPoValues, fromDetail, fromRemaining, poFormSchema, toPoBody, type PoFormValues } from './poForm'
+import { emptyPoValues, formPathOf, fromDetail, fromRemaining, poFormSchema, toPoBody, type PoFormValues } from './poForm'
 import { PoOrderDetailsSection, PoSupplierSection } from './PoDetailsSections'
 import { PoProductsSection } from './PoProductsSection'
 import { PoTimeline } from './PoTimeline'
@@ -35,9 +35,7 @@ import { usePoActions } from './usePoActions'
 
 const LIST = '/dashboard/procurement/purchase-orders'
 
-const FORM_FIELDS = new Set(['supplierId', 'contactName', 'destination', 'currency', 'etd', 'lines'])
-/** Server field names onto form paths (`supplierId` is the `supplier` picker, line products are their rows). */
-const toFormField = (field: string) => (field === 'supplierId' ? 'supplier' : field.replace(/^lines\.(\d+)\.productId$/, 'lines.$1.unitsOrdered'))
+const FORM_FIELDS = new Set(['supplierId', 'contactName', 'destination', 'currency', 'etd', 'lines', 'samples'])
 
 const REALTIME_VERB: Record<string, string> = {
   approved: 'approved',
@@ -117,7 +115,7 @@ export const PoFormScreen: React.FC<PoFormScreenProps> = ({ purchaseOrderId }) =
           router.replace(`${LIST}/${saved.id}`)
         }
       } catch (error) {
-        const placed = applyServerIssues(error, (field, issue, options) => setError(toFormField(field) as never, issue, options), (field) => FORM_FIELDS.has(field.split('.')[0]))
+        const placed = applyServerIssues(error, (field, issue, options) => setError(formPathOf(values, field) as never, issue, options), (field) => FORM_FIELDS.has(field.split('.')[0]))
         if (!placed) failure(error, 'Could not save the purchase order')
       } finally {
         setSaving(null)

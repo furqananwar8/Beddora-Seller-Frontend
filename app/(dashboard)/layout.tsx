@@ -150,6 +150,12 @@ export default function DashboardLayout({
                 href: '/dashboard/inventory/warehouse-inventory',
               },
               {
+                label: 'Samples',
+                subject: 'inventory:samples',
+                action: 'read',
+                href: '/dashboard/inventory/samples',
+              },
+              {
                 label: 'Inbound Receiving',
                 subject: 'inventory:inbound-receiving',
                 action: 'read',
