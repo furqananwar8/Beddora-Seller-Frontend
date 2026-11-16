@@ -12,9 +12,18 @@ import {
   useCreateManualReturnMutation,
   useGetManualReturnOptionsQuery,
   useGetManualReturnProductsQuery,
+  useLazyGetManualReturnOrderLinesQuery,
   type ManualReturnMetadata,
+  type ManualReturnOrder,
   type ManualReturnProduct,
 } from '@/services/api/barcode.api'
+
+/** A plain channel return (FBA: pick the listing) or a return for a seller-fulfilled order (FBM: find the order, pick its line). */
+type ReturnKind = 'FBA' | 'FBM'
+const KINDS: Array<{ value: ReturnKind; label: string }> = [
+  { value: 'FBA', label: 'Channel return (FBA)' },
+  { value: 'FBM', label: 'Order return (FBM)' },
+]
 
 interface Props {
   onClose: () => void
@@ -25,14 +34,21 @@ const count = (value: string) => Number(digits(value)) || 0
 
 /**
  * A return entered by hand, for a returned item that matches nothing by UPC. Channel and marketplace narrow the listings,
- * the person picks the one that came back, says how many units and how many of them were damaged (the rest are sellable),
- * and may add remarks and name / value details. Saving puts the units back into inventory.
+ * the person picks the one that came back (or, for an FBM return, finds the order and picks one of its lines), says how many
+ * units and how many of them were damaged (the rest are sellable), and may add remarks and name / value details. Saving puts
+ * the units back into inventory.
  */
 export function ManualReturnModal({ onClose }: Props) {
   const feedback = useApiFeedback()
   const { data: options, isLoading: loadingOptions } = useGetManualReturnOptionsQuery()
   const [create, { isLoading: saving }] = useCreateManualReturnMutation()
 
+  const [kind, setKind] = useState<ReturnKind>('FBA')
+  const [findOrder, { isFetching: findingOrder }] = useLazyGetManualReturnOrderLinesQuery()
+  const [orderNo, setOrderNo] = useState('')
+  const [order, setOrder] = useState<ManualReturnOrder | null>(null)
+  /** Units of the picked order line still out (FBM only); caps how many can be returned. */
+  const [remaining, setRemaining] = useState<number | null>(null)
   const [channel, setChannel] = useState('')
   const [marketplace, setMarketplace] = useState('')
   const [search, setSearch] = useState('')
@@ -52,24 +68,50 @@ export function ManualReturnModal({ onClose }: Props) {
   }, [options, channel])
 
   const markets = useMemo(() => options?.find((option) => option.id === channel)?.markets ?? [], [options, channel])
-  const { data: products, isFetching: loadingProducts } = useGetManualReturnProductsQuery(channel && marketplace && !product ? { channel, marketplace, search: debounced } : skipToken)
+  const { data: products, isFetching: loadingProducts } = useGetManualReturnProductsQuery(kind === 'FBA' && channel && marketplace && !product ? { channel, marketplace, search: debounced } : skipToken)
 
   const unitCount = count(units)
   const damagedCount = count(damaged)
   const sellableCount = unitCount - damagedCount
-  const problem = !product ? 'Pick the returned product' : unitCount < 1 ? 'Enter how many units came back' : damagedCount > unitCount ? 'More units are marked damaged than came back' : null
+  const problem = !product
+    ? kind === 'FBM' ? (order ? 'Pick the returned item from the order' : 'Find the order first') : 'Pick the returned product'
+    : unitCount < 1
+      ? 'Enter how many units came back'
+      : remaining !== null && unitCount > remaining
+        ? `Only ${remaining} unit${remaining === 1 ? ' is' : 's are'} left to return on this order`
+        : damagedCount > unitCount
+          ? 'More units are marked damaged than came back'
+          : null
   const namedDetails = details.filter((detail) => detail.name.trim())
 
+  /** Whatever was picked belongs to the channel, marketplace and kind it was picked under, so changing one starts the pick over. */
+  const resetPick = () => {
+    setProduct(null)
+    setSearch('')
+    setOrder(null)
+    setRemaining(null)
+  }
+  const changeKind = (value: ReturnKind) => {
+    setKind(value)
+    resetPick()
+  }
   const changeChannel = (value: string) => {
     setChannel(value)
     setMarketplace(options?.find((option) => option.id === value)?.markets[0]?.country ?? '')
-    setProduct(null)
-    setSearch('')
+    resetPick()
   }
   const changeMarketplace = (value: string) => {
     setMarketplace(value)
-    setProduct(null)
-    setSearch('')
+    resetPick()
+  }
+  const lookUpOrder = async () => {
+    try {
+      setOrder(await findOrder({ channel, marketplace, orderId: orderNo.trim() }).unwrap())
+      setProduct(null)
+    } catch (error) {
+      setOrder(null)
+      feedback.failure(error, 'Could not find that order')
+    }
   }
   const setDetail = (index: number, patch: Partial<ManualReturnMetadata>) => setDetails((rows) => rows.map((row, i) => (i === index ? { ...row, ...patch } : row)))
 
@@ -80,6 +122,7 @@ export function ManualReturnModal({ onClose }: Props) {
         channel,
         marketplace,
         channelSku: product.channelSku,
+        ...(kind === 'FBM' && order ? { orderId: order.orderId } : {}),
         units: unitCount,
         damagedUnits: damagedCount,
         remarks: remarks.trim() || undefined,
@@ -108,6 +151,21 @@ export function ManualReturnModal({ onClose }: Props) {
         </div>
       ) : (
         <div className="space-y-4">
+          <div role="radiogroup" aria-label="Kind of return" className="inline-flex rounded-lg border border-border p-0.5">
+            {KINDS.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                role="radio"
+                aria-checked={kind === option.value}
+                onClick={() => changeKind(option.value)}
+                className={`rounded-md px-3 py-1.5 text-sm font-medium ${kind === option.value ? 'bg-primary-600 text-white' : 'text-text-secondary hover:bg-secondary-50'}`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Select label="Channel" value={channel} onChange={(event) => changeChannel(event.target.value)} options={options.map((option) => ({ value: option.id, label: option.label }))} />
             <Select label="Marketplace" value={marketplace} onChange={(event) => changeMarketplace(event.target.value)} options={markets.map((market) => ({ value: market.country, label: `${market.label} (${market.country})` }))} />
@@ -115,7 +173,8 @@ export function ManualReturnModal({ onClose }: Props) {
 
           <div>
             <div className="mb-1 text-sm font-medium text-text-primary">
-              Product <span className="font-normal text-text-muted">· the channel&apos;s listings that are mapped to our products</span>
+              {kind === 'FBM' ? 'Order' : 'Product'}{' '}
+              <span className="font-normal text-text-muted">{kind === 'FBM' ? '· the order the item was sent on; only a shipped order can be returned' : "· the channel's listings that are mapped to our products"}</span>
             </div>
             {product ? (
               <div className="flex items-center justify-between gap-3 rounded-lg border border-success-200 bg-success-50 px-4 py-3">
@@ -129,6 +188,53 @@ export function ManualReturnModal({ onClose }: Props) {
                   Change
                 </button>
               </div>
+            ) : kind === 'FBM' ? (
+              <>
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <Input
+                      value={orderNo}
+                      onChange={(event) => {
+                        setOrderNo(event.target.value)
+                        setOrder(null)
+                      }}
+                      onKeyDown={(event) => event.key === 'Enter' && orderNo.trim() && void lookUpOrder()}
+                      placeholder="Order number"
+                      autoFocus
+                    />
+                  </div>
+                  <Button type="button" variant="outline" onClick={() => void lookUpOrder()} disabled={!orderNo.trim() || findingOrder}>
+                    {findingOrder ? 'Finding…' : 'Find order'}
+                  </Button>
+                </div>
+                {order && (
+                  <div className="mt-2 max-h-56 overflow-auto rounded-lg border border-border">
+                    <div className="border-b border-border bg-secondary-50 px-4 py-2 text-xs font-semibold text-secondary-600">Order {order.ref}</div>
+                    {order.lines.map((line) => {
+                      const disabled = !line.mapped || line.remaining === 0
+                      return (
+                        <button
+                          key={line.channelSku}
+                          type="button"
+                          disabled={disabled}
+                          onClick={() => {
+                            setProduct({ channelSku: line.channelSku, name: line.name, components: line.components })
+                            setRemaining(line.remaining)
+                            setUnits(String(Math.min(Number(units) || 1, line.remaining)))
+                          }}
+                          className="block w-full border-b border-border px-4 py-2.5 text-left last:border-0 hover:bg-secondary-50 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          <div className="text-sm font-medium text-text-primary">{line.name}</div>
+                          <div className="font-mono text-xs text-text-muted">
+                            {line.channelSku} · {line.remaining} of {line.ordered} left to return
+                            {!line.mapped ? ' · not mapped in SKU Mapping' : ''}
+                          </div>
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
+              </>
             ) : (
               <>
                 <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search by SKU" autoFocus />

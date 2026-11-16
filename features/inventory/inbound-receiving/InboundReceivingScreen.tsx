@@ -28,6 +28,20 @@ const STATUS_OPTIONS: Array<{ value: StatusFilter; label: string }> = [
 
 const qty = (value: number) => value.toLocaleString('en-CA')
 const CELL = 'text-center align-middle'
+
+/**
+ * Until the carton receipt is signed, the received, short and damaged columns show what scanning has counted so far, in
+ * units (a dash when nothing was scanned). A shortage stays provisional while scanning is open.
+ */
+function ScannedUnits({ row, value, extra, tone }: { row: ReceivingListItem; value: number; extra?: string; tone?: 'danger' }) {
+  if (!row.scanned.started) return <span className="text-text-muted">—</span>
+  return (
+    <div title="Counted by scanning, in units. The carton receipt is filled in when it is signed." className="leading-tight">
+      <span className={cn(tone === 'danger' && 'font-semibold text-danger-600')}>{qty(value)}</span>
+      {extra && <div className="text-xs font-medium text-warning-700">{extra}</div>}
+    </div>
+  )
+}
 const COLUMNS = 9
 
 const Numbers: React.FC<{ values: string[] }> = ({ values }) =>
@@ -98,7 +112,7 @@ export const InboundReceivingScreen: React.FC = () => {
             <Table className="min-w-full" wrapperClassName="overflow-visible">
               <TableHeader className="sticky top-0 z-30 bg-surface shadow-sm">
                 <TableRow>
-                  {['Container', 'PO #', 'PL #', 'Expected (Ctn)', 'Received (Ctn)', 'Short (Ctn)', 'Damaged (Ctn)', 'Status', 'Actions'].map((title) => (
+                  {['Container', 'PO #', 'PL #', 'Expected (units)', 'Received (units)', 'Short (units)', 'Damaged (units)', 'Status', 'Actions'].map((title) => (
                     <TableHead key={title} className="whitespace-nowrap text-center">
                       {title}
                     </TableHead>
@@ -129,16 +143,22 @@ export const InboundReceivingScreen: React.FC = () => {
                         <TableCell className={CELL}>
                           <Numbers values={row.plNos} />
                         </TableCell>
-                        <TableCell className={cn(CELL, 'tabular-nums')}>{qty(row.totals.expectedCartons)}</TableCell>
-                        <TableCell className={cn(CELL, 'tabular-nums')}>{received ? qty(row.totals.actualCartons) : <span className="text-text-muted">—</span>}</TableCell>
-                        <TableCell className={cn(CELL, 'tabular-nums', received && row.totals.shortageCartons > 0 && 'font-semibold text-danger-600')}>
-                          {received ? qty(row.totals.shortageCartons) : <span className="text-text-muted">—</span>}
+                        <TableCell className={cn(CELL, 'tabular-nums')}>
+                          <div>{qty(row.totals.expectedUnits)}</div>
+                          <div className="text-xs text-text-muted">{qty(row.totals.expectedCartons)} ctn</div>
                         </TableCell>
-                        <TableCell className={cn(CELL, 'tabular-nums')}>{received ? qty(row.totals.damagedCartons) : <span className="text-text-muted">—</span>}</TableCell>
+                        <TableCell className={cn(CELL, 'tabular-nums')}>
+                          {received ? qty(row.totals.actualUnits) : <ScannedUnits row={row} value={row.scanned.goodUnits + row.scanned.damagedUnits} extra={row.scanned.overUnits > 0 ? `+${qty(row.scanned.overUnits)} over` : undefined} />}
+                        </TableCell>
+                        <TableCell className={cn(CELL, 'tabular-nums', received && row.totals.shortageUnits > 0 && 'font-semibold text-danger-600')}>
+                          {received ? qty(row.totals.shortageUnits) : <ScannedUnits row={row} value={row.scanned.shortUnits} tone={row.scanned.shortUnits > 0 && row.scanned.closed ? 'danger' : undefined} />}
+                        </TableCell>
+                        <TableCell className={cn(CELL, 'tabular-nums')}>{received ? qty(row.totals.damagedUnits) : <ScannedUnits row={row} value={row.scanned.damagedUnits} tone={row.scanned.damagedUnits > 0 ? 'danger' : undefined} />}</TableCell>
                         <TableCell className={CELL}>
                           <div className="flex flex-col items-center gap-0.5">
                             <ContainerStatusBadge status={row.status} />
                             {row.receivedAt && <span className="text-xs text-text-muted">{formatCalendarDay(row.receivedAt)}</span>}
+                            {row.scanned.started && <span className="text-xs text-text-muted">{row.scanned.closed ? 'Scanning closed' : 'Scanning open'}</span>}
                           </div>
                         </TableCell>
                         <TableCell className={CELL}>

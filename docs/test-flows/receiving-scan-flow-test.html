@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Inbound receiving scan flow: test walkthrough</title>
+<style>
+  @page { size: 1400px 1000px; margin: 0 }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { font-family: "Segoe UI", system-ui, sans-serif; color: #111827; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .pg { width: 1400px; height: 1000px; padding: 44px 56px; background: #f8fafc; break-after: page; page-break-after: always; overflow: hidden; display: flex; flex-direction: column; }
+  body > section.pg:last-of-type { break-after: auto; page-break-after: auto; }
+  .top { display: flex; justify-content: space-between; color: #94a3b8; font-size: 14px; margin-bottom: 12px; }
+  h1 { font-size: 34px; margin: 0 0 8px; color: #0f172a; letter-spacing: -.01em; }
+  h2 { font-size: 26px; margin: 0; color: #0f172a; }
+  .n { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 50%; background: #111827; color: #fff; font-weight: 700; margin-right: 14px; font-size: 19px; vertical-align: middle; }
+  .row { display: grid; grid-template-columns: 340px 1fr; gap: 32px; margin-top: 22px; flex: 1; min-height: 0; }
+  .txt p { margin: 0 0 14px; font-size: 17px; line-height: 1.5; color: #334155; }
+  .txt .k { font-size: 13px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #64748b; margin-bottom: 4px; }
+  .txt .ok { background: #dcfce7; color: #166534; border-radius: 10px; padding: 12px 14px; font-size: 16px; line-height: 1.45; }
+  .txt .note { background: #fef3c7; color: #92400e; border-radius: 10px; padding: 12px 14px; font-size: 15px; line-height: 1.45; margin-top: 14px; }
+  .shot { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px; box-shadow: 0 1px 4px rgba(15,23,42,.08); display: flex; align-items: flex-start; justify-content: center; overflow: hidden; }
+  .shot img { max-width: 100%; max-height: 800px; border-radius: 6px; border: 1px solid #e2e8f0; }
+  table { border-collapse: collapse; width: 100%; font-size: 16px; background: #fff; }
+  th, td { border: 1px solid #e2e8f0; padding: 10px 14px; text-align: left; vertical-align: top; }
+  th { background: #f1f5f9; color: #475569; font-size: 14px; }
+  .pill { display: inline-block; padding: 2px 10px; border-radius: 99px; font-size: 13px; font-weight: 700; }
+  .pass { background: #dcfce7; color: #166534; } .warn { background: #fef3c7; color: #92400e; }
+  .lead { font-size: 18px; color: #475569; line-height: 1.55; max-width: 1100px; }
+  code { font-family: ui-monospace, Consolas, monospace; font-size: 14.5px; background: #e2e8f0; padding: 1px 6px; border-radius: 4px; }
+</style>
+</head>
+<body>
+
+<section class="pg">
+  <div class="top"><span>Inbound receiving · scan flow test</span><span>17 Nov 2026 · local environment, dummy data</span></div>
+  <h1>Inbound receiving: scan flow test walkthrough</h1>
+  <p class="lead">A run of the container scan flow in the real app, against a dummy container inserted by hand into the local database. Every step has the screen as it was when the test ran and what was checked. No shipment or order was created or booked.</p>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:28px;margin-top:26px">
+    <div>
+      <div style="font-weight:700;font-size:18px;margin-bottom:10px">The dummy data</div>
+      <table>
+        <tr><th>Item</th><th>Value</th></tr>
+        <tr><td>Container</td><td><code>ZZTESTCONT9</code> · CID#23132 · status Delivered to warehouse</td></tr>
+        <tr><td>ZZTEST-A</td><td>UPC 111000000001 · 30 units · 3 cartons</td></tr>
+        <tr><td>ZZTEST-B</td><td>UPC 111000000002 · 20 units · 2 cartons</td></tr>
+        <tr><td>Expected in total</td><td>50 units</td></tr>
+        <tr><td>Test user</td><td>the signed-in local account</td></tr>
+      </table>
+    </div>
+    <div>
+      <div style="font-weight:700;font-size:18px;margin-bottom:10px">What was checked</div>
+      <table>
+        <tr><th>Area</th><th>Result</th></tr>
+        <tr><td>Start scanning from the row menu</td><td><span class="pill pass">PASS</span></td></tr>
+        <tr><td>Scan, edit count, remove, unmatched, re-check</td><td><span class="pill pass">PASS</span></td></tr>
+        <tr><td>Review and damaged split, end choices</td><td><span class="pill pass">PASS</span></td></tr>
+        <tr><td>Scan counts shown on Inbound Receiving</td><td><span class="pill pass">PASS</span></td></tr>
+        <tr><td>Receiving form starts from the scan</td><td><span class="pill pass">PASS</span></td></tr>
+        <tr><td>Second round expects only what is missing</td><td><span class="pill pass">PASS</span></td></tr>
+        <tr><td>Close scanning blocks further scanning</td><td><span class="pill pass">PASS</span></td></tr>
+        <tr><td>Sessions listing and detail page</td><td><span class="pill pass">PASS</span></td></tr>
+      </table>
+    </div>
+  </div>
+  <div class="txt" style="margin-top:26px"><div class="ok"><b>Stock in the database after the flow:</b> ZZTEST-A: 5 good (unallocated) and 1 damaged. ZZTEST-B: 3 good. That is 9 units in across two sessions (S-16: 6, S-17: 3). The container itself stays <code>Delivered to warehouse</code>, because only the signed receipt moves it to Goods received.</div></div>
+  <div class="txt" style="margin-top:14px"><div class="note"><b>Findings:</b> three small items, listed on the last page. Nothing failed.</div></div>
+</section>
+
+<div id="steps"></div>
+
+<section class="pg">
+  <div class="top"><span>Inbound receiving · scan flow test</span><span>Findings</span></div>
+  <h1>Findings from the run</h1>
+  <p class="lead">Nothing broke. These are things noticed while walking the flow.</p>
+  <table style="margin-top:22px">
+    <tr><th style="width:60px">#</th><th>Finding</th><th style="width:360px">Suggested action</th></tr>
+    <tr><td>1</td><td>The list shows “1 units” for a single damaged unit (step 11 and 14).</td><td>Pluralise: “1 unit”. Small copy fix on the receiving list.</td></tr>
+    <tr><td>2</td><td>The receiving form starts cartons from the scan, rounded to whole cartons. With 4 units of a 10-per-carton product that is 0 cartons, so everything shows as shortage until the scan reaches a full carton (step 12).</td><td>Fine for real container volumes. If small partial counts matter, show the leftover units under the carton fields.</td></tr>
+    <tr><td>3</td><td>The row menu has a third item, <b>Download PDF</b>, next to Update and Scan items (step 2). The v4 design page for Inbound Receiving lists only two.</td><td>Add “Download PDF” to the design menu so it matches.</td></tr>
+    <tr><td>4</td><td>The “over expected” case was not exercised: this dummy container expected 30 units of A and only 4 were scanned. That case was covered in the earlier service-level test.</td><td>Re-run with a smaller expected quantity if you want it on screen.</td></tr>
+    <tr><td>5</td><td>The scanned-units column on the receiving form is cut off on narrow windows (about 1200px) and needs a horizontal scroll (step 12).</td><td>None needed for desktop widths. It is a display detail, not a data issue.</td></tr>
+  </table>
+</section>
+
+<script>
+const base = 'file:///C:/Users/DEV/.claude/projects/D--projects-fbeddora/2e7a12da-c826-4e5f-b2fe-a97e20eb3cde/tool-results/mcp-Claude_Browser-blob-';
+const steps = [
+  ['1794864193648-9do3t7', 'Inbound Receiving, before any scanning', 'Open Inventory › Inbound Receiving.', 'The dummy container <b>ZZTESTCONT9</b> is listed as <b>Delivered to warehouse</b> with 5 expected cartons. Received, Short and Damaged show a dash because nothing has been scanned or signed yet.', null],
+  ['1794864198788-18j8fv', 'The row menu', 'Click the vertical dots in the Actions column.', 'A dropdown opens with <b>Update</b>, <b>Scan items</b> and <b>Download PDF</b>.', 'The menu has a third item, Download PDF, that the design page does not show.'],
+  ['1794864206063-bimawu', 'Scan items dialog', 'Choose Scan items.', 'The dialog asks whether the inventory is in or out. For a container <b>Inventory out</b> is disabled (“Containers only come in”) and <b>Inventory in</b> is selected. Close scanning is available before starting.', null],
+  ['1794864213303-9s0nae', 'Start scanning: the empty scan screen', 'Click Start scanning.', 'Session <b>S-16</b> opens, marked Live. Both SKUs are listed with their expected units (30 and 20, 50 in total) and 0 scanned. The scanner field is ready.', null],
+  ['1794864223723-nk4x1l', 'Scanning', 'Scan the UPC of A five times, B once, and an unknown UPC (999000000009).', 'ZZTEST-A shows 5 scanned, ZZTEST-B 1. The unknown UPC appears under <b>Not matched UPCs</b> (one row per UPC) with Remove and Re-check available.', null],
+  ['1794864232351-0tfxor', 'Correcting a scan: scanned UPCs and Edit count', 'Open “Show 5 scanned UPCs” and Edit count on ZZTEST-A.', 'Every matched scan is listed with its time and a <b>Remove</b> button. <b>Edit count</b> opens an inline number field with Save and Cancel.', null],
+  ['1794864241330-t5fu4z', 'Edit count applied', 'Set the count to 4 and Save.', 'ZZTEST-A drops from 5 to 4 (the newest scan was removed). The side totals follow: 6 UPCs scanned, 5 matched.', null],
+  ['1794864262585-brvc58', 'Fixing an unmatched UPC, then Re-check', 'In the database, give ZZTEST-B the UPC 999000000009 (as the team would after finding the missing UPC). Click Re-check.', 'The earlier unmatched scan now matches ZZTEST-B (2 scanned). The unmatched list is empty: “Every scanned UPC matched.”', null],
+  ['1794864268570-w4ynn8', 'Finish scanning: review and damaged units', 'Click Finish scanning, then enter 1 damaged for ZZTEST-A.', 'The review shows 6 units to be added to inventory and 44 expected units not scanned. For a container the table asks <b>Good and Damaged</b>: ZZTEST-A counts 4, with 3 good and 1 damaged.', null],
+  ['1794864273224-zns59o', 'How to end the session', 'Click Continue.', 'Two choices: <b>End session, keep scanning open</b> (the container can be scanned again) or <b>End session and close scanning</b>. For receiving, inventory is updated either way.', null],
+  ['1794864281793-m7x4q3', 'Inbound Receiving after round one', 'Choose End session, keep scanning open.', 'The list now shows what scanning counted: <b>6 units</b> received, <b>44 units</b> short, <b>1 unit</b> damaged, and the status note <b>Scanning open</b>. The signed carton receipt has not been made, so the container is still Delivered to warehouse.', 'The damaged cell reads “1 units”; it should be “1 unit”.'],
+  ['1794864313519-b5x1et', 'The receiving form starts from the scan', 'Row menu › Update.', 'A summary line says “Scanned so far: 5 good, 1 damaged, 44 short of 50 units · scanning still open”. The carton fields start from the scan, a <b>Scanned (units)</b> column sits beside them, and the signature is still required to confirm.', 'With small counts the units round down to 0 cartons, so shortage shows the rest. The scanned column also needs a horizontal scroll at this window width.'],
+  ['1794864336333-7xzz00', 'Round two: only what is missing', 'Row menu › Scan items › Start scanning. Scan A twice and B once.', 'New session <b>S-17</b> expects only the remaining units: ZZTEST-A <b>26</b> (30 less the 4 already received) and ZZTEST-B <b>18</b>, 44 in total. 3 scans are matched.', null],
+  ['1794864347051-0jt4xl', 'End session and close scanning', 'Finish scanning › Continue › End session and close scanning.', 'The list updates to <b>9 units</b> received, <b>41 units</b> short, 1 damaged, and the status note changes to <b>Scanning closed</b>.', null],
+  ['1794864354557-9751hq', 'A closed container cannot be scanned again', 'Row menu › Scan items.', '<b>Inventory in</b> is disabled with the reason “Scanning closed by Salman Rehan” and Start scanning is greyed out.', null],
+  ['1794864388990-etia8b', 'Scanning Sessions listing', 'Open Scanning Sessions from the sidebar.', 'Both sessions are listed for the container: <b>S-17</b> (3 scanned, 3 units adjusted) and <b>S-16</b> (6 scanned, 6 units adjusted), direction In, status Completed. The Actions column is the vertical dots menu.', null],
+  ['1794864402589-8by2y9', 'Session detail', 'Open session S-17 from the dots menu.', 'The detail page shows the source, who started it, when inventory was updated (<b>3 units in</b>), and the matched SKUs table: ZZTEST-A +2 in, ZZTEST-B +1 in. “Not matched” is empty.', null]
+];
+const el = document.getElementById('steps');
+steps.forEach((s, i) => {
+  const sec = document.createElement('section');
+  sec.className = 'pg';
+  sec.innerHTML =
+    '<div class="top"><span>Inbound receiving · scan flow test</span><span>Step ' + (i + 1) + ' of ' + steps.length + '</span></div>' +
+    '<h2><span class="n">' + (i + 1) + '</span>' + s[1] + '</h2>' +
+    '<div class="row"><div class="txt">' +
+    '<div class="k">What was done</div><p>' + s[2] + '</p>' +
+    '<div class="k">What happened</div><div class="ok">' + s[3] + '</div>' +
+    (s[4] ? '<div class="note"><b>Noticed:</b> ' + s[4] + '</div>' : '') +
+    '</div><div class="shot"><img src="' + base + s[0] + '.jpg"></div></div>';
+  el.appendChild(sec);
+});
+</script>
+</body>
+</html>

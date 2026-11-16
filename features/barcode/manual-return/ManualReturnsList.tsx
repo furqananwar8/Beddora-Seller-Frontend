@@ -24,7 +24,7 @@ export function ManualReturnsList({ onAdd }: { onAdd?: () => void }) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="w-full max-w-sm">
           <Input
-            placeholder="Search SKU, product or remarks"
+            placeholder="Search SKU, order, product or remarks"
             value={search}
             onChange={(event) => {
               setSearch(event.target.value)
@@ -65,6 +65,7 @@ export function ManualReturnsList({ onAdd }: { onAdd?: () => void }) {
                     <td className="px-3 py-3 text-center align-middle">
                       <div className="font-medium text-text-primary">{entry.productName ?? entry.channelSku}</div>
                       <div className="break-all font-mono text-xs text-text-muted">{entry.channelSku}</div>
+                      {entry.orderId && <div className="break-all text-xs text-text-muted">FBM order {entry.orderId}</div>}
                     </td>
                     <td className="px-3 py-3 text-center align-middle">{entry.units}</td>
                     <td className="px-3 py-3 text-center align-middle font-semibold text-success-700">{entry.sellableUnits}</td>
