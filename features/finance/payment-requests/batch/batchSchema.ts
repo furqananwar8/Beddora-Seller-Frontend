@@ -20,6 +20,7 @@ export const emptyEntry = (currency: string): BatchEntryValues => ({
   invoiceNo: '',
   purchaseOrder: null,
   shipments: [],
+  sampleIds: [],
   invoiceDate: '',
   dueDate: '',
   containerNo: '',

@@ -250,6 +250,28 @@ export interface PoLine {
   remaining: number
 }
 
+/** Where a sample stands; derived from its payment requests. FREE needs no payment. */
+export type SampleStatus = 'FREE' | 'UNPAID' | 'REQUESTED' | 'PAID'
+
+/** Units a supplier sends as samples with a PO: never packed, shipped or counted in the PO amount. */
+export interface PoSample {
+  id: number
+  product: PoProduct
+  units: number
+  /** 0 for a free sample. */
+  unitPrice: number
+  amount: number
+  isFree: boolean
+  /** On a payment request: cannot be edited or removed. */
+  locked: boolean
+  status: SampleStatus
+  requestId: number | null
+  requestedAt: string | null
+  paidAt: string | null
+  /** When it was added to the SKU's Samples section. */
+  inventoryAt: string | null
+}
+
 export interface PoEvent {
   id: number
   type: string
@@ -295,6 +317,8 @@ export interface PurchaseOrderDetail {
   source: { id: number; poNo: string } | null
   derived: Array<{ id: number; poNo: string }>
   lines: PoLine[]
+  samples: PoSample[]
+  sampleTotals: { units: number; chargeableAmount: number }
   totals: { units: number; allocated: number; amount: number }
   remainingForNewPo: number
   events: PoEvent[]
@@ -313,6 +337,8 @@ export interface PurchaseOrderBody {
   currency: PoCurrency
   etd: string
   lines: Array<{ productId: number; unitsOrdered: number; unitPrice: number }>
+  /** Samples sent with the PO; a unit price of 0 means free. */
+  samples: Array<{ productId: number; units: number; unitPrice: number }>
   sourcePurchaseOrderId?: number
   expectedUpdatedAt?: string
 }

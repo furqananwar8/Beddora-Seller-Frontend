@@ -19,7 +19,7 @@ import { CarrierShipmentSelect } from '../CarrierShipmentSelect'
 import { ContainerSelect, containerRefOf } from '../ContainerSelect'
 import { PayableInvoiceSelect } from '../PayableInvoiceSelect'
 import { PayablePoSelect } from '../PayablePoSelect'
-import { MAX_REQUEST_LINES, REFERENCE_OPTIONS, emptyLine, gstInputsOf, parseAmount } from '../schema'
+import { BATCH_REFERENCE_OPTIONS, MAX_REQUEST_LINES, emptyLine, gstInputsOf, parseAmount } from '../schema'
 import type { BatchFormValues } from './batchSchema'
 
 /** The column grid of an amount row (and of the labels above the rows). */
@@ -75,7 +75,7 @@ export const BatchEntryCard: React.FC<BatchEntryCardProps> = ({ form, index, par
     <div className="rounded-lg border border-border bg-surface p-4 shadow-sm">
       <div className="mb-3 flex flex-wrap items-center gap-3">
         <h3 className="text-sm font-semibold text-text-primary">Request {index + 1}</h3>
-        <SegmentedToggle<ReferenceType> ariaLabel={`Request ${index + 1} paying against`} value={entry?.referenceType ?? 'INVOICE'} onChange={switchReference} options={REFERENCE_OPTIONS} />
+        <SegmentedToggle<ReferenceType> ariaLabel={`Request ${index + 1} paying against`} value={entry?.referenceType ?? 'INVOICE'} onChange={switchReference} options={BATCH_REFERENCE_OPTIONS} />
         {onRemove && (
           <button type="button" onClick={onRemove} aria-label={`Remove request ${index + 1}`} className="ml-auto rounded-lg px-2 py-1 text-sm text-text-subtle hover:bg-secondary-100 hover:text-danger-600">
             Remove

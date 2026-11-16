@@ -10,8 +10,9 @@ import { SegmentedToggle } from '@/components/segmented-toggle/SegmentedToggle'
 import { SingleDatePicker } from '@/components/single-date-picker/SingleDatePicker'
 import { Button } from '@/design-system/buttons'
 import { useReportExport } from '@/hooks/useReportExport'
-import { useGetWarehouseInventoryQuery, type StockFilter } from '@/services/api/warehouseInventory.api'
+import { useGetWarehouseInventoryQuery, type StockFilter, type WarehouseInventoryRow } from '@/services/api/warehouseInventory.api'
 import { cn } from '@/utils/cn'
+import { SampleHistoryModal } from '../samples/SampleHistoryModal'
 import { WarehouseInventoryTable } from './WarehouseInventoryTable'
 import { defaultFilters, earliestAsOf, STOCK_OPTIONS, todayDay } from './warehouseInventoryFilters'
 
@@ -24,6 +25,8 @@ const PAGE_SIZE = 25
 export const WarehouseInventoryScreen: React.FC = () => {
   const defaults = useMemo(defaultFilters, [])
   const [page, setPage] = useState(1)
+  /** The SKU whose sample history is open. */
+  const [samplesOf, setSamplesOf] = useState<WarehouseInventoryRow['product'] | null>(null)
   const filters = useStagedFilters(defaults, () => setPage(1))
   const { draft, setDraft, applied, changed } = filters
 
@@ -79,11 +82,12 @@ export const WarehouseInventoryScreen: React.FC = () => {
       </div>
 
       <div className={cn('space-y-3', isFetching && !isLoading && 'opacity-70 transition-opacity')}>
-        <WarehouseInventoryTable report={data} isLoading={isLoading} isError={isError} />
+        <WarehouseInventoryTable report={data} isLoading={isLoading} isError={isError} onOpenSamples={setSamplesOf} />
         {data && data.totalRecords > 0 && (
           <PaginationFooter page={data.page} pageSize={data.limit} totalItems={data.totalRecords} totalPages={data.totalPages} onPageChange={setPage} itemLabel="SKUs" />
         )}
       </div>
+      <SampleHistoryModal product={samplesOf} onClose={() => setSamplesOf(null)} />
     </Container>
   )
 }

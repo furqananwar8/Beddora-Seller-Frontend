@@ -1,10 +1,9 @@
 'use client'
 
-import React, { useState } from 'react'
-import { SearchableSelect } from '@/components/searchable-select/SearchableSelect'
+import React from 'react'
 import { useGetPayablePurchaseOrdersQuery, type PayablePurchaseOrder, type PoRef } from '@/services/api/finance.api'
-import { useDebounce } from '@/utils/debounce'
 import { formatCurrencyAmount, formatDay, formatMoney } from '../shared/format'
+import { PoOptionSelect } from './PoOptionSelect'
 
 interface PayablePoSelectProps {
   id?: string
@@ -18,41 +17,14 @@ interface PayablePoSelectProps {
 
 const DESTINATION: Record<PayablePurchaseOrder['destination'], string> = { US: 'USA', CA: 'Canada' }
 
-/** The purchase order a payment request pays: approved, open POs of the chosen supplier that are not fully paid or requested. */
-export const PayablePoSelect: React.FC<PayablePoSelectProps> = ({ id, partnerId, value, onChange, error, disabled }) => {
-  const [open, setOpen] = useState(false)
-  const [search, setSearch] = useState('')
-  const debounced = useDebounce(search, 250)
-  const { data = [], isFetching } = useGetPayablePurchaseOrdersQuery({ partnerId: partnerId ?? 0, search: debounced }, { skip: !open || !partnerId })
+const useOptions = ({ partnerId, search }: { partnerId: number; search: string }, skip: boolean) => useGetPayablePurchaseOrdersQuery({ partnerId, search }, { skip })
 
-  return (
-    <SearchableSelect<PoRef>
-      id={id}
-      value={value}
-      onChange={(po) => onChange(po as PayablePurchaseOrder)}
-      options={data}
-      getKey={(po) => po.id}
-      getLabel={(po) => po.poNo}
-      renderOption={(po) => {
-        const payable = po as PayablePurchaseOrder
-        return (
-          <span className="flex items-center justify-between gap-2">
-            <span className="font-medium">{payable.poNo}</span>
-            <span className="shrink-0 text-xs text-text-muted">
-              {DESTINATION[payable.destination]} · {formatCurrencyAmount(payable.currency, payable.leftToRequest)} left of {formatMoney(payable.amount)} · ERD {formatDay(payable.etd)}
-            </span>
-          </span>
-        )
-      }}
-      search={search}
-      onSearchChange={setSearch}
-      onOpenChange={setOpen}
-      loading={isFetching}
-      placeholder={partnerId ? 'Select a purchase order' : 'Pick the supplier first'}
-      searchPlaceholder="PO number, e.g. PO-1043"
-      emptyText="No approved, open purchase order of this supplier has an amount left to pay."
-      error={error}
-      disabled={disabled || !partnerId}
-    />
-  )
-}
+/** The purchase order a payment request pays: approved, open POs of the chosen supplier that are not fully paid or requested. */
+export const PayablePoSelect: React.FC<PayablePoSelectProps> = (props) => (
+  <PoOptionSelect<PayablePurchaseOrder>
+    {...props}
+    useOptions={useOptions}
+    renderMeta={(po) => `${DESTINATION[po.destination]} · ${formatCurrencyAmount(po.currency, po.leftToRequest)} left of ${formatMoney(po.amount)} · ERD ${formatDay(po.etd)}`}
+    emptyText="No approved, open purchase order of this supplier has an amount left to pay."
+  />
+)

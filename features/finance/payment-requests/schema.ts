@@ -12,8 +12,15 @@ const amountOf = (value: string): number => (Number.isFinite(parseAmount(value))
 export const REFERENCE_OPTIONS: Array<{ value: ReferenceType; label: string }> = [
   { value: 'INVOICE', label: 'Invoice' },
   { value: 'PURCHASE_ORDER', label: 'Purchase order' },
+  { value: 'SAMPLE', label: 'Sample' },
   { value: 'SHIPMENT', label: 'Shipment' },
 ]
+
+/** What a batch can raise: samples are ticked from one PO's list, so they are raised one at a time. */
+export const BATCH_REFERENCE_OPTIONS = REFERENCE_OPTIONS.filter((option) => option.value !== 'SAMPLE')
+
+/** Types that pay against one of our purchase orders (a PO's own price, or the PO's samples), so they carry no invoice no. */
+export const isPoBased = (referenceType: ReferenceType): boolean => referenceType === 'PURCHASE_ORDER' || referenceType === 'SAMPLE'
 
 /** Same cap as the server. */
 export const MAX_REQUEST_LINES = 20
@@ -41,11 +48,13 @@ export const emptyLine: RequestLineValues = { amount: '', costCenterId: '', gstR
 export const baseSchema = z.object({
   partnerId: z.string().min(1, 'Choose a partner'),
   /** Paying a supplier invoice, one of our purchase orders (then there is no invoice no.), or a carrier's invoice for shipments. */
-  referenceType: z.enum(['INVOICE', 'PURCHASE_ORDER', 'SHIPMENT']),
+  referenceType: z.enum(['INVOICE', 'PURCHASE_ORDER', 'SHIPMENT', 'SAMPLE']),
   invoiceNo: z.string().trim().max(80, 'Keep it under 80 characters'),
   purchaseOrder: z.custom<PoRef | null>(),
   /** Shipment requests: the carrier's FBA shipments the invoice is for. */
   shipments: z.custom<CarrierShipment[]>(),
+  /** Sample requests: the ticked chargeable samples of the picked PO. */
+  sampleIds: z.array(z.number()),
   invoiceDate: z.string().min(1, 'Invoice date is required'),
   /** yyyy-MM-dd; starts as the invoice date plus the partner's payment term, and may be changed for this request alone. */
   dueDate: z.string(),
@@ -88,16 +97,17 @@ export interface PoLimit {
   leftToRequest: number
 }
 
-type ReferenceFields = Pick<PaymentRequestFormValues, 'referenceType' | 'invoiceNo' | 'purchaseOrder' | 'shipments' | 'invoiceDate' | 'dueDate' | 'gstType' | 'lines'>
+type ReferenceFields = Pick<PaymentRequestFormValues, 'referenceType' | 'invoiceNo' | 'purchaseOrder' | 'shipments' | 'invoiceDate' | 'dueDate' | 'gstType' | 'lines'> & { sampleIds?: number[] }
 
 /** What every request needs to name what it pays, whether raised alone or in a batch (`path` places the issues inside a list). */
 export function addReferenceIssues(values: ReferenceFields, ctx: z.RefinementCtx, path: Array<string | number> = []) {
-  const isPo = values.referenceType === 'PURCHASE_ORDER'
+  const isPo = isPoBased(values.referenceType)
   // Both are yyyy-MM-dd, so they compare as text
   if (values.dueDate && values.invoiceDate && values.dueDate < values.invoiceDate) ctx.addIssue({ code: 'custom', path: [...path, 'dueDate'], message: 'Due date cannot be before the invoice date' })
   if (!isPo && !values.invoiceNo.trim()) ctx.addIssue({ code: 'custom', path: [...path, 'invoiceNo'], message: 'Invoice number is required' })
   if (isPo && !values.purchaseOrder) ctx.addIssue({ code: 'custom', path: [...path, 'purchaseOrder'], message: 'Pick the purchase order being paid' })
   if (values.referenceType === 'SHIPMENT' && values.shipments.length === 0) ctx.addIssue({ code: 'custom', path: [...path, 'shipments'], message: 'Pick at least one shipment' })
+  if (values.referenceType === 'SAMPLE' && !values.sampleIds?.length) ctx.addIssue({ code: 'custom', path: [...path, 'sampleIds'], message: 'Pick at least one sample' })
   if (values.gstType !== 'NOT_APPLICABLE') {
     values.lines.forEach((line, index) => {
       if (!line.gstRateId) ctx.addIssue({ code: 'custom', path: [...path, 'lines', index, 'gstRateId'], message: 'Choose a GST %' })
@@ -109,9 +119,13 @@ export function addReferenceIssues(values: ReferenceFields, ctx: z.RefinementCtx
 }
 
 /** Schema depends on the picked PO: its open balance caps the request's amount before GST (the GST rates tell what that is). */
-export const makePaymentRequestSchema = (poLimit: PoLimit | null, gstRates: GstRate[] = []) =>
+export const makePaymentRequestSchema = (poLimit: PoLimit | null, gstRates: GstRate[] = [], sampleTotal: number | null = null) =>
   baseSchema.superRefine((values, ctx) => {
     addReferenceIssues(values, ctx)
+    // A sample request pays exactly the ticked samples, so its amounts (before GST) must add up to them
+    if (values.referenceType === 'SAMPLE' && sampleTotal !== null && sampleTotal > 0 && Math.abs(gstSplitOf(values, gstRates).net - sampleTotal) >= 0.005) {
+      ctx.addIssue({ code: 'custom', path: ['lines'], message: `The amounts must add up to ${formatMoney(sampleTotal)}, the ticked samples` })
+    }
     if (values.referenceType === 'PURCHASE_ORDER' && poLimit && gstSplitOf(values, gstRates).net > poLimit.leftToRequest) {
       ctx.addIssue({ code: 'custom', path: ['lines'], message: poLimitMessage(poLimit) })
     }
@@ -126,6 +140,7 @@ export const emptyFormValues: PaymentRequestFormValues = {
   invoiceNo: '',
   purchaseOrder: null,
   shipments: [],
+  sampleIds: [],
   invoiceDate: '',
   dueDate: '',
   containerNo: '',
@@ -148,7 +163,10 @@ export const linesFromDetail = (detail: PaymentRequestDetail): RequestLineValues
       })
     : [emptyLine]
 
-const isPo = (values: PaymentRequestFormValues) => values.referenceType === 'PURCHASE_ORDER'
+const isPo = (values: PaymentRequestFormValues) => isPoBased(values.referenceType)
+
+/** The sample ids a request sends: its ticked samples on a sample request, none otherwise. */
+const sampleIdsOf = (values: PaymentRequestFormValues): number[] => (values.referenceType === 'SAMPLE' ? values.sampleIds : [])
 
 /** The shipment ids a request sends: its picked shipments on a shipment request, none otherwise. */
 const shipmentIdsOf = (values: PaymentRequestFormValues): number[] => (values.referenceType === 'SHIPMENT' ? values.shipments.map((shipment) => shipment.id) : [])
@@ -170,6 +188,7 @@ export function toUpdateBody(values: PaymentRequestFormValues) {
     invoiceNo: isPo(values) ? null : values.invoiceNo.trim(),
     purchaseOrderId: isPo(values) ? (values.purchaseOrder?.id ?? null) : null,
     shipmentIds: shipmentIdsOf(values),
+    sampleIds: sampleIdsOf(values),
     invoiceDate: values.invoiceDate,
     dueDate: values.dueDate || null,
     containerNo: values.containerNo.trim() || null,
@@ -191,6 +210,7 @@ export function toCreateFormData(values: PaymentRequestFormValues, files: File[]
     body.append('invoiceNo', values.invoiceNo.trim())
   }
   if (values.referenceType === 'SHIPMENT') body.append('shipmentIds', JSON.stringify(shipmentIdsOf(values)))
+  if (values.referenceType === 'SAMPLE') body.append('sampleIds', JSON.stringify(sampleIdsOf(values)))
   if (values.containerNo.trim()) body.append('containerNo', values.containerNo.trim())
   body.append('invoiceDate', values.invoiceDate)
   // Left out, the server uses the invoice date plus the partner's payment term

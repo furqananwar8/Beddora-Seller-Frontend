@@ -40,10 +40,13 @@ const Summary: React.FC<{ detail: PaymentRequestDetail }> = ({ detail }) => (
     <Row label="Partner">
       {toProperName(detail.partner.name)} <span className="font-normal text-text-muted">({detail.partner.type === 'VENDOR' ? 'Vendor' : 'Supplier'})</span>
     </Row>
-    <Row label={detail.referenceType === 'PURCHASE_ORDER' ? 'Purchase order' : 'Invoice'}>
+    <Row label={detail.referenceType === 'PURCHASE_ORDER' ? 'Purchase order' : detail.referenceType === 'SAMPLE' ? 'Samples of' : 'Invoice'}>
       {requestReference(detail)} · {formatDay(detail.invoiceDate)}
     </Row>
     {detail.referenceType === 'SHIPMENT' && <Row label="Shipments">{detail.shipments.map((shipment) => shipment.reference).join(', ') || '-'}</Row>}
+    {detail.referenceType === 'SAMPLE' && (
+      <Row label="Samples">{detail.samples.map((sample) => `${sample.product.sku ?? sample.product.name} × ${sample.units}`).join(', ') || '-'}</Row>
+    )}
     {detail.referenceType !== 'PURCHASE_ORDER' && <Row label="Container #">{detail.containerNo || '-'}</Row>}
     <Row label="Destination">{detail.marketplace ? countryLabel(detail.marketplace.code) || detail.marketplace.name : '-'}</Row>
     {detail.lines.length > 1 ? (

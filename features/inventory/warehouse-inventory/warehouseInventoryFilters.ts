@@ -33,6 +33,8 @@ export interface FigureColumn {
   source?: StockColumn
   money?: 'CAD' | 'USD'
   strong?: boolean
+  /** A count that opens the SKU's sample history when clicked. */
+  opensSamples?: boolean
 }
 
 const stock = (source: StockColumn, label: string, group: string): FigureColumn => ({ key: `${group}:${source}`, label, group, source, value: (row) => row.stock[source] })
@@ -54,6 +56,8 @@ export const FIGURE_COLUMNS: FigureColumn[] = [
   stock('usa', 'USA', PLATFORM_INVENTORY),
   { key: 'totalAvailable', label: 'Total available units', value: (row) => row.totalAvailable, strong: true },
   { key: 'inTransit', label: 'Intransit', value: (row) => row.inTransit },
+  // Information only: not part of the total available, the pipeline or its cost
+  { key: 'samples', label: 'Samples', value: (row) => row.samples, opensSamples: true },
 ]
 
 export { headerGroups } from '@/utils/headerGroups'
