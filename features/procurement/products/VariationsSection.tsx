@@ -86,7 +86,6 @@ export const VariationsSection: React.FC<VariationsSectionProps> = ({ form, prod
     append(row, { shouldFocus: false })
     setOpen((current) => new Set(current).add(row.clientKey))
   }
-  const masterPlatform = useWatch({ control, name: 'platform' })
 
   const rowErrors = errors.variations
 
@@ -107,14 +106,7 @@ export const VariationsSection: React.FC<VariationsSectionProps> = ({ form, prod
       </CardHeader>
       <CardContent className="p-0 sm:p-0">
         {fields.length === 0 ? (
-          <div className="space-y-4 px-4 py-6">
-            <p className="text-center text-sm text-text-muted">No variations. This product is ordered on its own SKU.</p>
-            <div className="mx-auto max-w-sm">
-              <p className="ds-input-label">Platform *</p>
-              <PlatformRadio id="product-platform" value={masterPlatform} onChange={(value) => setValue('platform', value, { shouldDirty: true })} disabled={readOnly} />
-              <p className="mt-1 text-xs text-text-muted">Containers show it as their Brand</p>
-            </div>
-          </div>
+          <p className="px-4 py-8 text-center text-sm text-text-muted">No variations. This product is ordered on its own SKU.</p>
         ) : (
           <div className="divide-y-8 divide-secondary-100">
             {fields.map((field, index) => {

@@ -27,15 +27,15 @@ export const GstTotals: React.FC<GstTotalsProps> = ({ currency, entered, type, o
   const applies = type !== 'NOT_APPLICABLE'
   const gstLabel = type === 'INCLUSIVE' ? 'GST (included)' : 'GST'
   return (
-    <div className="ml-auto mt-3 w-full max-w-xs space-y-1 text-sm" aria-label="Request total">
+    <div className="ml-auto mt-3 w-full max-w-sm space-y-1 text-sm" aria-label="Request total">
       {applies && <Row label="Amount before GST" value={money(net)} />}
       {applies &&
         (onGstChange ? (
           <div className="flex items-center justify-between gap-6 text-text-secondary">
-            <label htmlFor="request-total-gst">
+            <label htmlFor="request-total-gst" className="whitespace-nowrap">
               {gstLabel} {currency && <span className="text-text-muted">({currency})</span>}
             </label>
-            <AmountInput id="request-total-gst" aria-label="Total GST" className="w-36 rounded-lg text-right tabular-nums" value={formatMoney(gst)} onValueChange={onGstChange} />
+            <AmountInput id="request-total-gst" aria-label="Total GST" className="w-32 rounded-lg text-right tabular-nums" value={formatMoney(gst)} onValueChange={onGstChange} />
           </div>
         ) : (
           <Row label={gstLabel} value={money(gst)} />

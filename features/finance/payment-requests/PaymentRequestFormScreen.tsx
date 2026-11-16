@@ -598,9 +598,9 @@ export const PaymentRequestFormScreen: React.FC = () => {
               <ContainerSelect id="containerNo" value={containerNo} onChange={pickContainer} error={errors.containerNo?.message} />
             </FormField>
             <FormField
-              label="Destination (Marketplace)"
+              label="Destination"
               htmlFor="marketplaceId"
-              hint={termsLockedBy ?? (containerNo ? 'Set by the container' : undefined)}
+              hint={termsLockedBy ?? (containerNo ? 'Set by the container' : 'Marketplace')}
             >
               <SelectShell>
               <Select
