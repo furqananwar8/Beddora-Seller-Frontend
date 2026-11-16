@@ -106,7 +106,7 @@ export const PoProductsSection: React.FC<PoProductsSectionProps> = ({ form, read
                   const twin = lines.some((other, otherIndex) => otherIndex !== index && other.product.id === product.id)
                   return (
                     <React.Fragment key={field.fieldId}>
-                      <tr className={cn('border-t border-border', sample && 'bg-primary-50/50')}>
+                      <tr className={'border-t border-border'}>
                         <td className={CELL}>
                           <ExpandToggle expanded={expanded} onToggle={() => toggle(product.id)} />
                         </td>
@@ -192,7 +192,7 @@ export const PoProductsSection: React.FC<PoProductsSectionProps> = ({ form, read
                 })}
               </tbody>
               <tfoot>
-                <tr className="border-t border-border bg-secondary-50 font-semibold">
+                <tr className="border-t border-border font-semibold">
                   <td className={cn(CELL, 'text-left')} colSpan={7}>
                     Total · {products.count} {products.count === 1 ? 'product' : 'products'}
                   </td>
@@ -204,7 +204,7 @@ export const PoProductsSection: React.FC<PoProductsSectionProps> = ({ form, read
                   {!readOnly && <td />}
                 </tr>
                 {samples.count > 0 && (
-                  <tr className="border-t border-border bg-primary-50/50 font-semibold text-primary-800">
+                  <tr className="border-t border-border font-semibold">
                     <td className={cn(CELL, 'text-left')} colSpan={7}>
                       Samples · {samples.count} {samples.count === 1 ? 'SKU' : 'SKUs'} · {samples.free} free <span className="font-normal">(not in the PO amount)</span>
                     </td>
