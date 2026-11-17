@@ -4,7 +4,7 @@ import React from 'react'
 import { fieldClass } from '@/components/form-field/FormField'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/design-system/tables'
 import { cn } from '@/utils/cn'
-import { formatVsLowest, TOP_RANKS, type QuoteRow, type RankedRow, type RowErrors } from './priceAnalysisForm'
+import { formatVsLowest, SAMPLE_OPTIONS, TOP_RANKS, type QuoteRow, type RankedRow, type RowErrors } from './priceAnalysisForm'
 import { RANK_TONE } from './TopSupplierCards'
 
 import { NumericInput } from '@/components/form-field/NumericInput'
@@ -67,6 +67,7 @@ export const QuotesTable: React.FC<QuotesTableProps> = ({ rows, errors, showErro
           <TableHead className={CELL}>Vs lowest</TableHead>
           <TableHead className={CELL}>Rank</TableHead>
           <TableHead className="min-w-[200px] text-left">Remarks</TableHead>
+          <TableHead className={cn(CELL, 'min-w-[150px]')}>Sample</TableHead>
           <TableHead className={cn(CELL, 'min-w-[190px]')}>Approval</TableHead>
           {!readOnly && <TableHead className={cn(CELL, 'w-12')} aria-label="Remove" />}
         </TableRow>
@@ -74,7 +75,7 @@ export const QuotesTable: React.FC<QuotesTableProps> = ({ rows, errors, showErro
       <TableBody>
         {rows.length === 0 ? (
           <TableRow>
-            <TableCell colSpan={readOnly ? 8 : 9}>
+            <TableCell colSpan={readOnly ? 9 : 10}>
               <p className="py-8 text-center text-sm text-text-muted">{readOnly ? 'No supplier quotes yet.' : 'Pick suppliers in “Add suppliers” to add a row for each.'}</p>
             </TableCell>
           </TableRow>
@@ -140,6 +141,21 @@ export const QuotesTable: React.FC<QuotesTableProps> = ({ rows, errors, showErro
                     disabled={readOnly}
                   />
                   {rowErrors.remarks && <p className="mt-1 text-xs text-danger-600">{rowErrors.remarks}</p>}
+                </TableCell>
+                <TableCell className={CELL}>
+                  <select
+                    aria-label={`Sample from ${row.supplier.name}`}
+                    value={row.sample}
+                    onChange={(event) => onChange(row.supplier.id, { sample: event.target.value as QuoteRow['sample'] })}
+                    className={fieldClass()}
+                    disabled={readOnly}
+                  >
+                    {SAMPLE_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
                 </TableCell>
                 <TableCell className={CELL}>
                   <div className="flex flex-col items-center gap-1">

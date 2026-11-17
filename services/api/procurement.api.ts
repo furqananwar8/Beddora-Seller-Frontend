@@ -961,10 +961,14 @@ export type PriceAnalysisProduct = Pick<
   | 'updatedAt'
 >
 
+/** The sample a supplier offers with a quote. */
+export type QuoteSample = 'FREE_OF_COST' | 'BY_CHARGE' | 'NOT_PROVIDED'
+
 export interface PriceQuote {
   supplier: { id: number; name: string; contactName: string | null; isActive: boolean }
   contactName: string | null
   remarks: string | null
+  sample: QuoteSample
   unitPrice: number
   /** This is the one approved quote. */
   approved: boolean
@@ -1004,7 +1008,7 @@ export interface PriceAnalysisRevision {
   type: 'CREATED' | 'UPDATED' | 'REMOVED'
   material: string | null
   currency: string
-  quotes: Array<{ supplierId: number; supplierName: string; contactName: string | null; remarks: string | null; unitPrice: number }>
+  quotes: Array<{ supplierId: number; supplierName: string; contactName: string | null; remarks: string | null; sample?: QuoteSample; unitPrice: number }>
   by: { id: number; name: string | null }
   at: string
 }
@@ -1039,7 +1043,7 @@ export interface PriceAnalysisListParams extends PageParams {
 export interface PriceAnalysisBody {
   material: string | null
   currency: PoCurrency
-  quotes: Array<{ supplierId: number; contactName: string | null; remarks: string | null; unitPrice: number }>
+  quotes: Array<{ supplierId: number; contactName: string | null; remarks: string | null; sample: QuoteSample; unitPrice: number }>
   /** When the analysis was loaded; `null` = there was none yet. */
   expectedUpdatedAt: string | null
 }

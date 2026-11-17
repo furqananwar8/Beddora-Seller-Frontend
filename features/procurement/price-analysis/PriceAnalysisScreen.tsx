@@ -126,7 +126,7 @@ export const PriceAnalysisScreen: React.FC<{ productId: number }> = ({ productId
     const kept = form.rows.filter((row) => suppliers.some((supplier) => supplier.id === row.supplier.id))
     const added = suppliers
       .filter((supplier) => !form.rows.some((row) => row.supplier.id === supplier.id))
-      .map((supplier) => ({ supplier: { id: supplier.id, name: supplier.name, contactName: supplier.contactName }, contactName: supplier.contactName ?? '', remarks: '', unitPrice: '' }))
+      .map((supplier) => ({ supplier: { id: supplier.id, name: supplier.name, contactName: supplier.contactName }, contactName: supplier.contactName ?? '', remarks: '', sample: 'NOT_PROVIDED' as const, unitPrice: '' }))
     setRows([...kept, ...added])
   }
 

@@ -19,6 +19,17 @@ function describe(event: PriceAnalysisEvent, productLabel: string): string {
   return `${productLabel} was edited by ${who} on ${day}; the approval of ${event.supplierName ?? 'a supplier'}${price(event)} was taken back and needs approving again`
 }
 
+/** One approval, rejection or taken-back approval, worded for a timeline. */
+export const ApprovalEventLine: React.FC<{ event: PriceAnalysisEvent; productLabel: string }> = ({ event, productLabel }) => (
+  <>
+    <span className={cn('mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full', EVENT_DOT[event.type])} aria-hidden />
+    <div className="min-w-0">
+      <p className="text-sm text-text-primary">{describe(event, productLabel)}</p>
+      {event.remarks && <p className="text-xs text-text-muted">{event.type === 'REJECTED' ? 'Reason' : 'Remarks'}: {event.remarks}</p>}
+    </div>
+  </>
+)
+
 /** The approval history of one analysis. */
 export const ApprovalHistory: React.FC<{ events: PriceAnalysisEvent[]; productLabel: string }> = ({ events, productLabel }) =>
   events.length === 0 ? (
@@ -27,11 +38,7 @@ export const ApprovalHistory: React.FC<{ events: PriceAnalysisEvent[]; productLa
     <ol className="flex flex-col gap-3">
       {events.map((event) => (
         <li key={event.id} className="flex gap-3">
-          <span className={cn('mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full', EVENT_DOT[event.type])} aria-hidden />
-          <div className="min-w-0">
-            <p className="text-sm text-text-primary">{describe(event, productLabel)}</p>
-            {event.remarks && <p className="text-xs text-text-muted">{event.type === 'REJECTED' ? 'Reason' : 'Remarks'}: {event.remarks}</p>}
-          </div>
+          <ApprovalEventLine event={event} productLabel={productLabel} />
         </li>
       ))}
     </ol>

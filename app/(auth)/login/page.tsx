@@ -155,6 +155,7 @@ export default function LoginPage() {
                   leftIcon={lockIcon}
                   rightIcon={eyeIcon}
                   onRightIconClick={() => setShowPassword(!showPassword)}
+                  rightIconLabel={showPassword ? 'Hide password' : 'Show password'}
                   value={formData.password}
                   onChange={(e) =>
                     setFormData({ ...formData, password: e.target.value })
