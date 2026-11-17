@@ -276,9 +276,16 @@ export const PoOrderDetailsSection: React.FC<SectionProps> = ({ form, readOnly }
           htmlFor="po-payment-terms"
           className="sm:col-span-2 lg:col-span-3"
           error={errors.paymentTerms?.message}
-          hint="Optional · one term per line · printed on the PDF instead of the standard terms and conditions"
+          hint="Optional · up to 200 characters · replaces the supplier's term on the PDF"
         >
-          <textarea id="po-payment-terms" rows={3} maxLength={1000} readOnly={readOnly} className={cn(fieldClass(errors.paymentTerms?.message), 'h-auto py-2')} {...form.register('paymentTerms')} />
+          <textarea
+            id="po-payment-terms"
+            rows={2}
+            maxLength={200}
+            readOnly={readOnly}
+            className={cn(fieldClass(errors.paymentTerms?.message), 'h-auto max-h-32 min-h-0 w-full resize-y overflow-y-auto py-2')}
+            {...form.register('paymentTerms')}
+          />
         </FormField>
       </CardContent>
     </Card>
