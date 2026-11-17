@@ -5,9 +5,11 @@ import { StatusBadge } from '@/components/status-badge/StatusBadge'
 import { Modal } from '@/design-system/modals'
 import { Spinner } from '@/design-system/loaders'
 import { formatCurrencyAmount } from '@/features/finance/shared/format'
-import { useGetPriceAnalysisRevisionsQuery, type PriceAnalysisRevision } from '@/services/api/procurement.api'
+import { useGetPriceAnalysisQuery, useGetPriceAnalysisRevisionsQuery, type PriceAnalysisEvent, type PriceAnalysisRevision } from '@/services/api/procurement.api'
 import { cn } from '@/utils/cn'
 import { formatDateTime } from '@/utils/format'
+import { ApprovalEventLine } from './ApprovalHistory'
+import { sampleLabel } from './priceAnalysisForm'
 
 const TYPE_LABEL: Record<PriceAnalysisRevision['type'], { label: string; tone: 'success' | 'info' | 'danger' }> = {
   CREATED: { label: 'CREATED', tone: 'success' },
@@ -46,6 +48,7 @@ const Revision: React.FC<{ revision: PriceAnalysisRevision; previous?: PriceAnal
                 <span className="min-w-0 break-words text-text-primary">
                   {quote.supplierName}
                   {quote.contactName && <span className="text-text-muted"> · {quote.contactName}</span>}
+                  <span className="text-text-muted"> · Sample: {sampleLabel(quote.sample)}</span>
                 </span>
                 <span className="tabular-nums">
                   <span className="font-semibold">{formatCurrencyAmount(revision.currency, quote.unitPrice)}</span>
@@ -62,24 +65,47 @@ const Revision: React.FC<{ revision: PriceAnalysisRevision; previous?: PriceAnal
   )
 }
 
-/** The price history of one product: a dated snapshot for every change, newest first, with how each price moved. */
+/** One entry of the timeline: a price snapshot or an approval decision. */
+type TimelineEntry = { kind: 'revision'; at: string; revision: PriceAnalysisRevision; previous?: PriceAnalysisRevision } | { kind: 'approval'; at: string; event: PriceAnalysisEvent }
+
+/** Snapshots and approval decisions in one list, newest first. */
+function buildTimeline(revisions: PriceAnalysisRevision[], events: PriceAnalysisEvent[]): TimelineEntry[] {
+  const entries: TimelineEntry[] = [
+    ...revisions.map((revision, index): TimelineEntry => ({ kind: 'revision', at: revision.at, revision, previous: revisions[index + 1] })),
+    ...events.map((event): TimelineEntry => ({ kind: 'approval', at: event.at, event })),
+  ]
+  return entries.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
+}
+
+/** The timeline of one product: every price change and every approval or rejection, newest first. */
 export const PriceHistoryModal: React.FC<{ productId: number | null; productLabel: string; onClose: () => void }> = ({ productId, productLabel, onClose }) => {
-  const { data, isLoading, isError } = useGetPriceAnalysisRevisionsQuery(productId ?? 0, { skip: productId === null })
+  const skip = productId === null
+  const revisions = useGetPriceAnalysisRevisionsQuery(productId ?? 0, { skip })
+  const analysis = useGetPriceAnalysisQuery(productId ?? 0, { skip })
+  const isLoading = revisions.isLoading || analysis.isLoading
+  const isError = revisions.isError || analysis.isError
+  const entries = buildTimeline(revisions.data ?? [], analysis.data?.history ?? [])
   return (
-    <Modal isOpen={productId !== null} onClose={onClose} title={`Price history · ${productLabel}`} size="lg">
+    <Modal isOpen={productId !== null} onClose={onClose} title={`Timeline · ${productLabel}`} size="lg">
       {isLoading ? (
         <div className="flex justify-center py-12">
           <Spinner />
         </div>
       ) : isError ? (
-        <p className="py-8 text-center text-sm font-medium text-danger-600">Could not load the price history.</p>
-      ) : !data || data.length === 0 ? (
-        <p className="py-8 text-center text-sm text-text-muted">No price changes recorded yet. Every save from now on is kept here.</p>
+        <p className="py-8 text-center text-sm font-medium text-danger-600">Could not load the timeline.</p>
+      ) : entries.length === 0 ? (
+        <p className="py-8 text-center text-sm text-text-muted">Nothing recorded yet. Every save, approval and rejection from now on is kept here.</p>
       ) : (
         <ol className="flex max-h-[70vh] flex-col gap-3 overflow-y-auto">
-          {data.map((revision, index) => (
-            <Revision key={revision.id} revision={revision} previous={data[index + 1]} />
-          ))}
+          {entries.map((entry) =>
+            entry.kind === 'revision' ? (
+              <Revision key={`r${entry.revision.id}`} revision={entry.revision} previous={entry.previous} />
+            ) : (
+              <li key={`e${entry.event.id}`} className="flex gap-3 rounded-lg border border-border p-3">
+                <ApprovalEventLine event={entry.event} productLabel={productLabel} />
+              </li>
+            )
+          )}
         </ol>
       )}
     </Modal>

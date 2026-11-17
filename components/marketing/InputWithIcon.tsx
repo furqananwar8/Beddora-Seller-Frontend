@@ -8,12 +8,14 @@ export interface InputWithIconProps extends InputProps {
   leftIcon?: React.ReactNode
   rightIcon?: React.ReactNode
   onRightIconClick?: () => void
+  rightIconLabel?: string
 }
 
 export const InputWithIcon: React.FC<InputWithIconProps> = ({
   leftIcon,
   rightIcon,
   onRightIconClick,
+  rightIconLabel,
   className,
   ...props
 }) => {
@@ -44,9 +46,10 @@ export const InputWithIcon: React.FC<InputWithIconProps> = ({
           <button
             type="button"
             onClick={onRightIconClick}
+            aria-label={rightIconLabel}
             className="absolute inset-y-0 right-0 pr-3 flex items-center text-text-muted hover:text-text-primary transition-colors"
           >
-            {rightIcon}
+            <span className="block h-5 w-5">{rightIcon}</span>
           </button>
         )}
       </div>

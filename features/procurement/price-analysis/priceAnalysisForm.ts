@@ -1,4 +1,13 @@
-import type { PoCurrency, PriceAnalysisBody, PriceAnalysisView, SupplierRef } from '@/services/api/procurement.api'
+import type { PoCurrency, PriceAnalysisBody, PriceAnalysisView, QuoteSample, SupplierRef } from '@/services/api/procurement.api'
+
+/** Sample options in the order they are offered; one source for the select and the timeline labels. */
+export const SAMPLE_OPTIONS: ReadonlyArray<{ value: QuoteSample; label: string }> = [
+  { value: 'FREE_OF_COST', label: 'Free Of Cost' },
+  { value: 'BY_CHARGE', label: 'By Charge' },
+  { value: 'NOT_PROVIDED', label: 'Not Provided' },
+]
+
+export const sampleLabel = (value: QuoteSample | undefined): string => SAMPLE_OPTIONS.find((option) => option.value === value)?.label ?? 'Not Provided'
 
 /** Cards on the screen: the cheapest five. Rows after that are kept but get no card. */
 export const TOP_RANKS = 5
@@ -8,6 +17,7 @@ export interface QuoteRow {
   /** Point of contact for this quote; starts as the supplier's own contact. */
   contactName: string
   remarks: string
+  sample: QuoteSample
   /** As typed. */
   unitPrice: string
 }
@@ -31,6 +41,7 @@ export function formFrom(view: PriceAnalysisView): PriceAnalysisForm {
       supplier: { id: quote.supplier.id, name: quote.supplier.name, contactName: quote.supplier.contactName },
       contactName: quote.contactName ?? '',
       remarks: quote.remarks ?? '',
+      sample: quote.sample,
       unitPrice: quote.unitPrice.toFixed(2),
     })),
   }
@@ -85,7 +96,7 @@ export function toBody(form: PriceAnalysisForm, loadedAt: string | null): PriceA
   return {
     material: form.material.trim() || null,
     currency: form.currency,
-    quotes: form.rows.map((row) => ({ supplierId: row.supplier.id, contactName: row.contactName.trim() || null, remarks: row.remarks.trim() || null, unitPrice: parsePrice(row.unitPrice) ?? 0 })),
+    quotes: form.rows.map((row) => ({ supplierId: row.supplier.id, contactName: row.contactName.trim() || null, remarks: row.remarks.trim() || null, sample: row.sample, unitPrice: parsePrice(row.unitPrice) ?? 0 })),
     expectedUpdatedAt: loadedAt,
   }
 }
