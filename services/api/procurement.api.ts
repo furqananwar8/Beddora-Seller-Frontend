@@ -305,6 +305,8 @@ export interface PurchaseOrderDetail {
   externalRef: string | null
   supplier: SupplierRef
   contactName: string | null
+  /** Payment terms typed on this PO; printed on its PDF instead of the standard terms. */
+  paymentTerms: string | null
   destination: PoDestination
   /** Where the goods are delivered; null when none was picked. */
   warehouse: PoWarehouse | null
@@ -346,6 +348,7 @@ export interface PurchaseOrderBody {
   submit?: boolean
   supplierId: number
   contactName: string | null
+  paymentTerms: string | null
   destination: PoDestination
   /** The warehouse the goods go to; null leaves it unset. */
   warehouseId: number | null

@@ -49,6 +49,7 @@ export const poFormSchema = z
   .object({
     supplier: z.custom<SupplierRef | null>(),
     contactName: z.string().trim().max(150, 'Contact name is too long'),
+    paymentTerms: z.string().trim().max(1000, 'Payment terms are too long'),
     destination: z.enum(['US', 'CA']),
     /** The delivery warehouse's id as a string; empty = none. */
     warehouseId: z.string(),
@@ -89,6 +90,7 @@ export const sampleAmount = (sample: Pick<PoSampleValues, 'units' | 'paid' | 'un
 export const emptyPoValues: PoFormValues = {
   supplier: null,
   contactName: '',
+  paymentTerms: '',
   destination: 'US',
   warehouseId: '',
   currency: 'USD',
@@ -133,6 +135,7 @@ export function toPoBody(values: PoFormValues, extras: { sourcePurchaseOrderId?:
   return {
     supplierId: values.supplier!.id,
     contactName: values.contactName.trim() || null,
+    paymentTerms: values.paymentTerms.trim() || null,
     destination: values.destination as PoDestination,
     warehouseId: values.warehouseId ? Number(values.warehouseId) : null,
     currency: values.currency as PoCurrency,
@@ -159,6 +162,7 @@ export function fromDetail(po: PurchaseOrderDetail): PoFormValues {
   return {
     supplier: po.supplier,
     contactName: po.contactName ?? '',
+    paymentTerms: po.paymentTerms ?? '',
     destination: po.destination,
     warehouseId: po.warehouse ? String(po.warehouse.id) : '',
     currency: po.currency,
