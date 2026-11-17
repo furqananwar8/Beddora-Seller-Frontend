@@ -6,13 +6,13 @@ import { Spinner } from '@/design-system/loaders'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/design-system/tables'
 import type { PurchaseOrderListItem } from '@/services/api/procurement.api'
 import { cn } from '@/utils/cn'
-import { formatCurrency } from '@/utils/format'
+import { formatCalendarDay, formatCurrency } from '@/utils/format'
 import { ArdCell } from './ArdCell'
 import { ProductionDateCell } from './ProductionDateCell'
 import { DESTINATION_LABEL, EtdBadge, OpenBadge, PaymentBadge, PoStatusBadge, canRequestPayment, isApprovedPo } from '../shared/poMeta'
 
 const CELL = 'text-center align-middle'
-const COLUMNS = 16
+const COLUMNS = 17
 
 export interface PoRowActions {
   canWrite: boolean
@@ -125,6 +125,7 @@ export const PurchaseOrdersTable: React.FC<PurchaseOrdersTableProps> = ({ rows, 
         <TableHead className={cn(CELL, 'min-w-[150px]')}>ERD</TableHead>
         <TableHead className={cn(CELL, 'min-w-[160px]')}>ARD</TableHead>
         <TableHead className={cn(CELL, 'min-w-[160px]')}>Production Date</TableHead>
+        <TableHead className={cn(CELL, 'min-w-[130px]')}>Issuance Date</TableHead>
         <TableHead className={CELL}>SKUs</TableHead>
         <TableHead className={CELL}>Units</TableHead>
         <TableHead className={CELL}>Amount</TableHead>
@@ -175,6 +176,7 @@ export const PurchaseOrdersTable: React.FC<PurchaseOrdersTableProps> = ({ rows, 
             <TableCell className={CELL}>
               <ProductionDateCell row={row} canEdit={actions.canEdit} />
             </TableCell>
+            <TableCell className={cn(CELL, 'whitespace-nowrap')}>{row.issuanceDate ? formatCalendarDay(row.issuanceDate) : '—'}</TableCell>
             <TableCell className={cn(CELL, 'tabular-nums')}>{row.skuCount}</TableCell>
             <TableCell className={cn(CELL, 'tabular-nums')}>{row.units.toLocaleString('en-CA')}</TableCell>
             <TableCell className={cn(CELL, 'whitespace-nowrap tabular-nums')}>{formatCurrency(row.totalAmount, row.currency)}</TableCell>

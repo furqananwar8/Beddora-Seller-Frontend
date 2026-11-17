@@ -213,6 +213,8 @@ export interface PurchaseOrderListItem {
   destination: PoDestination
   currency: PoCurrency
   productionDate: string | null
+  /** The date the PO was issued to the supplier. */
+  issuanceDate: string | null
   etd: string
   /** ARD: actual ready date, set from the list. */
   ard: string | null
@@ -312,6 +314,8 @@ export interface PurchaseOrderDetail {
   warehouse: PoWarehouse | null
   currency: PoCurrency
   productionDate: string | null
+  /** The date the PO was issued to the supplier. */
+  issuanceDate: string | null
   /** ERD: estimated ready date. */
   etd: string
   /** ARD: actual ready date, once the goods are ready. */
