@@ -271,6 +271,15 @@ export const PoOrderDetailsSection: React.FC<SectionProps> = ({ form, readOnly }
           />
         </FormField>
         <WarehouseField form={form} readOnly={readOnly} />
+        <FormField
+          label="Payment terms"
+          htmlFor="po-payment-terms"
+          className="sm:col-span-2 lg:col-span-3"
+          error={errors.paymentTerms?.message}
+          hint="Optional · one term per line · printed on the PDF instead of the standard terms and conditions"
+        >
+          <textarea id="po-payment-terms" rows={3} maxLength={1000} readOnly={readOnly} className={cn(fieldClass(errors.paymentTerms?.message), 'h-auto py-2')} {...form.register('paymentTerms')} />
+        </FormField>
       </CardContent>
     </Card>
   )

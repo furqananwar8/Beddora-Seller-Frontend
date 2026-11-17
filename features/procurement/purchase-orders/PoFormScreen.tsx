@@ -36,7 +36,7 @@ import { usePoActions } from './usePoActions'
 
 const LIST = '/dashboard/procurement/purchase-orders'
 
-const FORM_FIELDS = new Set(['supplierId', 'contactName', 'destination', 'warehouseId', 'currency', 'etd', 'lines', 'samples'])
+const FORM_FIELDS = new Set(['supplierId', 'contactName', 'paymentTerms', 'destination', 'warehouseId', 'currency', 'etd', 'lines', 'samples'])
 
 const REALTIME_VERB: Record<string, string> = {
   approved: 'approved',
