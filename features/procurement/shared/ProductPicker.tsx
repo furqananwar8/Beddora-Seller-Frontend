@@ -42,7 +42,7 @@ function useProductOptions() {
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
   const debounced = useDebounce(search, 250)
-  const { data = [], isFetching } = useGetPoProductOptionsQuery({ search: debounced, limit: 30 }, { skip: !open })
+  const { data = [], isFetching } = useGetPoProductOptionsQuery({ search: debounced, limit: 50 }, { skip: !open })
   return { search, setSearch, setOpen, options: data, isFetching }
 }
 
