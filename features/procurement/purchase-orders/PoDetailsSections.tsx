@@ -6,11 +6,12 @@ import { FormField, fieldClass } from '@/components/form-field/FormField'
 import { SegmentedToggle } from '@/components/segmented-toggle/SegmentedToggle'
 import { SingleDatePicker } from '@/components/single-date-picker/SingleDatePicker'
 import { Card, CardContent, CardHeader, CardTitle } from '@/design-system/cards/Card'
-import type { PoCurrency, PoDestination } from '@/services/api/procurement.api'
+import { useGetPoWarehousesQuery, type PoCurrency, type PoDestination, type PoWarehouse } from '@/services/api/procurement.api'
 import { cn } from '@/utils/cn'
 import { formatCalendarDay } from '@/utils/format'
 import { DESTINATION_OPTIONS } from '../shared/poMeta'
 import { SupplierSelect } from '../shared/SupplierSelect'
+import { WarehouseSelect, warehouseAddress } from '../shared/WarehouseSelect'
 import type { PoFormValues } from './poForm'
 
 const CURRENCIES: Array<{ value: PoCurrency; label: string }> = [
@@ -161,6 +162,65 @@ const EtdCountdown: React.FC<{ etd: string }> = ({ etd }) => {
   return <span className={cn('whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-semibold', tone)}>{days < 0 ? `${Math.abs(days)}d overdue` : `${days} days`}</span>
 }
 
+/** The warehouse the goods are delivered to (Settings > Warehouses): optional, with its address shown once picked. */
+const WarehouseField: React.FC<SectionProps> = ({ form, readOnly }) => {
+  const {
+    control,
+    setValue,
+    formState: { errors },
+  } = form
+  const picked = useWatch({ control, name: 'warehouseId' })
+  const { data: warehouses = [] } = useGetPoWarehousesQuery()
+  // A warehouse just added is known before the list refetches
+  const [added, setAdded] = useState<PoWarehouse | null>(null)
+  const selected = [...warehouses, ...(added ? [added] : [])].find((warehouse) => String(warehouse.id) === picked) ?? null
+  const clear = () => {
+    setValue('warehouseId', '', { shouldDirty: true })
+  }
+  return (
+    <FormField
+      label="Warehouse address"
+      htmlFor="po-warehouse"
+      error={errors.warehouseId?.message}
+      hint={
+        selected ? (
+          <span>
+            {warehouseAddress(selected)}
+            {!readOnly && (
+              <>
+                {' · '}
+                <button type="button" className="font-medium text-primary-600 hover:underline" onClick={clear}>
+                  Clear
+                </button>
+              </>
+            )}
+          </span>
+        ) : (
+          'Where the goods are delivered · optional · includes “+ Add new warehouse”'
+        )
+      }
+      className="sm:col-span-2 lg:col-span-3"
+    >
+      <Controller
+        control={control}
+        name="warehouseId"
+        render={({ field }) => (
+          <WarehouseSelect
+            id="po-warehouse"
+            value={field.value ? Number(field.value) : null}
+            error={errors.warehouseId?.message}
+            disabled={readOnly}
+            onChange={(warehouse) => {
+              setAdded(warehouse)
+              field.onChange(String(warehouse.id))
+            }}
+          />
+        )}
+      />
+    </FormField>
+  )
+}
+
 export const PoOrderDetailsSection: React.FC<SectionProps> = ({ form, readOnly }) => {
   const {
     control,
@@ -210,6 +270,7 @@ export const PoOrderDetailsSection: React.FC<SectionProps> = ({ form, readOnly }
             )}
           />
         </FormField>
+        <WarehouseField form={form} readOnly={readOnly} />
       </CardContent>
     </Card>
   )

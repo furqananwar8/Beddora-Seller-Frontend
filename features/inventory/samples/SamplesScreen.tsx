@@ -6,10 +6,12 @@ import { useStagedFilters } from '@/components/filter-bar/useStagedFilters'
 import { FormField } from '@/components/form-field/FormField'
 import { Container } from '@/components/layout'
 import { PaginationFooter } from '@/components/pagination-footer/PaginationFooter'
-import { SingleDatePicker } from '@/components/single-date-picker/SingleDatePicker'
-import { Select } from '@/design-system/inputs'
+import { Button } from '@/design-system/buttons'
+import { MultiSelectInput } from '@/components/multi-select-input/MultiSelectInput'
+import { useAppAbility } from '@/hooks/useAppAbility'
 import { useGetSampleSuppliersQuery, useGetSamplesQuery, type SampleStatus, type SampleType } from '@/services/api/samples.api'
 import { cn } from '@/utils/cn'
+import { CreateSampleModal } from './CreateSampleModal'
 import { SAMPLE_STATUS_OPTIONS, SAMPLE_TYPE_OPTIONS } from './sampleMeta'
 import { SamplesTable } from './SamplesTable'
 
@@ -20,24 +22,31 @@ interface SampleFilters extends Record<string, unknown> {
   supplierId: string
   type: SampleType | ''
   status: SampleStatus | ''
-  inventoryFrom: string
-  inventoryTo: string
 }
 
-const defaultFilters = (): SampleFilters => ({ search: '', supplierId: '', type: '', status: '', inventoryFrom: '', inventoryTo: '' })
+const defaultFilters = (): SampleFilters => ({ search: '', supplierId: '', type: '', status: '' })
+
+/** One single-choice filter in the Inventory Planner's dropdown style; its first option (empty value) is "all". */
+const FilterSelect: React.FC<{ label: string; title: string; value: string; onChange: (value: string) => void; options: Array<{ id: string; name: string }>; pending: boolean }> = ({ label, title, value, onChange, options, pending }) => (
+  <FormField label={label}>
+    <MultiSelectInput single title={title} options={options} value={[value]} onChange={(next) => onChange(next[0] ?? '')} className={cn('rounded-lg', pending && 'ring-1 ring-primary-500')} />
+  </FormField>
+)
 
 /** A filter box that shows it has a change waiting for Apply. */
 const pending = (changed: Set<keyof SampleFilters>, key: keyof SampleFilters) => cn(changed.has(key) && 'border-primary-500 ring-1 ring-primary-500')
 
 /**
- * Samples: every sample suppliers send with POs, free or chargeable, with where its payment stands and when it was added
- * to the SKU's Samples section. Search and filters take effect when Apply filters is pressed.
+ * Samples: every sample, made on a PO or here, free or chargeable, with where its payment stands. Search and filters
+ * take effect when Apply filters is pressed.
  */
 export const SamplesScreen: React.FC = () => {
   const defaults = useMemo(defaultFilters, [])
   const [page, setPage] = useState(1)
   const filters = useStagedFilters(defaults, () => setPage(1))
   const { draft, setDraft, applied, changed } = filters
+  const canWrite = useAppAbility().can('write', 'inventory:samples')
+  const [creating, setCreating] = useState(false)
 
   const { data: suppliers = [] } = useGetSampleSuppliersQuery()
   const { data, isLoading, isFetching, isError } = useGetSamplesQuery({
@@ -47,15 +56,20 @@ export const SamplesScreen: React.FC = () => {
     ...(applied.supplierId && { supplierId: Number(applied.supplierId) }),
     ...(applied.type && { type: applied.type }),
     ...(applied.status && { status: applied.status }),
-    ...(applied.inventoryFrom && { inventoryFrom: applied.inventoryFrom }),
-    ...(applied.inventoryTo && { inventoryTo: applied.inventoryTo }),
   })
 
   return (
     <Container size="full" className="py-4 sm:py-8">
-      <div className="mb-4 px-1 sm:mb-6">
-        <h1 className="text-xl font-bold text-text-primary sm:text-2xl">Samples</h1>
-        <p className="mt-1 text-sm text-text-muted">Samples suppliers send with purchase orders. They are counted per SKU for information and never change stock.</p>
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3 px-1 sm:mb-6">
+        <div>
+          <h1 className="text-xl font-bold text-text-primary sm:text-2xl">Samples</h1>
+          <p className="mt-1 text-sm text-text-muted">Samples suppliers send, made on a purchase order or here. They never change stock.</p>
+        </div>
+        {canWrite && (
+          <Button type="button" size="sm" onClick={() => setCreating(true)}>
+            + Create sample
+          </Button>
+        )}
       </div>
 
       <div className="mb-4 rounded-lg border border-border bg-surface p-4 shadow-sm">
@@ -75,33 +89,20 @@ export const SamplesScreen: React.FC = () => {
             </FormField>
           </FilterItem>
           <FilterItem>
-            <Select
+            <FilterSelect
               label="Supplier"
+              title="Supplier"
               value={draft.supplierId}
-              onChange={(event) => setDraft('supplierId', event.target.value)}
-              className={pending(changed, 'supplierId')}
-              options={[{ value: '', label: 'All suppliers' }, ...suppliers.map((supplier) => ({ value: String(supplier.id), label: supplier.name }))]}
+              onChange={(value) => setDraft('supplierId', value)}
+              options={[{ id: '', name: 'All suppliers' }, ...suppliers.map((supplier) => ({ id: String(supplier.id), name: supplier.name }))]}
+              pending={changed.has('supplierId')}
             />
           </FilterItem>
           <FilterItem>
-            <Select label="Type" value={draft.type} onChange={(event) => setDraft('type', event.target.value as SampleType | '')} className={pending(changed, 'type')} options={SAMPLE_TYPE_OPTIONS} />
+            <FilterSelect label="Type" title="Type" value={draft.type} onChange={(value) => setDraft('type', value as SampleType | '')} options={SAMPLE_TYPE_OPTIONS.map(({ value, label }) => ({ id: value, name: label }))} pending={changed.has('type')} />
           </FilterItem>
           <FilterItem>
-            <Select label="Payment" value={draft.status} onChange={(event) => setDraft('status', event.target.value as SampleStatus | '')} className={pending(changed, 'status')} options={SAMPLE_STATUS_OPTIONS} />
-          </FilterItem>
-          <FilterItem>
-            <FormField label="Added from" htmlFor="samples-from">
-              <div className={cn('rounded-lg', changed.has('inventoryFrom') && 'ring-1 ring-primary-500')}>
-                <SingleDatePicker id="samples-from" value={draft.inventoryFrom} onChange={(value) => setDraft('inventoryFrom', value)} placeholder="Any date" />
-              </div>
-            </FormField>
-          </FilterItem>
-          <FilterItem>
-            <FormField label="Added to" htmlFor="samples-to">
-              <div className={cn('rounded-lg', changed.has('inventoryTo') && 'ring-1 ring-primary-500')}>
-                <SingleDatePicker id="samples-to" value={draft.inventoryTo} onChange={(value) => setDraft('inventoryTo', value)} placeholder="Any date" />
-              </div>
-            </FormField>
+            <FilterSelect label="Payment" title="Payment" value={draft.status} onChange={(value) => setDraft('status', value as SampleStatus | '')} options={SAMPLE_STATUS_OPTIONS.map(({ value, label }) => ({ id: value, name: label }))} pending={changed.has('status')} />
           </FilterItem>
         </FilterBar>
       </div>
@@ -109,9 +110,10 @@ export const SamplesScreen: React.FC = () => {
       <div className={cn('space-y-3', isFetching && !isLoading && 'opacity-70 transition-opacity')}>
         <SamplesTable rows={data?.data} isLoading={isLoading} isError={isError} />
         {data && data.totalRecords > 0 && (
-          <PaginationFooter page={data.page} pageSize={data.limit} totalItems={data.totalRecords} totalPages={data.totalPages} onPageChange={setPage} itemLabel="samples" />
+          <PaginationFooter page={data.page} pageSize={data.limit} totalItems={data.totalRecords} totalPages={data.totalPages} onPageChange={setPage} itemLabel="SKU rows" />
         )}
       </div>
+      <CreateSampleModal isOpen={creating} onClose={() => setCreating(false)} />
     </Container>
   )
 }

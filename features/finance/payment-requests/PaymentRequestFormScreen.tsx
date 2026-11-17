@@ -13,7 +13,7 @@ import { ConfirmDialog } from '@/components/confirm-dialog/ConfirmDialog'
 import { SegmentedToggle } from '@/components/segmented-toggle/SegmentedToggle'
 import { Button } from '@/design-system/buttons'
 import { Select } from '@/design-system/inputs'
-import { SelectShell } from '../shared/SelectShell'
+import { ChoiceSelect } from '@/components/choice-select/ChoiceSelect'
 import { Spinner } from '@/design-system/loaders'
 import {
   FinanceDocument,
@@ -30,7 +30,7 @@ import {
   useLazyCheckDuplicateInvoiceQuery,
   useLazyCheckPurchaseInvoiceQuery,
   type PayablePurchaseOrder,
-  type SamplePurchaseOrder,
+  type PayableSample,
   type PurchaseInvoiceForPayment,
   type DuplicateInvoice,
   type ReferenceType,
@@ -49,8 +49,7 @@ import { DocumentChips } from '../shared/DocumentChips'
 import { PartnerChips, PartnerSelect, toPartnerOption, withPartnerDetail } from './PartnerSelect'
 import { PartnerPaymentInfo } from './PartnerPaymentInfo'
 import { PayablePoSelect } from './PayablePoSelect'
-import { SamplePoSelect } from './SamplePoSelect'
-import { SamplesToPay } from './SamplesToPay'
+import { SamplePaySelect, SelectedSamples } from './SamplesToPay'
 import { PayableInvoiceSelect } from './PayableInvoiceSelect'
 import { PoPaymentHistory } from './PoPaymentHistory'
 import { CarrierShipmentSelect } from './CarrierShipmentSelect'
@@ -66,6 +65,7 @@ import {
   REFERENCE_OPTIONS,
   emptyFormValues,
   filesFormData,
+  hasNoInvoiceNo,
   isPoBased,
   gstSplitOf,
   linesFromDetail,
@@ -188,7 +188,7 @@ export const PaymentRequestFormScreen: React.FC = () => {
   const sampleIds = watch('sampleIds')
   const byPurchaseOrder = referenceType === 'PURCHASE_ORDER'
   const bySample = referenceType === 'SAMPLE'
-  /** Paying against one of our purchase orders: its own price, or its samples. */
+  /** Paying against one of our purchase orders (samples that ride with it are part of its price). */
   const poBased = isPoBased(referenceType)
   /** A picked PO sets the currency and destination; they then follow it. */
   const poLocked = poBased && purchaseOrder !== null
@@ -296,7 +296,7 @@ export const PaymentRequestFormScreen: React.FC = () => {
 
   const runDuplicateCheck = async (partnerId: string, invoiceNo: string) => {
     // Only invoices can be raised twice; a PO request has no invoice number
-    if (!partnerId || !invoiceNo.trim() || isPoBased(getValues('referenceType'))) {
+    if (!partnerId || !invoiceNo.trim() || hasNoInvoiceNo(getValues('referenceType'))) {
       setDuplicate(null)
       setPurchaseInvoice(null)
       return
@@ -336,7 +336,7 @@ export const PaymentRequestFormScreen: React.FC = () => {
       setPickedPo(null)
     }
     setValue('referenceType', next, { shouldDirty: true })
-    if (isPoBased(next)) {
+    if (hasNoInvoiceNo(next)) {
       setDuplicate(null)
       setPurchaseInvoice(null)
     } else void runDuplicateCheck(getValues('partnerId'), getValues('invoiceNo'))
@@ -362,13 +362,10 @@ export const PaymentRequestFormScreen: React.FC = () => {
     setValue('marketplaceId', purchaseInvoice.marketplaceId ? String(purchaseInvoice.marketplaceId) : '', { shouldDirty: true })
   }, [invoiceLocked, purchaseInvoice, setValue])
 
-  /** A PO picked for its samples brings its currency and destination too; its samples are then ticked (all at first). */
-  const pickSamplePo = (po: SamplePurchaseOrder) => {
-    setValue('purchaseOrder', { id: po.id, poNo: po.poNo }, { shouldValidate: true, shouldDirty: true })
-    setValue('currency', po.currency, { shouldValidate: true })
-    setValue('sampleIds', [])
-    setSampleTotal(null)
-    applyDestination(po.destination)
+  /** Ticking a sample with no supplier picked yet brings its supplier (and the currency it is priced in) to the request. */
+  const pickSampleSupplier = (supplier: PayableSample['supplier'], sampleCurrency: string) => {
+    pickPartner(toPartnerOption(supplier))
+    setValue('currency', sampleCurrency, { shouldValidate: true })
   }
 
   /** Ticking samples sets the request's amount: with a single amount it is their total. */
@@ -527,21 +524,23 @@ export const PaymentRequestFormScreen: React.FC = () => {
           )}
         </Section>
 
-        <Section title={poBased ? 'Purchase order & shipment' : 'Invoice & shipment'}>
-          <FormField label="Paying against" className="mb-4" hint={byPurchaseOrder ? 'Only approved, open purchase orders of this supplier with an amount left to pay are offered' : bySample ? 'Only approved purchase orders of this supplier with a chargeable sample left to pay are offered' : undefined}>
+        <Section title={poBased ? 'Purchase order & shipment' : bySample ? 'Sample & shipment' : 'Invoice & shipment'}>
+          <FormField label="Paying against" className="mb-4" hint={byPurchaseOrder ? 'Only approved, open purchase orders of this supplier with an amount left to pay are offered' : bySample ? 'Only paid samples that are not on a purchase order and not yet requested are offered' : undefined}>
             <SegmentedToggle<ReferenceType> ariaLabel="Paying against" value={referenceType} onChange={switchReference} options={REFERENCE_OPTIONS} disabled={presetLocked} />
           </FormField>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {bySample ? (
-              <FormField label="Purchase order" htmlFor="purchaseOrder" required error={errors.purchaseOrder?.message as string | undefined} className="lg:col-span-2">
-                <SamplePoSelect
-                  id="purchaseOrder"
+              <FormField label="Sample" htmlFor="sampleIds" required error={errors.sampleIds?.message as string | undefined} className="lg:col-span-2" hint="Paid samples only · picking one sets the supplier">
+                <SamplePaySelect
+                  id="sampleIds"
                   partnerId={partner?.id ?? null}
-                  value={purchaseOrder}
-                  onChange={pickSamplePo}
-                  excludeId={editId ?? undefined}
-                  error={errors.purchaseOrder?.message as string | undefined}
-                  disabled={fromPoId !== null}
+                  currency={currency}
+                  excludeId={requestId ?? undefined}
+                  value={sampleIds}
+                  onChange={tickSamples}
+                  onPickSupplier={pickSampleSupplier}
+                  error={errors.sampleIds?.message as string | undefined}
+                  disabled={busy}
                 />
               </FormField>
             ) : byPurchaseOrder ? (
@@ -585,7 +584,7 @@ export const PaymentRequestFormScreen: React.FC = () => {
                 />
               </FormField>
             )}
-            <FormField label={poBased ? 'Date' : 'Invoice Date'} htmlFor="invoiceDate" required error={errors.invoiceDate?.message}>
+            <FormField label={poBased || bySample ? 'Date' : 'Invoice Date'} htmlFor="invoiceDate" required error={errors.invoiceDate?.message}>
               <Controller
                 control={control}
                 name="invoiceDate"
@@ -602,15 +601,20 @@ export const PaymentRequestFormScreen: React.FC = () => {
               htmlFor="marketplaceId"
               hint={termsLockedBy ?? (containerNo ? 'Set by the container' : 'Marketplace')}
             >
-              <SelectShell>
-              <Select
-                id="marketplaceId"
-                className="appearance-none rounded-lg pr-9"
-                disabled={termsLockedBy !== null || Boolean(containerNo)}
-                options={[{ value: '', label: 'Select destination' }, ...(marketplaces ?? []).map((m) => ({ value: String(m.id), label: m.name }))]}
-                {...register('marketplaceId')}
+              <Controller
+                control={control}
+                name="marketplaceId"
+                render={({ field }) => (
+                  <ChoiceSelect
+                    id="marketplaceId"
+                    title="Destination"
+                    value={field.value}
+                    onChange={field.onChange}
+                    options={[{ value: '', label: 'Select destination' }, ...(marketplaces ?? []).map((m) => ({ value: String(m.id), label: m.name }))]}
+                    disabled={termsLockedBy !== null || Boolean(containerNo)}
+                  />
+                )}
               />
-              </SelectShell>
             </FormField>
           </div>
           {fromPoUnpayable && fromPo && (
@@ -657,13 +661,13 @@ export const PaymentRequestFormScreen: React.FC = () => {
           )}
           {paidPo && <PoPaymentHistory purchaseOrder={paidPo} excludeId={requestId} />}
           {bySample && (
-            <SamplesToPay
-              purchaseOrderId={purchaseOrder?.id ?? null}
+            <SelectedSamples
+              partnerId={partner?.id ?? null}
               currency={currency}
               excludeId={requestId ?? undefined}
               value={sampleIds}
               onChange={tickSamples}
-              error={errors.sampleIds?.message as string | undefined}
+              onPickSupplier={pickSampleSupplier}
               disabled={busy}
             />
           )}

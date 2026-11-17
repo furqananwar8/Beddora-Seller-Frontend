@@ -30,12 +30,13 @@ import { ApprovalPanel } from './ApprovalPanel'
 import { emptyPoValues, formPathOf, fromDetail, fromRemaining, poFormSchema, toPoBody, type PoFormValues } from './poForm'
 import { PoOrderDetailsSection, PoSupplierSection } from './PoDetailsSections'
 import { PoProductsSection } from './PoProductsSection'
+import { PoSamplesSection } from './PoSamplesSection'
 import { PoTimeline } from './PoTimeline'
 import { usePoActions } from './usePoActions'
 
 const LIST = '/dashboard/procurement/purchase-orders'
 
-const FORM_FIELDS = new Set(['supplierId', 'contactName', 'destination', 'currency', 'etd', 'lines', 'samples'])
+const FORM_FIELDS = new Set(['supplierId', 'contactName', 'destination', 'warehouseId', 'currency', 'etd', 'lines', 'samples'])
 
 const REALTIME_VERB: Record<string, string> = {
   approved: 'approved',
@@ -213,6 +214,7 @@ export const PoFormScreen: React.FC<PoFormScreenProps> = ({ purchaseOrderId }) =
         <PoSupplierSection form={form} readOnly={readOnly} supplierLocked={Boolean(fromSource)} />
         <PoOrderDetailsSection form={form} readOnly={readOnly} />
         <PoProductsSection form={form} readOnly={readOnly} fixedProducts={Boolean(fromSource)} />
+        <PoSamplesSection form={form} readOnly={readOnly} purchaseOrderId={po?.id} />
 
         {po && isApprovedPo(po) && po.unlockedAt && (
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-warning-500 bg-warning-50 px-4 py-3 text-sm text-warning-700">

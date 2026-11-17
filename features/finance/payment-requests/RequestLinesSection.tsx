@@ -14,7 +14,7 @@ import { distributeGst } from '../shared/gst'
 import { GstRateField, GstTypeField, useGstRates } from '../shared/GstFields'
 import { LineColumnHeaders } from '../shared/LineColumnHeaders'
 import { GstTotals } from '../shared/GstTotals'
-import { SelectShell } from '../shared/SelectShell'
+import { ChoiceSelect } from '@/components/choice-select/ChoiceSelect'
 import { DueDateField } from './DueDateField'
 import { MAX_REQUEST_LINES, PaymentRequestFormValues, PoLimit, autoGstText, emptyLine, gstInputsOf, parseAmount, poLimitMessage } from './schema'
 
@@ -37,7 +37,11 @@ interface RequestLinesSectionProps {
 }
 
 /** One column grid for the header row and every amount row: currency over the amounts, GST over each amount's GST %, the due date over its GST amount and expense. */
-const ROW_GRID = 'grid items-start gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,2fr)_auto]'
+/**
+ * One grid for every row of this section: Currency sits over Amount, GST over GST %, and Due date runs over GST amount
+ * and Expense. The second and third columns are a little wider so GST fits "Not applicable".
+ */
+const ROW_GRID = 'grid items-start gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)_minmax(0,1.3fr)_minmax(0,2fr)_auto]'
 /** The width of the remove button, kept free on rows that have none. */
 const REMOVE_SLOT = <span className="hidden w-8 sm:block" />
 
@@ -105,11 +109,14 @@ export const RequestLinesSection: React.FC<RequestLinesSectionProps> = ({
     <Section title="Amount & category" note={`split across up to ${MAX_REQUEST_LINES} expenses`}>
       <div className={`mb-4 ${ROW_GRID}`}>
         <FormField label="Currency" htmlFor="currency" required error={errors.currency?.message} hint={currencyLockedBy ?? undefined}>
-          <SelectShell>
-            <Select id="currency" className="appearance-none rounded-lg pr-9" disabled={currencyLockedBy !== null} options={[{ value: '', label: 'Select' }, ...currencyOptions]} {...register('currency')} />
-          </SelectShell>
+          <Controller
+            control={control}
+            name="currency"
+            render={({ field }) => <ChoiceSelect id="currency" title="Currency" value={field.value} onChange={field.onChange} options={[{ value: '', label: 'Select' }, ...currencyOptions]} disabled={currencyLockedBy !== null} />}
+          />
         </FormField>
         <GstTypeField id="request" value={gstType} error={errors.gstType?.message} onChange={changeGstType} />
+        {/* Runs over the GST amount and Expense columns, so the row ends where the amount rows do */}
         <div className="sm:col-span-2">
           <DueDateField control={control} termDays={termDays} />
         </div>

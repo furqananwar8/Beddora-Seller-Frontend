@@ -16,11 +16,14 @@ export const REFERENCE_OPTIONS: Array<{ value: ReferenceType; label: string }> =
   { value: 'SHIPMENT', label: 'Shipment' },
 ]
 
-/** What a batch can raise: samples are ticked from one PO's list, so they are raised one at a time. */
+/** What a batch can raise: samples are ticked from one supplier's list, so they are raised one at a time. */
 export const BATCH_REFERENCE_OPTIONS = REFERENCE_OPTIONS.filter((option) => option.value !== 'SAMPLE')
 
-/** Types that pay against one of our purchase orders (a PO's own price, or the PO's samples), so they carry no invoice no. */
-export const isPoBased = (referenceType: ReferenceType): boolean => referenceType === 'PURCHASE_ORDER' || referenceType === 'SAMPLE'
+/** Pays one of our purchase orders (its price, with any samples that ride with it). */
+export const isPoBased = (referenceType: ReferenceType): boolean => referenceType === 'PURCHASE_ORDER'
+
+/** Types that carry no invoice no: a PO's price, or standalone samples ticked from the supplier's list. */
+export const hasNoInvoiceNo = (referenceType: ReferenceType): boolean => referenceType === 'PURCHASE_ORDER' || referenceType === 'SAMPLE'
 
 /** Same cap as the server. */
 export const MAX_REQUEST_LINES = 20
@@ -104,7 +107,7 @@ export function addReferenceIssues(values: ReferenceFields, ctx: z.RefinementCtx
   const isPo = isPoBased(values.referenceType)
   // Both are yyyy-MM-dd, so they compare as text
   if (values.dueDate && values.invoiceDate && values.dueDate < values.invoiceDate) ctx.addIssue({ code: 'custom', path: [...path, 'dueDate'], message: 'Due date cannot be before the invoice date' })
-  if (!isPo && !values.invoiceNo.trim()) ctx.addIssue({ code: 'custom', path: [...path, 'invoiceNo'], message: 'Invoice number is required' })
+  if (!hasNoInvoiceNo(values.referenceType) && !values.invoiceNo.trim()) ctx.addIssue({ code: 'custom', path: [...path, 'invoiceNo'], message: 'Invoice number is required' })
   if (isPo && !values.purchaseOrder) ctx.addIssue({ code: 'custom', path: [...path, 'purchaseOrder'], message: 'Pick the purchase order being paid' })
   if (values.referenceType === 'SHIPMENT' && values.shipments.length === 0) ctx.addIssue({ code: 'custom', path: [...path, 'shipments'], message: 'Pick at least one shipment' })
   if (values.referenceType === 'SAMPLE' && !values.sampleIds?.length) ctx.addIssue({ code: 'custom', path: [...path, 'sampleIds'], message: 'Pick at least one sample' })
@@ -164,6 +167,7 @@ export const linesFromDetail = (detail: PaymentRequestDetail): RequestLineValues
     : [emptyLine]
 
 const isPo = (values: PaymentRequestFormValues) => isPoBased(values.referenceType)
+const noInvoiceNo = (values: PaymentRequestFormValues) => hasNoInvoiceNo(values.referenceType)
 
 /** The sample ids a request sends: its ticked samples on a sample request, none otherwise. */
 const sampleIdsOf = (values: PaymentRequestFormValues): number[] => (values.referenceType === 'SAMPLE' ? values.sampleIds : [])
@@ -185,7 +189,7 @@ export function toUpdateBody(values: PaymentRequestFormValues) {
   return {
     partnerId: Number(values.partnerId),
     referenceType: values.referenceType,
-    invoiceNo: isPo(values) ? null : values.invoiceNo.trim(),
+    invoiceNo: noInvoiceNo(values) ? null : values.invoiceNo.trim(),
     purchaseOrderId: isPo(values) ? (values.purchaseOrder?.id ?? null) : null,
     shipmentIds: shipmentIdsOf(values),
     sampleIds: sampleIdsOf(values),
@@ -206,7 +210,7 @@ export function toCreateFormData(values: PaymentRequestFormValues, files: File[]
   body.append('referenceType', values.referenceType)
   if (isPo(values)) {
     if (values.purchaseOrder) body.append('purchaseOrderId', String(values.purchaseOrder.id))
-  } else {
+  } else if (!noInvoiceNo(values)) {
     body.append('invoiceNo', values.invoiceNo.trim())
   }
   if (values.referenceType === 'SHIPMENT') body.append('shipmentIds', JSON.stringify(shipmentIdsOf(values)))

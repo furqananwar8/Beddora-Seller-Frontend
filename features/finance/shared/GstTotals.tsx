@@ -14,7 +14,7 @@ interface GstTotalsProps {
 }
 
 const Row: React.FC<{ label: string; value: string; strong?: boolean }> = ({ label, value, strong }) => (
-  <div className={strong ? 'flex justify-between gap-6 border-t border-border pt-1 font-semibold text-text-primary' : 'flex justify-between gap-6 text-text-secondary'}>
+  <div className={strong ? 'flex justify-between gap-4 border-t border-border pt-1 font-semibold text-text-primary' : 'flex justify-between gap-4 text-text-secondary'}>
     <span>{label}</span>
     <span className="tabular-nums">{value}</span>
   </div>
@@ -27,15 +27,18 @@ export const GstTotals: React.FC<GstTotalsProps> = ({ currency, entered, type, o
   const applies = type !== 'NOT_APPLICABLE'
   const gstLabel = type === 'INCLUSIVE' ? 'GST (included)' : 'GST'
   return (
-    <div className="ml-auto mt-3 w-full max-w-sm space-y-1 text-sm" aria-label="Request total">
+    <div className="ml-auto mt-2 w-full max-w-xs space-y-0.5 text-sm" aria-label="Request total">
       {applies && <Row label="Amount before GST" value={money(net)} />}
       {applies &&
         (onGstChange ? (
-          <div className="flex items-center justify-between gap-6 text-text-secondary">
+          <div className="flex items-center justify-between gap-4 text-text-secondary">
             <label htmlFor="request-total-gst" className="whitespace-nowrap">
               {gstLabel} {currency && <span className="text-text-muted">({currency})</span>}
             </label>
-            <AmountInput id="request-total-gst" aria-label="Total GST" className="w-32 rounded-lg text-right tabular-nums" value={formatMoney(gst)} onValueChange={onGstChange} />
+            {/* The field sits at the right edge, in line with the amounts above and below it */}
+            <div className="w-28 shrink-0">
+              <AmountInput id="request-total-gst" aria-label="Total GST" className="!h-8 !min-h-0 w-full rounded-lg !py-1 !pl-2 !pr-[5px] text-right text-sm tabular-nums" value={formatMoney(gst)} onValueChange={onGstChange} />
+            </div>
           </div>
         ) : (
           <Row label={gstLabel} value={money(gst)} />

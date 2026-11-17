@@ -259,7 +259,7 @@ export interface PoLine {
 /** Where a sample stands; derived from its payment requests. FREE needs no payment. */
 export type SampleStatus = 'FREE' | 'UNPAID' | 'REQUESTED' | 'PAID'
 
-/** Units a supplier sends as samples with a PO: never packed, shipped or counted in the PO amount. */
+/** Units a supplier sends as samples: never packed or shipped; a chargeable one on the PO is added to the PO amount. */
 export interface PoSample {
   id: number
   product: PoProduct
@@ -276,6 +276,10 @@ export interface PoSample {
   paidAt: string | null
   /** When it was added to the SKU's Samples section. */
   inventoryAt: string | null
+  /** Made on this PO form; one linked from the Samples screen is only unlinked when removed. */
+  createdInPo: boolean
+  /** Its amount is part of the PO's price. */
+  inPoPrice: boolean
 }
 
 export interface PoEvent {
@@ -302,6 +306,8 @@ export interface PurchaseOrderDetail {
   supplier: SupplierRef
   contactName: string | null
   destination: PoDestination
+  /** Where the goods are delivered; null when none was picked. */
+  warehouse: PoWarehouse | null
   currency: PoCurrency
   productionDate: string | null
   /** ERD: estimated ready date. */
@@ -325,7 +331,8 @@ export interface PurchaseOrderDetail {
   lines: PoLine[]
   samples: PoSample[]
   sampleTotals: { units: number; chargeableAmount: number }
-  totals: { units: number; allocated: number; amount: number }
+  /** `amount` is the lines plus the samples that ride with the PO; `linesAmount` is the lines alone. */
+  totals: { units: number; allocated: number; amount: number; linesAmount: number }
   remainingForNewPo: number
   events: PoEvent[]
   /** Set while an approver has unlocked this approved PO for editing; the next save locks it again. */
@@ -340,11 +347,13 @@ export interface PurchaseOrderBody {
   supplierId: number
   contactName: string | null
   destination: PoDestination
+  /** The warehouse the goods go to; null leaves it unset. */
+  warehouseId: number | null
   currency: PoCurrency
   etd: string
   lines: Array<{ productId: number; unitsOrdered: number; unitPrice: number }>
-  /** Samples sent with the PO; a unit price of 0 means free. */
-  samples: Array<{ productId: number; units: number; unitPrice: number }>
+  /** Samples on the PO: an `id` links an existing sample, none creates a new one; a unit price of 0 means free. */
+  samples: Array<{ id?: number; productId: number; units: number; unitPrice: number }>
   sourcePurchaseOrderId?: number
   expectedUpdatedAt?: string
 }
@@ -926,6 +935,17 @@ export interface ContainerBody {
   expectedUpdatedAt?: string
 }
 
+/** A warehouse as a PO shows its delivery address (kept in Settings > Warehouses). */
+export interface PoWarehouse {
+  id: number
+  name: string
+  address: string
+  city: string
+  province: string | null
+  postalCode: string | null
+  country: string
+}
+
 /** A warehouse a container can be sent to (kept in Settings > Warehouses). */
 export interface ContainerWarehouse {
   id: number
@@ -1385,6 +1405,12 @@ export const procurementApi = baseApi.injectEndpoints({
       transformResponse: unwrap,
       invalidatesTags: ['ProcurementContainers'],
     }),
+    /** Warehouses the PO form offers as the delivery address. */
+    getPoWarehouses: b.query<PoWarehouse[], void>({
+      query: () => '/procurement/purchase-orders/warehouses',
+      transformResponse: unwrap,
+      providesTags: ['Warehouses'],
+    }),
     getContainerWarehouses: b.query<ContainerWarehouse[], void>({
       query: () => '/procurement/containers/warehouses',
       transformResponse: unwrap,
@@ -1546,6 +1572,7 @@ export const {
   useGetContainerCostDetailQuery,
   useGetContainerCostMappingQuery,
   useGetContainerWarehousesQuery,
+  useGetPoWarehousesQuery,
   useSetContainerShippedOnBoardMutation,
   useSaveContainerCostMappingMutation,
   useGetContainerQuery,
