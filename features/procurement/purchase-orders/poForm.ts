@@ -49,7 +49,7 @@ export const poFormSchema = z
   .object({
     supplier: z.custom<SupplierRef | null>(),
     contactName: z.string().trim().max(150, 'Contact name is too long'),
-    paymentTerms: z.string().trim().max(1000, 'Payment terms are too long'),
+    paymentTerms: z.string().trim().max(200, 'Payment terms are too long (200 characters max)'),
     destination: z.enum(['US', 'CA']),
     /** The delivery warehouse's id as a string; empty = none. */
     warehouseId: z.string(),
