@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useRef, useState } from 'react'
 import { Controller, UseFormReturn, useFieldArray, useWatch } from 'react-hook-form'
 import { fieldClass } from '@/components/form-field/FormField'
 import { SegmentedToggle } from '@/components/segmented-toggle/SegmentedToggle'
@@ -58,6 +58,7 @@ export const VariationsSection: React.FC<VariationsSectionProps> = ({ form, prod
   } = form
   const { fields, append, remove } = useFieldArray({ control, name: 'variations', keyName: 'fieldId' })
   const [open, setOpen] = useState<Set<string>>(new Set())
+  const listRef = useRef<HTMLDivElement>(null)
   const masterCategory = useWatch({ control, name: 'category' })
   const variations = useWatch({ control, name: 'variations' }) ?? []
   useVariantNameSync(form)
@@ -85,6 +86,8 @@ export const VariationsSection: React.FC<VariationsSectionProps> = ({ form, prod
     const row = newVariation(getValues(), last && { weightUnit: last.weightUnit, dimensionUnit: last.dimensionUnit, platform: last.platform })
     append(row, { shouldFocus: false })
     setOpen((current) => new Set(current).add(row.clientKey))
+    // Jump to the new row inside the scroll area once it has rendered
+    requestAnimationFrame(() => listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: 'smooth' }))
   }
 
   const rowErrors = errors.variations
@@ -108,7 +111,8 @@ export const VariationsSection: React.FC<VariationsSectionProps> = ({ form, prod
         {fields.length === 0 ? (
           <p className="px-4 py-8 text-center text-sm text-text-muted">No variations. This product is ordered on its own SKU.</p>
         ) : (
-          <div className="divide-y-8 divide-secondary-100">
+          /* Fixed-height scroll area: the header (Add variation) and the save bar stay in reach however many variations there are */
+          <div ref={listRef} className="max-h-[70vh] divide-y-8 divide-secondary-100 overflow-y-auto overscroll-contain">
             {fields.map((field, index) => {
               const row = variations[index] ?? field
               const key = row.clientKey

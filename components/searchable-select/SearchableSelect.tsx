@@ -235,7 +235,7 @@ export function SearchableSelect<T>(props: SearchableSelectProps<T>) {
             role="listbox"
             tabIndex={showSearch ? undefined : -1}
             aria-multiselectable={props.multiple || undefined}
-            className="max-h-60 overflow-auto outline-none"
+            className="max-h-[50vh] overflow-y-auto overscroll-contain outline-none"
           >
             {visible.map((option, index) => {
               const key = getKey(option)
