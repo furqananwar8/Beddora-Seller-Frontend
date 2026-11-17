@@ -3,8 +3,12 @@ import { useLayoutEffect, useState } from 'react'
 /** Room the menu wants below the trigger before it opens upwards instead. */
 const MENU_ROOM = 320
 const GAP = 4
+/** Keeps the menu off the window edge. */
+const EDGE = 12
+const MENU_MAX = 560
 
-export type MenuPosition = { left: number; width: number } & ({ top: number } | { bottom: number })
+/** `maxHeight` is the room on the chosen side, so a long list scrolls inside the menu instead of running off screen. */
+export type MenuPosition = { left: number; width: number; maxHeight: number } & ({ top: number } | { bottom: number })
 
 /**
  * Where the menu goes: under the trigger, or above it when there is no room below. The menu is portalled
@@ -20,7 +24,13 @@ export function useMenuPosition(anchor: React.RefObject<HTMLElement>, open: bool
       if (!rect) return
       const below = window.innerHeight - rect.bottom
       const upwards = below < MENU_ROOM && rect.top > below
-      setPosition(upwards ? { left: rect.left, width: rect.width, bottom: window.innerHeight - rect.top + GAP } : { left: rect.left, width: rect.width, top: rect.bottom + GAP })
+      const room = (upwards ? rect.top : below) - GAP - EDGE
+      const maxHeight = Math.min(MENU_MAX, Math.max(room, 160))
+      setPosition(
+        upwards
+          ? { left: rect.left, width: rect.width, maxHeight, bottom: window.innerHeight - rect.top + GAP }
+          : { left: rect.left, width: rect.width, maxHeight, top: rect.bottom + GAP }
+      )
     }
     place()
     window.addEventListener('scroll', place, true)

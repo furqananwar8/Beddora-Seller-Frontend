@@ -214,7 +214,7 @@ export function SearchableSelect<T>(props: SearchableSelectProps<T>) {
         position &&
         createPortal(
         // Above modals (z 9999); React events still bubble to the wrapper, so the keyboard handler keeps working
-        <div ref={menu} style={{ ...position, zIndex: 10000 }} className="fixed min-w-[16rem] rounded-lg border border-border bg-surface p-2 shadow-lg">
+        <div ref={menu} style={{ ...position, zIndex: 10000 }} className="fixed flex min-w-[16rem] flex-col rounded-lg border border-border bg-surface p-2 shadow-lg">
           {showSearch && (
             <input
               autoFocus
@@ -235,7 +235,7 @@ export function SearchableSelect<T>(props: SearchableSelectProps<T>) {
             role="listbox"
             tabIndex={showSearch ? undefined : -1}
             aria-multiselectable={props.multiple || undefined}
-            className="max-h-[50vh] overflow-y-auto overscroll-contain outline-none"
+            className="min-h-0 flex-1 overflow-y-auto overscroll-contain outline-none"
           >
             {visible.map((option, index) => {
               const key = getKey(option)

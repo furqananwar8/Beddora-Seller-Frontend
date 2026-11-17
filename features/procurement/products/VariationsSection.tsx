@@ -112,7 +112,7 @@ export const VariationsSection: React.FC<VariationsSectionProps> = ({ form, prod
           <p className="px-4 py-8 text-center text-sm text-text-muted">No variations. This product is ordered on its own SKU.</p>
         ) : (
           /* Fixed-height scroll area: the header (Add variation) and the save bar stay in reach however many variations there are */
-          <div ref={listRef} className="max-h-[70vh] divide-y-8 divide-secondary-100 overflow-y-auto overscroll-contain">
+          <div ref={listRef} className="relative max-h-[70vh] divide-y-8 divide-secondary-100 overflow-y-auto overscroll-contain">
             {fields.map((field, index) => {
               const row = variations[index] ?? field
               const key = row.clientKey
