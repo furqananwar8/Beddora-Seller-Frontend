@@ -43,7 +43,7 @@ export const SampleHistoryModal: React.FC<SampleHistoryModalProps> = ({ product,
             <tbody>
               {data.map((sample) => (
                 <tr key={sample.id} className="border-t border-border text-center">
-                  <td className="px-3 py-2 font-semibold">{sample.purchaseOrder.poNo}</td>
+                  <td className="px-3 py-2 font-semibold">{sample.purchaseOrder?.poNo ?? "Standalone"}</td>
                   <td className="px-3 py-2 tabular-nums">{sample.units.toLocaleString('en-CA')}</td>
                   <td className="whitespace-nowrap px-3 py-2">{sample.isFree ? 'Free' : `Chargeable · ${sampleAmount(sample.currency, sample.amount, false)}`}</td>
                   <td className="whitespace-nowrap px-3 py-2">{sampleDay(sample.paidAt)}</td>

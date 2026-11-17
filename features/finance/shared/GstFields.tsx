@@ -2,13 +2,12 @@
 
 import React, { useMemo, useState } from 'react'
 import { SearchableSelect } from '@/components/searchable-select/SearchableSelect'
-import { Select } from '@/design-system/inputs'
+import { ChoiceSelect } from '@/components/choice-select/ChoiceSelect'
 import { useAppAbility } from '@/hooks/useAppAbility'
 import { AddGstRateModal } from '@/features/settings/gst/AddGstRateModal'
 import { useGetGstRatesQuery, type GstRate, type GstType } from '@/services/api/finance.api'
 import { FormField } from './FormField'
 import { GST_TYPE_OPTIONS } from './gst'
-import { SelectShell } from './SelectShell'
 
 interface GstTypeFieldProps {
   /** Prefix of the control's id, so several requests on one screen stay distinct. */
@@ -21,9 +20,7 @@ interface GstTypeFieldProps {
 /** How GST applies to a request's amounts: Inclusive, Exclusive or Not applicable. Each amount then picks its own percentage. */
 export const GstTypeField: React.FC<GstTypeFieldProps> = ({ id, value, onChange, error }) => (
   <FormField label="GST" htmlFor={`${id}-gst`} error={error}>
-    <SelectShell>
-      <Select id={`${id}-gst`} className="appearance-none rounded-lg pr-9" value={value} onChange={(event) => onChange(event.target.value as GstType)} options={GST_TYPE_OPTIONS} />
-    </SelectShell>
+    <ChoiceSelect<GstType> id={`${id}-gst`} title="GST" value={value} onChange={onChange} options={GST_TYPE_OPTIONS} />
   </FormField>
 )
 

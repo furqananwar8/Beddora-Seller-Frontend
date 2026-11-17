@@ -1,6 +1,7 @@
 'use client'
 
 import React from 'react'
+import { ChoiceSelect } from '@/components/choice-select/ChoiceSelect'
 import { fieldClass } from '@/components/form-field/FormField'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/design-system/tables'
 import { cn } from '@/utils/cn'
@@ -143,19 +144,14 @@ export const QuotesTable: React.FC<QuotesTableProps> = ({ rows, errors, showErro
                   {rowErrors.remarks && <p className="mt-1 text-xs text-danger-600">{rowErrors.remarks}</p>}
                 </TableCell>
                 <TableCell className={CELL}>
-                  <select
-                    aria-label={`Sample from ${row.supplier.name}`}
+                  <ChoiceSelect<QuoteRow['sample']>
+                    variant="cell"
+                    title={`Sample from ${row.supplier.name}`}
                     value={row.sample}
-                    onChange={(event) => onChange(row.supplier.id, { sample: event.target.value as QuoteRow['sample'] })}
-                    className={fieldClass()}
+                    onChange={(sample) => onChange(row.supplier.id, { sample })}
+                    options={SAMPLE_OPTIONS}
                     disabled={readOnly}
-                  >
-                    {SAMPLE_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
+                  />
                 </TableCell>
                 <TableCell className={CELL}>
                   <div className="flex flex-col items-center gap-1">
