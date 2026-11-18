@@ -11,7 +11,7 @@ import { Spinner } from '@/design-system/loaders'
 import { StatusBadge } from '@/components/status-badge/StatusBadge'
 import { PaymentRequestDetail, useGetPaymentRequestQuery } from '@/services/api/finance.api'
 import { financeErrorMessage } from '../shared/useFinanceFeedback'
-import { formatCurrencyAmount, formatDay, formatRequestNo, requestReference } from '../shared/format'
+import { formatCurrencyAmount, formatDay, formatRequestNo, percentOfPoText, requestReference } from '../shared/format'
 import { REQUEST_STATUS_META } from '../shared/statusMeta'
 import { ApprovalTimeline } from './ApprovalTimeline'
 import { DocumentChips } from '../shared/DocumentChips'
@@ -54,10 +54,14 @@ const Summary: React.FC<{ detail: PaymentRequestDetail }> = ({ detail }) => (
         <Row key={line.id} label={`Expense ${index + 1}`}>
           {line.costCenter?.name ?? '-'} · {formatCurrencyAmount(detail.currency, line.amount)}
           {line.gstRate != null && <span className="font-normal text-text-muted"> · GST {line.gstRate}%</span>}
+          {line.percentOfPo != null && <span className="font-normal text-text-muted"> · {percentOfPoText(line.percentOfPo)}</span>}
         </Row>
       ))
     ) : (
-      <Row label="Expense">{detail.expenseType.name}</Row>
+      <Row label="Expense">
+        {detail.expenseType.name}
+        {detail.lines[0]?.percentOfPo != null && <span className="font-normal text-text-muted"> · {percentOfPoText(detail.lines[0].percentOfPo)}</span>}
+      </Row>
     )}
     {detail.gstType !== 'NOT_APPLICABLE' && (
       <>

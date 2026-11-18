@@ -42,11 +42,13 @@ export const lineSchema = z.object({
   gstAmount: z.string().refine((value) => value === '' || (Number.isFinite(parseAmount(value)) && parseAmount(value) >= 0), 'Enter a valid GST amount'),
   /** True once the GST was typed in; changing the amount, percentage or GST type goes back to working it out. */
   gstManual: z.boolean(),
+  /** Purchase-order requests: the % of the PO's total the amount was entered as. Empty means it was typed in (a manual amount). */
+  percent: z.string().refine((value) => value === '' || (parseAmount(value) >= 0 && parseAmount(value) <= 100), 'A percentage cannot be more than 100%'),
 })
 
 export type RequestLineValues = z.infer<typeof lineSchema>
 
-export const emptyLine: RequestLineValues = { amount: '', costCenterId: '', gstRateId: '', gstAmount: '', gstManual: false }
+export const emptyLine: RequestLineValues = { amount: '', costCenterId: '', gstRateId: '', gstAmount: '', gstManual: false, percent: '' }
 
 export const baseSchema = z.object({
   partnerId: z.string().min(1, 'Choose a partner'),
@@ -162,7 +164,7 @@ export const linesFromDetail = (detail: PaymentRequestDetail): RequestLineValues
         // A stored GST that differs from what its percentage gives was typed in, and stays as it was
         const auto = autoGstText(amount, line.gstRate, detail.gstType)
         const stored = detail.gstType === 'NOT_APPLICABLE' ? '' : formatMoney(line.gstAmount)
-        return { amount, costCenterId: line.costCenter ? String(line.costCenter.id) : '', gstRateId: line.gstRateId ? String(line.gstRateId) : '', gstAmount: stored, gstManual: stored !== auto }
+        return { amount, costCenterId: line.costCenter ? String(line.costCenter.id) : '', gstRateId: line.gstRateId ? String(line.gstRateId) : '', gstAmount: stored, gstManual: stored !== auto, percent: line.percentOfPo === null ? '' : formatMoney(line.percentOfPo) }
       })
     : [emptyLine]
 
@@ -182,6 +184,8 @@ const linesBody = (values: PaymentRequestFormValues) =>
     gstRateId: values.gstType === 'NOT_APPLICABLE' || !line.gstRateId ? null : Number(line.gstRateId),
     // Only a GST that was typed in is sent; otherwise the server works it out from the percentage
     ...(values.gstType !== 'NOT_APPLICABLE' && line.gstManual ? { gstAmount: parseAmount(line.gstAmount) || 0 } : {}),
+    // Only a purchase-order amount typed as a percentage records it; anything else is a manual amount
+    ...(isPo(values) && amountOf(line.percent) > 0 ? { percentOfPo: amountOf(line.percent) } : {}),
   }))
 
 /** JSON body for PATCH, shared by edit and the save-after-create retry path. */

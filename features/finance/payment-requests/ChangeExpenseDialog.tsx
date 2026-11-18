@@ -9,7 +9,7 @@ import { Modal } from '@/design-system/modals'
 import { useApiFeedback } from '@/hooks/useApiFeedback'
 import { useChangePaymentRequestExpensesMutation, useGetLeafCostCentersQuery, type PaymentRequestDetail } from '@/services/api/finance.api'
 import { CostCenterField } from '../shared/CostCenterSelect'
-import { formatCurrencyAmount, formatRequestNo } from '../shared/format'
+import { formatCurrencyAmount, formatRequestNo, percentOfPoText } from '../shared/format'
 
 const COST_CENTERS_HREF = '/dashboard/finance/cost-center'
 
@@ -64,6 +64,7 @@ export const ChangeExpenseDialog: React.FC<{ detail: PaymentRequestDetail; open:
             <div className="flex items-baseline justify-between gap-2">
               <p className="text-sm font-medium text-text-primary">
                 {several ? `Expense ${index + 1}` : 'Expense'} · {formatCurrencyAmount(detail.currency, detail.lines[index]?.amount ?? 0)}
+                {detail.lines[index]?.percentOfPo != null && <span className="font-normal text-text-muted"> · {percentOfPoText(detail.lines[index].percentOfPo)}</span>}
               </p>
               {changedAt(index) && <span className="text-xs font-medium text-primary-600">Will change</span>}
             </div>
