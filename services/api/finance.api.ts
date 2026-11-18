@@ -340,6 +340,8 @@ export interface PayablePurchaseOrder extends PoRef {
   currency: string
   destination: 'US' | 'CA'
   etd: string
+  /** The terms typed on the PO; null when it has none. */
+  paymentTerms: string | null
   units: number
   /** The PO's price and what further requests may still ask for, in its currency. */
   amount: number
@@ -485,6 +487,8 @@ export interface PaymentRequestLine {
   /** The GST % this amount was worked out at (null without GST). */
   gstRateId: number | null
   gstRate: number | null
+  /** The % of the PO's total the amount was entered as; null when it was typed in (a manual amount). */
+  percentOfPo: number | null
   costCenter: CostCenterOption | null
 }
 

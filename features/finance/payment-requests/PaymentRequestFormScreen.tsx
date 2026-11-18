@@ -616,6 +616,12 @@ export const PaymentRequestFormScreen: React.FC = () => {
                 )}
               />
             </FormField>
+            {byPurchaseOrder && (
+              <FormField label="Payment terms" hint="Set by the purchase order">
+                {/* Always there on a purchase-order request; empty when the PO has no terms (or none is picked yet) */}
+                <p className="min-h-10 rounded-lg border border-border bg-secondary-50 px-3 py-2 text-sm text-text-primary">{pickedPo?.paymentTerms}</p>
+              </FormField>
+            )}
           </div>
           {fromPoUnpayable && fromPo && (
             <p role="alert" className="mt-3 rounded-lg border border-danger-200 bg-danger-50 px-3 py-2 text-sm text-danger-700">
@@ -680,6 +686,7 @@ export const PaymentRequestFormScreen: React.FC = () => {
           errors={errors}
           currencyOptions={currencyOptions(currency)}
           currencyLockedBy={termsLockedBy}
+          byPurchaseOrder={byPurchaseOrder}
           poLimit={byPurchaseOrder ? poLimit : null}
           termDays={shownPartner?.paymentTermDays ?? null}
           costCenters={costCenters}

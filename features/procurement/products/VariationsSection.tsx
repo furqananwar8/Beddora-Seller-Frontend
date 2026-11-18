@@ -16,7 +16,7 @@ import { PlatformRadio } from './PlatformRadio'
 import { MarketplaceSkus } from './MarketplaceSkus'
 import { convertDimensionsText, derivedCbm, newVariation, type ProductFormValues } from './productForm'
 import { SkuInput } from './SkuInput'
-import { useHsCodeSync } from './useHsCodeSync'
+import { useMasterDefaultsSync } from './useMasterDefaultsSync'
 import { useVariantNameSync } from './useVariantNameSync'
 
 interface VariationsSectionProps {
@@ -62,7 +62,7 @@ export const VariationsSection: React.FC<VariationsSectionProps> = ({ form, prod
   const masterCategory = useWatch({ control, name: 'category' })
   const variations = useWatch({ control, name: 'variations' }) ?? []
   useVariantNameSync(form)
-  useHsCodeSync(form)
+  useMasterDefaultsSync(form)
 
   /** Flipping one row's unit re-expresses only that row's two dimension boxes. */
   const switchLength = (index: number, unit: LengthUnit) => {
@@ -330,7 +330,7 @@ export const VariationsSection: React.FC<VariationsSectionProps> = ({ form, prod
           </div>
         )}
         <p className="border-t border-border px-4 py-3 text-xs text-text-muted">
-          Fields marked * are mandatory. The category always comes from the master; the HS code starts from it and can be changed per SKU. Size, packaging, weight, dimensions and CBM belong to each variation, each with its own units. Each variation is saved as its own product with its own ID and SKU, linked to this master.
+          Fields marked * are mandatory. The category always comes from the master; the HS code starts from it and can be changed per SKU, while a change to the material or packaging updates every variation (each can be edited again). Size, weight, dimensions and CBM belong to each variation, each with its own units. Each variation is saved as its own product with its own ID and SKU, linked to this master.
         </p>
       </CardContent>
     </Card>

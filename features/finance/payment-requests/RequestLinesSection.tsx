@@ -16,6 +16,7 @@ import { LineColumnHeaders } from '../shared/LineColumnHeaders'
 import { GstTotals } from '../shared/GstTotals'
 import { ChoiceSelect } from '@/components/choice-select/ChoiceSelect'
 import { DueDateField } from './DueDateField'
+import { PoPercentAmountInput } from './PoPercentAmountInput'
 import { MAX_REQUEST_LINES, PaymentRequestFormValues, PoLimit, autoGstText, emptyLine, gstInputsOf, parseAmount, poLimitMessage } from './schema'
 
 interface RequestLinesSectionProps {
@@ -26,7 +27,9 @@ interface RequestLinesSectionProps {
   currencyOptions: Array<{ value: string; label: string }>
   /** What set the currency (the picked purchase order or invoice), so it cannot be changed here; null when free. */
   currencyLockedBy: string | null
-  /** The picked PO's open balance, shown and enforced on the total of a purchase-order request. */
+  /** Paying against a purchase order: each amount can be typed as a % of the PO's total, whether or not a PO is picked yet. */
+  byPurchaseOrder: boolean
+  /** The picked PO's open balance, shown and enforced on the total of a purchase-order request; null until one is picked. */
   poLimit: PoLimit | null
   /** The partner's payment term, which sets the due date. */
   termDays: number | null
@@ -42,6 +45,8 @@ interface RequestLinesSectionProps {
  * and Expense. The second and third columns are a little wider so GST fits "Not applicable".
  */
 const ROW_GRID = 'grid items-start gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)_minmax(0,1.3fr)_minmax(0,2fr)_auto]'
+/** A purchase-order request has a percentage box beside each amount, so the first column is wider (written out whole so Tailwind sees it). */
+const ROW_GRID_WITH_PERCENT = 'grid items-start gap-3 sm:grid-cols-[minmax(0,1.9fr)_minmax(0,1.3fr)_minmax(0,1.3fr)_minmax(0,2fr)_auto]'
 /** The width of the remove button, kept free on rows that have none. */
 const REMOVE_SLOT = <span className="hidden w-8 sm:block" />
 
@@ -53,6 +58,7 @@ export const RequestLinesSection: React.FC<RequestLinesSectionProps> = ({
   errors,
   currencyOptions,
   currencyLockedBy,
+  byPurchaseOrder,
   poLimit,
   termDays,
   costCenters,
@@ -68,6 +74,7 @@ export const RequestLinesSection: React.FC<RequestLinesSectionProps> = ({
   const gstApplies = gstType !== 'NOT_APPLICABLE'
   const full = fields.length >= MAX_REQUEST_LINES
   const several = fields.length > 1
+  const rowGrid = byPurchaseOrder ? ROW_GRID_WITH_PERCENT : ROW_GRID
 
   /** How GST applies is the request's; each amount keeps (or starts with) its own percentage. */
   const changeGstType = (next: GstType) => {
@@ -107,7 +114,7 @@ export const RequestLinesSection: React.FC<RequestLinesSectionProps> = ({
 
   return (
     <Section title="Amount & category" note={`split across up to ${MAX_REQUEST_LINES} expenses`}>
-      <div className={`mb-4 ${ROW_GRID}`}>
+      <div className={`mb-4 ${rowGrid}`}>
         <FormField label="Currency" htmlFor="currency" required error={errors.currency?.message} hint={currencyLockedBy ?? undefined}>
           <Controller
             control={control}
@@ -123,30 +130,41 @@ export const RequestLinesSection: React.FC<RequestLinesSectionProps> = ({
         {REMOVE_SLOT}
       </div>
 
-      <LineColumnHeaders gridClassName={ROW_GRID} gstApplies={gstApplies} showGstAmount />
+      <LineColumnHeaders gridClassName={rowGrid} gstApplies={gstApplies} showGstAmount showPercent={byPurchaseOrder} />
       <div className="space-y-3">
         {fields.map((field, index) => {
           const rowErrors = errors.lines?.[index]
           return (
-            <div key={field.key} className={ROW_GRID}>
-              <FormField label="Amount" labelClassName="sm:sr-only" htmlFor={`lines.${index}.amount`} required error={rowErrors?.amount?.message}>
+            <div key={field.key} className={rowGrid}>
+              <FormField label="Amount" labelClassName="sm:sr-only" htmlFor={`lines.${index}.amount`} required error={rowErrors?.amount?.message ?? rowErrors?.percent?.message}>
                 <Controller
                   control={control}
                   name={`lines.${index}.amount`}
-                  render={({ field: amount }) => (
-                    <AmountInput
-                      id={`lines.${index}.amount`}
-                      placeholder="0.00"
-                      className="rounded-lg text-right"
-                      value={amount.value}
-                      ref={amount.ref}
-                      onValueChange={(text) => {
+                  render={({ field: amount }) => {
+                    const amountProps = {
+                      id: `lines.${index}.amount`,
+                      placeholder: '0.00',
+                      className: 'rounded-lg text-right',
+                      value: amount.value,
+                      onValueChange: (text: string) => {
                         amount.onChange(text)
                         setValue(`lines.${index}.gstManual`, false)
-                      }}
-                      onBlur={amount.onBlur}
-                    />
-                  )}
+                      },
+                      onBlur: amount.onBlur,
+                    }
+                    // A purchase-order request may also be typed as a share of the PO's total
+                    return byPurchaseOrder ? (
+                      <PoPercentAmountInput
+                        {...amountProps}
+                        ref={amount.ref}
+                        poTotal={poLimit?.amount ?? 0}
+                        percent={lines[index]?.percent ?? ''}
+                        onPercentChange={(text) => setValue(`lines.${index}.percent`, text, { shouldDirty: true })}
+                      />
+                    ) : (
+                      <AmountInput {...amountProps} ref={amount.ref} />
+                    )
+                  }}
                 />
               </FormField>
               <GstRateField

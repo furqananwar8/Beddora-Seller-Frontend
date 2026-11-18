@@ -3,6 +3,9 @@ export const formatMoney = (value: number): string =>
 
 export const formatCurrencyAmount = (currency: string, value: number): string => `${currency} ${formatMoney(value)}`
 
+/** "15% of PO" for an amount that was entered as a share of its purchase order's total; null for a manually typed amount. */
+export const percentOfPoText = (percent: number | null | undefined): string | null => (percent == null ? null : `${Number(percent)}% of PO`)
+
 /** Invoice and payment dates are calendar days, read as UTC. */
 export { formatCalendarDay as formatDay } from '@/utils/format'
 

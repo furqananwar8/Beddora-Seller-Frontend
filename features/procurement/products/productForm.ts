@@ -141,8 +141,10 @@ export const productFormSchema = z
     platform: z.enum(['ECOMMERCE', 'RETAIL'], { message: 'Pick Ecommerce or Retail' }),
     sku: skuField,
     category: z.custom<CategoryRef | null>(),
-    /** Default material for new variations; size, packaging and weight belong to each variation. */
+    /** Material every variation takes whenever this changes (see useMasterDefaultsSync); a variation can be edited again afterwards. */
     material: z.string().trim().max(120, 'Too long'),
+    /** Packaging every variation takes whenever this changes (see useMasterDefaultsSync); a variation can be edited again afterwards. */
+    packaging: z.string().trim().max(120, 'Too long'),
     /** Default HS code for the variations. */
     hsCode: hsCodeField,
     description: z.string().trim().max(2000, 'Description is too long'),
@@ -184,6 +186,7 @@ export const emptyProductValues: ProductFormValues = {
   sku: '',
   category: null,
   material: '',
+  packaging: '',
   hsCode: '',
   description: '',
   variations: [],
@@ -191,9 +194,9 @@ export const emptyProductValues: ProductFormValues = {
   removePhoto: false,
 }
 
-/** A new variation row: the master's material as a default, and the units of the row above it (else KG and CM). */
+/** A new variation row: the master's material and packaging as defaults, and the units of the row above it (else KG and CM). */
 export function newVariation(
-  master: Pick<ProductFormValues, 'name' | 'material' | 'hsCode' | 'platform'>,
+  master: Pick<ProductFormValues, 'name' | 'material' | 'packaging' | 'hsCode' | 'platform'>,
   units: Pick<VariationFormValues, 'weightUnit' | 'dimensionUnit'> & { platform?: VariationFormValues['platform'] } = { weightUnit: 'KG', dimensionUnit: 'CM' }
 ): VariationFormValues {
   return {
@@ -205,7 +208,7 @@ export function newVariation(
     platform: units.platform ?? master.platform,
     productDimensions: '',
     material: master.material,
-    packaging: '',
+    packaging: master.packaging,
     sizeName: '',
     skus: [],
     // A new variation starts from the master's HS code
@@ -299,7 +302,7 @@ export function toProductBody(values: ProductFormValues, expectedUpdatedAt?: str
     categoryId: values.category?.id ?? null,
     color: null,
     material: text(values.material),
-    packaging: null,
+    packaging: text(values.packaging),
     sizeName: null,
     hsCode: text(values.hsCode),
     description: text(values.description),
@@ -344,6 +347,7 @@ export function fromFamily(family: PoProductFamily, asCopy = false): ProductForm
     sku: asCopy ? '' : (family.sku ?? ''),
     category: family.category,
     material: family.material ?? '',
+    packaging: family.packaging ?? '',
     hsCode: family.hsCode ?? '',
     description: family.description ?? '',
     hasPhoto: !asCopy && family.hasPhoto,

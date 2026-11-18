@@ -8,6 +8,8 @@ interface LineColumnHeadersProps {
   gstApplies: boolean
   /** Whether each row has its own GST amount field, which adds a column after the GST %. */
   showGstAmount?: boolean
+  /** Whether each amount has a percentage box beside it (purchase-order requests), which gets its own label over it. */
+  showPercent?: boolean
 }
 
 const Required = () => <span className="text-danger-600"> *</span>
@@ -16,11 +18,15 @@ const Required = () => <span className="text-danger-600"> *</span>
  * The labels of the amount rows, shown once above them instead of on every row (the rows then hold only inputs).
  * From the `sm` breakpoint up; below it the columns stack, so each row keeps its own labels there.
  */
-export const LineColumnHeaders: React.FC<LineColumnHeadersProps> = ({ gridClassName, gstApplies, showGstAmount = false }) => (
+export const LineColumnHeaders: React.FC<LineColumnHeadersProps> = ({ gridClassName, gstApplies, showGstAmount = false, showPercent = false }) => (
   <div className={cn('mb-1 hidden', gridClassName, 'sm:grid')} aria-hidden>
-    <span className="ds-input-label">
-      Amount
-      <Required />
+    {/* The percentage box is as wide as in the rows (PoPercentAmountInput), so its label sits over it */}
+    <span className="flex gap-2">
+      <span className="ds-input-label min-w-0 flex-1">
+        Amount
+        <Required />
+      </span>
+      {showPercent && <span className="ds-input-label w-[5.5rem] shrink-0">Percentage</span>}
     </span>
     <span className="ds-input-label">
       GST %{gstApplies && <Required />}
