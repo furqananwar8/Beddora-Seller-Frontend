@@ -28,6 +28,7 @@ export const landedCostColumns = (currency: string): CostColumn<LandedCostRow>[]
     { key: 'sku', header: 'SKU', align: 'center', wrap: true, cell: (row) => <span className="font-mono font-semibold text-text-primary">{row.sku}</span>, footer: () => 'Total' },
     { key: 'supplier', header: 'Supplier', align: 'center', wrap: true, cell: (row) => row.supplier },
     { key: 'units', header: 'Units', align: 'center', cell: (row) => qty(row.units), footer: (totals) => qty(totals.units) },
+    { key: 'cartons', header: 'Cartons', align: 'center', cell: (row) => qty(row.cartons) },
     { key: 'cbm', header: 'Total CBM', align: 'center', cell: (row) => row.cbm.toFixed(2), footer: (totals) => totals.cbm.toFixed(2) },
     {
       key: 'fob',
