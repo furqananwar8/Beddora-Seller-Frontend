@@ -27,6 +27,7 @@ const CHANNELS: ChannelDefinition[] = [
     itemIdLabel: 'Goods ID',
     settlementNote: 'Temu settles weekly, so its last few days may be incomplete.',
   },
+  { id: 'tiktok', name: 'TikTok Shop', color: '#0891B2', itemIdLabel: 'SKU ID' },
 ]
 
 const CHANNEL_MAP = new Map(CHANNELS.map((channel) => [channel.id, channel]))

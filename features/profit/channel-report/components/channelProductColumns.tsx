@@ -68,10 +68,7 @@ const Cost: React.FC<{ amount: number | null }> = ({ amount }) => (
   <span className={amount === 0 ? 'text-text-primary' : amountTone(amount)}>{formatMoney(amount)}</span>
 )
 
-const costColumn = (
-  id: ListingBucketId,
-  header: string,
-): ProductTableColumn<ProductRow> => ({
+const costColumn = (id: ListingBucketId, header: string): ProductTableColumn<ProductRow> => ({
   id,
   header,
   align: 'center',
@@ -128,10 +125,7 @@ export const buildChannelProductColumns = ({
     sortValue: (row) => row.amounts.sales ?? 0,
     render: (row) => <span className="font-semibold">{formatMoney(row.amounts.sales)}</span>,
   },
-  costColumn('promo', 'Promo'),
   costColumn('ads', 'Ads'),
-  costColumn('fees', 'Channel fees'),
-  costColumn('fulfillment', 'Fulfillment'),
   costColumn('cogs', 'COGS'),
   {
     id: 'margin',

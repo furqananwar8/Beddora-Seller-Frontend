@@ -34,6 +34,11 @@ export const CHANNEL_SYNC_GROUPS = {
     title: 'Temu',
     emptyText: 'No Temu market is connected (no Temu app key or access token configured).',
   },
+  tiktok: {
+    channel: 'tiktok',
+    title: 'TikTok Shop',
+    emptyText: 'No TikTok Shop is connected (no TikTok app key, access token or shop configured).',
+  },
 } satisfies Record<string, ChannelSyncGroupConfig>
 
 /** A channel sync row (one data type and mode, covering every market / store) as a table row. */

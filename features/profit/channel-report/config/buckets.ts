@@ -32,8 +32,8 @@ export const BUCKETS: BucketDefinition[] = [
   { id: 'other', label: 'Other expenses', inGrossProfit: false, notReportedText: 'nothing else reported' },
 ]
 
-/** Buckets the Live Report keeps off screen: still counted in profit and margin, never listed. */
-export const HIDDEN_BUCKET_IDS: BucketId[] = ['refund']
+/** Buckets the Live Report keeps off screen (breakdown sections and table columns): still counted in profit and margin, never listed. */
+export const HIDDEN_BUCKET_IDS: BucketId[] = ['refund', 'promo', 'fees', 'fulfillment']
 
 const isShown = (bucket: BucketDefinition) => !HIDDEN_BUCKET_IDS.includes(bucket.id)
 

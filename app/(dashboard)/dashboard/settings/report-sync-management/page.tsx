@@ -51,12 +51,14 @@ export default function ReportSyncManagementPage() {
   const shopify = useChannelSyncManagement(CHANNEL_SYNC_GROUPS.shopify.channel)
   const wayfair = useChannelSyncManagement(CHANNEL_SYNC_GROUPS.wayfair.channel)
   const temu = useChannelSyncManagement(CHANNEL_SYNC_GROUPS.temu.channel)
+  const tiktok = useChannelSyncManagement(CHANNEL_SYNC_GROUPS.tiktok.channel)
   const campaign = useCampaignSyncManagement()
   const channels = [
     { config: CHANNEL_SYNC_GROUPS.walmart, sync: walmart },
     { config: CHANNEL_SYNC_GROUPS.shopify, sync: shopify },
     { config: CHANNEL_SYNC_GROUPS.wayfair, sync: wayfair },
     { config: CHANNEL_SYNC_GROUPS.temu, sync: temu },
+    { config: CHANNEL_SYNC_GROUPS.tiktok, sync: tiktok },
   ]
 
   const amazonRows: SyncTableRow[] = MANAGED_SYNC_JOBS.flatMap(({ syncType, label, modes, hasStartDate = true }) =>
