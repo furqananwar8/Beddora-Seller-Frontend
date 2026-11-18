@@ -123,22 +123,18 @@ export const ContainersScreen: React.FC = () => {
     { key: 'plBoxes', header: 'PL boxes', className: 'min-w-[100px]', render: (container) => <span className="tabular-nums">{qty(container.totals.cartons)}</span> },
     { key: 'plUnits', header: 'PL units', className: 'min-w-[100px]', render: (container) => <span className="tabular-nums">{qty(container.totals.units)}</span> },
     { key: 'skus', header: 'No. of SKUs', className: 'min-w-[110px]', render: (container) => <span className="tabular-nums">{qty(container.totals.skus)}</span> },
-    { key: 'warehouse', header: 'Warehouse', className: 'min-w-[150px]', render: (container) => <span className="text-sm">{container.warehouse?.name ?? '—'}</span> },
+    // The country the container goes to (CANADA / USA), not the warehouse's full name and address
+    { key: 'warehouse', header: 'Warehouse', className: 'min-w-[150px]', render: (container) => <span className="text-sm">{DESTINATION_LABEL[container.destination]}</span> },
     { key: 'cubicFeet', header: 'Cubic feet', className: 'min-w-[110px]', render: (container) => <span className="tabular-nums">{container.cubicFeet === null ? '—' : qty(container.cubicFeet)}</span> },
     { key: 'broker', header: 'Custom broker', className: 'min-w-[140px]', render: (container) => <span className="text-sm">{container.customsBrokers.length ? container.customsBrokers.join(', ') : '—'}</span> },
     {
       key: 'city',
       header: 'Dest. city', className: 'min-w-[270px]',
-      // City, then province and country beside it on the same line
-      render: (container) => {
-        const place = [container.destinationProvince, DESTINATION_LABEL[container.destination]].filter(Boolean).join(' · ')
-        return (
-          <span className="text-sm text-black">
-            {container.destinationCity ?? '—'}
-            {place && ` · ${place}`}
-          </span>
-        )
-      },
+      // Destination country first, then the city and its province on the same line ("USA · Fontana · CA"): the country
+      // up front keeps a state code like CA (California) from being read as Canada
+      render: (container) => (
+        <span className="text-sm text-black">{[DESTINATION_LABEL[container.destination], container.destinationCity, container.destinationCity && container.destinationProvince].filter(Boolean).join(' · ')}</span>
+      ),
     },
     {
       key: 'cost',
