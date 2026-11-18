@@ -138,6 +138,13 @@ export default function DashboardLayout({
                 href: '/dashboard/inventory/adjustments',
               },
               {
+                label: 'Stock Adjustment',
+                // Shares the Planner permission until the backend seeds 'inventory:stock-adjustment'.
+                subject: 'inventory:planner',
+                action: 'read',
+                href: '/dashboard/inventory/stock-adjustment',
+              },
+              {
                 label: 'SKU Mapping',
                 subject: 'inventory:sku-mapping',
                 action: 'read',
