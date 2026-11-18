@@ -60,8 +60,12 @@ export const ProductBasicsSection: React.FC<ProductBasicsSectionProps> = ({ form
           />
         </FormField>
 
-        <FormField label="Fabric / material" htmlFor="product-material" error={errors.material?.message} hint="Default for new variations. Size, packaging and weight are set on each variation">
+        <FormField label="Fabric / material" htmlFor="product-material" error={errors.material?.message} hint="Changing it updates every variation; each can then be changed per SKU">
           <input id="product-material" autoComplete="off" className={fieldClass(errors.material?.message)} disabled={readOnly} {...register('material')} />
+        </FormField>
+
+        <FormField label="Packaging" htmlFor="product-packaging" error={errors.packaging?.message} hint="Changing it updates every variation; each can then be changed per SKU">
+          <input id="product-packaging" autoComplete="off" className={fieldClass(errors.packaging?.message)} disabled={readOnly} {...register('packaging')} />
         </FormField>
 
         <FormField label="HS code (optional)" htmlFor="product-hs-code" error={errors.hsCode?.message} hint="Customs tariff code. Every variation starts from it and can be changed per SKU">

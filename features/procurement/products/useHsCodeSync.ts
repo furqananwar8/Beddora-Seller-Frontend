@@ -1,7 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { UseFormReturn, useWatch } from 'react-hook-form'
 import { useGetProductHsCodesQuery, type CategoryRef } from '@/services/api/procurement.api'
-import type { ProductFormValues } from './productForm'
 
 /**
  * Picking a category fills the master's HS code with that category's default (the shipping customs catalogue), but
@@ -29,24 +28,4 @@ export function useCategoryHsCode<T extends { category: CategoryRef | null; hsCo
     if (match) form.setValue('hsCode', match.code, { shouldDirty: true, shouldValidate: true })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [categoryId, catalogue])
-}
-
-/**
- * A variation starts from the master's HS code: when the master's changes, every variation that still has the old
- * one (or none) follows it, while a code someone set for one SKU is left alone. A new row is prefilled by `newVariation`.
- */
-export function useHsCodeSync({ control, getValues, setValue }: Pick<UseFormReturn<ProductFormValues>, 'control' | 'getValues' | 'setValue'>) {
-  const masterCode = useWatch({ control, name: 'hsCode' }) ?? ''
-  const previous = useRef<string | null>(null)
-
-  useEffect(() => {
-    const before = previous.current
-    previous.current = masterCode
-    if (before === null || before === masterCode) return
-    getValues('variations').forEach((variation, index) => {
-      if (variation.hsCode.trim() === '' || variation.hsCode === before) {
-        setValue(`variations.${index}.hsCode`, masterCode, { shouldDirty: true, shouldValidate: true })
-      }
-    })
-  }, [masterCode, getValues, setValue])
 }

@@ -4,6 +4,7 @@ import React from 'react'
 import { RowActionsMenu, type RowActionItem } from '@/components/row-actions-menu/RowActionsMenu'
 import { TreeTable, type TreeColumn } from '@/components/tree-table/TreeTable'
 import type { PoProduct, PoProductListItem } from '@/services/api/procurement.api'
+import { BrandCell } from '../shared/platformMeta'
 import { ProductPhoto } from '../shared/ProductPhoto'
 import { ProductTagBadge } from '../shared/ProductTagBadge'
 import { formatCbm, formatDimensions, formatSize, formatWeight } from '../shared/units'
@@ -91,6 +92,13 @@ function columns(actions: ProductRowActions): TreeColumn<Row>[] {
       header: 'Marketplace',
       className: 'whitespace-nowrap',
       render: (row) => (row.tag === 'VARIATION' ? marketplacesOf(row) : empty(row)),
+    },
+    {
+      key: 'brand',
+      header: 'Brand',
+      className: 'whitespace-nowrap',
+      // The platform is chosen per variation; a parent (master) row has none of its own to show
+      render: (row) => (row.tag === 'PARENT' ? null : <BrandCell platforms={[row.platform]} />),
     },
     {
       key: 'sku',
