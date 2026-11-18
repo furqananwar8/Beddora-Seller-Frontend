@@ -9,7 +9,7 @@ import { Spinner } from '@/design-system/loaders'
 import { useApiFeedback } from '@/hooks/useApiFeedback'
 import { useAppAbility } from '@/hooks/useAppAbility'
 import { useDeleteShipmentDraftMutation, useGetShipFromOptionsQuery, useGetShipmentDraftQuery, useSaveShipmentDraftMutation } from '@/services/api/shipping.api'
-import { BOOKINGS_HREF, CHANNEL_LABEL, money } from '../shippingMeta'
+import { CHANNEL_LABEL, money, ORDERS_HREF } from '../shippingMeta'
 import type { ParcelShipmentDto } from '../types'
 import { AddressStep, defaultShipFrom } from './AddressStep'
 import { BookingConfirmed } from './BookingConfirmed'
@@ -63,7 +63,7 @@ export const CreateShipmentScreen: React.FC = () => {
       const saved = await saveDraft({ id: draftId, values: { ...form.getValues(), wizardStep: step } }).unwrap()
       setDraftId(saved.id)
       form.reset(form.getValues()) // saved: nothing is unsaved now
-      success(`Saved as ${saved.draftNo}. Find it in Bookings › Drafts.`)
+      success(`Saved as ${saved.draftNo}. Find it in Orders with the Draft status.`)
       return true
     } catch (error) {
       failure(error, 'Could not save the draft')
@@ -122,7 +122,7 @@ export const CreateShipmentScreen: React.FC = () => {
       {leaveDialog}
       <WizardStepper steps={CREATE_STEPS} current={step} summaries={summaries} onGoTo={(index) => setStep(index as WizardStep)} />
 
-      {step === 0 && <AddressStep addresses={addresses} loadingAddresses={loadingAddresses} shipFrom={shipFrom} onCancel={() => router.push(BOOKINGS_HREF)} onContinue={() => void wizard.continueFromAddress()} showPlatform />}
+      {step === 0 && <AddressStep addresses={addresses} loadingAddresses={loadingAddresses} shipFrom={shipFrom} onCancel={() => router.push(ORDERS_HREF)} onContinue={() => void wizard.continueFromAddress()} showPlatform />}
       {step === 1 && (
         <ShipmentStep
           lane={crossBorder ? `${shipFrom?.countryCode} → ${values.shipTo.address.country}` : null}

@@ -191,6 +191,8 @@ const NEXT_STEP: Record<ChannelOrderListItem['fulfillment'], string> = {
   BOOKED: '',
   SHIPPED_ON_CHANNEL: '',
   CANCELLED: 'This order was cancelled on the channel.',
+  // a draft is a manual shipment: it never opens in this drawer
+  DRAFT: '',
 }
 
 /**

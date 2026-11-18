@@ -1,24 +1,11 @@
-import { Suspense } from 'react'
-import { Metadata } from 'next'
-import { Container } from '@/components/layout'
-import { BookingsScreen } from '@/features/shipping/bookings/BookingsScreen'
-
-export const metadata: Metadata = {
-  title: 'Bookings | Beddora',
-  description: 'Every parcel shipment from every provider',
-}
+import { redirect } from 'next/navigation'
+import { ORDERS_HREF } from '@/features/shipping/shippingMeta'
 
 /**
- * Shipping Bookings Page
- *
- * Every booked parcel with its live status; print, track and cancel. Suspense: the screen reads `?shipment=`.
+ * Shipping › Bookings now lives in Orders (manual shipments, drafts and bookings share one list). This keeps old links
+ * and bookmarks working, including `?shipment=` (the booking's drawer).
  */
-export default function ShippingBookingsPage() {
-  return (
-    <Container size="full" className="py-4 sm:py-8">
-      <Suspense>
-        <BookingsScreen />
-      </Suspense>
-    </Container>
-  )
+export default function ShippingBookingsRedirect({ searchParams }: { searchParams: { shipment?: string } }) {
+  const shipment = Number(searchParams.shipment)
+  redirect(Number.isInteger(shipment) && shipment > 0 ? `${ORDERS_HREF}?shipment=${shipment}` : ORDERS_HREF)
 }

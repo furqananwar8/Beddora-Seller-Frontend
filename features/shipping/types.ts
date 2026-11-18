@@ -321,7 +321,8 @@ export type ChannelId = 'walmart' | 'amazon' | 'temu'
 /** Marking the order shipped on its channel after booking; SKIPPED while SHIPPING_ENV=sandbox. */
 export type ChannelSync = 'PENDING' | 'SENT' | 'SKIPPED' | 'FAILED'
 /** NOT_READY: the channel hasn't released the order for shipping yet (payment pending). */
-export type Fulfillment = 'NOT_READY' | 'TO_BOOK' | 'BOOKED' | 'SHIPPED_ON_CHANNEL' | 'CANCELLED'
+/** `DRAFT`: a manual shipment saved unfinished (never a channel order). */
+export type Fulfillment = 'NOT_READY' | 'TO_BOOK' | 'BOOKED' | 'SHIPPED_ON_CHANNEL' | 'CANCELLED' | 'DRAFT'
 
 export interface ChannelOrderRef {
   channel: ChannelId
@@ -420,6 +421,8 @@ export interface ManualOrderListItem extends Omit<ChannelOrderListItem, 'channel
   origin: 'MANUAL'
   /** The platform it was created for, or "manual" when none was picked. */
   channel: ChannelId | 'manual'
+  /** The saved draft behind a DRAFT row (Resume, Delete draft); null once it is a booking. */
+  draftId: number | null
 }
 
 export type OrderListItem = (ChannelOrderListItem & { origin: 'CHANNEL' }) | ManualOrderListItem
