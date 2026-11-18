@@ -23,7 +23,10 @@ const plural = (count: number, word: string) => `${count} ${word}${count === 1 ?
 
 /** A parent has no weight or size of its own: it shows how many of its listed variations have one, like "2 colors". */
 const variationsWith = (row: Row, has: (variation: PoProduct) => boolean): number => (isListItem(row) ? row.variations.filter(has).length : 0)
-const summary = (count: number, word: string) => (count > 0 ? <span className="text-xs text-text-muted">{plural(count, word)}</span> : '—')
+
+/** Placeholder for an empty cell: a parent row stays blank, a variation shows a dash. */
+const empty = (row: Row): string | null => (row.tag === 'PARENT' ? null : '—')
+const summary = (row: Row, count: number, word: string) => (count > 0 ? <span className="text-xs text-text-muted">{plural(count, word)}</span> : empty(row))
 
 export interface ProductRowActions {
   canWrite: boolean
@@ -80,21 +83,21 @@ function columns(actions: ProductRowActions): TreeColumn<Row>[] {
         ) : isListItem(row) && row.variationCount > 0 ? (
           <span className="text-xs text-text-muted">{plural(row.variationCount, 'variant')}</span>
         ) : (
-          '—'
+          empty(row)
         ),
     },
     {
       key: 'marketplace',
       header: 'Marketplace',
       className: 'whitespace-nowrap',
-      render: (row) => (row.tag === 'VARIATION' ? marketplacesOf(row) : '—'),
+      render: (row) => (row.tag === 'VARIATION' ? marketplacesOf(row) : empty(row)),
     },
     {
       key: 'sku',
       header: 'SKU',
       render: (row) => (
         <span className="whitespace-nowrap font-mono text-xs">
-          {row.sku ?? '—'}
+          {row.sku ?? empty(row)}
           {(row.skus?.filter((entry) => entry.sku).length ?? 0) > 1 && <span className="ml-1 font-sans text-text-muted">+{row.skus.filter((entry) => entry.sku).length - 1}</span>}
         </span>
       ),
@@ -104,14 +107,14 @@ function columns(actions: ProductRowActions): TreeColumn<Row>[] {
       key: 'color',
       header: 'Color',
       render: (row) =>
-        row.color ?? (isListItem(row) && row.colorCount > 0 ? <span className="text-xs text-text-muted">{plural(row.colorCount, 'color')}</span> : '—'),
+        row.color ?? (isListItem(row) && row.colorCount > 0 ? <span className="text-xs text-text-muted">{plural(row.colorCount, 'color')}</span> : empty(row)),
     },
-    { key: 'material', header: 'Material', className: 'min-w-[120px]', render: (row) => row.material ?? '—' },
-    { key: 'size', header: 'Size', render: (row) => row.sizeName ?? '—' },
-    { key: 'packaging', header: 'Packaging', className: 'min-w-[120px]', render: (row) => row.packaging ?? '—' },
-    { key: 'category', header: 'Category', render: (row) => row.category?.name ?? '—' },
+    { key: 'material', header: 'Material', className: 'min-w-[120px]', render: (row) => row.material ?? empty(row) },
+    { key: 'size', header: 'Size', render: (row) => row.sizeName ?? empty(row) },
+    { key: 'packaging', header: 'Packaging', className: 'min-w-[120px]', render: (row) => row.packaging ?? empty(row) },
+    { key: 'category', header: 'Category', render: (row) => row.category?.name ?? empty(row) },
     { key: 'weight', header: 'Weight', className: 'whitespace-nowrap', render: (row) =>
-        row.tag === 'PARENT' ? summary(variationsWith(row, (variation) => variation.weightKg !== null), 'weight') : <span className="whitespace-nowrap">{formatWeight(row.weightKg, row.weightUnit)}</span>,
+        row.tag === 'PARENT' ? summary(row, variationsWith(row, (variation) => variation.weightKg !== null), 'weight') : <span className="whitespace-nowrap">{formatWeight(row.weightKg, row.weightUnit)}</span>,
     },
     {
       key: 'dims',
@@ -120,7 +123,7 @@ function columns(actions: ProductRowActions): TreeColumn<Row>[] {
       className: 'min-w-[130px] whitespace-nowrap',
       render: (row) =>
         row.tag === 'PARENT' ? (
-          summary(variationsWith(row, (variation) => variation.lengthCm !== null && variation.widthCm !== null && variation.heightCm !== null), 'dimension')
+          summary(row, variationsWith(row, (variation) => variation.lengthCm !== null && variation.widthCm !== null && variation.heightCm !== null), 'dimension')
         ) : (
           <span className="whitespace-nowrap">{formatDimensions(row.lengthCm, row.widthCm, row.heightCm, row.dimensionUnit)}</span>
         ),
@@ -129,7 +132,7 @@ function columns(actions: ProductRowActions): TreeColumn<Row>[] {
       key: 'cbm',
       header: 'CBM',
       className: 'whitespace-nowrap',
-      render: (row) => (row.tag === 'PARENT' ? summary(variationsWith(row, (variation) => variation.cbm !== null), 'CBM') : <span className="font-mono text-xs">{formatCbm(row.cbm)}</span>),
+      render: (row) => (row.tag === 'PARENT' ? summary(row, variationsWith(row, (variation) => variation.cbm !== null), 'CBM') : <span className="font-mono text-xs">{formatCbm(row.cbm)}</span>),
     },
     { key: 'actions', header: 'Actions', render: (row) => <RowActionsMenu label={row.ref} items={actionsFor(row, actions)} /> },
   ]
