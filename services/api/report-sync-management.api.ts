@@ -56,6 +56,19 @@ export interface ResetChannelSyncRequest {
   items: { key: string; startDate?: string }[]
 }
 
+/** TikTok Shop authorisation: tokens are kept and renewed by the backend, the seller approves the app once. */
+export interface TiktokConnection {
+  /** The backend has what it needs to send the seller to authorise (the app's service id). */
+  configured: boolean
+  status: 'connected' | 'reauth_required' | 'not_connected'
+  sellerName: string | null
+  shops: { id: string; region: string; name: string | null }[]
+  accessExpiresAt: string | null
+  refreshExpiresAt: string | null
+  lastRefreshedAt: string | null
+  lastError: string | null
+}
+
 export const reportSyncManagementApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getSyncStates: builder.query<GetSyncStatesResponse, void>({
@@ -78,6 +91,17 @@ export const reportSyncManagementApi = baseApi.injectEndpoints({
       providesTags: ['ReportSyncManagement'],
     }),
 
+    getTiktokConnection: builder.query<TiktokConnection, void>({
+      query: () => '/tiktok-auth/connection',
+      transformResponse: (response: { data: TiktokConnection }) => response.data,
+      providesTags: ['ReportSyncManagement'],
+    }),
+
+    getTiktokConnectUrl: builder.query<string, void>({
+      query: () => '/tiktok-auth/connect-url',
+      transformResponse: (response: { data: { url: string } }) => response.data.url,
+    }),
+
     resetChannelSyncs: builder.mutation<{ message: string }, ResetChannelSyncRequest>({
       query: (body) => ({ url: '/channel-sync/reset', method: 'POST', body }),
       transformResponse: (response: { data: { message: string } }) => response.data,
@@ -90,5 +114,7 @@ export const {
   useGetSyncStatesQuery,
   useResetSyncStateMutation,
   useGetChannelSyncStatesQuery,
+  useGetTiktokConnectionQuery,
+  useLazyGetTiktokConnectUrlQuery,
   useResetChannelSyncsMutation,
 } = reportSyncManagementApi

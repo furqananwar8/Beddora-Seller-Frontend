@@ -7,6 +7,7 @@ import { useCampaignSyncManagement } from '@/hooks/use-campaign-sync-management'
 import { Spinner } from '@/design-system/loaders'
 import { useAppDispatch } from '@/store/hooks'
 import { addNotification } from '@/store/ui.slice'
+import { TiktokConnectionCard } from '@/features/report-sync-management/TiktokConnectionCard'
 import { SyncManagementTable, type SyncTableRow } from '@/features/report-sync-management/SyncManagementTable'
 import { CAMPAIGN_SYNC_KEY, toCampaignSyncRow } from '@/features/report-sync-management/campaign-sync-row'
 import { CHANNEL_SYNC_GROUPS, toChannelSyncGroup } from '@/features/report-sync-management/channel-sync-groups'
@@ -118,6 +119,8 @@ export default function ReportSyncManagementPage() {
           Reset sync start dates, flush pending jobs, and purge cached report keys, so a sync can re-run from an earlier date.
         </p>
       </div>
+
+      <TiktokConnectionCard />
 
       <SyncManagementTable
         isBusy={isBusy}
