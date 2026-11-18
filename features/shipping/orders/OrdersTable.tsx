@@ -9,7 +9,7 @@ import { Spinner } from '@/design-system/loaders'
 import { Tooltip } from '@/design-system/tooltips'
 import { ChannelBadge } from '../shared/ChannelBadge'
 import { CarrierPageLink, TrackingNumber } from '../shared/TrackingNumber'
-import { bookingHref, bookOrderHref, FULFILLMENT_META, money, shortDateTime, STATUS_TONE } from '../shippingMeta'
+import { bookingHref, bookOrderHref, draftHref, FULFILLMENT_META, money, shortDateTime, STATUS_TONE } from '../shippingMeta'
 import type { OrderListItem as ChannelOrderListItem } from '../types'
 
 interface OrdersTableProps {
@@ -25,6 +25,8 @@ interface OrdersTableProps {
   onOpen: (row: ChannelOrderListItem) => void
   /** Opens the print dialog for a booking's label. */
   onPrintLabel: (bookingId: number) => void
+  /** Asks to delete the saved draft behind a DRAFT row. */
+  onDeleteDraft: (row: ChannelOrderListItem) => void
   /** Builds and downloads the order's tax invoice. */
   onDownloadInvoice: (row: ChannelOrderListItem) => void
   /** Opens the Scan items dialog (In or Out) for the order; omitted when the user can't scan. */
@@ -91,7 +93,7 @@ function trackingOf(row: ChannelOrderListItem): TrackingView | null {
 }
 
 /** Channel orders: book the seller-fulfilled ones, follow the ones shipped on the channel. */
-export const OrdersTable: React.FC<OrdersTableProps> = ({ rows, isLoading, isError, filtered, canWrite, retrying, onRetrySync, onOpen, onPrintLabel, onDownloadInvoice, onScanItems, scanLockedBy, invoiceBusy }) => {
+export const OrdersTable: React.FC<OrdersTableProps> = ({ rows, isLoading, isError, filtered, canWrite, retrying, onRetrySync, onOpen, onPrintLabel, onDeleteDraft, onDownloadInvoice, onScanItems, scanLockedBy, invoiceBusy }) => {
   const router = useRouter()
   if (isLoading)
     return (
@@ -106,6 +108,15 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ rows, isLoading, isErr
   const actionsOf = (row: ChannelOrderListItem): RowActionItem[] => {
     // a shipment created by hand has no channel order: its details are the booking, and there is nothing to book, invoice or scan
     if (row.origin === 'MANUAL') {
+      // saved unfinished: nothing is booked, so it can only be finished or thrown away
+      if (row.fulfillment === 'DRAFT') {
+        const draftId = row.draftId
+        if (!canWrite || draftId === null) return []
+        return [
+          { key: 'resume', label: 'Resume', onSelect: () => router.push(draftHref(draftId)) },
+          { key: 'delete', label: 'Delete draft', tone: 'danger', onSelect: () => onDeleteDraft(row) },
+        ]
+      }
       const manual: RowActionItem[] = [{ key: 'booking', label: 'View booking', onSelect: () => row.bookingId !== null && router.push(bookingHref(row.bookingId)) }]
       manual.push({ key: 'label', label: 'Get label', onSelect: () => row.booking && onPrintLabel(row.booking.id), disabled: !row.booking, disabledReason: 'No label for this shipment' })
       return manual

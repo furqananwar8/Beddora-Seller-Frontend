@@ -73,7 +73,7 @@ export function useLeaveGuard({ active, onSave }: Options) {
 
   const dialog = (
     <Modal isOpen={pending !== null} onClose={saving ? () => undefined : () => setPending(null)} title="Save this shipment as a draft?" size="sm" closeOnEscape={!saving}>
-      <p className="text-sm text-text-secondary">You have not booked this shipment. Save it as a draft to finish it later from Bookings › Drafts, or leave without saving.</p>
+      <p className="text-sm text-text-secondary">You have not booked this shipment. Save it as a draft to finish it later from Orders (status Draft), or leave without saving.</p>
       <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
         <Button type="button" variant="ghost" onClick={() => setPending(null)} disabled={saving}>
           Keep editing

@@ -3,7 +3,6 @@ import type { StatusTone } from '@/components/status-badge/StatusBadge'
 import type { ChannelId, ChannelOrderRef, Fulfillment, Handover, Incoterm, ParcelStatus, PriceBreakdown, ProviderId, Rate } from './types'
 
 export const SHIPPING_BASE = '/dashboard/shipping'
-export const BOOKINGS_HREF = `${SHIPPING_BASE}/bookings`
 export const CREATE_HREF = `${SHIPPING_BASE}/create`
 export const ORDERS_HREF = `${SHIPPING_BASE}/orders`
 /** Where a marketplace SKU is bound to one of our products. */
@@ -12,8 +11,10 @@ export const SKU_MAPPER_HREF = '/dashboard/inventory/sku-mapping'
 export const bookOrderHref = ({ channel, market, orderId }: ChannelOrderRef) => `${ORDERS_HREF}/book?${new URLSearchParams({ channel, market, orderId }).toString()}`
 /** The Orders list searched for one order. */
 export const orderSearchHref = (orderId: string) => `${ORDERS_HREF}?${new URLSearchParams({ search: orderId }).toString()}`
-/** The Bookings list opens this shipment's drawer. */
-export const bookingHref = (id: number) => `${BOOKINGS_HREF}?shipment=${id}`
+/** The Orders list opens this shipment's booking drawer. */
+export const bookingHref = (id: number) => `${ORDERS_HREF}?shipment=${id}`
+/** Create shipment, resuming a saved draft. */
+export const draftHref = (id: number) => `${CREATE_HREF}?draft=${id}`
 
 export const PROVIDER_LABEL: Record<ProviderId, string> = { stallion: 'Stallion Express', shippo: 'Shippo', uniuni: 'UniUni', fedex: 'FedEx' }
 export const PROVIDERS = Object.keys(PROVIDER_LABEL) as ProviderId[]
@@ -54,6 +55,7 @@ export const FULFILLMENT_META: Record<Fulfillment, { label: string; tone: Status
   BOOKED: { label: 'Booked', tone: 'info' },
   SHIPPED_ON_CHANNEL: { label: 'Shipped', tone: 'success' },
   CANCELLED: { label: 'Cancelled', tone: 'neutral' },
+  DRAFT: { label: 'Draft', tone: 'warning' },
 }
 
 /** "ACKNOWLEDGED" / "in transit" → "Acknowledged" / "In Transit". */

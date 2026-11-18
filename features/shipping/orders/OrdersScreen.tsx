@@ -1,7 +1,8 @@
 'use client'
 
-import React, { useState } from 'react'
-import { useSearchParams } from 'next/navigation'
+import React, { useCallback, useState } from 'react'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { ConfirmDialog } from '@/components/confirm-dialog/ConfirmDialog'
 import DateRangePicker, { type DateRangeValue } from '@/components/date-range-picker/DateRangePicker'
 import { FILL_PICKER, FilterBar, FilterItem, FunnelIcon } from '@/components/filter-bar/FilterBar'
 import { FilterMultiSelect, type FilterOption } from '@/components/filter-bar/FilterMultiSelect'
@@ -12,12 +13,13 @@ import { PaginationFooter } from '@/components/pagination-footer/PaginationFoote
 import { useApiFeedback } from '@/hooks/useApiFeedback'
 import { useAppAbility } from '@/hooks/useAppAbility'
 import { useScanItems } from '@/features/barcode/session/useScanItems'
-import { useGetChannelOrdersQuery, useGetOrderChannelsQuery, useRetryChannelSyncMutation } from '@/services/api/shipping.api'
+import { useDeleteShipmentDraftMutation, useGetChannelOrdersQuery, useGetOrderChannelsQuery, useRetryChannelSyncMutation } from '@/services/api/shipping.api'
 import { cn } from '@/utils/cn'
 import { MARKETPLACES } from '@/utils/marketplaces'
 import { FULFILLMENT_META } from '../shippingMeta'
-import type { ChannelId, ChannelOrderRef, Fulfillment, OrderOrigin } from '../types'
+import type { ChannelId, ChannelOrderRef, Fulfillment, OrderListItem, OrderOrigin } from '../types'
 import { PrintDialog } from '../print/PrintDialog'
+import { BookingDrawer } from './BookingDrawer'
 import { OrderDrawer } from './OrderDrawer'
 import { OrdersTable } from './OrdersTable'
 import { useOrderInvoiceDownload } from './useOrderInvoiceDownload'
@@ -47,6 +49,25 @@ const ORIGIN_OPTIONS: FilterOption<OrderOrigin>[] = [
 
 const day = (value: string | null) => (value ? value.slice(0, 10) : undefined)
 
+/** The booking drawer's shipment lives in the address (`?shipment=184`), so it can be linked to and Back closes it. */
+function useOpenShipment() {
+  const router = useRouter()
+  const pathname = usePathname()
+  const params = useSearchParams()
+  const id = Number(params.get('shipment'))
+  const open = useCallback(
+    (shipmentId: number | null) => {
+      const next = new URLSearchParams(params.toString())
+      if (shipmentId === null) next.delete('shipment')
+      else next.set('shipment', String(shipmentId))
+      const query = next.toString()
+      router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false })
+    },
+    [params, pathname, router]
+  )
+  return { openId: Number.isInteger(id) && id > 0 ? id : null, open }
+}
+
 /**
  * Shipping › Orders: seller-fulfilled channel orders to book with our carriers ("Get rates"), and orders shipped on
  * the channel with its own carrier, shown with the channel's tracking. Get details in a row's actions opens the order's drawer; `?search=`
@@ -69,6 +90,9 @@ export const OrdersScreen: React.FC = () => {
   const [opened, setOpened] = useState<ChannelOrderRef | null>(null)
   const [printing, setPrinting] = useState<number | null>(null)
   const { download: downloadInvoice, isExporting: invoiceBusy } = useOrderInvoiceDownload()
+  const { openId: openShipmentId, open: openShipment } = useOpenShipment()
+  const [deletingDraft, setDeletingDraft] = useState<OrderListItem | null>(null)
+  const [deleteDraft, { isLoading: deleting }] = useDeleteShipmentDraftMutation()
 
   const { data: channels = [], isLoading: loadingChannels } = useGetOrderChannelsQuery()
   const channelOptions: FilterOption<ChannelId>[] = channels.map((channel) => ({ value: channel.id, label: channel.label, disabledReason: channel.connected ? undefined : 'Not connected' }))
@@ -164,6 +188,7 @@ export const OrdersScreen: React.FC = () => {
             onRetrySync={(id) => void retry(id)}
             onOpen={(row) => row.origin === 'CHANNEL' && setOpened({ channel: row.channel, market: row.market, orderId: row.orderId })}
             onPrintLabel={setPrinting}
+            onDeleteDraft={setDeletingDraft}
             onDownloadInvoice={(row) => row.origin === 'CHANNEL' && downloadInvoice(row)}
             onScanItems={canScan ? ({ channel, market, orderId }) => scanItems.open({ scenario: 'FBM_ORDER', sourceId: `${channel}:${market}:${orderId}` }) : undefined}
             scanLockedBy={({ origin, channel, market, orderId }) => (origin === 'MANUAL' ? null : scanItems.lockedBy({ scenario: 'FBM_ORDER', sourceId: `${channel}:${market}:${orderId}` }))}
@@ -175,6 +200,26 @@ export const OrdersScreen: React.FC = () => {
 
       {scanItems.dialog}
       <OrderDrawer order={opened} canWrite={canWrite} onClose={() => setOpened(null)} />
+      <BookingDrawer shipmentId={openShipmentId} canWrite={canWrite} onClose={() => openShipment(null)} />
+      <ConfirmDialog
+        isOpen={deletingDraft !== null}
+        title="Delete this draft?"
+        confirmLabel="Delete draft"
+        tone="danger"
+        busy={deleting}
+        onClose={() => setDeletingDraft(null)}
+        onConfirm={() => {
+          if (!deletingDraft || deletingDraft.origin !== 'MANUAL' || deletingDraft.draftId === null) return
+          const { draftId, orderId } = deletingDraft
+          void deleteDraft(draftId)
+            .unwrap()
+            .then(() => success(`${orderId} deleted.`))
+            .catch((error) => failure(error, 'Could not delete the draft'))
+            .finally(() => setDeletingDraft(null))
+        }}
+      >
+        <p>{deletingDraft?.orderId} and the customer details saved in it will be removed. This can&apos;t be undone.</p>
+      </ConfirmDialog>
       <PrintDialog shipmentId={printing} initialDocument="label" onClose={() => setPrinting(null)} />
     </div>
   )

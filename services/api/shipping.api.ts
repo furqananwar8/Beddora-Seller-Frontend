@@ -99,11 +99,11 @@ export const shippingApi = baseApi.injectEndpoints({
     saveShipmentDraft: builder.mutation<ShipmentDraftDto, { id?: number | null; values: Record<string, unknown> }>({
       query: (body) => ({ url: '/shipping/shipments/drafts', method: 'PUT', body }),
       transformResponse: (response: Envelope<ShipmentDraftDto>) => unwrap(response),
-      invalidatesTags: ['ShippingDrafts'],
+      invalidatesTags: ['ShippingDrafts', 'ShippingChannelOrders'],
     }),
     deleteShipmentDraft: builder.mutation<void, number>({
       query: (id) => ({ url: `/shipping/shipments/drafts/${id}`, method: 'DELETE' }),
-      invalidatesTags: ['ShippingDrafts'],
+      invalidatesTags: ['ShippingDrafts', 'ShippingChannelOrders'],
     }),
     cancelShipment: builder.mutation<ParcelShipmentDto, number>({
       query: (id) => ({ url: `/shipping/shipments/${id}/cancel`, method: 'POST' }),

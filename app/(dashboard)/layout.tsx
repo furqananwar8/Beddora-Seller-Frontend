@@ -11,7 +11,7 @@ import { setAmazonSession } from '@/store/amazon.slice'
 import { useAppAbility } from '@/hooks/useAppAbility'
 import { AiAssistant } from '@/components/ai-assistant'
 import { BarcodeScannerProvider } from '@/features/barcode/BarcodeScannerProvider'
-import { BOOKINGS_TAB, MANUAL_SHIPMENT_FLOW } from '@/features/shipping/shippingFlags'
+import { MANUAL_SHIPMENT_FLOW } from '@/features/shipping/shippingFlags'
 
 /** Routes whose content is shorter than the screen, so the layout sizes them below the header (`.ds-content-fit`). */
 const FIT_BELOW_HEADER_ROUTES = [
@@ -274,7 +274,6 @@ export default function DashboardLayout({
             children: [
               { label: 'Orders', subject: 'shipping:orders', action: 'read', href: '/dashboard/shipping/orders' },
               ...(MANUAL_SHIPMENT_FLOW ? [{ label: 'Create shipment', subject: 'shipping:orders', action: 'write' as const, href: '/dashboard/shipping/create' }] : []),
-              ...(BOOKINGS_TAB ? [{ label: 'Bookings', subject: 'shipping:orders', action: 'read' as const, href: '/dashboard/shipping/bookings' }] : []),
             ],
           },
           {
