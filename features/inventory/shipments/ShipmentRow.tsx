@@ -112,7 +112,7 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({
   const [isActing, setIsActing] = useState(false)
   const [isAddOpen, setIsAddOpen] = useState(false)
   // Ship-from is editable only until the plan is sent to the partner
-  const canChangeFrom = shipment.status === 'in_progress' && shipment.stage === 'draft'
+  const canChangeFrom = !shipment.readOnly && shipment.status === 'in_progress' && shipment.stage === 'draft'
   const [fromChoice, setFromChoice] = useState<ShipFromChoice | null>(null)
   const [isEditingFrom, setIsEditingFrom] = useState(false)
   const [isSavingFrom, setIsSavingFrom] = useState(false)
@@ -266,6 +266,14 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({
         <TableCell className="min-w-[220px]">
           <div className="flex items-center gap-2">
             <span className="font-mono text-sm font-semibold text-text-primary">{shipment.reference}</span>
+            {shipment.readOnly && (
+              <span
+                className="rounded bg-secondary-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-secondary-700"
+                title={`Made on ${channel.partner} and kept in sync automatically. It can't be changed here.`}
+              >
+                From {channel.partner}
+              </span>
+            )}
             {isDirty && (
               <span className="rounded bg-warning-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-warning-800">
                 Unsaved
@@ -326,7 +334,8 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({
         <TableCell>
           <div className="flex flex-col items-start gap-1">
             <StatusBadge status={shipment.status} />
-            <WarehouseStatusBadge status={shipment.warehouseStatus} />
+            {/* Platform shipments hold no stock of ours, so there is nothing to scan out */}
+            {!shipment.readOnly && <WarehouseStatusBadge status={shipment.warehouseStatus} />}
           </div>
         </TableCell>
 
@@ -379,15 +388,17 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({
                     {scanLockedBy ? `Locked by ${scanLockedBy}` : 'Scan items'}
                   </MenuItem>
                 )}
-                <div className="my-1 border-t border-border" />
-                <MenuItem
-                  danger
-                  disabled={shipment.status !== 'in_progress'}
-                  onClick={() => { setIsMenuOpen(false); onCancel() }}
-                >
-                  Cancel shipment
-                </MenuItem>
-                {shipment.status === 'cancelled' && (
+                {!shipment.readOnly && <div className="my-1 border-t border-border" />}
+                {!shipment.readOnly && (
+                  <MenuItem
+                    danger
+                    disabled={shipment.status !== 'in_progress'}
+                    onClick={() => { setIsMenuOpen(false); onCancel() }}
+                  >
+                    Cancel shipment
+                  </MenuItem>
+                )}
+                {!shipment.readOnly && shipment.status === 'cancelled' && (
                   <MenuItem danger onClick={() => { setIsMenuOpen(false); onDelete() }}>
                     Delete shipment
                   </MenuItem>
@@ -401,7 +412,7 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({
         <TableRow className="hover:bg-transparent">
           <TableCell colSpan={SHIPMENT_TABLE_COLUMNS} className="bg-background p-0">
             <div className="space-y-4 border-l-2 border-secondary-800 px-6 py-5">
-              <WorkflowStepper shipment={shipment} onGoBack={onGoBack} onReopen={onAction} />
+              <WorkflowStepper shipment={shipment} onGoBack={shipment.readOnly ? undefined : onGoBack} onReopen={shipment.readOnly ? undefined : onAction} />
 
               {shipment.status === 'in_progress' && !!shipment.wfs?.errors?.length && (
                 <div role="alert" className="rounded-lg border border-danger-200 bg-danger-50 px-4 py-3 text-sm text-danger-700">
@@ -463,6 +474,23 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({
                 />
                 <Detail label={byCase ? 'Expected delivery' : 'Delivery window'} value={formatWindow(shipment.deliveryWindow)} />
                 <Detail label="Carrier" value={shipment.carrier ?? '—'} />
+                {shipment.platform && (
+                  <Detail
+                    label={`${channel.partner} status`}
+                    value={
+                      <div className="space-y-0.5">
+                        {shipment.platform.status && <div className="text-xs font-semibold">{shipment.platform.status}</div>}
+                        {shipment.platform.shipments.map((p) => (
+                          <div key={p.shipmentId} className="text-[11px] text-text-muted">
+                            <span className="font-mono">{p.shipmentId}</span>
+                            {p.status ? ` · ${p.status}` : ''}
+                          </div>
+                        ))}
+                        <div className="text-[11px] text-text-subtle">Synced {formatRelative(shipment.platform.syncedAt)}</div>
+                      </div>
+                    }
+                  />
+                )}
                 {/* From the box contents entered when the shipment was packed */}
                 <Detail
                   label="Total boxes"

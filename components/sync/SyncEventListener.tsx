@@ -8,6 +8,8 @@ import { addNotification } from '@/store/ui.slice'
 /** Events that mean cached data is stale: the tags to refetch when one arrives, keyed by the event's `data.kind`. */
 const INVALIDATE_ON: Record<string, Parameters<typeof baseApi.util.invalidateTags>[0]> = {
   'seller-central:sync': ['SellerCentralShipments', 'SellerCentralSync'],
+  // The platform sync imported or updated shipments on the Shipments page
+  'shipments:sync': ['InboundShipments'],
 }
 
 interface SyncPayload {

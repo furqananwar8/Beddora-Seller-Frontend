@@ -28,7 +28,7 @@ export const FIRST_VISIBLE_STEP_AFTER_PLAN = FBA_CHANNEL.firstVisibleStepAfterPl
 
 /** What advances this shipment now, or null when it isn't open (or the channel has no step there). */
 export const nextActionOf = (s: InboundShipment): NextActionDef | null =>
-  s.status === 'in_progress' ? channelOf(s).nextAction[s.stage] ?? null : null
+  s.status === 'in_progress' && !s.readOnly ? channelOf(s).nextAction[s.stage] ?? null : null
 
 /**
  * 0-based index into the channel's steps of the step currently being worked on.
@@ -50,7 +50,7 @@ export const cancelledAtLabel = (s: InboundShipment) => channelOf(s).steps[getAc
  * inbound plan; WFS: the order is cancelled and sent again).
  */
 export const canEditItems = (s: InboundShipment) =>
-  s.status === 'in_progress' && (s.stage === 'draft' || s.stage === 'plan_created')
+  !s.readOnly && s.status === 'in_progress' && (s.stage === 'draft' || s.stage === 'plan_created')
 
 export const isOpen = (s: InboundShipment) => s.status === 'in_progress'
 

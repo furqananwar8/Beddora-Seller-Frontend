@@ -180,6 +180,14 @@ export interface ShipTrackingInput {
   trackingNumbers?: string[]
 }
 
+export interface PlatformSide {
+  syncedAt: string
+  /** The partner's own status word for the plan (Amazon). */
+  status?: string
+  /** The partner's shipments with their own statuses (Amazon shipments / Walmart shipments by fulfillment center). */
+  shipments: { shipmentId: string; status?: string; fulfillmentCenter?: string }[]
+}
+
 export interface InboundShipment {
   id: string
   /** Human-facing internal reference, e.g. SHP-0042. */
@@ -187,6 +195,12 @@ export interface InboundShipment {
   name: string
   /** Missing only from servers that predate channels; treat as amazon_fba. */
   channel?: ShipmentChannel
+  /** Built on this page ('app'), or made on the platform and pulled in by the sync ('platform'). Missing from older servers: 'app'. */
+  origin?: 'app' | 'platform'
+  /** Platform shipments mirror the partner: no step, edit, cancel or delete applies to them. */
+  readOnly?: boolean
+  /** The partner's side as the last platform sync read it. */
+  platform?: PlatformSide
   marketplace: Marketplace
   status: ShipmentStatus
   /** Missing only from servers that predate it; treat as pending. */
