@@ -11,9 +11,9 @@ export const REALTIME_TOPICS: Record<string, TagType[]> = {
   'inventory.sync': [],
   /** A background report export is ready (or failed); `useReportExport` downloads it. */
   export: [],
-  /** A background booking finished (or failed); `useBookingJob` toasts it and hands over the shipment. */
   /** Settlement figures changed (fee/ad sync, COGS); `useSettlementTileStream` re-streams its cards. */
   'profit.settlement': [],
+  /** A background booking finished (or failed); `useBookingJob` toasts it and hands over the shipment. */
   'shipping.booking': ['ShippingShipments', 'ShippingChannelOrders'],
   'finance.partner': ['FinancePartners', 'ProcurementPriceAnalysis'],
   'finance.bank-profile': ['FinanceBankProfiles'],
@@ -21,6 +21,8 @@ export const REALTIME_TOPICS: Record<string, TagType[]> = {
   'finance.payment-request': ['FinanceRequests', 'ProcurementPurchaseOrders'],
   'finance.payment-process': ['FinanceProcess', 'FinanceRequests', 'ProcurementPurchaseOrders', 'ProcurementPurchaseInvoices'],
   'procurement.product': ['ProcurementProducts', 'ProcurementPriceAnalysis'],
+  /** An Excel product import's progress arrives every half second; `ProductImportEventListener` patches the cache itself instead of refetching. */
+  'procurement.product-import': [],
   'procurement.purchase-order': ['ProcurementPurchaseOrders'],
   'procurement.purchase-invoice': ['ProcurementPurchaseInvoices'],
   'procurement.packaging-list': ['ProcurementPackagingLists', 'ProcurementPurchaseOrders', 'ProcurementContainers'],

@@ -1085,6 +1085,41 @@ export interface ProductHsCodeOption {
   categories: string[]
 }
 
+/* ─────────────── Product import (Excel) ─────────────── */
+
+export type ProductImportStatus = 'QUEUED' | 'RUNNING' | 'COMPLETED' | 'COMPLETED_WITH_ERRORS' | 'FAILED'
+
+/** One Excel upload, built in the background. Also the `data` of its `import.progress` / `import.finished` realtime events (progress events carry only the counters). */
+export interface ProductImport {
+  id: number
+  fileName: string
+  status: ProductImportStatus
+  /** Queued or running: no other upload can start. */
+  active: boolean
+  totalProducts: number
+  processedProducts: number
+  createdProducts: number
+  failedProducts: number
+  percent: number
+  error: string | null
+  createdById: number
+  createdAt: string
+  startedAt: string | null
+  finishedAt: string | null
+}
+
+export interface ProductImportRow {
+  id: number
+  rowNumber: number
+  name: string
+  variationCount: number
+  status: 'CREATED' | 'FAILED'
+  productId: number | null
+  error: string | null
+}
+
+export const PRODUCT_IMPORT_TEMPLATE_URL = '/procurement/products/import/template'
+
 export const procurementApi = baseApi.injectEndpoints({
   endpoints: (b) => ({
     getPoProducts: b.query<Page<PoProductListItem>, ProductListParams>({
@@ -1151,6 +1186,26 @@ export const procurementApi = baseApi.injectEndpoints({
     removePoProductPhoto: b.mutation<void, number>({
       query: (id) => ({ url: `/procurement/products/${id}/photo`, method: 'DELETE' }),
       invalidatesTags: ['ProcurementProducts'],
+    }),
+    /** The latest Excel import: running, or the last one finished. */
+    getProductImportCurrent: b.query<ProductImport | null, void>({
+      query: () => '/procurement/products/import/current',
+      transformResponse: unwrap,
+      providesTags: ['ProcurementProductImports'],
+    }),
+    getProductImportRows: b.query<Page<ProductImportRow>, { importId: number; status: ProductImportRow['status']; page: number; limit: number }>({
+      query: ({ importId, ...params }) => ({ url: `/procurement/products/import/${importId}/rows`, params }),
+      providesTags: ['ProcurementProductImports'],
+    }),
+    /** Queues the sheet and returns at once; products are created in the background. 409 while another import is running. */
+    uploadProductImport: b.mutation<ProductImport, File>({
+      query: (file) => {
+        const body = new FormData()
+        body.append('file', file)
+        return { url: '/procurement/products/import', method: 'POST', body }
+      },
+      transformResponse: unwrap,
+      invalidatesTags: ['ProcurementProductImports'],
     }),
 
     /* purchase orders */
@@ -1536,6 +1591,9 @@ export const {
   useDeletePoProductMutation,
   useUploadPoProductPhotoMutation,
   useRemovePoProductPhotoMutation,
+  useGetProductImportCurrentQuery,
+  useGetProductImportRowsQuery,
+  useUploadProductImportMutation,
   useGetPoCategoriesQuery,
   useCreatePoCategoryMutation,
   useUpdatePoCategoryMutation,

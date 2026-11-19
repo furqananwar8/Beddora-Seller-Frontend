@@ -10,6 +10,7 @@ import { PersistGate } from 'redux-persist/integration/react'
 import { AbilityProvider } from '@/casl/AbilityProvider'
 import { SyncEventListener } from '@/components/sync/SyncEventListener'
 import { BookingEventListener } from '@/features/shipping/BookingEventListener'
+import { ProductImportEventListener } from '@/features/procurement/products/import/ProductImportEventListener'
 import { RealtimeProvider } from '@/components/realtime/RealtimeProvider'
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -23,6 +24,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
               <RealtimeProvider>
                 <SyncEventListener />
                 <BookingEventListener />
+                <ProductImportEventListener />
                 {children}
               </RealtimeProvider>
               <ToastContainer />

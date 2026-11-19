@@ -83,6 +83,7 @@ export const tagTypes = [
   'FinanceApprovers',
   'FinanceExpenseTypes',
   'ProcurementProducts',
+  'ProcurementProductImports',
   'ProcurementCategories',
   'ProcurementPurchaseOrders',
   'ProcurementPurchaseInvoices',

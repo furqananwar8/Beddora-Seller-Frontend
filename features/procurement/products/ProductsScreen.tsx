@@ -29,6 +29,7 @@ import { cn } from '@/utils/cn'
 import { useDebounce } from '@/utils/debounce'
 import { CategorySelect } from '../shared/CategorySelect'
 import { CategoriesModal } from './CategoriesModal'
+import { ProductImportButton } from './import/ProductImportButton'
 import { MARKETPLACES } from './productForm'
 import { ProductsTable } from './ProductsTable'
 
@@ -132,6 +133,7 @@ export const ProductsScreen: React.FC = () => {
             <Button variant="secondary" size="sm" onClick={() => setManagingCategories(true)}>
               Categories
             </Button>
+            <ProductImportButton />
             <Link href={`${BASE}/new`} className="ds-button ds-button-primary ds-button-sm">
               + New product
             </Link>
