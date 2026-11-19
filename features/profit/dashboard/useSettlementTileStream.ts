@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useRealtime } from '@/components/realtime/RealtimeProvider'
 import { API_BASE_URL } from '@/services/api/baseApi'
 import { readSse, streamFailure } from '@/utils/sseStream'
 
@@ -46,10 +47,13 @@ export function useSettlementTileStream(params: SettlementTileStreamParams | nul
   const key = params ? JSON.stringify(params) : null
   const latest = useRef(params)
   latest.current = params
+  // A pushed refresh keeps the cards on screen until each new one replaces it, so nothing flashes to a skeleton
+  const keepTiles = useRef(false)
 
   useEffect(() => {
     const current = latest.current
-    setTiles(new Map())
+    if (!keepTiles.current) setTiles(new Map())
+    keepTiles.current = false
     setError(null)
     if (!key || !current) {
       setFetching(false)
@@ -83,6 +87,13 @@ export function useSettlementTileStream(params: SettlementTileStreamParams | nul
   }, [key, reloads])
 
   const reload = useCallback(() => setReloads((count) => count + 1), [])
+
+  // The server says the figures changed: stream the cards again in place (a closed `null` stream stays closed)
+  useRealtime('profit.settlement', () => {
+    if (!latest.current) return
+    keepTiles.current = true
+    setReloads((count) => count + 1)
+  })
 
   return { tiles, isFetching, error, reload }
 }

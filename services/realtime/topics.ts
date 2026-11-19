@@ -12,6 +12,8 @@ export const REALTIME_TOPICS: Record<string, TagType[]> = {
   /** A background report export is ready (or failed); `useReportExport` downloads it. */
   export: [],
   /** A background booking finished (or failed); `useBookingJob` toasts it and hands over the shipment. */
+  /** Settlement figures changed (fee/ad sync, COGS); `useSettlementTileStream` re-streams its cards. */
+  'profit.settlement': [],
   'shipping.booking': ['ShippingShipments', 'ShippingChannelOrders'],
   'finance.partner': ['FinancePartners', 'ProcurementPriceAnalysis'],
   'finance.bank-profile': ['FinanceBankProfiles'],
