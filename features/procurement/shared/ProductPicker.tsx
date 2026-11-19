@@ -37,12 +37,15 @@ const ProductOption: React.FC<{ product: PoProduct; note?: React.ReactNode }> = 
   </span>
 )
 
-/** Server-searched orderable products, fetched only while the dropdown is open. */
+/**
+ * Server-searched orderable products, fetched only while the dropdown is open. Every opening asks the server
+ * again (a product created or edited meanwhile, here or in another browser tab, must show up in the search).
+ */
 function useProductOptions() {
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
   const debounced = useDebounce(search, 250)
-  const { data = [], isFetching } = useGetPoProductOptionsQuery({ search: debounced }, { skip: !open })
+  const { data = [], isFetching } = useGetPoProductOptionsQuery({ search: debounced }, { skip: !open, refetchOnMountOrArgChange: true, refetchOnFocus: true })
   return { search, setSearch, setOpen, options: data, isFetching }
 }
 

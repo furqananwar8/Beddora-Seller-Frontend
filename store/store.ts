@@ -1,4 +1,5 @@
 import { configureStore, combineReducers, createListenerMiddleware } from '@reduxjs/toolkit'
+import { setupListeners } from '@reduxjs/toolkit/query'
 import { persistReducer, persistStore } from 'redux-persist'
 import { authPersistConfig } from './persist.config'
 import { baseApi } from '@/services/api/baseApi'
@@ -90,6 +91,9 @@ export const store = configureStore({
       },
     }).prepend(sessionListener.middleware).concat(baseApi.middleware),
 })
+
+// Turns on `refetchOnFocus` / `refetchOnReconnect` for the queries that ask for them (without this they never fire)
+setupListeners(store.dispatch)
 
 export const persistor = persistStore(store)
 

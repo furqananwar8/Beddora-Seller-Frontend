@@ -92,6 +92,7 @@ export const ShipmentsScreen: React.FC = () => {
   const scanItems = useScanItems()
   const {
     shipments,
+    listState,
     poolSummary,
     poolOf,
     channels,
@@ -664,7 +665,16 @@ export const ShipmentsScreen: React.FC = () => {
               {visible.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={SHIPMENT_TABLE_COLUMNS} className="py-14 text-center">
-                    {scopedShipments.length === 0 ? (
+                    {listState.isLoading ? (
+                      <p className="text-sm text-text-muted">Loading shipments…</p>
+                    ) : listState.isError && shipments.length === 0 ? (
+                      <div className="space-y-3">
+                        <p className="text-sm text-text-muted">Could not load shipments.</p>
+                        <Button variant="secondary" onClick={listState.retry}>
+                          Try again
+                        </Button>
+                      </div>
+                    ) : scopedShipments.length === 0 ? (
                       <div className="space-y-3">
                         <p className="text-sm text-text-muted">
                           No shipments yet. Allocate stock to {scopeChannel?.program ?? 'FBA or WFS'} in the Planner, then split it into shipments here.

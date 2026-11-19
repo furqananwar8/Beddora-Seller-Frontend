@@ -71,6 +71,8 @@ export interface ShipmentsController {
   /** Printable label sizes per kind; undefined until the config has loaded. */
   labelFormats?: LabelFormatCatalog
   shipments: InboundShipment[]
+  /** State of the list request, so an unfinished or failed load isn't shown as "no shipments". */
+  listState: { isLoading: boolean; isError: boolean; retry: () => void }
   /** What each channel has allocated, in internal units (the summary cards). */
   poolSummary?: PoolSummary
   /** The channel SKUs of a marketplace with their allocation; loaded for the marketplaces that have an open shipment. */
@@ -170,7 +172,7 @@ const fbaOnly = (sandbox: boolean, labelFormats?: LabelFormatCatalog): ChannelCo
 export const useShipments = (): ShipmentsController => {
   // Poll while the server is still fetching label files, so their status appears on its own
   const [pollMs, setPollMs] = useState(0)
-  const { data: shipments = [] } = useGetShipmentsQuery(undefined, {
+  const { data: shipments = [], isLoading, isError, refetch } = useGetShipmentsQuery(undefined, {
     pollingInterval: pollMs,
     // Always ask the server when the screen opens or the tab is back in focus: a cached (or failed) list must not linger
     refetchOnMountOrArgChange: true,
@@ -353,6 +355,7 @@ export const useShipments = (): ShipmentsController => {
 
   return {
     shipments,
+    listState: { isLoading, isError, retry: refetch },
     poolSummary,
     poolOf,
     channels,

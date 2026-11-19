@@ -1107,6 +1107,8 @@ export const procurementApi = baseApi.injectEndpoints({
     getPoProductOptions: b.query<PoProduct[], { search?: string; limit?: number }>({
       query: ({ search, limit }) => ({ url: '/procurement/products/options', params: { search: search || undefined, limit } }),
       transformResponse: unwrap,
+      // A search result goes stale the moment a product is created; don't keep one around for reuse
+      keepUnusedDataFor: 0,
       providesTags: ['ProcurementProducts'],
     }),
     /** The HS codes we ship under, with the product categories each is the default for. */
