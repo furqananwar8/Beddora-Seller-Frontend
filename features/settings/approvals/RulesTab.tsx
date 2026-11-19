@@ -19,8 +19,14 @@ import {
   type PersonRef,
   type RuleAssignee,
 } from '@/services/api/approvals.api'
-import { AddPicker, Btn, Chip, InHeader, OnOff, SideItem, SideTitle, Tag, TwoPane, selectClass, type PickOption } from './ui'
+import type { Slots } from './ApprovalsScreen'
+import { AddPicker, Btn, Chip, FooterBar, OnOff, PaneTitle, RemoveBtn, Select, SideItem, SideTitle, Tag, TwoPane, type PickOption } from './ui'
 import { cn } from '@/utils/cn'
+
+// Same order as the design
+const GROUP_ORDER = ['Procurement', 'Finance']
+const ACTION_ORDER = ['procurement.po.submit', 'procurement.purchase-invoice.submit', 'procurement.price-analysis.approve', 'finance.payment-request.submit']
+const rank = (list: string[], item: string) => (list.indexOf(item) + 1 || 99)
 
 const COMPLETIONS: Array<{ value: Completion; label: string }> = [
   { value: 'ANY', label: 'Any one approves' },
@@ -79,13 +85,13 @@ interface EditorProps {
   rule: ApprovalRule
   lookups: Lookups
   readOnly: boolean
-  slot: HTMLElement | null
+  slots: Slots
 }
 
-const RuleEditor: React.FC<EditorProps> = ({ rule, lookups, readOnly, slot }) => {
+const RuleEditor: React.FC<EditorProps> = ({ rule, lookups, readOnly, slots }) => {
   const { success, failure } = useApiFeedback()
   const [save, { isLoading: saving }] = useSaveApprovalRuleMutation()
-  const { control, register, handleSubmit, watch, setValue, reset, formState } = useForm<Values>({ resolver: zodResolver(schema), defaultValues: valuesOf(rule) })
+  const { control, handleSubmit, watch, setValue, reset, formState } = useForm<Values>({ resolver: zodResolver(schema), defaultValues: valuesOf(rule) })
   const { fields, append, remove, move } = useFieldArray({ control, name: 'steps' })
   const steps = watch('steps')
   const dragFrom = useRef<number | null>(null)
@@ -124,23 +130,21 @@ const RuleEditor: React.FC<EditorProps> = ({ rule, lookups, readOnly, slot }) =>
 
   return (
     <form onSubmit={submit} noValidate>
-      <InHeader slot={slot}>
-        {dirty && <span className="mr-2 text-xs text-slate-500">Unsaved changes</span>}
+      <FooterBar slot={slots.footer} status={dirty ? 'Unsaved changes' : 'All changes saved'}>
         <Btn disabled={!dirty || saving} onClick={() => reset(valuesOf(rule))}>
           Discard
         </Btn>
         <Btn primary disabled={!dirty || saving || readOnly} onClick={() => void submit()}>
           {saving ? 'Saving…' : 'Save rule'}
         </Btn>
-      </InHeader>
+      </FooterBar>
 
-      <div className="mb-0.5 flex items-center justify-between">
-        <h2 className="text-[15px] font-bold text-slate-900">{rule.label}</h2>
-        <Controller control={control} name="isActive" render={({ field }) => <span className="flex items-center gap-1.5 text-xs text-slate-500">Active <OnOff on={field.value} onChange={field.onChange} disabled={readOnly || saving} /></span>} />
-      </div>
-      <p className="mb-3 text-xs text-slate-500">
+      <PaneTitle
+        title={rule.label}
+        right={<Controller control={control} name="isActive" render={({ field }) => <span className="flex items-center gap-2 text-[13px] text-slate-500">Active <OnOff on={field.value} onChange={field.onChange} disabled={readOnly || saving} /></span>} />}
+      >
         Runs when the <b>{rule.buttonLabel}</b> button on {rule.where} is used.
-      </p>
+      </PaneTitle>
 
       {fields.map((field, index) => {
         const step = steps[index]
@@ -148,54 +152,42 @@ const RuleEditor: React.FC<EditorProps> = ({ rule, lookups, readOnly, slot }) =>
         const error = formState.errors.steps?.[index]?.assignees?.message
         return (
           <div key={field.id} onDragOver={(event) => event.preventDefault()} onDrop={() => { if (dragFrom.current !== null && dragFrom.current !== index) move(dragFrom.current, index); dragFrom.current = null }}>
-            <div className="flex items-start gap-2 rounded-lg border border-slate-200 bg-white p-2">
-              <span draggable={!readOnly} onDragStart={() => { dragFrom.current = index }} title="Drag to reorder" className={cn('mt-1 select-none text-slate-400', !readOnly && 'cursor-grab')}>
-                ⋮⋮
-              </span>
-              <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-600 text-[10px] font-bold text-white">{index + 1}</span>
-              <div className="min-w-0 flex-1">
-                <div className="mb-1.5 flex items-center gap-2">
-                  <span className="text-xs text-slate-500">Move on when</span>
-                  <select {...register(`steps.${index}.completion`)} disabled={readOnly || saving} className={cn(selectClass, 'ml-auto min-w-[170px]')}>
-                    {COMPLETIONS.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                  {!readOnly && (
-                    <button type="button" onClick={() => remove(index)} className="text-xs text-slate-500 hover:text-red-600">
-                      Remove step
-                    </button>
-                  )}
-                </div>
-                <div className="flex flex-wrap items-center gap-1.5">
-                  {step.assignees.map((assignee, at) => (
-                    <Chip key={`${assignee.kind}-${at}`} teal={assignee.kind === 'PLATFORM'} onRemove={readOnly ? undefined : () => setAssignees(index, step.assignees.filter((_, position) => position !== at))}>
-                      {chipText(assignee, lookups)}
-                    </Chip>
-                  ))}
-                  {!readOnly && <AddPicker label="+ Add person or department head" groups={pickOptions(index)} empty="Everyone is already in this step." />}
-                </div>
-                {step.assignees.some((assignee) => assignee.kind === 'PLATFORM') && (
-                  <p className="mt-1 text-[11px] text-slate-500">Looks at the products on {rule.where}. Retail only: Retail team. Ecommerce only: Ecommerce team. Both: one from each.</p>
-                )}
-                {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+            <div className="relative rounded-lg border border-slate-200 bg-white p-4">
+              {!readOnly && <RemoveBtn corner label="Remove step" onClick={() => remove(index)} />}
+              <div className="flex items-center gap-3 pr-10">
+                <span draggable={!readOnly} onDragStart={() => { dragFrom.current = index }} title="Drag to reorder" className={cn('select-none text-slate-400', !readOnly && 'cursor-grab')}>
+                  ⋮⋮
+                </span>
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center ds-circle bg-blue-600 text-[13px] font-bold leading-none text-white">{index + 1}</span>
+                <span className="text-[13px] text-slate-600">Move on when</span>
+                <Controller control={control} name={`steps.${index}.completion`} render={({ field: completion }) => <Select options={COMPLETIONS} value={completion.value} onChange={completion.onChange} searchable={false} disabled={readOnly || saving} width="w-52" />} />
               </div>
+              <div className="mt-4 flex flex-wrap items-center gap-2">
+                {!readOnly && <AddPicker label="+ Add person or department head" groups={pickOptions(index)} empty="Everyone is already in this step." />}
+                {step.assignees.map((assignee, at) => (
+                  <Chip key={`${assignee.kind}-${at}`} teal={assignee.kind === 'PLATFORM'} onRemove={readOnly ? undefined : () => setAssignees(index, step.assignees.filter((_, position) => position !== at))}>
+                    {chipText(assignee, lookups)}
+                  </Chip>
+                ))}
+              </div>
+              {step.assignees.some((assignee) => assignee.kind === 'PLATFORM') && (
+                <p className="mt-2 text-xs text-slate-500">Looks at the products on {rule.where}. Retail only: Retail team. Ecommerce only: Ecommerce team. Both: one from each.</p>
+              )}
+              {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
             </div>
-            <div className="my-1 ml-[17px] text-[10px] text-slate-400">↓ when approved</div>
+            <div className="my-2 ml-4 text-xs text-slate-400">↓ when approved</div>
           </div>
         )
       })}
 
-      <div className="flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-[13px]">
-        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-green-600 text-[11px] font-bold text-white">✓</span>
+      <div className="flex items-center gap-3 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-[13px]">
+        <span className="flex h-6 w-6 shrink-0 items-center justify-center ds-circle bg-green-600 text-xs font-bold text-white">✓</span>
         <b>{rule.outcome}</b>
         <span className="text-slate-500">(final outcome, fixed by the action)</span>
       </div>
 
       {!readOnly && (
-        <div className="my-2 flex items-center gap-2">
+        <div className="my-4 flex items-center gap-3">
           <Btn disabled={saving || fields.length >= 10} onClick={() => append({ completion: 'ANY', assignees: [] })}>
             + Add step
           </Btn>
@@ -203,23 +195,23 @@ const RuleEditor: React.FC<EditorProps> = ({ rule, lookups, readOnly, slot }) =>
         </div>
       )}
 
-      <div className="mt-3 flex items-center gap-2 border-t border-slate-200 pt-2 text-xs text-slate-500">
-        If any step rejects: <span className="rounded-md border border-slate-300 bg-white px-2 py-1 text-slate-700">Return to creator, with reason</span> (fixed in v1)
+      <div className="mt-6 flex items-center gap-3 border-t border-slate-200 pt-4 text-[13px] text-slate-500">
+        If any step rejects: <span className="inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white px-3 text-slate-700">Return to creator, with reason</span> <span className="text-xs">(fixed in v1)</span>
       </div>
     </form>
   )
 }
 
 /** Loads one action's rule; the editor mounts only once the rule is here, so its form starts from it. */
-const RuleLoader: React.FC<{ actionKey: string; lookups: Lookups; readOnly: boolean; slot: HTMLElement | null }> = ({ actionKey, lookups, readOnly, slot }) => {
+const RuleLoader: React.FC<{ actionKey: string; lookups: Lookups; readOnly: boolean; slots: Slots }> = ({ actionKey, lookups, readOnly, slots }) => {
   const { data: rule, isLoading, isError } = useGetApprovalRuleQuery(actionKey)
   if (isLoading) return <Spinner />
   if (isError || !rule) return <p className="text-sm text-red-600">Could not load this rule.</p>
-  return <RuleEditor key={`${rule.key}-${JSON.stringify(rule.steps)}`} rule={rule} lookups={lookups} readOnly={readOnly} slot={slot} />
+  return <RuleEditor key={`${rule.key}-${JSON.stringify(rule.steps)}`} rule={rule} lookups={lookups} readOnly={readOnly} slots={slots} />
 }
 
 /** Approval rules tab: the actions on the left, the chain of the selected one on the right. */
-export const RulesTab: React.FC<{ slot: HTMLElement | null }> = ({ slot }) => {
+export const RulesTab: React.FC<{ slots: Slots }> = ({ slots }) => {
   const canEdit = useAppAbility().can('write', 'settings:approvals')
   const { data: actions = [], isLoading } = useGetApprovalActionsQuery()
   const { data: users = [] } = useGetApprovalUsersQuery()
@@ -228,12 +220,14 @@ export const RulesTab: React.FC<{ slot: HTMLElement | null }> = ({ slot }) => {
   const lookups = useMemo(() => ({ users, departments }), [users, departments])
 
   if (isLoading) return <div className="p-6"><Spinner /></div>
-  const key = selected ?? actions.find((action) => action.available)?.key
-  const groups = [...new Set(actions.map((action) => action.group))]
+  // The first rule in the design's order is open until another is picked
+  const first = [...actions].filter((action) => action.available).sort((x, y) => rank(GROUP_ORDER, x.group) - rank(GROUP_ORDER, y.group) || rank(ACTION_ORDER, x.key) - rank(ACTION_ORDER, y.key))[0]
+  const key = selected ?? first?.key
+  const groups = [...new Set(actions.map((action) => action.group))].sort((x, y) => rank(GROUP_ORDER, x) - rank(GROUP_ORDER, y))
 
   return (
     <TwoPane
-      width={200}
+      width={250}
       side={
         <>
           {groups.map((group) => (
@@ -241,19 +235,20 @@ export const RulesTab: React.FC<{ slot: HTMLElement | null }> = ({ slot }) => {
               <SideTitle>{group}</SideTitle>
               {actions
                 .filter((action) => action.group === group)
+                .sort((x, y) => rank(ACTION_ORDER, x.key) - rank(ACTION_ORDER, y.key))
                 .map((action) => (
                   <SideItem key={action.key} active={key === action.key} disabled={!action.available} onClick={() => setSelected(action.key)}>
-                    <span>{action.label}</span>
+                    <span className="min-w-0 flex-1">{action.label}</span>
                     {action.available ? <Tag tone={action.steps ? 'green' : 'slate'}>{action.steps ? `${action.steps} step${action.steps === 1 ? '' : 's'}` : 'none'}</Tag> : <Tag>soon</Tag>}
                   </SideItem>
                 ))}
             </div>
           ))}
-          <p className="mt-3 text-[10px] leading-snug text-slate-500">&quot;none&quot; = today&apos;s behavior: all holders of the page permission are notified.</p>
+          <p className="mt-4 px-2 text-xs leading-snug text-slate-500">&quot;none&quot; = today&apos;s behavior: all holders of the page permission are notified.</p>
         </>
       }
     >
-      {key ? <RuleLoader actionKey={key} lookups={lookups} readOnly={!canEdit} slot={slot} /> : <p className="text-sm text-slate-500">No approvable actions yet.</p>}
+      {key ? <RuleLoader actionKey={key} lookups={lookups} readOnly={!canEdit} slots={slots} /> : <p className="text-sm text-slate-500">No approvable actions yet.</p>}
     </TwoPane>
   )
 }

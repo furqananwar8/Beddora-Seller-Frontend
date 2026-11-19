@@ -123,7 +123,32 @@ export const approvalsApi = baseApi.injectEndpoints({
     updateDepartment: b.mutation<Department, { id: number; body: DepartmentBody }>({
       query: ({ id, body }) => ({ url: `/settings/approvals/departments/${id}`, method: 'PUT', body }),
       transformResponse: (response: Envelope<Department>) => unwrap(response),
-      invalidatesTags: ['Departments', 'ApprovalRules'],
+      // The screen changes at once and the server's answer only confirms it: no reload of the list, so nothing jumps
+      async onQueryStarted({ id, body }, { dispatch, getState, queryFulfilled }) {
+        const users = approvalsApi.endpoints.getApprovalUsers.select()(getState() as never).data ?? []
+        const patch = dispatch(
+          approvalsApi.util.updateQueryData('getDepartments', undefined, (draft) => {
+            const department = draft.find((item) => item.id === id)
+            if (!department) return
+            const known = new Map(department.members.map((member) => [member.id, member]))
+            department.name = body.name
+            department.platform = body.platform
+            department.members = body.members.map(({ userId, isHead }) => {
+              const person = known.get(userId) ?? users.find((user) => user.id === userId)
+              return { id: userId, name: person?.name ?? null, email: person?.email ?? '', isHead }
+            })
+          })
+        )
+        try {
+          const { data } = await queryFulfilled
+          dispatch(approvalsApi.util.updateQueryData('getDepartments', undefined, (draft) => {
+            const at = draft.findIndex((item) => item.id === data.id)
+            if (at >= 0) draft[at] = data
+          }))
+        } catch {
+          patch.undo()
+        }
+      },
     }),
     deleteDepartment: b.mutation<void, number>({
       query: (id) => ({ url: `/settings/approvals/departments/${id}`, method: 'DELETE' }),

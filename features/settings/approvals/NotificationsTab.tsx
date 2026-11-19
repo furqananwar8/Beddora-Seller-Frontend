@@ -19,7 +19,9 @@ import {
   type RecipientLine,
   type TabOption,
 } from '@/services/api/approvals.api'
-import { Btn, InHeader, OnOff, SideItem, SideTitle, TwoPane, selectClass } from './ui'
+import { Switch } from '@/components/switch/Switch'
+import type { Slots } from './ApprovalsScreen'
+import { Btn, FooterBar, OnOff, PaneTitle, RemoveBtn, SectionLabel, Select, SideItem, SideTitle, TwoPane } from './ui'
 import { cn } from '@/utils/cn'
 
 const GROUP_ORDER = ['Finance', 'Containers', 'Shipping', 'Procurement']
@@ -69,17 +71,16 @@ interface EditorProps {
   users: PersonRef[]
   departments: Array<{ id: number; name: string }>
   readOnly: boolean
-  slot: HTMLElement | null
+  slots: Slots
 }
 
-const EventEditor: React.FC<EditorProps> = ({ event, tabs, users, departments, readOnly, slot }) => {
+const EventEditor: React.FC<EditorProps> = ({ event, tabs, users, departments, readOnly, slots }) => {
   const { success, failure } = useApiFeedback()
   const [save, { isLoading: saving }] = useSaveNotificationEventMutation()
-  const { control, register, handleSubmit, watch, reset, formState } = useForm<Values>({ resolver: zodResolver(schema), defaultValues: valuesOf(event) })
+  const { control, handleSubmit, watch, reset, formState } = useForm<Values>({ resolver: zodResolver(schema), defaultValues: valuesOf(event) })
   const { fields, append, remove } = useFieldArray({ control, name: 'recipients' })
   const rows = watch('recipients')
   const dirty = formState.isDirty
-  const tabGroups = [...new Set(tabs.map((tab) => tab.group))]
 
   const submit = handleSubmit(async (values) => {
     try {
@@ -101,87 +102,51 @@ const EventEditor: React.FC<EditorProps> = ({ event, tabs, users, departments, r
 
   return (
     <form onSubmit={submit} noValidate>
-      <InHeader slot={slot}>
-        <span className="mr-2 text-xs text-slate-500">{dirty ? 'Unsaved changes' : 'Saved'}</span>
-        {dirty && (
-          <Btn disabled={saving} onClick={() => reset(valuesOf(event))}>
-            Discard
-          </Btn>
-        )}
+      <FooterBar slot={slots.footer} status={dirty ? 'Unsaved changes' : 'All changes saved'}>
+        <Btn disabled={!dirty || saving} onClick={() => reset(valuesOf(event))}>
+          Discard
+        </Btn>
         <Btn primary disabled={!dirty || saving || readOnly} onClick={() => void submit()}>
           {saving ? 'Saving…' : 'Save'}
         </Btn>
-      </InHeader>
+      </FooterBar>
 
-      <div className="mb-0.5 flex items-center justify-between">
-        <h2 className="text-[15px] font-bold text-slate-900">{event.label}</h2>
-        <Controller control={control} name="isActive" render={({ field }) => <span className="flex items-center gap-1.5 text-xs text-slate-500">Active <OnOff on={field.value} onChange={field.onChange} disabled={readOnly || saving} /></span>} />
-      </div>
-      <p className="mb-3 text-xs text-slate-500">{event.description}</p>
+      <PaneTitle
+        title={event.label}
+        right={<Controller control={control} name="isActive" render={({ field }) => <span className="flex items-center gap-2 text-[13px] text-slate-500">Active <OnOff on={field.value} onChange={field.onChange} disabled={readOnly || saving} /></span>} />}
+      >
+        {event.description}
+      </PaneTitle>
 
-      <div className="mb-1.5 text-[13px] font-semibold text-slate-900">Tell these people</div>
+      <SectionLabel>Tell these people</SectionLabel>
       {fields.map((field, index) => {
         const row = rows[index]
         if (!row) return null
         const errors = formState.errors.recipients?.[index]
+        const problem = errors?.permissionPage?.message ?? errors?.departmentId?.message ?? errors?.userId?.message
         return (
-          <div key={field.id} className="mb-1.5 rounded-lg border border-slate-200 bg-white p-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-teal-700 text-[10px] font-bold text-white">{index + 1}</span>
-              <select {...register(`recipients.${index}.kind`)} disabled={readOnly || saving} className={cn(selectClass, 'min-w-[170px]')}>
-                {KINDS.map((kind) => (
-                  <option key={kind.value} value={kind.value}>
-                    {kind.label}
-                  </option>
-                ))}
-              </select>
+          <div key={field.id} className="relative mb-3 rounded-lg border border-slate-200 bg-white p-4">
+            {!readOnly && <RemoveBtn corner label="Remove recipient" onClick={() => remove(index)} />}
+            <div className="flex items-center gap-3 pr-10">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center ds-circle bg-teal-700 text-[13px] font-bold leading-none text-white">{index + 1}</span>
+              <Controller control={control} name={`recipients.${index}.kind`} render={({ field: kind }) => <Select options={KINDS as unknown as Array<{ value: Kind; label: string }>} value={kind.value} onChange={kind.onChange} searchable={false} disabled={readOnly || saving} width="w-52 shrink-0" />} />
               {row.kind === 'TAB_ACCESS' && (
-                <select {...register(`recipients.${index}.permissionPage`)} disabled={readOnly || saving} className={cn(selectClass, 'min-w-[200px]')}>
-                  <option value="">Pick a tab…</option>
-                  {tabGroups.map((group) => (
-                    <optgroup key={group} label={group}>
-                      {tabs.filter((tab) => tab.group === group).map((tab) => (
-                        <option key={tab.permissionPage} value={tab.permissionPage}>
-                          {tab.label}
-                        </option>
-                      ))}
-                    </optgroup>
-                  ))}
-                </select>
+                <Controller control={control} name={`recipients.${index}.permissionPage`} render={({ field: tab }) => <Select options={tabs.map((option) => ({ value: option.permissionPage, label: option.label }))} value={tab.value || undefined} onChange={tab.onChange} placeholder="Pick a tab…" searchable disabled={readOnly || saving} width="flex-1" />} />
               )}
               {row.kind === 'DEPARTMENT' && (
-                <select {...register(`recipients.${index}.departmentId`)} disabled={readOnly || saving} className={cn(selectClass, 'min-w-[200px]')}>
-                  <option value="">Pick a department…</option>
-                  {departments.map((department) => (
-                    <option key={department.id} value={department.id}>
-                      {department.name} (heads)
-                    </option>
-                  ))}
-                </select>
+                <Controller control={control} name={`recipients.${index}.departmentId`} render={({ field: department }) => <Select options={departments.map((option) => ({ value: String(option.id), label: `${option.name} (heads)` }))} value={department.value || undefined} onChange={department.onChange} placeholder="Pick a department…" disabled={readOnly || saving} width="flex-1" />} />
               )}
               {row.kind === 'USER' && (
-                <select {...register(`recipients.${index}.userId`)} disabled={readOnly || saving} className={cn(selectClass, 'min-w-[200px]')}>
-                  <option value="">Pick a person…</option>
-                  {users.map((user) => (
-                    <option key={user.id} value={user.id}>
-                      {nameOf(user)}
-                    </option>
-                  ))}
-                </select>
-              )}
-              <span className="text-xs text-slate-500">{countOf(index)}</span>
-              {!readOnly && (
-                <button type="button" onClick={() => remove(index)} className="ml-auto text-xs text-slate-500 hover:text-red-600">
-                  Remove
-                </button>
+                <Controller control={control} name={`recipients.${index}.userId`} render={({ field: user }) => <Select options={users.map((option) => ({ value: String(option.id), label: nameOf(option) }))} value={user.value || undefined} onChange={user.onChange} placeholder="Pick a person…" searchable disabled={readOnly || saving} width="flex-1" />} />
               )}
             </div>
-            {(errors?.permissionPage?.message || errors?.departmentId?.message || errors?.userId?.message) && <p className="mt-1 pl-7 text-xs text-red-600">{errors?.permissionPage?.message ?? errors?.departmentId?.message ?? errors?.userId?.message}</p>}
+            {countOf(index) && <p className="mt-2 pl-10 text-[13px] text-slate-500">{countOf(index)}</p>}
+            {problem && <p className="mt-2 text-xs text-red-600">{problem}</p>}
           </div>
         )
       })}
       {!readOnly && (
-        <div className="my-2 flex items-center gap-2">
+        <div className="mb-6 mt-1 flex flex-wrap items-center gap-3">
           <Btn disabled={saving} onClick={() => append({ kind: 'TAB_ACCESS' as Kind, permissionPage: '', departmentId: '', userId: '' })}>
             + Add recipient
           </Btn>
@@ -189,38 +154,35 @@ const EventEditor: React.FC<EditorProps> = ({ event, tabs, users, departments, r
         </div>
       )}
 
-      <div className="mt-3 flex items-center gap-5 border-t border-slate-200 pt-2 text-[13px]">
-        <b>Send by</b>
-        <label className="flex items-center gap-1.5">
-          <input type="checkbox" {...register('inApp')} disabled={readOnly || saving} /> Bell icon
-        </label>
-        <label className="flex items-center gap-1.5">
-          <input type="checkbox" {...register('email')} disabled={readOnly || saving} /> Email
-        </label>
+      <div className="border-t border-slate-200 pt-5">
+        <SectionLabel>Send by</SectionLabel>
+        <div className="flex flex-wrap items-center gap-8">
+          <Controller control={control} name="inApp" render={({ field }) => <label className="flex items-center gap-3 text-[13px] text-slate-800"><Switch checked={field.value} onCheckedChange={field.onChange} disabled={readOnly || saving} aria-label="Bell icon" />Bell icon</label>} />
+          <Controller control={control} name="email" render={({ field }) => <label className="flex items-center gap-3 text-[13px] text-slate-800"><Switch checked={field.value} onCheckedChange={field.onChange} disabled={readOnly || saving} aria-label="Email" />Email</label>} />
+        </div>
       </div>
 
-      <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs">
-        <span className="text-slate-500">What they receive (wording is fixed in code):</span>
-        <br />
+      <div className="mt-6 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-[13px]">
+        <div className="mb-1 text-xs text-slate-500">What they receive (wording is fixed in code):</div>
         <b>{event.preview.title}</b>
-        {event.preview.body && <> · {event.preview.body.replace(/\n/g, ' · ')}</>}
+        {event.preview.body && <span className="text-slate-600"> · {event.preview.body.replace(/\n/g, ' · ')}</span>}
       </div>
     </form>
   )
 }
 
-const EventLoader: React.FC<{ eventKey: string; readOnly: boolean; slot: HTMLElement | null }> = ({ eventKey, readOnly, slot }) => {
+const EventLoader: React.FC<{ eventKey: string; readOnly: boolean; slots: Slots }> = ({ eventKey, readOnly, slots }) => {
   const { data: event, isLoading, isError } = useGetNotificationEventQuery(eventKey)
   const { data: tabs = [] } = useGetNotificationTabsQuery()
   const { data: users = [] } = useGetApprovalUsersQuery()
   const { data: departments = [] } = useGetDepartmentsQuery()
   if (isLoading) return <Spinner />
   if (isError || !event) return <p className="text-sm text-red-600">Could not load this event.</p>
-  return <EventEditor key={`${event.key}-${event.customised}-${JSON.stringify(event.recipients.map((line) => [line.kind, line.label]))}-${event.isActive}-${event.inApp}-${event.email}`} event={event} tabs={tabs} users={users} departments={departments} readOnly={readOnly} slot={slot} />
+  return <EventEditor key={`${event.key}-${event.customised}-${JSON.stringify(event.recipients.map((line) => [line.kind, line.label]))}-${event.isActive}-${event.inApp}-${event.email}`} event={event} tabs={tabs} users={users} departments={departments} readOnly={readOnly} slots={slots} />
 }
 
 /** Notifications tab: for each thing that happens in the app, who is told, and how. */
-export const NotificationsTab: React.FC<{ slot: HTMLElement | null }> = ({ slot }) => {
+export const NotificationsTab: React.FC<{ slots: Slots }> = ({ slots }) => {
   const canEdit = useAppAbility().can('write', 'settings:approvals')
   const { data: events = [], isLoading } = useGetNotificationEventsQuery()
   const [selected, setSelected] = useState<string | null>(null)
@@ -231,7 +193,7 @@ export const NotificationsTab: React.FC<{ slot: HTMLElement | null }> = ({ slot 
 
   return (
     <TwoPane
-      width={200}
+      width={250}
       side={groups.map((group) => (
         <div key={group}>
           <SideTitle>{group}</SideTitle>
@@ -245,7 +207,7 @@ export const NotificationsTab: React.FC<{ slot: HTMLElement | null }> = ({ slot 
         </div>
       ))}
     >
-      {key ? <EventLoader eventKey={key} readOnly={!canEdit} slot={slot} /> : <p className="text-sm text-slate-500">No events yet.</p>}
+      {key ? <EventLoader eventKey={key} readOnly={!canEdit} slots={slots} /> : <p className="text-sm text-slate-500">No events yet.</p>}
     </TwoPane>
   )
 }

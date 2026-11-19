@@ -22,9 +22,17 @@ import {
   type PersonRef,
   type Platform,
 } from '@/services/api/approvals.api'
-import { AddPicker, Avatar, Btn, Chip, InHeader, SideItem, Tag, TwoPane, selectClass } from './ui'
+import type { Slots } from './ApprovalsScreen'
+import { AddPicker, Avatar, Btn, Chip, FooterBar, InHeader, PaneTitle, RemoveBtn, SectionLabel, Select, SideItem, Tag, TwoPane, XIcon } from './ui'
 
 const nameOf = (person: PersonRef) => person.name ?? person.email
+const byName = (a: PersonRef, b: PersonRef) => nameOf(a).localeCompare(nameOf(b), undefined, { sensitivity: 'base' })
+
+const PLATFORM_OPTIONS: Array<{ value: Platform | null; label: string }> = [
+  { value: null, label: '— none —' },
+  { value: 'RETAIL', label: 'Retail' },
+  { value: 'ECOMMERCE', label: 'Ecommerce' },
+]
 
 const bodyOf = (department: Department): DepartmentBody => ({ name: department.name, platform: department.platform, members: department.members.map((member) => ({ userId: member.id, isHead: member.isHead })) })
 
@@ -79,111 +87,97 @@ const DepartmentEditor: React.FC<EditorProps> = ({ department, users, readOnly, 
   const members = bodyOf(department).members
   const setHead = (userId: number, isHead: boolean) =>
     change({ members: members.some((member) => member.userId === userId) ? members.map((member) => (member.userId === userId ? { ...member, isHead } : member)) : [...members, { userId, isHead }] })
-  const heads = department.members.filter((member) => member.isHead)
+  // A fixed order (by name), so adding or removing someone never moves the rows around
+  const sorted = [...department.members].sort(byName)
+  const heads = sorted.filter((member) => member.isHead)
   const memberIds = new Set(department.members.map((member) => member.id))
   const candidates = users.filter((user) => !memberIds.has(user.id))
   const toAdd = users.find((user) => String(user.id) === newMember)
 
   return (
     <div>
-      <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-[15px] font-bold text-slate-900">{department.name}</h2>
-        {!readOnly && (
-          <span className="flex items-center gap-2">
-            <button type="button" onClick={() => setDeleting(true)} className="text-xs text-slate-500 hover:text-red-600">
-              Delete
-            </button>
-            <Btn onClick={() => setRenaming(true)}>Rename</Btn>
-          </span>
-        )}
-      </div>
+      <PaneTitle
+        title={department.name}
+        right={
+          !readOnly && (
+            <span className="flex items-center gap-2">
+              <Btn onClick={() => setRenaming(true)}>Rename</Btn>
+              <Btn aria-label="Delete department" title="Delete department" className="w-9 px-0 text-slate-500 hover:text-red-600" onClick={() => setDeleting(true)}>
+                <XIcon />
+              </Btn>
+            </span>
+          )
+        }
+      >
+        {department.members.length} {department.members.length === 1 ? 'member' : 'members'}
+      </PaneTitle>
 
-      <div className="mb-3">
-        <div className="text-xs text-slate-500">Heads (one or more)</div>
-        <div className="mt-1 flex flex-wrap items-center gap-1.5">
-          {heads.map((head) => (
-            <Chip key={head.id} onRemove={readOnly || saving ? undefined : () => void setHead(head.id, false)}>
-              {nameOf(head)}
-            </Chip>
-          ))}
+      <div className="mb-6">
+        <SectionLabel>Heads (one or more)</SectionLabel>
+        <div className="flex flex-wrap items-center gap-2">
           {!readOnly && (
             <AddPicker
               label="+ Add head"
               empty="Nobody left to add."
               groups={[
-                { title: 'Members', options: department.members.filter((member) => !member.isHead).map((member) => ({ key: `m${member.id}`, label: nameOf(member), onPick: () => void setHead(member.id, true) })) },
+                { title: 'Members', options: sorted.filter((member) => !member.isHead).map((member) => ({ key: `m${member.id}`, label: nameOf(member), onPick: () => void setHead(member.id, true) })) },
                 { title: 'Other people', options: candidates.map((user) => ({ key: `u${user.id}`, label: nameOf(user), onPick: () => void setHead(user.id, true) })) },
               ]}
             />
           )}
+          {heads.map((head) => (
+            <Chip key={head.id} onRemove={readOnly || saving ? undefined : () => void setHead(head.id, false)}>
+              {nameOf(head)}
+            </Chip>
+          ))}
         </div>
-        <p className="mt-1 text-xs text-slate-500">
+        <p className="mt-2 text-xs text-slate-500">
           {heads.length === 0 ? <span className="text-red-600">No head yet: rules using this department cannot be saved.</span> : `Approval steps that use "${department.name}" go to all of these people, by bell and email.`}
         </p>
       </div>
 
-      <div className="mb-3">
-        <div className="text-xs text-slate-500">Approves products on platform</div>
-        <select
-          value={department.platform ?? ''}
-          disabled={readOnly || saving}
-          onChange={(event) => void change({ platform: (event.target.value || null) as Platform | null })}
-          className={`${selectClass} mt-1 min-w-[200px]`}
-        >
-          <option value="">— none —</option>
-          <option value="RETAIL">Retail</option>
-          <option value="ECOMMERCE">Ecommerce</option>
-        </select>
-        <p className="mt-1 text-xs text-slate-500">Set to Retail or Ecommerce on the teams that approve those products.</p>
+      <div className="mb-6">
+        <SectionLabel>Approves products on platform</SectionLabel>
+        <Select<Platform | null> options={PLATFORM_OPTIONS} value={department.platform} onChange={(platform) => void change({ platform })} searchable={false} disabled={readOnly || saving} width="w-60" />
+        <p className="mt-2 text-xs text-slate-500">Set to Retail or Ecommerce on the teams that approve those products.</p>
       </div>
 
-      <div className="mb-1 text-xs text-slate-500">Members</div>
+      <SectionLabel>Members</SectionLabel>
       <div className="overflow-hidden rounded-lg border border-slate-200">
         <table className="w-full text-[13px]">
           <thead>
             <tr className="bg-slate-100 text-left text-xs font-semibold text-slate-600">
-              <th className="px-3 py-1.5">Name</th>
-              <th className="px-3 py-1.5">Email</th>
-              <th className="w-20 px-3 py-1.5" />
+              <th className="px-4 py-2.5">Name</th>
+              <th className="px-4 py-2.5">Email</th>
+              <th className="w-14 px-2 py-2.5" />
             </tr>
           </thead>
           <tbody>
             {department.members.length === 0 && (
               <tr>
-                <td colSpan={3} className="px-3 py-3 text-slate-500">
+                <td colSpan={3} className="px-4 py-4 text-slate-500">
                   No members yet.
                 </td>
               </tr>
             )}
-            {department.members.map((member) => (
+            {sorted.map((member) => (
               <tr key={member.id} className="border-t border-slate-100">
-                <td className="px-3 py-1.5">
-                  <Avatar />
-                  {nameOf(member)} {member.isHead && <Tag tone="indigo">Head</Tag>}
+                <td className="px-4 py-2">
+                  <span className="flex items-center gap-2">
+                    <Avatar />
+                    {nameOf(member)} {member.isHead && <Tag tone="indigo">Head</Tag>}
+                  </span>
                 </td>
-                <td className="px-3 py-1.5 text-slate-500">{member.email}</td>
-                <td className="px-3 py-1.5 text-right text-xs text-slate-500">
-                  {!member.isHead && !readOnly && (
-                    <button type="button" disabled={saving} onClick={() => void change({ members: members.filter((candidate) => candidate.userId !== member.id) })} className="hover:text-red-600">
-                      Remove
-                    </button>
-                  )}
-                </td>
+                <td className="px-4 py-2 text-slate-500">{member.email}</td>
+                <td className="px-2 py-1 text-right">{!member.isHead && !readOnly && <RemoveBtn label={`Remove ${nameOf(member)}`} disabled={saving} onClick={() => void change({ members: members.filter((candidate) => candidate.userId !== member.id) })} />}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
       {!readOnly && (
-        <div className="mt-2 flex items-center gap-2">
-          <select value={newMember} onChange={(event) => setNewMember(event.target.value)} className={`${selectClass} min-w-[220px]`}>
-            <option value="">Add member… (search users)</option>
-            {candidates.map((user) => (
-              <option key={user.id} value={user.id}>
-                {nameOf(user)}
-              </option>
-            ))}
-          </select>
+        <div className="mt-3 flex items-center gap-3">
+          <Select<string> options={candidates.map((user) => ({ value: String(user.id), label: nameOf(user) }))} value={newMember || undefined} onChange={setNewMember} placeholder="Add member… (search users)" searchable width="w-72" />
           <Btn
             disabled={!toAdd || saving}
             onClick={async () => {
@@ -235,7 +229,7 @@ const DepartmentEditor: React.FC<EditorProps> = ({ department, users, readOnly, 
 }
 
 /** Departments tab: who sits where, and who heads each team. */
-export const DepartmentsTab: React.FC<{ slot: HTMLElement | null }> = ({ slot }) => {
+export const DepartmentsTab: React.FC<{ slots: Slots }> = ({ slots }) => {
   const canEdit = useAppAbility().can('write', 'settings:approvals')
   const { success, failure } = useApiFeedback()
   const { data: departments = [], isLoading } = useGetDepartmentsQuery()
@@ -254,9 +248,10 @@ export const DepartmentsTab: React.FC<{ slot: HTMLElement | null }> = ({ slot })
 
   return (
     <>
-      <InHeader slot={slot}>{canEdit && <Btn primary onClick={() => setAdding(true)}>+ New department</Btn>}</InHeader>
+      <InHeader slot={slots.header}>{canEdit && <Btn primary onClick={() => setAdding(true)}>+ New department</Btn>}</InHeader>
+      <FooterBar slot={slots.footer} status={canEdit ? 'Changes on this tab save as you make them' : 'You can view departments but not change them'} />
       <TwoPane
-        width={185}
+        width={220}
         side={departments.map((department) => (
           <SideItem key={department.id} active={current?.id === department.id} onClick={() => setSelected(department.id)}>
             <span className="truncate">{department.name}</span>
