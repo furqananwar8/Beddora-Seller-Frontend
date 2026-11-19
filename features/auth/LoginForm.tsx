@@ -42,8 +42,8 @@ export const LoginForm: React.FC = () => {
       // 2. Save permissions and redirect to first allowed route
       if (result.permissions && result.permissions.length > 0) {
         dispatch(setPermissions(result.permissions as any))
-        const redirectTo = getRedirectRoute(result.permissions as any)
-        router.push(redirectTo)
+        // null → let RouteGuard show its no-access state
+        router.push(getRedirectRoute(result.permissions as any) ?? '/dashboard')
         return
       }
 

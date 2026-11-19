@@ -10,7 +10,7 @@ import { getRouteSubject, getRedirectRoute } from '@/lib/route-permissions'
 import { Spinner } from '@/design-system/loaders'
 import { Ability } from '@casl/ability'
 
-type GuardState = 'checking' | 'allowed' | 'redirecting'
+type GuardState = 'checking' | 'allowed' | 'redirecting' | 'denied'
 
 const DISABLED_ROUTE_PREFIXES = ['/dashboard/alerts']
 
@@ -80,8 +80,12 @@ export function RouteGuard({ children }: { children: React.ReactNode }) {
 
       // Route has a permission requirement and user lacks it
       if (requiredSubject && !ability.can('read', requiredSubject)) {
+        if (!firstAllowedRoute) {
+          setGuardState('denied') // nowhere to send them; redirecting would loop
+          return
+        }
         setGuardState('redirecting')
-        router.replace(firstAllowedRoute || DEFAULT_PUBLIC_ROUTE)
+        router.replace(firstAllowedRoute)
         return
       }
     }
@@ -106,6 +110,16 @@ export function RouteGuard({ children }: { children: React.ReactNode }) {
     permissionsLoaded,
     firstAllowedRoute,
   ])
+
+  if (guardState === 'denied') {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-surface">
+        <p className="text-sm text-text-muted font-medium">
+          You don&apos;t have access to any pages yet. Ask your admin to grant access.
+        </p>
+      </div>
+    )
+  }
 
   if (guardState !== 'allowed') {
     return (

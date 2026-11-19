@@ -116,7 +116,7 @@ export const SUBJECT_ROUTE_MAP: Record<string, string> = {
  */
 export function getRedirectRoute(
   permissions: Array<{ action: string; subject: string }>
-): string {
+): string | null {
   const subjects = new Set(permissions.map((p) => p.subject))
   const defaultRoute = '/dashboard/profit/dashboard'
 
@@ -132,6 +132,8 @@ export function getRedirectRoute(
     }
   }
 
-  // Ultimate fallback: first route in the map (guaranteed to exist)
-  return Object.values(SUBJECT_ROUTE_MAP)[0]
+  // SUBJECT_ROUTE_MAP is sparse; any other granted subject still has a route in ROUTE_PERMISSIONS
+  const granted = ROUTE_PERMISSIONS.find((r) => subjects.has(r.subject))
+  // null = user has no accessible page; callers must not fall back to a guarded route (redirect loop)
+  return granted?.pattern ?? null
 }

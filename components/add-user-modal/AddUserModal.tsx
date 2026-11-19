@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useEffect, useMemo, useState } from 'react'
+import { useApiFeedback } from '@/hooks/useApiFeedback'
 import { buildPermissionTree } from '../permission-tree/buildPermissionTree'
 import { PermissionTree, PermissionNode } from '../permission-tree/PermissionTree'
 import {
@@ -45,6 +46,7 @@ export const AddUserModal: React.FC<Props> = ({
     useGetPermissionsQuery(undefined, { skip: !open })
 
   const [createInvite, { isLoading: creating }] = useCreateInviteMutation()
+  const { failure } = useApiFeedback()
 
   const submitting = creating || updating
 
@@ -89,11 +91,7 @@ export const AddUserModal: React.FC<Props> = ({
       onSuccess()
       onClose()
     } catch (err: any) {
-      alert(
-        err.data?.message ||
-          err.error ||
-          `Failed to ${isEditing ? 'update permissions' : 'send invite'}`
-      )
+      failure(err, `Failed to ${isEditing ? 'update permissions' : 'send invite'}`)
     } finally {
       setUpdating(false)
     }
