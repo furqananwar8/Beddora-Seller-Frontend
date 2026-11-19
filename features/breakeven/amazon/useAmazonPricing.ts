@@ -183,5 +183,7 @@ export function useAmazonPricing(country: PricingCountry, searchTerm: string) {
     resetEdits,
     editedCount: Object.keys(edits).length,
     lines: visible,
+    /** Every listing worked out, whatever the fulfilment filter and search say (the Marketing Plan reads these). */
+    allLines: lines,
   }
 }

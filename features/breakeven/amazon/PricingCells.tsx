@@ -17,13 +17,16 @@ interface CellInputProps {
   disabled?: boolean
   title?: string
   ariaLabel: string
+  /** Accept a leading minus (a margin target can be below zero). Everywhere else a cell is never negative. */
+  allowNegative?: boolean
 }
 
 /**
  * A number the user can type into: digits and one decimal point only, so it can never be negative. Every keystroke
  * reaches `onChange`, so the row's figures follow as the user types.
  */
-export const CellInput: React.FC<CellInputProps> = ({ value, edited, onChange, prefix, suffix, disabled, title, ariaLabel }) => {
+export const CellInput: React.FC<CellInputProps> = ({ value, edited, onChange, prefix, suffix, disabled, title, ariaLabel, allowNegative }) => {
+  const Field = allowNegative ? SignedInput : NumericInput
   const [draft, setDraft] = useState(show(value))
   const focused = useRef(false)
 
@@ -42,7 +45,7 @@ export const CellInput: React.FC<CellInputProps> = ({ value, edited, onChange, p
       )}
     >
       {prefix && <span className="text-text-muted">{prefix}</span>}
-      <NumericInput
+      <Field
         decimal
         aria-label={ariaLabel}
         disabled={disabled}
@@ -54,6 +57,7 @@ export const CellInput: React.FC<CellInputProps> = ({ value, edited, onChange, p
         }}
         onChange={(event) => {
           const text = event.target.value
+          if (allowNegative && !/^-?\d*\.?\d*$/.test(text)) return
           setDraft(text)
           const parsed = parseFloat(text)
           if (text === '') onChange(undefined)
@@ -65,6 +69,9 @@ export const CellInput: React.FC<CellInputProps> = ({ value, edited, onChange, p
     </div>
   )
 }
+
+/** Like NumericInput but the typed text is not cleaned, so a minus sign can be typed (the cell checks it). */
+const SignedInput = ({ decimal, ...props }: React.InputHTMLAttributes<HTMLInputElement> & { decimal?: boolean }) => <input {...props} inputMode={decimal ? 'decimal' : 'numeric'} autoComplete="off" />
 
 /** A worked-out figure; the sheet's blank (no result yet) shows as a dash. */
 export const Figure: React.FC<{ children: React.ReactNode; tone?: 'good' | 'bad' | 'muted'; bold?: boolean }> = ({ children, tone, bold }) => (

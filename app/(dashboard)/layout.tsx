@@ -101,6 +101,12 @@ export default function DashboardLayout({
                 action: 'read',
                 href: '/dashboard/ppc/campaign-performance',
               },
+              {
+                label: 'Marketing Plan',
+                subject: 'ppc:marketing-plan',
+                action: 'read',
+                href: '/dashboard/ppc/marketing-plan',
+              },
               // Day Parting is kept (its pages and permission stay) but is out of the menu for now:
               // {
               //   label: 'Day Parting',

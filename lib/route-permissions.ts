@@ -19,6 +19,7 @@ export const ROUTE_PERMISSIONS: RoutePermission[] = [
   { pattern: '/dashboard/ppc/dashboard', subject: 'ppc' },
   { pattern: '/dayparting', subject: 'ppc:dayparting' },
   { pattern: '/dashboard/ppc/campaign-performance', subject: 'ppc:campaign-performance' },
+  { pattern: '/dashboard/ppc/marketing-plan', subject: 'ppc:marketing-plan' },
   { pattern: '/dashboard/ppc', subject: 'ppc' },
 
   // Inventory
@@ -99,6 +100,7 @@ export const SUBJECT_ROUTE_MAP: Record<string, string> = {
   'profit:products': '/dashboard/profit/products',
   'ppc:dayparting': '/dayparting',
   'ppc:campaign-performance': '/dashboard/ppc/campaign-performance',
+  'ppc:marketing-plan': '/dashboard/ppc/marketing-plan',
   'inventory:planner': '/dashboard/inventory/planner',
   'finance:payment-request': '/dashboard/finance/payment-request',
   'procurement:products': '/dashboard/procurement/products',

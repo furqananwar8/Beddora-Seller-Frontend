@@ -12,7 +12,7 @@ import { MarketplaceTags } from '../shared/MarketplaceTags'
 import { ProductPicker, productLabel } from '../shared/ProductPicker'
 import { ExpandToggle, ProductSpecs, useExpandedRows } from '../shared/ProductSpecs'
 import { ProductTagBadge } from '../shared/ProductTagBadge'
-import { formatDimensions } from '../shared/units'
+import { cbmOf, formatCbm, formatDimensions } from '../shared/units'
 import { lineAmount, newLine, summarize, type PoFormValues } from './poForm'
 
 interface PoProductsSectionProps {
@@ -26,6 +26,10 @@ const HEAD = 'px-3 py-2 text-center text-xs font-semibold uppercase tracking-wid
 const CELL = 'px-3 py-2 text-center align-middle'
 const units = (value: number) => value.toLocaleString('en-CA')
 
+/** One unit's CBM (m³): the product's own, else worked out from its L × W × H (stored in cm). */
+const cbmPerUnit = (product: PoProduct): number | null =>
+  product.cbm ?? (product.lengthCm !== null && product.widthCm !== null && product.heightCm !== null ? cbmOf(product.lengthCm, product.widthCm, product.heightCm, 'CM') : null)
+
 export const PoProductsSection: React.FC<PoProductsSectionProps> = ({ form, readOnly, fixedProducts }) => {
   const {
     control,
@@ -36,7 +40,7 @@ export const PoProductsSection: React.FC<PoProductsSectionProps> = ({ form, read
   const lines = useWatch({ control, name: 'lines' }) ?? []
   const currency = useWatch({ control, name: 'currency' })
   const { isOpen, toggle } = useExpandedRows<number>()
-  const columns = readOnly ? 11 : 12
+  const columns = readOnly ? 12 : 13
 
   // Ticking a product in the picker adds a line; unticking it drops the line
   const syncPicked = (picked: PoProduct[]) => {
@@ -78,6 +82,7 @@ export const PoProductsSection: React.FC<PoProductsSectionProps> = ({ form, read
                   <th className={HEAD}>Tag</th>
                   <th className={HEAD}>Color</th>
                   <th className={HEAD}>L × W × H</th>
+                  <th className={HEAD}>CBM</th>
                   <th className={HEAD}>Units ordered</th>
                   <th className={HEAD}>Unit rate ({currency})</th>
                   <th className={HEAD}>Amount ({currency})</th>
@@ -112,6 +117,7 @@ export const PoProductsSection: React.FC<PoProductsSectionProps> = ({ form, read
                         </td>
                         <td className={CELL}>{product.color ?? '—'}</td>
                         <td className={cn(CELL, 'whitespace-nowrap')}>{formatDimensions(product.lengthCm, product.widthCm, product.heightCm, product.dimensionUnit)}</td>
+                        <td className={cn(CELL, 'whitespace-nowrap tabular-nums')}>{formatCbm(cbmPerUnit(product))}</td>
                         <td className={CELL}>
                           <NumericInput
                             aria-label={`Units ordered for ${product.ref}`}
@@ -163,7 +169,7 @@ export const PoProductsSection: React.FC<PoProductsSectionProps> = ({ form, read
               </tbody>
               <tfoot>
                 <tr className="border-t border-border font-semibold">
-                  <td className={cn(CELL, 'text-left')} colSpan={6}>
+                  <td className={cn(CELL, 'text-left')} colSpan={7}>
                     Total · {products.count} {products.count === 1 ? 'product' : 'products'}
                   </td>
                   <td className={cn(CELL, 'tabular-nums')}>{units(products.ordered)}</td>
