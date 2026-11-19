@@ -401,6 +401,12 @@ export default function DashboardLayout({
                 action: 'read',
                 href: '/dashboard/settings/gst',
               },
+              {
+                label: 'Approvals',
+                subject: 'settings:approvals',
+                action: 'read',
+                href: '/dashboard/settings/approvals',
+              },
             ],
           },
         ],
