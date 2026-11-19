@@ -1,0 +1,499 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Bar Code scan sessions</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+@page{size:297mm 210mm;margin:0}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:#fff}
+body{font-family:Inter,"Segoe UI",system-ui,sans-serif;color:#111827;font-size:12px;line-height:1.5;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.pg{width:297mm;height:210mm;padding:12mm 15mm 10mm;display:flex;flex-direction:column;overflow:hidden;page-break-after:always;break-after:page}
+.pg:last-child{page-break-after:auto;break-after:auto}
+.rh{display:flex;justify-content:space-between;font-size:10px;color:#94a3b8;padding-bottom:8px;border-bottom:1px solid #e5e7eb;margin-bottom:18px;letter-spacing:.02em}
+.ft{margin-top:auto;padding-top:8px;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;font-size:10px;color:#94a3b8}
+.body{flex:1;min-height:0;display:flex;flex-direction:column;padding-bottom:14px}
+h1{font-size:30px;font-weight:700;letter-spacing:-.02em;line-height:1.2}
+h2{font-size:18px;font-weight:600;letter-spacing:-.01em;margin-bottom:4px}
+h3{font-size:13px;font-weight:600;margin-bottom:6px}
+.lead{color:#6b7280;font-size:12px;margin-bottom:16px}
+.eyebrow{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#6b7280;margin-bottom:6px}
+.mut{color:#6b7280}.sm{font-size:11px}.xs{font-size:10px}
+.mono{font-family:"JetBrains Mono",Consolas,monospace;font-size:11px}
+.row{display:flex;align-items:center;gap:8px}.sp{justify-content:space-between}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.split{display:grid;grid-template-columns:minmax(0,1fr) 230px;gap:20px;flex:1;min-height:0}
+/* annotations */
+.notes{display:flex;flex-direction:column;gap:10px}
+.note{display:flex;gap:10px;font-size:11px;line-height:1.45}
+.note p{color:#374151}.note b{display:block;color:#111827;font-weight:600;margin-bottom:1px}
+.pin{flex:none;width:18px;height:18px;border-radius:50%;background:#2563eb;color:#fff;font-size:10px;font-weight:600;display:inline-flex;align-items:center;justify-content:center}
+.pi{display:inline-flex;width:15px;height:15px;border-radius:50%;background:#2563eb;color:#fff;font-size:9px;font-weight:600;align-items:center;justify-content:center;flex:none;margin:0 2px;vertical-align:middle;font-style:normal}
+/* app frame */
+.frame{border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;background:#f8fafc;display:flex;position:relative;height:100%}
+.side{width:138px;white-space:nowrap;flex:none;background:#fff;border-right:1px solid #e5e7eb;padding:12px 8px;display:flex;flex-direction:column;gap:2px;font-size:10.5px;color:#4b5563}
+.side .logo{height:26px;margin:0 6px 10px;border-radius:4px;background:#f1f5f9}
+.side .it{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:4px}
+.side .it i{width:12px;height:12px;border:1.5px solid #9ca3af;border-radius:3px;flex:none}
+.side .act{background:#111827;color:#fff}.side .act i{border-color:#fff}
+.side .user{margin-top:auto;display:flex;align-items:center;gap:8px;padding:8px;border-top:1px solid #e5e7eb}
+.av{width:20px;height:20px;border-radius:4px;background:#f1f5f9;display:inline-flex;align-items:center;justify-content:center;font-weight:600;font-size:10px;color:#111827}
+.app{flex:1;min-width:0;display:flex;flex-direction:column}
+.hdr{height:40px;flex:none;background:#fff;border-bottom:1px solid #e5e7eb;display:flex;align-items:center;justify-content:flex-end;gap:14px;padding:0 16px;font-size:10.5px}
+.bell{position:relative;width:14px;height:14px;border:1.5px solid #374151;border-radius:6px 6px 3px 3px}
+.bell span{position:absolute;top:-8px;right:-12px;background:#dc2626;color:#fff;font-size:8px;font-weight:600;border-radius:8px;padding:0 4px}
+.content{flex:1;min-height:0;padding:16px;position:relative}
+.pt{font-size:16px;font-weight:600}
+/* controls */
+.btn{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 12px;border-radius:6px;font-size:11px;font-weight:500;white-space:nowrap;border:1px solid transparent}
+.btn.pri{background:#111827;color:#fff}
+.btn.sec{background:#fff;border-color:#d1d5db;color:#374151}
+.btn.dan{background:#dc2626;color:#fff}
+.btn.lnk{padding:0;height:auto;color:#2563eb}
+.field{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px;border:1px solid #d1d5db;border-radius:6px;background:#fff;color:#6b7280;font-size:11px;white-space:nowrap}
+.seg{display:inline-flex;padding:2px;border:1px solid #e5e7eb;border-radius:6px;background:#f1f5f9;font-size:10.5px}
+.seg span{padding:3px 10px;border-radius:4px;color:#6b7280}.seg .on{background:#fff;color:#111827;font-weight:500;box-shadow:0 1px 2px rgb(15 23 42/.08)}
+.tabs{display:flex;gap:18px;border-bottom:1px solid #e5e7eb;margin-bottom:12px;font-size:11px}
+.tabs>span{padding:0 0 8px;color:#6b7280}.tabs .on{color:#111827;font-weight:600;box-shadow:inset 0 -2px #111827}
+.cnt{display:inline-block;margin-left:4px;background:#fee2e2;color:#991b1b;font-size:9px;font-weight:600;padding:0 5px;border-radius:8px}
+/* badges */
+.b{display:inline-flex;align-items:center;gap:4px;font-size:9.5px;font-weight:500;padding:2px 7px;border-radius:4px;white-space:nowrap;line-height:1.4}
+.g{background:#dcfce7;color:#166534}.a{background:#fef3c7;color:#92400e}.r{background:#fee2e2;color:#991b1b}.s{background:#f1f5f9;color:#475569}.bl{background:#dbeafe;color:#1e40af}
+.dot{width:6px;height:6px;border-radius:50%;background:currentColor}
+/* tables */
+.card{background:#fff;border:1px solid #e5e7eb;border-radius:8px;box-shadow:0 1px 2px rgb(15 23 42/.06);overflow:hidden}
+table{width:100%;border-collapse:collapse;font-size:10px}
+th{text-align:left;font-weight:500;color:#6b7280;background:#f8fafc;padding:6px 8px;border-bottom:1px solid #e5e7eb;white-space:nowrap}
+td{padding:6px 8px;border-bottom:1px solid #f1f5f9;white-space:nowrap}
+tr:last-child td{border-bottom:0}
+.num{text-align:right}
+.exp td{background:#f8fafc;padding:10px 12px}
+.exp table{background:#fff;border:1px solid #e5e7eb;border-radius:6px}
+.miss td{background:#fef2f2}
+.pager{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-top:1px solid #e5e7eb;font-size:10px;color:#6b7280}
+/* modal */
+.dim{position:absolute;inset:0;background:rgba(17,24,39,.55);display:flex;align-items:center;justify-content:center;padding:20px}
+.modal{background:#fff;border-radius:12px;box-shadow:0 20px 30px -12px rgb(15 23 42/.35);width:100%;display:flex;flex-direction:column;overflow:hidden;position:relative}
+.mh{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid #e5e7eb}
+.mb{padding:18px 20px}
+.mf{display:flex;align-items:center;justify-content:flex-end;gap:8px;padding:12px 20px;border-top:1px solid #e5e7eb;background:#fff}
+.x{width:20px;height:20px;border-radius:4px;display:inline-flex;align-items:center;justify-content:center;color:#6b7280;font-size:13px}
+.opt{border:1px solid #e5e7eb;border-radius:10px;padding:16px;display:flex;gap:12px}
+.opt.sel{border:2px solid #111827;padding:15px}
+.radio{width:14px;height:14px;border-radius:50%;border:1.5px solid #9ca3af;flex:none;margin-top:2px}
+.sel .radio{border:4px solid #111827}
+.ic{width:30px;height:30px;border-radius:8px;flex:none;display:inline-flex;align-items:center;justify-content:center;font-size:14px;font-weight:600}
+.scan{display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid #f1f5f9;font-size:11px}
+.det{background:#f8fafc;padding:10px 14px 10px 46px;border-bottom:1px solid #f1f5f9;display:grid;grid-template-columns:110px 1fr;row-gap:4px;font-size:10.5px}
+.det span:nth-child(odd){color:#6b7280}
+.stat{background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:10px 14px}
+.stat .v{font-size:20px;font-weight:600;line-height:1.2}
+.toast{display:flex;gap:10px;align-items:flex-start;background:#fff;border:1px solid #e5e7eb;border-left:3px solid #16a34a;border-radius:8px;padding:10px 14px;box-shadow:0 12px 20px -6px rgb(15 23 42/.18);font-size:11px;width:340px}
+.stepper{display:flex;gap:0;margin-bottom:14px}
+.stepper div{flex:1;display:flex;align-items:center;gap:8px;font-size:10.5px;color:#6b7280}
+.stepper div::after{content:"";flex:1;height:1px;background:#e5e7eb;margin:0 8px}
+.stepper div:last-child::after{display:none}
+.stepper i{width:18px;height:18px;border-radius:50%;border:1px solid #d1d5db;display:inline-flex;align-items:center;justify-content:center;font-style:normal;font-size:9.5px;font-weight:600}
+.stepper .done i{background:#16a34a;border-color:#16a34a;color:#fff}.stepper .cur{color:#111827;font-weight:600}.stepper .cur i{background:#111827;border-color:#111827;color:#fff}
+/* doc */
+.panel{border:1px solid #e5e7eb;border-radius:10px;padding:16px 18px;background:#fff}
+.soft{background:#f8fafc}
+ol.l,ul.l{padding-left:18px;display:flex;flex-direction:column;gap:5px;font-size:11.5px;color:#374151}
+.flow{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.flow .n{border:1px solid #e5e7eb;background:#fff;border-radius:8px;padding:8px 12px;font-size:11px;font-weight:500}
+.flow .n.k{background:#111827;color:#fff;border-color:#111827}
+.flow .ar{color:#9ca3af}
+.kv{display:grid;grid-template-columns:auto 1fr;column-gap:12px;row-gap:3px;font-size:10.5px}
+.kv span:nth-child(odd){font-family:"JetBrains Mono",Consolas,monospace;color:#111827}
+.kv span:nth-child(even){color:#6b7280}
+</style></head><body>
+<style>
+.rd{display:inline-block;width:12px;height:12px;border-radius:50%;border:1.5px solid #9ca3af;vertical-align:middle}
+tr.pick td{background:#f8fafc}tr.pick .rd{border:4px solid #111827}
+table .mono{font-size:9.5px}
+.ref{display:inline-flex;align-items:center;gap:6px;border:1px solid #e5e7eb;background:#fff;border-radius:6px;padding:3px 8px;font-size:10.5px}
+.opt3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.opt3 .opt{flex-direction:column;gap:8px;padding:14px}
+.opt3 .opt.sel{padding:13px}
+</style>
+<!-- 1 COVER -->
+<section class="pg">
+<div class="rh"><span>Beddora · Bar Code</span><span>Design proposal</span></div>
+<div class="body" style="justify-content:center">
+<div style="display:grid;grid-template-columns:1.05fr 1fr;gap:48px;align-items:center">
+<div>
+<div class="eyebrow">Design proposal · for review</div>
+<h1>Bar Code: scan sessions</h1>
+<p class="mut" style="font-size:14px;margin:12px 0 22px;max-width:440px">Every scan belongs to a session tied to a container, an FBA/WFS shipment or an FBM order, and is clearly Inventory in or Inventory out. Stock updates when the session ends, and UPCs we don't recognise are kept so they can be resolved later.</p>
+<div class="row" style="gap:12px"><span class="b s">Nov 7, 2026</span><span class="b s">Route /dashboard/barcode</span><span class="b s">Status: awaiting approval</span></div>
+</div>
+<div class="panel soft">
+<h3>What changes</h3>
+<ol class="l" style="margin-bottom:14px">
+<li><b>Start session</b> asks for the scenario: Container, FBA/WFS or FBM.</li>
+<li>The scenario sets the default type (in for containers, out for FBA/WFS and FBM).</li>
+<li>The user picks the container, shipment or order the session is for.</li>
+<li>On <b>End session</b>, scans are grouped by UPC and stock is added or deducted.</li>
+<li>Sessions are listed with a <b>date range filter</b>; unknown UPCs get their own list and can be resolved later.</li>
+</ol>
+<h3>Contents</h3>
+<div class="kv" style="grid-template-columns:24px 1fr;font-size:11px;row-gap:2px">
+<span>02</span><span>Overview and flow</span><span>03</span><span>Barcode page and sessions</span><span>04</span><span>Step 1: choose scenario</span><span>05</span><span>Step 2: select a container</span><span>06</span><span>Step 2: select a shipment or order</span><span>07</span><span>Step 3: scanning</span><span>08</span><span>End session and result</span><span>09</span><span>Unmatched UPCs list</span><span>10</span><span>Resolve an unmatched UPC</span><span>11</span><span>Scanner guide</span><span>12</span><span>Behavior, data and open questions</span>
+</div></div></div></div>
+<div class="ft"><span>Bar Code: scan sessions</span><span>1 / 12</span></div>
+</section>
+
+<!-- 2 OVERVIEW -->
+<section class="pg">
+<div class="rh"><span>Bar Code: scan sessions</span><span>Overview</span></div>
+<div class="body">
+<h2>Overview</h2><p class="lead">Three scanning scenarios, one session flow.</p>
+<div class="opt3" style="margin-bottom:16px">
+<div class="panel" style="padding:14px 16px"><div class="row sp" style="margin-bottom:4px"><h3 style="margin:0">Container</h3><span class="b g">In by default</span></div><p class="sm mut">Receiving a container. Pick from containers in <b>Inbound receiving</b> with status <b>Delivered at warehouse</b>.</p></div>
+<div class="panel" style="padding:14px 16px"><div class="row sp" style="margin-bottom:4px"><h3 style="margin:0">FBA/WFS</h3><span class="b a">Out by default</span></div><p class="sm mut">Sending stock to Amazon FBA or Walmart WFS. Pick from shipments <b>confirmed</b> with Amazon or Walmart.</p></div>
+<div class="panel" style="padding:14px 16px"><div class="row sp" style="margin-bottom:4px"><h3 style="margin:0">FBM</h3><span class="b a">Out by default</span></div><p class="sm mut">Shipping a customer order from Amazon, Walmart or Temu. Pick from <b>Shipping › Orders</b>.</p></div>
+</div>
+<h3>Session flow</h3>
+<div class="panel soft" style="margin-bottom:12px"><div class="flow">
+<span class="n k">Start session</span><span class="ar">→</span><span class="n">Choose scenario</span><span class="ar">→</span><span class="n">Type defaults (can change)</span><span class="ar">→</span><span class="n">Select container, shipment or order</span><span class="ar">→</span><span class="n">Confirm, type and source lock</span><span class="ar">→</span><span class="n">Scan</span></div>
+<div class="flow" style="margin-top:10px"><span class="ar">→</span><span class="n">End session and confirm</span><span class="ar">→</span><span class="n">Save session</span><span class="ar">→</span><span class="n">Group by UPC</span><span class="ar">→</span><span class="n">Match inventory</span><span class="ar">→</span><span class="n">Add or deduct</span><span class="ar">→</span><span class="n k" style="background:#991b1b;border-color:#991b1b">Unmatched to resolve list</span></div></div>
+<h3>Resolve flow (later)</h3>
+<div class="panel soft" style="margin-bottom:16px"><div class="flow">
+<span class="n">Unmatched UPCs</span><span class="ar">→</span><span class="n">Link to product</span><span class="ar">→</span><span class="n">Recount or keep original qty</span><span class="ar">→</span><span class="n">Apply in or out from original session</span><span class="ar">→</span><span class="n">UPC saved for future matches</span></div></div>
+<h3>Badges used</h3>
+<div class="row" style="gap:8px;flex-wrap:wrap"><span class="b g"><span class="dot"></span>Scanner connected</span><span class="b r"><span class="dot"></span>Scanner disconnected</span><span class="b g">In</span><span class="b a">Out</span><span class="b s">Container</span><span class="b s">FBA/WFS</span><span class="b s">FBM</span><span class="b s">Completed</span><span class="b bl">In progress</span><span class="b g">Applied</span><span class="b r">Unmatched</span><span class="b a">Open</span><span class="b g">Resolved</span><span class="b s">Ignored</span></div>
+</div>
+<div class="ft"><span>Bar Code: scan sessions</span><span>2 / 12</span></div>
+</section>
+
+<!-- 3 MAIN PAGE -->
+<section class="pg">
+<div class="rh"><span>Bar Code: scan sessions</span><span>Screen 1 · Barcode page</span></div>
+<div class="body">
+<h2>Barcode page and sessions</h2><p class="lead">Each session shows what it was for. Expand a row for per-UPC results.</p>
+<div class="split" style="grid-template-columns:minmax(0,1fr) 196px">
+<div class="frame">
+<div class="side"><div class="logo"></div><div class="it"><i></i>Profit</div><div class="it"><i></i>PPC</div><div class="it"><i></i>Inventory</div><div class="it"><i></i>Channel Inventory</div><div class="it"><i></i>Finance</div><div class="it"><i></i>Procurement</div><div class="it"><i></i>Shipping</div><div class="it"><i></i>Containers</div><div class="it act"><i></i>Bar Code</div><div class="it"><i></i>Settings</div><div class="user"><span class="av">S</span>Salman Rehan</div></div>
+<div class="app"><div class="hdr"><span class="mut">Sat, Nov 7, 10:15 AM PST</span><span class="bell"><span>10+</span></span><span class="btn pri" style="height:24px">Logout</span></div>
+<div class="content">
+<div class="row sp" style="margin-bottom:12px;align-items:flex-start"><div><div class="pt">Bar Code</div><div class="mut sm">Scan sessions and the codes scanned in them.</div></div><div class="row"><i class="pi">1</i><span class="btn pri">▶ Start session</span></div></div>
+<div class="tabs"><span class="on">Sessions</span><span>Unmatched UPCs<span class="cnt">3</span></span></div>
+<div class="row" style="margin-bottom:10px"><i class="pi">2</i><span class="field">▦ Nov 1 – Nov 7, 2026</span><span class="seg"><span class="on">All</span><span>Container</span><span>FBA/WFS</span><span>FBM</span></span><span class="field" style="margin-left:auto;width:140px">⌕ Search UPC or ref</span></div>
+<div class="card"><table>
+<tr><th>Date</th><th>For <i class="pi">3</i></th><th>Type</th><th>By</th><th class="num">Items</th><th class="num">Unmatched</th><th>Status</th></tr>
+<tr><td>Nov 7, 10:30 AM</td><td><span class="b s">FBM</span> <span class="mono">114-3941207-5521836</span></td><td><span class="b a">Out</span></td><td>Salman R.</td><td class="num">2</td><td class="num">–</td><td><span class="b bl">In progress</span></td></tr>
+<tr><td><b>Nov 7, 10:12 AM</b></td><td><span class="b s">Container</span> <span class="mono">MSKU4821907</span></td><td><span class="b g">In</span></td><td>Salman R.</td><td class="num">240</td><td class="num"><span class="b r">1</span></td><td><span class="b s">Completed</span></td></tr>
+<tr class="exp"><td colspan="7"><table>
+<tr><th>UPC</th><th>Product / SKU</th><th class="num">Qty</th><th>Stock change</th><th>Result</th></tr>
+<tr class="miss"><td class="mono" style="color:#991b1b">0123456789012</td><td style="color:#991b1b">Not in inventory</td><td class="num">2</td><td class="mut">Pending</td><td><span class="b r">Unmatched</span> <span class="btn lnk" style="margin-left:6px">Resolve</span><i class="pi">4</i></td></tr>
+<tr><td class="mono">ABC-123-XYZ</td><td>Hangers 50 pack · HGR-50</td><td class="num">40</td><td>+40 (120 → 160)</td><td><span class="b g">Applied</span></td></tr>
+<tr><td class="mono">BDR-18-QN</td><td>Bed frame queen · BDR-18</td><td class="num">12</td><td>+12 (30 → 42)</td><td><span class="b g">Applied</span></td></tr>
+</table><div class="xs mut" style="margin-top:6px">Showing 3 of 18 UPCs · unmatched rows pinned to the top</div></td></tr>
+<tr><td>Nov 6, 4:40 PM</td><td><span class="b s">FBA/WFS</span> <span class="mono">FBA18XK2Q9</span></td><td><span class="b a">Out</span></td><td>E2E Procurement</td><td class="num">96</td><td class="num">0</td><td><span class="b s">Completed</span></td></tr>
+</table><div class="pager"><span>12 sessions · 1,340 items</span><span>‹ 1 2 ›</span></div></div>
+</div></div></div>
+<div class="notes">
+<div class="note"><span class="pin">1</span><p><b>Start session</b>Opens the session modal (screen 4). The scan input and connection badge move there.</p></div>
+<div class="note"><span class="pin">2</span><p><b>Filters</b>Date range (default last 7 days), scenario, and search by UPC or reference (container, shipment, order).</p></div>
+<div class="note"><span class="pin">3</span><p><b>For</b>Scenario badge plus the container number, shipment ID or order number. Click through to that record.</p></div>
+<div class="note"><span class="pin">4</span><p><b>Unmatched row</b>Red tint, "Not in inventory", stock Pending. Resolve opens the resolve flow.</p></div>
+</div></div></div>
+<div class="ft"><span>Bar Code: scan sessions</span><span>3 / 12</span></div>
+</section>
+
+<!-- 4 STEP 1 -->
+<section class="pg">
+<div class="rh"><span>Bar Code: scan sessions</span><span>Screen 2 · Step 1</span></div>
+<div class="body">
+<h2>Step 1: choose scenario</h2><p class="lead">The scenario sets the default type. The user can change it before confirming.</p>
+<div class="split">
+<div class="frame"><div class="dim" style="padding:20px 32px">
+<div class="modal">
+<div class="mh"><div class="row" style="gap:6px"><span class="b g"><span class="dot"></span>Scanner connected</span><span class="btn sec" style="height:24px">? Guide</span></div><div class="row" style="gap:12px"><span style="font-weight:600;font-size:13px">New scan session</span><span class="x">✕</span></div></div>
+<div class="mb">
+<div class="stepper"><div class="cur"><i>1</i>Scenario</div><div><i>2</i>Select</div><div><i>3</i>Scan</div></div>
+<div style="font-weight:600;font-size:13px;margin-bottom:10px">What is this session for? <i class="pi">1</i></div>
+<div class="opt3">
+<div class="opt sel"><div class="row sp"><span class="ic g">▣</span><span class="radio"></span></div><div style="font-weight:600;font-size:12.5px">Container</div><div class="mut xs">Receiving an inbound container.</div><span class="b g" style="align-self:flex-start">Default: Inventory in</span></div>
+<div class="opt"><div class="row sp"><span class="ic a">⇪</span><span class="radio"></span></div><div style="font-weight:600;font-size:12.5px">FBA/WFS</div><div class="mut xs">Shipping a confirmed shipment to Amazon FBA or Walmart WFS.</div><span class="b a" style="align-self:flex-start">Default: Inventory out</span></div>
+<div class="opt"><div class="row sp"><span class="ic a">⇢</span><span class="radio"></span></div><div style="font-weight:600;font-size:12.5px">FBM</div><div class="mut xs">Shipping a customer order from Amazon, Walmart or Temu.</div><span class="b a" style="align-self:flex-start">Default: Inventory out</span></div>
+</div>
+<div class="row sp" style="margin-top:14px;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;background:#f8fafc"><div class="row"><i class="pi">2</i><span class="sm" style="font-weight:500">Inventory type</span><span class="mut xs">Set by the scenario</span></div><span class="seg"><span class="on">Inventory in</span><span>Inventory out</span></span></div>
+</div>
+<div class="mf"><span class="btn sec">Cancel</span><i class="pi">3</i><span class="btn pri">Next: select container</span></div>
+</div></div></div>
+<div class="notes">
+<div class="note"><span class="pin">1</span><p><b>Scenario</b>Three cards. Container defaults to in; FBA/WFS and FBM default to out.</p></div>
+<div class="note"><span class="pin">2</span><p><b>Type</b>Pre-selected from the scenario and still editable here, for example a returned FBA shipment. It locks at the next step.</p></div>
+<div class="note"><span class="pin">3</span><p><b>Next</b>Label follows the scenario: select container, shipment or order.</p></div>
+<div class="note"><span class="pin" style="background:#6b7280">i</span><p><b>Connection</b>Top-left badge and Guide stay visible on every step.</p></div>
+</div></div></div>
+<div class="ft"><span>Bar Code: scan sessions</span><span>4 / 12</span></div>
+</section>
+
+<!-- 5 STEP 2 CONTAINER -->
+<section class="pg">
+<div class="rh"><span>Bar Code: scan sessions</span><span>Screen 3 · Step 2 · Container</span></div>
+<div class="body">
+<h2>Step 2: select a container</h2><p class="lead">Lists containers in Inbound receiving whose status is Delivered at warehouse. One is selected, then scanning starts.</p>
+<div class="split">
+<div class="frame"><div class="dim" style="padding:20px 32px">
+<div class="modal">
+<div class="mh"><div class="row" style="gap:6px"><span class="b g"><span class="dot"></span>Scanner connected</span><span class="btn sec" style="height:24px">? Guide</span></div><div class="row" style="gap:10px"><span class="b s">Container</span><span class="b g">Inventory in</span><span class="x">✕</span></div></div>
+<div class="mb">
+<div class="stepper"><div class="done"><i>✓</i>Scenario</div><div class="cur"><i>2</i>Select</div><div><i>3</i>Scan</div></div>
+<div class="row sp" style="margin-bottom:10px"><div style="font-weight:600;font-size:13px">Select an inbound container <i class="pi">1</i></div><span class="field" style="width:200px">⌕ Search container or PO</span></div>
+<div class="card"><table>
+<tr><th style="width:28px"></th><th>Container</th><th>PO / supplier</th><th>Delivered</th><th>Status</th><th class="num">SKUs</th><th class="num">Units</th></tr>
+<tr class="pick"><td><span class="rd"></span></td><td class="mono">MSKU4821907</td><td>PO-2291 · Hebei Home</td><td>Nov 3, 2026</td><td><span class="b g">Delivered at warehouse</span></td><td class="num">18</td><td class="num">1,240</td></tr>
+<tr><td><span class="rd"></span></td><td class="mono">CMAU5562018</td><td>PO-2304 · Ningbo Textiles</td><td>Nov 5, 2026</td><td><span class="b g">Delivered at warehouse</span></td><td class="num">9</td><td class="num">860</td></tr>
+<tr><td><span class="rd"></span></td><td class="mono">TGHU7731045</td><td>PO-2310 · Foshan Furniture</td><td>Nov 6, 2026</td><td><span class="b g">Delivered at warehouse</span></td><td class="num">6</td><td class="num">320</td></tr>
+</table></div>
+<div class="xs mut" style="margin-top:8px">3 containers delivered at warehouse <i class="pi">2</i></div>
+</div>
+<div class="mf" style="justify-content:space-between"><span class="btn sec">Back</span><div class="row"><i class="pi">3</i><span class="btn pri">Start scanning MSKU4821907</span></div></div>
+</div></div></div>
+<div class="notes">
+<div class="note"><span class="pin">1</span><p><b>Container list</b>From Inventory › Inbound receiving, only containers with status Delivered at warehouse. In transit or at port containers are not shown.</p></div>
+<div class="note"><span class="pin">2</span><p><b>Empty state</b>"No containers delivered at warehouse yet" with a link to Inbound receiving.</p></div>
+<div class="note"><span class="pin">3</span><p><b>Start scanning</b>Creates the session with scenario, type and container. All three are now read-only.</p></div>
+<div class="note"><span class="pin" style="background:#6b7280">i</span><p><b>Expected units</b>The container's manifest gives an expected count to compare against while scanning (screen 7).</p></div>
+</div></div></div>
+<div class="ft"><span>Bar Code: scan sessions</span><span>5 / 12</span></div>
+</section>
+
+<!-- 6 STEP 2 SHIPMENT / ORDER -->
+<section class="pg">
+<div class="rh"><span>Bar Code: scan sessions</span><span>Screen 4 · Step 2 · FBA/WFS and FBM</span></div>
+<div class="body">
+<h2>Step 2: select a shipment or order</h2><p class="lead">Same step, different list. FBA/WFS lists shipments confirmed with Amazon or Walmart; FBM lists orders from Shipping › Orders.</p>
+<div class="grid2" style="flex:1;min-height:0">
+<div class="frame"><div class="dim" style="padding:16px">
+<div class="modal">
+<div class="mh" style="padding:12px 16px"><span class="b g"><span class="dot"></span>Scanner connected</span><div class="row" style="gap:6px"><span class="b s">FBA/WFS</span><span class="b a">Inventory out</span></div></div>
+<div class="mb" style="padding:14px 16px">
+<div class="row sp" style="margin-bottom:8px"><div style="font-weight:600;font-size:12px">Select a confirmed shipment <i class="pi">1</i></div><span class="field" style="width:120px;height:24px">⌕ Search</span></div>
+<div class="card"><table>
+<tr><th></th><th>Shipment</th><th>Channel</th><th class="num">Units</th><th>Status</th></tr>
+<tr class="pick"><td><span class="rd"></span></td><td class="mono">FBA18XK2Q9</td><td>Amazon FBA · YYZ1</td><td class="num">480</td><td><span class="b g">Confirmed</span></td></tr>
+<tr><td><span class="rd"></span></td><td class="mono">WFS-1107-04</td><td>Walmart WFS</td><td class="num">150</td><td><span class="b g">Confirmed</span></td></tr>
+<tr><td><span class="rd"></span></td><td class="mono">FBA18Y03MT</td><td>Amazon FBA · YYZ7</td><td class="num">96</td><td><span class="b g">Confirmed</span></td></tr>
+</table></div></div>
+<div class="mf" style="padding:10px 16px;justify-content:space-between"><span class="btn sec">Back</span><span class="btn pri">Start scanning</span></div>
+</div></div></div>
+<div class="frame"><div class="dim" style="padding:16px">
+<div class="modal">
+<div class="mh" style="padding:12px 16px"><span class="b g"><span class="dot"></span>Scanner connected</span><div class="row" style="gap:6px"><span class="b s">FBM</span><span class="b a">Inventory out</span></div></div>
+<div class="mb" style="padding:14px 16px">
+<div class="row sp" style="margin-bottom:8px"><div style="font-weight:600;font-size:12px">Select an order <i class="pi">2</i></div><span class="field" style="width:120px;height:24px">⌕ Order or buyer</span></div>
+<div class="card"><table>
+<tr><th></th><th>Order</th><th>Channel</th><th class="num">Items</th><th>Status</th></tr>
+<tr class="pick"><td><span class="rd"></span></td><td class="mono">114-3941207-5521836</td><td>Amazon</td><td class="num">2</td><td><span class="b bl">To ship</span></td></tr>
+<tr><td><span class="rd"></span></td><td class="mono">200011734582</td><td>Walmart</td><td class="num">1</td><td><span class="b bl">To ship</span></td></tr>
+<tr><td><span class="rd"></span></td><td class="mono">PO-211-0943</td><td>Temu</td><td class="num">3</td><td><span class="b bl">To ship</span></td></tr>
+</table></div></div>
+<div class="mf" style="padding:10px 16px;justify-content:space-between"><span class="btn sec">Back</span><span class="btn pri">Start scanning</span></div>
+</div></div></div>
+</div>
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:14px">
+<div class="note"><span class="pin">1</span><p><b>Shipments</b>Only shipments confirmed with Amazon or Walmart and not yet shipped. Drafts are not shown.</p></div>
+<div class="note"><span class="pin">2</span><p><b>Orders</b>Orders from Shipping › Orders that are waiting to ship. Search by order number or buyer.</p></div>
+<div class="note"><span class="pin" style="background:#6b7280">i</span><p><b>Expected items</b>The shipment or order lines give the expected SKUs and quantities for the scan screen.</p></div>
+</div></div>
+<div class="ft"><span>Bar Code: scan sessions</span><span>6 / 12</span></div>
+</section>
+
+<!-- 7 SCANNING -->
+<section class="pg">
+<div class="rh"><span>Bar Code: scan sessions</span><span>Screen 5 · Step 3 · Scanning</span></div>
+<div class="body">
+<h2>Step 3: scanning</h2><p class="lead">Scenario, type and source are read-only, and the modal has no close button. Scans stream in newest first.</p>
+<div class="split">
+<div class="frame"><div class="dim" style="padding:14px 32px">
+<div class="modal">
+<div class="mh"><div class="row" style="gap:6px"><span class="b g"><span class="dot"></span>Scanner connected</span><i class="pi">1</i><span class="btn sec" style="height:24px">? Guide</span></div><div class="row" style="gap:6px"><i class="pi">2</i><span class="ref"><span class="b s">Container</span><span class="mono">MSKU4821907</span></span><span class="b g">🔒 Inventory in</span></div></div>
+<div class="mb" style="padding-bottom:12px">
+<div class="row" style="gap:10px;margin-bottom:12px"><i class="pi">3</i><div class="stat" style="flex:1"><div class="mut xs">Items scanned</div><div class="v">236 <span class="sm mut" style="font-weight:400">/ 1,240 expected</span></div></div><div class="stat" style="flex:1"><div class="mut xs">Unique UPCs</div><div class="v">18</div></div><div class="stat" style="flex:1"><div class="mut xs">Not in inventory</div><div class="v" style="color:#991b1b">1</div></div></div>
+<div class="card">
+<div class="scan" style="background:#f8fafc"><i class="pi">4</i><span class="b s">#236</span><span class="mono">UPC BDR-18-QN</span><span class="mut xs">Bed frame queen</span><span class="mut xs" style="margin-left:auto">10:12:41 AM</span><span>⌄</span></div>
+<div class="det"><span>Type</span><span>Text</span><span>Raw value</span><span class="mono">BDR-18-QN</span><span>Source</span><span>Keyboard mode</span><span>Scanner (USB id)</span><span class="mono">0x04d2:0x162e</span></div>
+<div class="scan"><span class="b s">#235</span><span class="mono">UPC 0123456789012</span><span class="b r">Not in inventory</span><span class="mut xs" style="margin-left:auto">10:12:20 AM</span><span>›</span></div>
+<div class="scan"><span class="b s">#234</span><span class="mono">shop.beddora.ca/p/hanger?sku=BDR-18&amp;qty=2</span><span class="b bl">Link</span><span class="mut xs" style="margin-left:auto">10:11:58 AM</span><span>›</span></div>
+<div class="scan" style="border:0"><span class="b s">#233</span><span class="mono">UPC ABC-123-XYZ</span><span class="mut xs">Hangers 50 pack</span><span class="mut xs" style="margin-left:auto">10:11:40 AM</span><span>›</span></div>
+</div></div>
+<div class="mf" style="justify-content:space-between"><span class="mut xs">Scans are saved as they arrive.</span><div class="row"><i class="pi">5</i><span class="btn dan">End session</span></div></div>
+</div></div></div>
+<div class="notes">
+<div class="note"><span class="pin">1</span><p><b>Connection</b>Hidden input keeps focus; clicks in the modal refocus it.</p></div>
+<div class="note"><span class="pin">2</span><p><b>Locked context</b>Scenario, reference and type, no longer editable.</p></div>
+<div class="note"><span class="pin">3</span><p><b>Live counts</b>Expected comes from the container manifest, shipment or order lines.</p></div>
+<div class="note"><span class="pin">4</span><p><b>Scan rows</b>"UPC &lt;value&gt;" plus product name when matched. Links show host and href when expanded.</p></div>
+<div class="note"><span class="pin">5</span><p><b>End session</b>The only way out. Opens the confirmation (screen 8).</p></div>
+<div class="note"><span class="pin" style="background:#dc2626">!</span><p><b>No close button</b>Once scanning starts there is no ✕; Escape and clicking outside do nothing. Leaving the page asks for confirmation.</p></div>
+<div class="panel soft" style="padding:12px"><div class="eyebrow">Disconnected state</div><div class="row"><span class="b r"><span class="dot"></span>Scanner disconnected</span><span class="btn sec" style="height:24px">Reconnect</span></div><div class="mut xs" style="margin-top:6px">Scanning pauses; the session stays open.</div></div>
+</div></div></div>
+<div class="ft"><span>Bar Code: scan sessions</span><span>7 / 12</span></div>
+</section>
+
+<!-- 8 END -->
+<section class="pg">
+<div class="rh"><span>Bar Code: scan sessions</span><span>Screen 6 · End session</span></div>
+<div class="body">
+<h2>End session and result</h2><p class="lead">The confirmation states the count, type and source. After confirming, stock updates and a toast summarises the result.</p>
+<div class="split">
+<div class="frame"><div class="dim" style="background:rgba(17,24,39,.7)">
+<div class="modal" style="width:420px">
+<div class="mh"><span style="font-weight:600;font-size:14px">End this session?</span><span class="x">✕</span></div>
+<div class="mb">
+<p style="font-size:12px;color:#374151;margin-bottom:12px"><i class="pi">1</i><b>240 items</b> were scanned for <b>Inventory in</b> on container <b class="mono">MSKU4821907</b>. Stock for matched products will be updated now.</p>
+<div class="eyebrow"><i class="pi">2</i> Preview</div>
+<div class="panel soft" style="padding:10px 12px"><div class="kv" style="grid-template-columns:1fr auto;font-size:11px"><span style="font-family:inherit;color:#6b7280">Unique UPCs</span><span style="color:#111827;font-weight:600">18</span><span style="font-family:inherit;color:#6b7280">Expected from manifest</span><span style="color:#111827;font-weight:600">1,240 items</span><span style="font-family:inherit;color:#6b7280">Will be added to stock</span><span style="color:#166534;font-weight:600">17 UPCs · 238 items</span><span style="font-family:inherit;color:#6b7280">Not in inventory (kept for later)</span><span style="color:#991b1b;font-weight:600">1 UPC · 2 items</span></div></div>
+</div>
+<div class="mf"><span class="btn sec">Keep scanning</span><span class="btn pri">End session</span></div>
+</div>
+<div class="toast" style="position:absolute;right:20px;bottom:20px"><span class="b g" style="padding:2px 5px">✓</span><div><b>Session saved</b> <i class="pi">3</i><div class="mut">17 UPCs applied, 1 unmatched. <span style="color:#2563eb">View unmatched</span></div></div></div>
+</div></div>
+<div class="notes">
+<div class="note"><span class="pin">1</span><p><b>Count, type and source</b>Matches the modal, so the user knows exactly what will change.</p></div>
+<div class="note"><span class="pin">2</span><p><b>Preview</b>What changes now, against what was expected, and which UPCs are held as unmatched.</p></div>
+<div class="note"><span class="pin">3</span><p><b>Result toast</b>Uses the existing feedback hook, with a link to the unmatched list.</p></div>
+<div class="note"><span class="pin" style="background:#6b7280">i</span><p><b>Zero scans</b>End session shows "No items scanned" and offers Discard instead.</p></div>
+</div></div></div>
+<div class="ft"><span>Bar Code: scan sessions</span><span>8 / 12</span></div>
+</section>
+
+<!-- 9 UNMATCHED -->
+<section class="pg">
+<div class="rh"><span>Bar Code: scan sessions</span><span>Screen 7 · Unmatched UPCs</span></div>
+<div class="body">
+<h2>Unmatched UPCs list</h2><p class="lead">Every UPC that didn't match a product is recorded with its session, source, type and quantity until it is resolved or ignored.</p>
+<div class="split">
+<div class="frame">
+<div class="side"><div class="logo"></div><div class="it"><i></i>Profit</div><div class="it"><i></i>PPC</div><div class="it"><i></i>Inventory</div><div class="it"><i></i>Channel Inventory</div><div class="it"><i></i>Finance</div><div class="it"><i></i>Procurement</div><div class="it"><i></i>Shipping</div><div class="it"><i></i>Containers</div><div class="it act"><i></i>Bar Code</div><div class="it"><i></i>Settings</div><div class="user"><span class="av">S</span>Salman Rehan</div></div>
+<div class="app"><div class="hdr"><span class="mut">Sat, Nov 7, 10:15 AM PST</span><span class="bell"><span>10+</span></span><span class="btn pri" style="height:24px">Logout</span></div>
+<div class="content">
+<div class="row sp" style="margin-bottom:12px;align-items:flex-start"><div><div class="pt">Bar Code</div><div class="mut sm">Scan sessions and the codes scanned in them.</div></div><span class="btn pri">▶ Start session</span></div>
+<div class="tabs"><span>Sessions</span><span class="on">Unmatched UPCs<span class="cnt">3</span><i class="pi">1</i></span></div>
+<div class="row" style="margin-bottom:10px"><span class="field">▦ Oct 1 – Nov 7, 2026</span><i class="pi">2</i><span class="seg"><span class="on">Open</span><span>Resolved</span><span>Ignored</span><span>All</span></span><span class="field" style="margin-left:auto;width:130px">⌕ Search UPC</span></div>
+<div class="card"><table>
+<tr><th>UPC</th><th>Session <i class="pi">3</i></th><th>Type</th><th class="num">Qty</th><th>Status</th><th></th></tr>
+<tr><td class="mono" style="color:#991b1b">0123456789012</td><td>Nov 7 · <span class="mono">MSKU4821907</span></td><td><span class="b g">In</span></td><td class="num">2</td><td><span class="b a">Open</span></td><td><span class="btn sec" style="height:24px">Resolve</span><i class="pi">4</i></td></tr>
+<tr><td class="mono" style="color:#991b1b">0889421775310</td><td>Nov 6 · <span class="mono">FBA18XK2Q9</span></td><td><span class="b a">Out</span></td><td class="num">5</td><td><span class="b a">Open</span></td><td><span class="btn sec" style="height:24px">Resolve</span></td></tr>
+<tr><td class="mono" style="color:#991b1b">TMP-CASE-77</td><td>Nov 2 · <span class="mono">TGHU7731045</span></td><td><span class="b g">In</span></td><td class="num">1</td><td><span class="b a">Open</span></td><td><span class="btn sec" style="height:24px">Resolve</span></td></tr>
+<tr><td class="mono mut">0776512400981</td><td class="mut">Oct 28 · <span class="mono">CMAU5562018</span></td><td><span class="b g">In</span></td><td class="num mut">6</td><td><span class="b g">Resolved</span></td><td class="mut xs">→ PLW-02 · +6</td></tr>
+</table><div class="pager"><span>3 open · 8 items pending</span><span>‹ 1 ›</span></div></div>
+</div></div></div>
+<div class="notes">
+<div class="note"><span class="pin">1</span><p><b>Own tab</b>Badge shows the open count; the toast link and the Resolve link in a session land here.</p></div>
+<div class="note"><span class="pin">2</span><p><b>Status filter</b>Open by default. Resolved and Ignored keep an audit trail.</p></div>
+<div class="note"><span class="pin">3</span><p><b>Original context</b>Each row keeps its session date, source reference, type and quantity.</p></div>
+<div class="note"><span class="pin">4</span><p><b>Resolve</b>Link to a product, optionally recount, then apply (screen 10).</p></div>
+</div></div></div>
+<div class="ft"><span>Bar Code: scan sessions</span><span>9 / 12</span></div>
+</section>
+
+<!-- 10 RESOLVE -->
+<section class="pg">
+<div class="rh"><span>Bar Code: scan sessions</span><span>Screen 8 · Resolve</span></div>
+<div class="body">
+<h2>Resolve an unmatched UPC</h2><p class="lead">Link the UPC to a product, decide the quantity (original or a fresh recount), then apply using the original session's type.</p>
+<div class="split">
+<div class="frame"><div class="dim" style="padding:14px 32px">
+<div class="modal">
+<div class="mh"><div><div style="font-weight:600;font-size:13px">Resolve UPC <span class="mono">0123456789012</span></div><div class="mut xs"><i class="pi">1</i>From session Nov 7, 2026, 10:12 AM · Container <span class="mono">MSKU4821907</span> · <span class="b g">Inventory in</span> · 2 items</div></div><span class="x">✕</span></div>
+<div class="mb" style="padding-top:14px">
+<div class="stepper"><div class="done"><i>✓</i>Link product</div><div class="cur"><i>2</i>Quantity</div><div><i>3</i>Apply</div></div>
+<div class="grid2" style="gap:12px">
+<div class="panel" style="padding:12px 14px"><div class="eyebrow"><i class="pi">2</i> Product</div><div class="field" style="width:100%;color:#111827">Pillow standard · PLW-01 <span style="margin-left:auto" class="mut">⌄</span></div><div class="row xs mut" style="margin-top:8px"><span style="width:12px;height:12px;border-radius:3px;background:#111827;color:#fff;font-size:8px;display:inline-flex;align-items:center;justify-content:center">✓</span>Save this UPC on the product for future scans</div></div>
+<div class="panel" style="padding:12px 14px"><div class="eyebrow"><i class="pi">3</i> Quantity to apply</div>
+<div class="opt" style="padding:8px 10px;margin-bottom:6px;border-radius:8px"><span class="radio"></span><div class="sm">Original count <b>2</b> <span class="mut xs">(Nov 7)</span></div></div>
+<div class="opt sel" style="padding:7px 9px;border-radius:8px"><span class="radio"></span><div class="sm" style="flex:1">Recount now <span class="mut xs">by scanning</span></div></div></div>
+</div>
+<div class="panel soft" style="margin-top:12px;padding:12px 14px">
+<div class="row sp" style="margin-bottom:8px"><div class="row"><i class="pi">4</i><span class="b g"><span class="dot"></span>Scanner connected</span><span class="sm">Scan only <span class="mono">0123456789012</span></span></div><span class="mut xs">Other codes are ignored</span></div>
+<div class="row" style="gap:12px"><div class="stat" style="flex:1;background:#fff"><div class="mut xs">Counted now</div><div class="v">3</div></div><div class="stat" style="flex:1;background:#fff"><div class="mut xs">Original count</div><div class="v mut">2</div></div><div class="stat" style="flex:1.4;background:#fff"><div class="mut xs">Will apply (Inventory in)</div><div class="v" style="color:#166534">+3 <span class="sm mut" style="font-weight:400">PLW-01 · 58 → 61</span></div></div></div>
+</div></div>
+<div class="mf" style="justify-content:space-between"><div class="row"><span class="btn sec">Ignore UPC</span><i class="pi">5</i></div><div class="row"><span class="btn sec">Cancel</span><span class="btn pri">Apply +3 to PLW-01</span></div></div>
+</div></div></div>
+<div class="notes">
+<div class="note"><span class="pin">1</span><p><b>Original context</b>Session date, source, type and count are shown and carried over.</p></div>
+<div class="note"><span class="pin">2</span><p><b>Link product</b>Searchable product picker. Saving the UPC on the product means it matches next time.</p></div>
+<div class="note"><span class="pin">3</span><p><b>Quantity</b>Use the original count, or recount what is physically there now.</p></div>
+<div class="note"><span class="pin">4</span><p><b>Recount</b>A mini scan that counts only this UPC and previews the stock change using the original type (in adds, out deducts).</p></div>
+<div class="note"><span class="pin">5</span><p><b>Ignore</b>Asks for a reason, marks the row Ignored, and leaves stock unchanged.</p></div>
+</div></div></div>
+<div class="ft"><span>Bar Code: scan sessions</span><span>10 / 12</span></div>
+</section>
+
+<!-- 11 GUIDE -->
+<section class="pg">
+<div class="rh"><span>Bar Code: scan sessions</span><span>Screen 9 · Guide</span></div>
+<div class="body">
+<h2>Scanner guide</h2><p class="lead">The existing guide moves into a modal opened from Guide. Setup steps are unchanged; scanning steps follow the session flow.</p>
+<div class="frame" style="flex:1"><div class="dim" style="padding:18px 60px">
+<div class="modal">
+<div class="mh"><span style="font-weight:600;font-size:13px">Scanner guide</span><span class="x">✕</span></div>
+<div class="mb grid2" style="gap:28px;padding:18px 24px">
+<div><div class="eyebrow">How to scan</div><ol class="l" style="font-size:10.5px;gap:4px">
+<li>Open this Bar Code page in Chrome on the scanner (Zebra TC57) and sign in.</li>
+<li>Tap Start session and choose Container, FBA/WFS or FBM. Check the inventory type.</li>
+<li>Select the container, shipment or order, then tap Start scanning.</li>
+<li>Check the badge reads "Scanner connected". If it says disconnected, tap Reconnect.</li>
+<li>Point the scanner at the barcode and press the yellow side trigger.</li>
+<li>Each scan appears at the top of the list. Tap a row to see everything it contains.</li>
+<li>When you're done, tap End session and confirm. Stock updates right away; unknown UPCs go to Unmatched UPCs.</li></ol></div>
+<div><div class="eyebrow">One-time scanner setup (DataWedge)</div><ol class="l" style="font-size:10.5px;gap:4px">
+<li>On the TC57, open the app drawer and open DataWedge.</li>
+<li>Tap the ⋮ menu (top right) → New profile. Name it "Beddora" and tap OK.</li>
+<li>Open the new profile and make sure "Profile enabled" is ticked.</li>
+<li>Tap Associated apps → ⋮ → New app/activity. Choose com.android.chrome, then choose * (all activities).</li>
+<li>Back in the profile, under Barcode input: turn Enabled on (1D, 2D and QR codes are on by default).</li>
+<li>Under Keystroke output: turn Enabled on. Then open Basic data formatting, turn Enable on and tick "Send ENTER key".</li>
+<li>Under Intent output: turn Enabled off.</li>
+<li>Close DataWedge, open Chrome, go to this page and scan any barcode to test.</li></ol></div>
+</div>
+<div class="mf"><span class="btn pri">Got it</span></div>
+</div></div></div>
+</div>
+<div class="ft"><span>Bar Code: scan sessions</span><span>11 / 12</span></div>
+</section>
+
+<!-- 12 BEHAVIOR -->
+<section class="pg">
+<div class="rh"><span>Bar Code: scan sessions</span><span>Behavior and data</span></div>
+<div class="body">
+<h2>Behavior, data and open questions</h2><p class="lead">What the system does, what it stores, and what needs a decision before build.</p>
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;align-items:start">
+<div class="panel"><h3>Sources per scenario</h3><ul class="l" style="font-size:11px">
+<li><b>Container</b>: Inbound receiving containers with status Delivered at warehouse. Default in.</li>
+<li><b>FBA/WFS</b>: shipments confirmed with Amazon or Walmart, not yet shipped. Default out.</li>
+<li><b>FBM</b>: orders in Shipping › Orders waiting to ship. Default out.</li></ul>
+<h3 style="margin-top:12px">On End session</h3><ol class="l" style="font-size:11px">
+<li>Save the session with scenario, source, type, times, user and every scan.</li>
+<li>Group scans by UPC; match to inventory.</li>
+<li>Matched: add (in) or deduct (out) in one transaction.</li>
+<li>Record a result per UPC; unmatched go to Unmatched UPCs.</li></ol>
+<h3 style="margin-top:12px">On Resolve</h3><ol class="l" style="font-size:11px">
+<li>Link to a product (optionally save the UPC).</li>
+<li>Use the original count or a recount.</li>
+<li>Apply with the original type; mark Resolved with who, when and qty.</li></ol></div>
+<div class="panel"><h3>Data model (proposed)</h3>
+<div class="eyebrow" style="margin-top:8px">ScanSession</div><div class="kv"><span>id</span><span>uuid</span><span>scenario</span><span>CONTAINER | FBA_WFS | FBM</span><span>sourceId, sourceRef</span><span>container, shipment or order</span><span>type</span><span>IN | OUT</span><span>status</span><span>IN_PROGRESS | COMPLETED | DISCARDED</span><span>startedAt, endedAt</span><span>datetime</span><span>userId, totals</span><span>who, counts</span></div>
+<div class="eyebrow" style="margin-top:10px">ScanSessionScan</div><div class="kv"><span>sessionId</span><span>parent</span><span>rawValue, kind</span><span>text | link</span><span>source, deviceId</span><span>keyboard, usb serial</span><span>scannedAt</span><span>datetime</span></div>
+<div class="eyebrow" style="margin-top:10px">ScanSessionUpcResult</div><div class="kv"><span>upc, qty</span><span>grouped total</span><span>productId</span><span>null when unmatched</span><span>stockBefore, After</span><span>audit</span><span>result</span><span>APPLIED | UNMATCHED | RESOLVED | IGNORED</span><span>resolvedBy, At, Qty</span><span>resolve audit</span></div></div>
+<div style="display:flex;flex-direction:column;gap:16px">
+<div class="panel"><h3>Edge cases</h3><ul class="l" style="font-size:11px">
+<li>Disconnect mid-session: scanning pauses; session stays open.</li>
+<li>Accidental close: no ✕ while scanning; leaving the page asks first.</li>
+<li>Refresh: scans saved as they arrive; resume the In progress session.</li>
+<li>Zero scans: offer Discard instead of End session.</li>
+<li>Two open sessions on the same container, shipment or order: warn before starting.</li>
+<li>Double submit: End and Apply are idempotent.</li></ul></div>
+<div class="panel" style="border-color:#fde68a;background:#fffbeb"><h3>Open questions</h3><ol class="l" style="font-size:11px">
+<li>Can Inventory out take stock below zero, or clamp and flag?</li>
+<li>Which inventory field holds the UPC?</li>
+<li>Should ending a session update the source (mark container received, shipment or order shipped)?</li>
+<li>Scanned more or less than expected: allow, warn or block?</li>
+<li>Who can resolve or ignore unmatched UPCs?</li></ol></div>
+</div></div></div>
+<div class="ft"><span>Bar Code: scan sessions</span><span>12 / 12</span></div>
+</section>
+</body></html>

@@ -1,0 +1,423 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Departments and approval workflows</title>
+<style>
+@page{size:297mm 210mm;margin:0}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:#fff}
+body{font-family:"Segoe UI",Inter,system-ui,sans-serif;color:#111827;font-size:11.5px;line-height:1.5;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.pg{width:297mm;height:210mm;padding:12mm 15mm 9mm;display:flex;flex-direction:column;overflow:hidden;page-break-after:always;break-after:page}
+.pg:last-child{page-break-after:auto;break-after:auto}
+.rh{display:flex;justify-content:space-between;font-size:10px;color:#94a3b8;padding-bottom:7px;border-bottom:1px solid #e5e7eb;margin-bottom:14px}
+.ft{margin-top:auto;padding-top:7px;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;font-size:10px;color:#94a3b8}
+.body{flex:1;min-height:0;display:flex;flex-direction:column}
+h1{font-size:30px;font-weight:700;letter-spacing:-.02em;line-height:1.2}
+h2{font-size:19px;font-weight:600;letter-spacing:-.01em;margin-bottom:3px}
+h3{font-size:12.5px;font-weight:600;margin-bottom:5px}
+.lead{color:#6b7280;font-size:12px;margin-bottom:12px}
+.eyebrow{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#6b7280;margin-bottom:5px}
+.mut{color:#6b7280}
+.cols{display:flex;gap:16px}.cols>*{flex:1;min-width:0}
+.card{border:1px solid #e5e7eb;border-radius:8px;padding:10px 12px;background:#fff}
+.card.tint{background:#f8fafc}
+.good{border-color:#bbf7d0;background:#f0fdf4}.warn{border-color:#fde68a;background:#fffbeb}.bad{border-color:#fecaca;background:#fef2f2}.info{border-color:#bfdbfe;background:#eff6ff}
+ul{padding-left:16px}li{margin-bottom:3px}
+table{width:100%;border-collapse:collapse;font-size:10.8px}
+th{text-align:left;font-weight:600;color:#475569;background:#f1f5f9;padding:5px 8px;border-bottom:1px solid #e2e8f0}
+td{padding:5px 8px;border-bottom:1px solid #eef2f7;vertical-align:top}
+code,.mono{font-family:Consolas,"Courier New",monospace;font-size:10.2px;background:#f1f5f9;padding:0 4px;border-radius:3px}
+pre{font-family:Consolas,"Courier New",monospace;font-size:9.6px;line-height:1.42;background:#0f172a;color:#e2e8f0;border-radius:8px;padding:10px 12px;white-space:pre}
+pre .c{color:#7dd3fc}pre .k{color:#fda4af}pre .m{color:#94a3b8}
+.tag{display:inline-block;font-size:9.5px;font-weight:600;padding:1px 7px;border-radius:99px;background:#e0e7ff;color:#3730a3}
+.tag.g{background:#dcfce7;color:#166534}.tag.o{background:#ffedd5;color:#9a3412}.tag.r{background:#fee2e2;color:#991b1b}
+.big{font-size:13px}
+.gap{height:10px}
+</style></head><body>
+
+<!-- 1 · COVER -->
+<section class="pg">
+<div class="rh"><span>Beddora · Design proposal</span><span>Departments &amp; approval workflows</span></div>
+<div class="body">
+  <div class="eyebrow">Proposal · for review</div>
+  <h1>Departments and configurable<br>approval workflows</h1>
+  <p class="lead" style="margin-top:8px;max-width:210mm">Replace "notify these hardcoded people" with rules an admin edits on screen: <b>this tab + this action goes to this person, then that person</b>. No deploy needed to change who approves what.</p>
+
+  <div class="cols" style="margin-top:6px">
+    <div style="flex:1.25">
+      <div class="card tint" style="padding:14px">
+        <div class="eyebrow">The idea in one picture</div>
+        <svg viewBox="0 0 560 150" width="100%" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI,sans-serif" font-size="11">
+          <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#64748b"/></marker>
+          <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#dc2626"/></marker></defs>
+          <rect x="4" y="40" width="104" height="52" rx="8" fill="#fff" stroke="#94a3b8"/><text x="56" y="62" text-anchor="middle" font-weight="600">Create PO</text><text x="56" y="78" text-anchor="middle" fill="#6b7280">you submit it</text>
+          <rect x="160" y="40" width="118" height="52" rx="8" fill="#eff6ff" stroke="#3b82f6"/><text x="219" y="62" text-anchor="middle" font-weight="600">Step 1 · Khanjan</text><text x="219" y="78" text-anchor="middle" fill="#6b7280">reviews</text>
+          <rect x="330" y="40" width="118" height="52" rx="8" fill="#eff6ff" stroke="#3b82f6"/><text x="389" y="62" text-anchor="middle" font-weight="600">Step 2 · Salman</text><text x="389" y="78" text-anchor="middle" fill="#6b7280">final approval</text>
+          <rect x="492" y="40" width="64" height="52" rx="8" fill="#f0fdf4" stroke="#22c55e"/><text x="524" y="62" text-anchor="middle" font-weight="600">PO</text><text x="524" y="78" text-anchor="middle" fill="#166534">Approved</text>
+          <path d="M108 66H158" stroke="#64748b" stroke-width="1.5" marker-end="url(#a)"/>
+          <path d="M278 66H328" stroke="#64748b" stroke-width="1.5" marker-end="url(#a)"/>
+          <text x="303" y="58" text-anchor="middle" font-size="9.5" fill="#166534">approve</text>
+          <path d="M448 66H490" stroke="#64748b" stroke-width="1.5" marker-end="url(#a)"/>
+          <path d="M219 92V128H56V94" fill="none" stroke="#dc2626" stroke-width="1.3" stroke-dasharray="4 3" marker-end="url(#ar)"/>
+          <path d="M389 92V138H60" fill="none" stroke="#dc2626" stroke-width="1.3" stroke-dasharray="4 3"/>
+          <text x="140" y="124" font-size="9.5" fill="#dc2626">reject → back to creator with reason</text>
+        </svg>
+        <p class="mut" style="margin-top:8px">Each box is a <b>step</b>, each arrow a <b>route</b>. The admin drags boxes, picks who sits in each, and saves. New POs follow the new route; POs already in flight keep the route they started with.</p>
+      </div>
+    </div>
+    <div>
+      <h3>What this document covers</h3>
+      <ol style="padding-left:16px">
+        <li>What the app does today (from the code and <code>schema.prisma</code>)</li>
+        <li>The concept: departments + flows</li>
+        <li>Proposed schema</li>
+        <li>How it runs, and where it plugs into existing code</li>
+        <li>Step types, conditions, edge cases</li>
+        <li>Admin screen and how it interacts with permissions</li>
+        <li>Rollout plan, risks, and questions I need you to answer</li>
+      </ol>
+      <div class="card good" style="margin-top:12px"><h3>Short answer: is it applicable?</h3>
+      <b>Yes.</b> The app already has the three building blocks this needs: a domain-event bus, a rule-based notification layer, and an audit timeline per document. What is missing is a place to store <i>who approves what</i>, and an engine to walk the steps. The graph editor library (<code>@xyflow/react</code>) is already in <code>package.json</code>.</div>
+    </div>
+  </div>
+</div>
+<div class="ft"><span>Based on: bbeddora/prisma/schema.prisma, src/modules/procurement, src/platform, fbeddora features/permissions</span><span>1</span></div>
+</section>
+
+<!-- 2 · TODAY -->
+<section class="pg">
+<div class="rh"><span>Beddora · Design proposal</span><span>Departments &amp; approval workflows</span></div>
+<div class="body">
+  <h2>1 · What exists today</h2>
+  <p class="lead">I read the schema, the PO workflow, notifications and the permission code. This is what the system does now.</p>
+  <table>
+    <tr><th style="width:21%">Area</th><th style="width:44%">How it works today</th><th>Evidence</th></tr>
+    <tr><td><b>Users</b></td><td>Flat. <code>User</code> has no department, team, manager or role. The only hierarchy is <code>invitedById</code> (who invited whom), which says nothing about reporting lines.</td><td class="mut">schema.prisma · model User</td></tr>
+    <tr><td><b>Roles</b></td><td>There is <b>no Role model</b> in the database. The frontend has a <code>RoleSelector</code> and a <code>useListRolesQuery</code>, but the backend schema has nothing behind it.</td><td class="mut">grep "model Role" → 0 hits</td></tr>
+    <tr><td><b>Permissions</b></td><td><code>Permission</code> rows (<code>page.subpage + read|write</code>) are granted per user via <code>UserPermission</code>. CASL turns them into abilities such as <code>can('write','procurement:po-approval')</code>.</td><td class="mut">model Permission, UserPermission · config/app.ability.ts</td></tr>
+    <tr><td><b>"Approver"</b></td><td>Not a position. It is whoever holds <code>procurement.po-approval.write</code>. Every such user is notified at once, and any one of them can decide. There is no order.</td><td class="mut">procurement.notifications.ts · poApprovers()</td></tr>
+    <tr><td><b>PO approval logic</b></td><td>One hardcoded step. <code>DECISIONS</code> maps approve → APPROVED, reject → DRAFT, applied as <code>UPDATE … WHERE status IN from</code> so two approvers can't both decide.</td><td class="mut">po.workflow.ts</td></tr>
+    <tr><td><b>Seeded access</b></td><td>Some access is assigned by hardcoded email in the seed file, which is the "hardcoded ids" problem you described.</td><td class="mut">seed-core.ts (e.g. per-email permission lists)</td></tr>
+    <tr><td><b>Other approvals</b></td><td>Payment requests, purchase invoices and price analysis each repeat their own <code>decidedById / status / decisionNote</code> columns and their own approver lookup. Finance also keeps a separate approver list.</td><td class="mut">PaymentRequest, PurchaseInvoice, PoPriceAnalysis · finance/approvers</td></tr>
+    <tr><td><b>Notifications</b></td><td>Good foundation: services publish a domain event, a <code>NotificationRule</code> resolves recipients, and the notifier sends in-app + email with dedupe keys.</td><td class="mut">platform/notifications, platform/events</td></tr>
+  </table>
+  <div class="gap"></div>
+  <div class="cols">
+    <div class="card info"><h3>What we can reuse</h3><ul>
+      <li>Domain event bus and <code>NotificationRule</code> (recipients become data-driven)</li>
+      <li>Per-document timeline tables (<code>PoOrderEvent</code> etc.) for the audit trail</li>
+      <li>Atomic status-guard pattern against double decisions</li>
+      <li><code>@xyflow/react</code>, <code>react-hook-form</code>, <code>zod</code> already installed</li></ul></div>
+    <div class="card warn"><h3>What is missing</h3><ul>
+      <li>Departments and who reports to whom</li>
+      <li>A stored definition of "this action goes to A, then B"</li>
+      <li>Per-document state: which step it is on, who owes a decision</li>
+      <li>An admin screen to edit the route without a deploy</li></ul></div>
+  </div>
+</div>
+<div class="ft"><span>Findings from code review, not assumptions</span><span>2</span></div>
+</section>
+
+<!-- 3 · CONCEPT -->
+<section class="pg">
+<div class="rh"><span>Beddora · Design proposal</span><span>Departments &amp; approval workflows</span></div>
+<div class="body">
+  <h2>2 · The concept</h2>
+  <p class="lead">Two small ideas that work together: <b>where people sit</b> (departments) and <b>what happens to a document</b> (flows).</p>
+  <div class="cols">
+    <div>
+      <h3>A · Departments (the hierarchy)</h3>
+      <div class="card tint">
+        <svg viewBox="0 0 330 150" width="100%" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI,sans-serif" font-size="10.5">
+          <rect x="105" y="4" width="120" height="34" rx="7" fill="#eef2ff" stroke="#6366f1"/><text x="165" y="19" text-anchor="middle" font-weight="600">Management</text><text x="165" y="31" text-anchor="middle" fill="#6b7280">head: Salman</text>
+          <rect x="10" y="68" width="130" height="34" rx="7" fill="#eef2ff" stroke="#6366f1"/><text x="75" y="83" text-anchor="middle" font-weight="600">Procurement</text><text x="75" y="95" text-anchor="middle" fill="#6b7280">head: Khanjan</text>
+          <rect x="190" y="68" width="130" height="34" rx="7" fill="#eef2ff" stroke="#6366f1"/><text x="255" y="83" text-anchor="middle" font-weight="600">Finance</text><text x="255" y="95" text-anchor="middle" fill="#6b7280">head: …</text>
+          <path d="M165 38V53H75V68M165 53H255V68" fill="none" stroke="#94a3b8"/>
+          <circle cx="30" cy="132" r="9" fill="#e2e8f0"/><circle cx="62" cy="132" r="9" fill="#e2e8f0"/><circle cx="94" cy="132" r="9" fill="#e2e8f0"/><text x="75" y="118" text-anchor="middle" fill="#6b7280" font-size="9.5">members</text>
+          <circle cx="235" cy="132" r="9" fill="#e2e8f0"/><circle cx="267" cy="132" r="9" fill="#e2e8f0"/>
+        </svg>
+        <ul style="margin-top:6px"><li>A department has a parent, a head, and members</li><li>A user can belong to one or more departments</li><li>Optional: each user's direct manager, for "requester's manager" steps</li></ul>
+      </div>
+    </div>
+    <div>
+      <h3>B · Flows (the rules)</h3>
+      <div class="card tint">
+        <p>A flow is attached to a <b>subject</b>: one specific tab + action, for example:</p>
+        <table style="margin:6px 0">
+          <tr><td><code>procurement.purchase-order.submit</code></td><td>PO submitted</td></tr>
+          <tr><td><code>procurement.purchase-invoice.submit</code></td><td>Invoice submitted</td></tr>
+          <tr><td><code>finance.payment-request.submit</code></td><td>Payment request</td></tr>
+        </table>
+        <p>The flow is an ordered graph of <b>steps</b>. Each step says <i>who</i> decides (a person, a department head, "requester's manager", or anyone with a permission) and where <b>approve</b> and <b>reject</b> lead. Admins edit it on screen and publish it as a new <b>version</b>.</p>
+      </div>
+    </div>
+  </div>
+  <div class="gap"></div>
+  <h3>Your PO example, plus a rule you could add later</h3>
+  <div class="card tint">
+    <svg viewBox="0 0 900 118" width="100%" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI,sans-serif" font-size="11">
+      <defs><marker id="b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#64748b"/></marker></defs>
+      <rect x="4" y="30" width="110" height="46" rx="8" fill="#fff" stroke="#94a3b8"/><text x="59" y="50" text-anchor="middle" font-weight="600">Submitted</text><text x="59" y="65" text-anchor="middle" fill="#6b7280">by creator</text>
+      <rect x="170" y="30" width="150" height="46" rx="8" fill="#eff6ff" stroke="#3b82f6"/><text x="245" y="50" text-anchor="middle" font-weight="600">Review</text><text x="245" y="65" text-anchor="middle" fill="#6b7280">Khanjan (user)</text>
+      <path d="M375 53L430 20L485 53L430 86Z" fill="#fffbeb" stroke="#f59e0b"/><text x="430" y="50" text-anchor="middle" font-size="10" font-weight="600">total &gt;</text><text x="430" y="63" text-anchor="middle" font-size="10" font-weight="600">$10,000?</text>
+      <rect x="560" y="2" width="150" height="46" rx="8" fill="#eff6ff" stroke="#3b82f6"/><text x="635" y="22" text-anchor="middle" font-weight="600">Final approval</text><text x="635" y="37" text-anchor="middle" fill="#6b7280">Salman (user)</text>
+      <rect x="560" y="70" width="150" height="40" rx="8" fill="#f8fafc" stroke="#94a3b8" stroke-dasharray="4 3"/><text x="635" y="94" text-anchor="middle" fill="#6b7280">skip, no second step</text>
+      <rect x="790" y="30" width="106" height="46" rx="8" fill="#f0fdf4" stroke="#22c55e"/><text x="843" y="50" text-anchor="middle" font-weight="600">PO Approved</text><text x="843" y="65" text-anchor="middle" fill="#166534">locked</text>
+      <path d="M114 53H168M320 53H373" stroke="#64748b" stroke-width="1.5" marker-end="url(#b)"/>
+      <path d="M458 38L558 25" stroke="#64748b" stroke-width="1.5" marker-end="url(#b)"/><text x="508" y="26" font-size="9.5" fill="#92400e">yes</text>
+      <path d="M458 68L558 88" stroke="#64748b" stroke-width="1.5" marker-end="url(#b)"/><text x="508" y="90" font-size="9.5" fill="#92400e">no</text>
+      <path d="M710 25L760 25L788 45M710 90L760 90L788 62" fill="none" stroke="#64748b" stroke-width="1.5" marker-end="url(#b)"/>
+    </svg>
+    <p class="mut" style="margin-top:4px">Your literal example is the straight line (Khanjan → Salman). The diamond shows that the same model supports conditions later; it is optional and does not need to ship first.</p>
+  </div>
+</div>
+<div class="ft"><span>Department + Flow = who sits where, and what happens to a document</span><span>3</span></div>
+</section>
+
+<!-- 4 · SCHEMA -->
+<section class="pg">
+<div class="rh"><span>Beddora · Design proposal</span><span>Departments &amp; approval workflows</span></div>
+<div class="body">
+  <h2>3 · Proposed schema <span class="tag">additive only</span></h2>
+  <p class="lead">New tables only. Nothing in <code>users</code>, <code>permissions</code> or <code>po_orders</code> is renamed or removed (one optional column on User).</p>
+  <div class="cols">
+    <div style="flex:1.05">
+      <svg viewBox="0 0 400 392" width="100%" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI,sans-serif" font-size="10">
+        <defs><marker id="c" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0L10 5L0 10z" fill="#94a3b8"/></marker></defs>
+        <g stroke="#94a3b8" fill="none" marker-end="url(#c)"><path d="M70 78V52"/><path d="M130 101H165V29H198"/><path d="M130 173H198"/><path d="M265 196V212"/><path d="M130 237H198"/><path d="M130 299H198"/><path d="M70 322V338"/></g>
+        <g>
+          <rect x="10" y="6" width="120" height="46" rx="6" fill="#eef2ff" stroke="#6366f1"/><text x="70" y="23" text-anchor="middle" font-weight="700">Department</text><text x="70" y="37" text-anchor="middle" fill="#64748b">parentId · headUserId</text>
+          <rect x="200" y="6" width="130" height="46" rx="6" fill="#f1f5f9" stroke="#94a3b8"/><text x="265" y="23" text-anchor="middle" font-weight="700">User (existing)</text><text x="265" y="37" text-anchor="middle" fill="#64748b">+ managerId (optional)</text>
+          <rect x="10" y="78" width="120" height="46" rx="6" fill="#eef2ff" stroke="#6366f1"/><text x="70" y="95" text-anchor="middle" font-weight="700">DepartmentMember</text><text x="70" y="109" text-anchor="middle" fill="#64748b">userId · departmentId</text>
+          <rect x="200" y="64" width="130" height="48" rx="6" fill="#eff6ff" stroke="#3b82f6" opacity="0"/>
+          <rect x="10" y="150" width="120" height="46" rx="6" fill="#eff6ff" stroke="#3b82f6"/><text x="70" y="167" text-anchor="middle" font-weight="700">ApprovalFlow</text><text x="70" y="181" text-anchor="middle" fill="#64748b">subjectKey · isActive</text>
+          <rect x="200" y="150" width="130" height="46" rx="6" fill="#eff6ff" stroke="#3b82f6"/><text x="265" y="167" text-anchor="middle" font-weight="700">ApprovalFlowVersion</text><text x="265" y="181" text-anchor="middle" fill="#64748b">version · status · graph</text>
+          <rect x="200" y="214" width="130" height="46" rx="6" fill="#eff6ff" stroke="#3b82f6"/><text x="265" y="231" text-anchor="middle" font-weight="700">ApprovalStep</text><text x="265" y="245" text-anchor="middle" fill="#64748b">assigneeType · mode</text>
+          <rect x="10" y="214" width="120" height="46" rx="6" fill="#eff6ff" stroke="#3b82f6"/><text x="70" y="231" text-anchor="middle" font-weight="700">ApprovalRoute</text><text x="70" y="245" text-anchor="middle" fill="#64748b">from · to · outcome · cond</text>
+          <rect x="10" y="276" width="120" height="46" rx="6" fill="#f0fdf4" stroke="#22c55e"/><text x="70" y="293" text-anchor="middle" font-weight="700">ApprovalInstance</text><text x="70" y="307" text-anchor="middle" fill="#64748b">entity · version · status</text>
+          <rect x="200" y="276" width="130" height="46" rx="6" fill="#f0fdf4" stroke="#22c55e"/><text x="265" y="293" text-anchor="middle" font-weight="700">ApprovalTask</text><text x="265" y="307" text-anchor="middle" fill="#64748b">assignee · decision · note</text>
+          <rect x="10" y="338" width="120" height="40" rx="6" fill="#f0fdf4" stroke="#22c55e"/><text x="70" y="355" text-anchor="middle" font-weight="700">ApprovalEvent</text><text x="70" y="369" text-anchor="middle" fill="#64748b">audit trail</text>
+        </g>
+                <text x="200" y="352" fill="#3b82f6" font-size="10">blue = definition (admin edits)</text><text x="200" y="368" fill="#166534" font-size="10">green = runtime (per document)</text>
+      </svg>
+    </div>
+    <div style="flex:1.2">
+<pre><span class="m">// definition: edited by admins</span>
+<span class="k">model</span> Department { id, name, parentId?, headUserId? }
+<span class="k">model</span> DepartmentMember { userId, departmentId, @@unique }
+
+<span class="k">model</span> ApprovalFlow {
+  subjectKey  String  <span class="m">// 'procurement.purchase-order.submit'</span>
+  isActive    Boolean
+  versions    ApprovalFlowVersion[]
+}
+<span class="k">model</span> ApprovalFlowVersion {
+  version Int; status DRAFT|PUBLISHED|ARCHIVED
+  graph   Json   <span class="m">// editor layout (x/y), UI only</span>
+  steps   ApprovalStep[]; routes ApprovalRoute[]
+}
+<span class="k">model</span> ApprovalStep {
+  assigneeType USER|DEPARTMENT_HEAD|
+               REQUESTER_MANAGER|PERMISSION
+  userId? departmentId? permissionName?
+  mode ANY|ALL   <span class="m">// one of / everyone</span>
+}
+<span class="k">model</span> ApprovalRoute {
+  fromStepId?  toStepId?   <span class="m">// null to = finished</span>
+  outcome APPROVED|REJECTED
+  condition Json?  priority Int
+}
+<span class="m">// runtime: one per document submission</span>
+<span class="k">model</span> ApprovalInstance {
+  flowVersionId; entityType; entityId
+  status PENDING|APPROVED|REJECTED|CANCELLED
+  currentStepId?
+}
+<span class="k">model</span> ApprovalTask { instanceId, stepId, assigneeId,
+  status PENDING|APPROVED|REJECTED|SKIPPED, note, decidedAt }</pre>
+    </div>
+  </div>
+  <p class="mut" style="margin-top:8px"><b>Why versions:</b> publishing never edits a flow that has live instances. In-flight POs finish on the version they started with, which makes every past approval explainable. <b>Why one engine:</b> POs, invoices, payment requests and price analysis stop repeating their own <code>decidedById</code> pattern.</p>
+</div>
+<div class="ft"><span>Prisma sketch, names illustrative. Final naming follows schema.prisma conventions (@map, snake_case tables)</span><span>4</span></div>
+</section>
+
+<!-- 5 · RUNTIME -->
+<section class="pg">
+<div class="rh"><span>Beddora · Design proposal</span><span>Departments &amp; approval workflows</span></div>
+<div class="body">
+  <h2>4 · How it runs, and where it plugs in</h2>
+  <p class="lead">The engine is a small module under <code>src/platform/approvals</code>. Business modules register a <b>subject</b> and never contain routing logic again.</p>
+  <div class="cols">
+    <div style="flex:1.1">
+      <h3>Lifecycle of one PO</h3>
+      <table>
+        <tr><th style="width:6%">#</th><th>What happens</th></tr>
+        <tr><td>1</td><td>Creator submits. <code>po.service.submit</code> still sets <code>PENDING_APPROVAL</code> as now, then calls <code>approvals.start('procurement.purchase-order.submit', poId)</code>.</td></tr>
+        <tr><td>2</td><td>Engine loads the active <b>published</b> version, creates an <code>ApprovalInstance</code>, resolves step 1's assignee (Khanjan) and creates an <code>ApprovalTask</code>.</td></tr>
+        <tr><td>3</td><td>Engine publishes <code>approval.task-assigned</code>. A generic notification rule tells only Khanjan (in-app + email, deduped). Today's "tell every approver" disappears.</td></tr>
+        <tr><td>4</td><td>Khanjan approves: task closes, engine follows the <code>APPROVED</code> route to step 2 and notifies Salman. Rejection takes the <code>REJECTED</code> route.</td></tr>
+        <tr><td>5</td><td>Salman approves, route leads to "finished": instance = APPROVED and the subject's <code>onApproved</code> hook runs, which is today's approve transition (<code>APPROVED</code>, lock, <code>decidedById</code>).</td></tr>
+        <tr><td>6</td><td>Reject at any step: <code>onRejected</code> hook sets <code>DRAFT</code> + reason, exactly as today, and the creator is notified.</td></tr>
+      </table>
+    </div>
+    <div style="flex:.9">
+      <h3>Plugs into existing code</h3>
+      <table>
+        <tr><th>Existing</th><th>Change</th></tr>
+        <tr><td><code>po.workflow.ts</code></td><td>Kept. It stays the PO's own state machine; the engine calls its transitions.</td></tr>
+        <tr><td><code>po.service.decide()</code></td><td>Checks "does this user hold the pending task?" instead of "do they hold <code>po-approval.write</code>?".</td></tr>
+        <tr><td><code>poApprovers()</code></td><td>Becomes the <b>fallback</b> when no flow is configured, so nothing breaks.</td></tr>
+        <tr><td><code>NotificationRule</code></td><td>One generic rule for task-assigned / decided. Per-module copies shrink.</td></tr>
+        <tr><td><code>PoOrderEvent</code></td><td>Still written; approval steps add rows like <code>STEP_APPROVED</code>.</td></tr>
+        <tr><td>SSE / realtime</td><td>Emit the existing topic events so lists refresh live.</td></tr>
+      </table>
+      <div class="card warn" style="margin-top:8px"><b>Subject registry</b> (strategy pattern): each tab registers <code>{ key, label, loadContext(entityId), onApproved, onRejected }</code>. Adding invoices later means writing one registry entry, not a new engine.</div>
+    </div>
+  </div>
+  <div class="gap"></div>
+  <div class="card good"><b>Concurrency:</b> decisions use the same guard the PO already uses: <code>UPDATE approval_tasks … WHERE status='PENDING'</code> inside a transaction, so a double-click or two-person step can never decide twice.</div>
+</div>
+<div class="ft"><span>Engine owns routing; modules own what "approved" means</span><span>5</span></div>
+</section>
+
+<!-- 6 · STEP TYPES + EDGE CASES -->
+<section class="pg">
+<div class="rh"><span>Beddora · Design proposal</span><span>Departments &amp; approval workflows</span></div>
+<div class="body">
+  <h2>5 · Step types, conditions and edge cases</h2>
+  <div class="cols">
+    <div>
+      <h3>Who can sit in a step</h3>
+      <table>
+        <tr><th>Type</th><th>Meaning</th></tr>
+        <tr><td><span class="tag">USER</span></td><td>A named person: "Khanjan". Simple, and what you asked for.</td></tr>
+        <tr><td><span class="tag">DEPARTMENT_HEAD</span></td><td>Whoever heads Procurement today. Change the head once and every flow follows.</td></tr>
+        <tr><td><span class="tag">REQUESTER_MANAGER</span></td><td>The submitter's manager, resolved at runtime.</td></tr>
+        <tr><td><span class="tag">PERMISSION</span></td><td>Anyone holding a permission (today's behavior). Used by the legacy fallback.</td></tr>
+      </table>
+      <p class="mut" style="margin-top:6px"><b>mode:</b> <code>ANY</code> = first person to act decides; <code>ALL</code> = every assignee must approve (a parallel step).</p>
+      <h3 style="margin-top:12px">Conditions (phase 2)</h3>
+      <p>A route may carry a condition on the document, e.g. <code>{ "field": "total", "op": "gt", "value": 10000 }</code>. Each subject supplies its fields through <code>loadContext</code> (a PO's total is computed from lines, <code>po-totals.ts</code>, not stored). Conditions use a fixed JSON shape, <b>not</b> free-form code.</p>
+    </div>
+    <div>
+      <h3>Edge cases decided up front</h3>
+      <table>
+        <tr><th style="width:30%">Case</th><th>Proposed behavior</th></tr>
+        <tr><td><b>Creator is the approver</b></td><td>Step is auto-skipped and logged, never self-approved. (Matches today's "everyone but the author".)</td></tr>
+        <tr><td><b>Assignee inactive or on leave</b></td><td>Falls back to the department head; if none, an admin is alerted. Optional "delegate to" per user.</td></tr>
+        <tr><td><b>Flow edited mid-flight</b></td><td>Live instances keep their version. Admin may explicitly "re-route" one instance.</td></tr>
+        <tr><td><b>Reject destination</b></td><td>Default = back to the creator (today's behavior). Option: back to previous step.</td></tr>
+        <tr><td><b>PO unlock after approval</b></td><td>Re-opening an approved PO starts a fresh instance on resubmit (the unlock action stays as is).</td></tr>
+        <tr><td><b>No flow configured</b></td><td>Legacy behavior runs unchanged. Safe by default.</td></tr>
+        <tr><td><b>Loops / dead ends</b></td><td>Publish-time validation: every path must reach "finished" or "rejected"; no cycles in phase 1.</td></tr>
+        <tr><td><b>Audit</b></td><td>Every task and decision recorded: who, when, note, which flow version.</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+<div class="ft"><span>Phase 1 = linear steps. Branching and conditions are layered on the same tables later</span><span>6</span></div>
+</section>
+
+<!-- 7 · ADMIN UI + PERMISSIONS -->
+<section class="pg">
+<div class="rh"><span>Beddora · Design proposal</span><span>Departments &amp; approval workflows</span></div>
+<div class="body">
+  <h2>6 · Admin screen and permissions</h2>
+  <div class="cols">
+    <div style="flex:1.2">
+      <h3>Settings › Approval Flows (new)</h3>
+      <div class="card tint" style="padding:10px">
+        <svg viewBox="0 0 520 230" width="100%" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI,sans-serif" font-size="10">
+          <rect x="1" y="1" width="518" height="228" rx="8" fill="#fff" stroke="#cbd5e1"/>
+          <rect x="1" y="1" width="518" height="26" rx="8" fill="#f1f5f9"/><text x="12" y="18" font-weight="600">Approval Flows  /  Purchase Order · Submit</text>
+          <rect x="400" y="6" width="52" height="16" rx="4" fill="#e2e8f0"/><text x="426" y="18" text-anchor="middle" font-size="9">v3 draft</text>
+          <rect x="458" y="6" width="54" height="16" rx="4" fill="#2563eb"/><text x="485" y="18" text-anchor="middle" font-size="9" fill="#fff">Publish</text>
+          <rect x="1" y="27" width="120" height="202" fill="#f8fafc" stroke="#e5e7eb"/>
+          <text x="10" y="46" font-weight="600" font-size="9" fill="#64748b">TABS / ACTIONS</text>
+          <rect x="6" y="52" width="110" height="20" rx="4" fill="#dbeafe"/><text x="12" y="66">PO · Submit</text>
+          <text x="12" y="88">Invoice · Submit</text><text x="12" y="108">Payment request</text><text x="12" y="128">Price analysis</text>
+          <text x="10" y="170" font-weight="600" font-size="9" fill="#64748b">ADD STEP</text>
+          <rect x="6" y="176" width="110" height="18" rx="4" fill="#fff" stroke="#cbd5e1"/><text x="12" y="189">+ Person</text>
+          <rect x="6" y="198" width="110" height="18" rx="4" fill="#fff" stroke="#cbd5e1"/><text x="12" y="211">+ Department head</text>
+          <rect x="150" y="70" width="100" height="42" rx="7" fill="#fff" stroke="#94a3b8"/><text x="200" y="95" text-anchor="middle" font-weight="600">Start</text>
+          <rect x="285" y="70" width="100" height="42" rx="7" fill="#eff6ff" stroke="#3b82f6"/><text x="335" y="88" text-anchor="middle" font-weight="600">Khanjan</text><text x="335" y="102" text-anchor="middle" fill="#64748b" font-size="9">Review</text>
+          <rect x="420" y="70" width="90" height="42" rx="7" fill="#eff6ff" stroke="#3b82f6"/><text x="465" y="88" text-anchor="middle" font-weight="600">Salman</text><text x="465" y="102" text-anchor="middle" fill="#64748b" font-size="9">Final</text>
+          <path d="M250 91H283M385 91H418" stroke="#64748b" marker-end="url(#d)"/>
+          <defs><marker id="d" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0L10 5L0 10z" fill="#64748b"/></marker></defs>
+          <rect x="150" y="140" width="360" height="78" rx="7" fill="#f8fafc" stroke="#e2e8f0"/>
+          <text x="162" y="158" font-weight="600">Selected step: Khanjan</text>
+          <text x="162" y="176" fill="#64748b">Assign to:</text><rect x="215" y="166" width="120" height="14" rx="3" fill="#fff" stroke="#cbd5e1"/><text x="221" y="177">Person ▾  Khanjan</text>
+          <text x="162" y="196" fill="#64748b">Mode:</text><rect x="215" y="186" width="120" height="14" rx="3" fill="#fff" stroke="#cbd5e1"/><text x="221" y="197">Anyone (first wins) ▾</text>
+          <text x="355" y="176" fill="#64748b">On reject:</text><rect x="410" y="166" width="90" height="14" rx="3" fill="#fff" stroke="#cbd5e1"/><text x="416" y="177">Back to creator ▾</text>
+        </svg>
+      </div>
+      <ul style="margin-top:8px">
+        <li>Built with <code>@xyflow/react</code>; forms with <b>react-hook-form + zod</b>; success/error toasts via the existing <code>useApiFeedback</code></li>
+        <li>Edits go into a <b>draft version</b>; <b>Publish</b> validates (no dead ends, every step has an active assignee) then activates it</li>
+        <li>"Test route" button: pick a sample PO and see who it would go to</li>
+        <li>Departments page: tree view, set head, add members</li>
+      </ul>
+    </div>
+    <div style="flex:.8">
+      <h3>How it fits with permissions and CASL</h3>
+      <div class="card info">
+        <b>Two separate questions, kept separate:</b>
+        <ul style="margin-top:4px">
+          <li><b>Can you see the tab?</b> Still the existing <code>Permission</code> / CASL check. Unchanged.</li>
+          <li><b>Is it your turn to decide?</b> New: an open <code>ApprovalTask</code> assigned to you.</li>
+        </ul>
+      </div>
+      <div class="card warn" style="margin-top:8px"><b>Decision for you:</b> must an assignee <i>also</i> hold <code>procurement.po-approval.write</code>?
+        <ul style="margin-top:4px"><li><b>Recommended:</b> yes, validated at publish time. Keeps permissions as the safety net; a flow can't hand approval power to someone who lacks the page.</li>
+        <li>Alternative: the task itself grants decide-rights for that document only.</li></ul></div>
+      <div class="card" style="margin-top:8px"><b>Who edits flows?</b> A new permission pair, e.g. <code>settings.approval-flows.write</code>, seeded to admins. Every publish is audited.</div>
+      <div class="card" style="margin-top:8px"><b>Roles:</b> there is no Role table today. Departments + step types cover what roles would here, so I would <b>not</b> introduce roles for this feature.</div>
+    </div>
+  </div>
+</div>
+<div class="ft"><span>Mock-up is illustrative; final UI follows the design-system components</span><span>7</span></div>
+</section>
+
+<!-- 8 · ROLLOUT -->
+<section class="pg">
+<div class="rh"><span>Beddora · Design proposal</span><span>Departments &amp; approval workflows</span></div>
+<div class="body">
+  <h2>7 · Rollout, risks and open questions</h2>
+  <div class="cols">
+    <div>
+      <h3>Suggested phases</h3>
+      <table>
+        <tr><th style="width:22%">Phase</th><th>Delivers</th><th style="width:18%">Risk</th></tr>
+        <tr><td><b>1 · Foundation</b></td><td>Departments + members + head. Approval tables and engine. Purchase-order flow only, <b>linear steps</b>, user and department-head assignees. Legacy fallback when no flow exists.</td><td><span class="tag g">low</span></td></tr>
+        <tr><td><b>2 · Editor</b></td><td>Admin graph editor, versions, publish validation, "test route", audit view.</td><td><span class="tag g">low</span></td></tr>
+        <tr><td><b>3 · Reach</b></td><td>Purchase invoices, payment requests, price analysis move onto the engine. Retire duplicated approver lookups.</td><td><span class="tag o">medium</span></td></tr>
+        <tr><td><b>4 · Smarter</b></td><td>Conditions (amount, supplier, destination), parallel steps, delegation / out-of-office, reminders for overdue steps.</td><td><span class="tag o">medium</span></td></tr>
+      </table>
+      <h3 style="margin-top:12px">Risks and how they are contained</h3>
+      <ul>
+        <li><b>Approval gets stuck</b> (assignee leaves): fallback to department head, admin alert, "re-route" action.</li>
+        <li><b>Over-engineering:</b> phase 1 is deliberately a straight line; graph shape is in the data model but not exposed until needed.</li>
+        <li><b>Regression on the live PO flow:</b> legacy path stays until a flow is published; engine hooks reuse today's transitions.</li>
+        <li><b>Finance's separate approver list</b> overlaps conceptually; migrated in phase 3, not before.</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Questions I need answered before building</h3>
+      <div class="card warn">
+        <ol style="padding-left:16px">
+          <li><b>Linear or branching?</b> Is "A then B" enough for now, or do you already need amount-based rules (e.g. only over $10,000 goes to Salman)?</li>
+          <li><b>Rejection:</b> back to the creator (as today), or back to the previous reviewer?</li>
+          <li><b>One department per user, or several?</b> (affects the member table and "department head" resolution)</li>
+          <li><b>Assignee permissions:</b> must they also hold the page permission (recommended), or does the flow grant it?</li>
+          <li><b>Which tabs after PO?</b> Invoices, payment requests, price analysis, anything else, and in what order?</li>
+          <li><b>Absence:</b> do you want delegation / out-of-office now, or is "falls to department head" enough?</li>
+          <li><b>Existing approvers:</b> on go-live, should current <code>po-approval</code> holders be mirrored as a single "any approver" step, or start empty?</li>
+        </ol>
+      </div>
+      <div class="card good" style="margin-top:10px"><b>My recommendation:</b> approve Phase 1 + 2 for the PO flow only. It delivers exactly your Khanjan → Salman example with an editable screen, touches the live PO code in one place, and proves the engine before other modules move over.</div>
+    </div>
+  </div>
+</div>
+<div class="ft"><span>Nothing in this document has been implemented. It is a proposal for review</span><span>8</span></div>
+</section>
+
+</body></html>
