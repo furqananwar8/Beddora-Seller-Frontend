@@ -37,6 +37,11 @@ export interface CreateInviteResponse {
   inviteId: number
 }
 
+export interface InvitationLink {
+  url: string
+  expiresAt: string
+}
+
 export interface ApiResponse<T> {
   success: boolean
   data: T
@@ -97,6 +102,15 @@ export const invitesApi = baseApi.injectEndpoints({
       invalidatesTags: ['Invites'],
     }),
 
+    // Issue a fresh invitation link without emailing it (replaces the previous link)
+    getInvitationLink: builder.mutation<InvitationLink, number>({
+      query: (id) => ({
+        url: `/invites/${id}/link`,
+        method: 'POST',
+      }),
+      invalidatesTags: ['Invites'],
+    }),
+
     // Public: validate token before showing form
     getInviteByToken: builder.query<{ email: string }, string>({
       query: (token) => `/invites/${token}`,
@@ -123,6 +137,7 @@ export const {
   useUpdateInvitePermissionsMutation,
   useDeleteInviteMutation,
   useResendInviteMutation,
+  useGetInvitationLinkMutation,
   useGetInviteByTokenQuery,
   useAcceptInviteByTokenMutation,
 } = invitesApi

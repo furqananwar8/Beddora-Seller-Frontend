@@ -16,12 +16,16 @@ import {
 } from '@/design-system/tables'
 import { Button } from '@/design-system/buttons'
 import { TableSkeleton } from '@/design-system/loaders'
+import { InvitationLinkModal } from '@/components/invitation-link-modal/InvitationLinkModal'
+import { useApiFeedback } from '@/hooks/useApiFeedback'
 import { useDebounce } from '@/hooks/useDebounce'
 import {
   useGetInvitesQuery,
   useDeleteInviteMutation,
   useResendInviteMutation,
+  useGetInvitationLinkMutation,
   useUpdateInvitePermissionsMutation,
+  type InvitationLink,
 } from '@/services/api/invites.api'
 import {
   useGetManagedUsersQuery,
@@ -74,6 +78,9 @@ export default function UsersPage() {
   const invitesQuery = useGetInvitesQuery(listParams, { skip: tab !== 'invited' })
   const [deleteInvite] = useDeleteInviteMutation()
   const [resendInvite] = useResendInviteMutation()
+  const [getInvitationLink] = useGetInvitationLinkMutation()
+  const [linkFor, setLinkFor] = useState<{ email: string; link: InvitationLink } | null>(null)
+  const { success, failure } = useApiFeedback()
   const [updateInvitePermissions] = useUpdateInvitePermissionsMutation()
   const [updateUserPermissions] = useUpdateManagedUserPermissionsMutation()
 
@@ -133,8 +140,20 @@ export default function UsersPage() {
   }
 
   const handleResend = async (row: UserRow) => {
-    await resendInvite(row.id)
-    refetch()
+    try {
+      await resendInvite(row.id).unwrap()
+      success(`Invitation will be emailed to ${row.email}`)
+    } catch (error) {
+      failure(error, 'Could not resend the invitation')
+    }
+  }
+
+  const handleGetLink = async (row: UserRow) => {
+    try {
+      setLinkFor({ email: row.email, link: await getInvitationLink(row.id).unwrap() })
+    } catch (error) {
+      failure(error, 'Could not get the invitation link')
+    }
   }
 
   const actionsFor = (row: UserRow): RowActionItem[] => {
@@ -149,6 +168,7 @@ export default function UsersPage() {
     if (row.source === 'user') return [update]
     return [
       update,
+      { key: 'link', label: 'Get invitation link', onSelect: () => handleGetLink(row) },
       { key: 'resend', label: 'Resend invitation link', onSelect: () => handleResend(row) },
       { key: 'delete', label: 'Delete', tone: 'danger', onSelect: () => handleDelete(row) },
     ]
@@ -280,6 +300,12 @@ export default function UsersPage() {
         onUpdate={handleUpdatePermissions}
         onClose={closeModal}
         onSuccess={refetch}
+      />
+
+      <InvitationLinkModal
+        email={linkFor?.email ?? ''}
+        link={linkFor?.link ?? null}
+        onClose={() => setLinkFor(null)}
       />
     </div>
   )
