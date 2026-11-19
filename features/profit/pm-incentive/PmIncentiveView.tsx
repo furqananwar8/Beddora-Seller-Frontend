@@ -28,7 +28,8 @@ const DEFAULT_INPUTS: MonthInputs = {
 
 const NO_METRICS: ManualMetrics = { conversionPct: 0, categoryRank: 0 }
 
-const MonthSelect: React.FC<{ value: MonthValue; onChange: (month: MonthValue) => void }> = ({ value, onChange }) => {
+/** A button showing the month, opening the month picker; months after `max` (default: this month) cannot be picked. */
+export const MonthSelect: React.FC<{ value: MonthValue; onChange: (month: MonthValue) => void; max?: MonthValue }> = ({ value, onChange, max = currentMonth() }) => {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   useDismiss(ref, () => setOpen(false))
@@ -41,7 +42,7 @@ const MonthSelect: React.FC<{ value: MonthValue; onChange: (month: MonthValue) =
         <div className="absolute right-0 z-20 mt-1 w-64 shadow-lg">
           <MonthPicker
             value={value}
-            max={currentMonth()}
+            max={max}
             onChange={(month) => {
               onChange(month)
               setOpen(false)
