@@ -3,8 +3,7 @@
 import React, { useState } from 'react'
 import { fieldClass } from '@/components/form-field/FormField'
 import { Button } from '@/design-system/buttons'
-import type { PoApproval, PurchaseOrderDetail } from '@/services/api/procurement.api'
-import { cn } from '@/utils/cn'
+import type { PurchaseOrderDetail } from '@/services/api/procurement.api'
 import { formatCalendarDay } from '@/utils/format'
 
 interface ApprovalPanelProps {
@@ -13,34 +12,6 @@ interface ApprovalPanelProps {
   onApprove: () => void
   onReject: (reason: string) => void
 }
-
-const STEP_STYLE: Record<PoApproval['steps'][number]['state'], string> = {
-  DONE: 'border-success-200 bg-success-50',
-  CURRENT: 'border-warning-300 bg-white',
-  WAITING: 'border-border bg-secondary-50 text-text-muted',
-  REJECTED: 'border-danger-200 bg-danger-50',
-}
-
-const PERSON_MARK = { APPROVED: '✓', REJECTED: '✕', PENDING: '…', CANCELLED: '–' } as const
-
-/** The approval chain: who has decided, who is being asked now, who comes next. */
-const ApprovalSteps: React.FC<{ approval: PoApproval }> = ({ approval }) => (
-  <ol className="mt-3 flex flex-wrap gap-2 text-xs">
-    {approval.steps.map((step) => (
-      <li key={step.position} className={cn('min-w-[9rem] rounded-md border px-3 py-2', STEP_STYLE[step.state])}>
-        <div className="font-semibold text-text-primary">Step {step.position}</div>
-        {step.people.length > 0
-          ? step.people.map((person) => (
-              <div key={person.userId} title={person.note ?? undefined}>
-                {PERSON_MARK[person.status]} {person.name}
-                {person.status === 'CANCELLED' && <span className="text-text-muted"> (handled by someone else)</span>}
-              </div>
-            ))
-          : step.labels.map((label) => <div key={label}>{label}</div>)}
-      </li>
-    ))}
-  </ol>
-)
 
 /** Shown while pending approval: approvers decide here, everyone else sees that it is waiting. */
 export const ApprovalPanel: React.FC<ApprovalPanelProps> = ({ po, busy, onApprove, onReject }) => {
@@ -68,7 +39,6 @@ export const ApprovalPanel: React.FC<ApprovalPanelProps> = ({ po, busy, onApprov
           <p className="mt-1 text-sm text-text-secondary">
             Submitted {formatCalendarDay(po.createdAt)} by {po.createdBy.name ?? 'someone'}. Once approved, every field on this PO is locked permanently.
           </p>
-          {po.approval && po.approval.status !== 'CANCELLED' && <ApprovalSteps approval={po.approval} />}
           {po.can.decide && (
             <div className="mt-3">
               <label htmlFor="reject-reason" className="ds-input-label">
@@ -94,7 +64,7 @@ export const ApprovalPanel: React.FC<ApprovalPanelProps> = ({ po, busy, onApprov
             <Button type="button" variant="outline" className="text-danger-600" onClick={reject} isLoading={busy === 'reject'} disabled={busy !== null}>
               Reject
             </Button>
-            <p className="text-center text-xs text-text-muted">{po.approval ? 'It is your turn' : 'Admin only'}</p>
+            <p className="text-center text-xs text-text-muted">Admin only</p>
           </div>
         )}
       </div>
