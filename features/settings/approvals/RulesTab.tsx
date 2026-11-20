@@ -19,7 +19,7 @@ import {
   type RuleAssignee,
 } from '@/services/api/approvals.api'
 import type { Slots } from './ApprovalsScreen'
-import { AddPicker, Btn, Chip, FooterBar, Loading, OnOff, PaneTitle, RemoveBtn, Select, SideItem, SideTitle, Tag, TwoPane, type PickOption } from './ui'
+import { AddPicker, Btn, Chip, FooterBar, Loading, PaneTitle, RemoveBtn, Select, SideItem, SideTitle, Tag, TwoPane, type PickOption } from './ui'
 import { cn } from '@/utils/cn'
 
 // Same order as the design
@@ -102,10 +102,10 @@ const RuleEditor: React.FC<EditorProps> = ({ rule, lookups, readOnly, slots }) =
 
   const submit = handleSubmit(async (values) => {
     try {
-      const body = { isActive: values.isActive, steps: values.steps.map(({ completion, assignees }) => ({ completion, assignees })) }
+      const body = { isActive: true, steps: values.steps.map(({ completion, assignees }) => ({ completion, assignees })) }
       const saved = await save({ key: rule.key, body }).unwrap()
       reset(valuesOf(saved))
-      success(values.steps.length === 0 ? `${rule.label}: rule removed, it works as before` : `${rule.label}: rule saved`)
+      success(`${rule.label}: rule saved`)
     } catch (error) {
       failure(error, 'Could not save the rule')
     }
@@ -135,10 +135,7 @@ const RuleEditor: React.FC<EditorProps> = ({ rule, lookups, readOnly, slots }) =
         </Btn>
       </FooterBar>
 
-      <PaneTitle
-        title={rule.label}
-        right={<Controller control={control} name="isActive" render={({ field }) => <span className="flex items-center gap-2 text-[13px] text-slate-500">Active <OnOff on={field.value} onChange={field.onChange} disabled={readOnly || saving} /></span>} />}
-      >
+      <PaneTitle title={rule.label}>
         Runs when the <b>{rule.buttonLabel}</b> button on {rule.where} is used.
       </PaneTitle>
 
@@ -150,7 +147,8 @@ const RuleEditor: React.FC<EditorProps> = ({ rule, lookups, readOnly, slots }) =
           // A key of our own: the form library renews its row ids when a step's people change, which remounted the whole card
           <div key={step.uid} onDragOver={(event) => event.preventDefault()} onDrop={() => { if (dragFrom.current !== null && dragFrom.current !== index) move(dragFrom.current, index); dragFrom.current = null }}>
             <div className="relative rounded-lg border border-slate-200 bg-white p-4">
-              {!readOnly && <RemoveBtn corner label="Remove step" onClick={() => remove(index)} />}
+              {/* The last step stays: a rule always has someone to approve or reject */}
+              {!readOnly && steps.length > 1 && <RemoveBtn corner label="Remove step" onClick={() => remove(index)} />}
               <div className="flex items-center gap-3 pr-10">
                 <span draggable={!readOnly} onDragStart={() => { dragFrom.current = index }} title="Drag to reorder" className={cn('select-none text-slate-400', !readOnly && 'cursor-grab')}>
                   ⋮⋮

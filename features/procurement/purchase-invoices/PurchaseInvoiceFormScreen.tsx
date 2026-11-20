@@ -294,7 +294,15 @@ export const PurchaseInvoiceFormScreen: React.FC = () => {
                 render={({ field }) => <SingleDatePicker id="invoiceDate" value={field.value} onChange={field.onChange} error={errors.invoiceDate?.message} />}
               />
             </FormField>
-            <FormField label="Destination (Marketplace)" htmlFor="marketplaceId" hint="Set by the purchase order">
+            <FormField
+              label={
+                <>
+                  Destination <span className="text-[0.7rem] font-normal normal-case tracking-normal text-text-muted">(Marketplace)</span>
+                </>
+              }
+              htmlFor="marketplaceId"
+              hint="Set by the purchase order"
+            >
               <SelectShell>
                 <Select
                   id="marketplaceId"

@@ -6,15 +6,16 @@ import type { PriceAnalysisEvent } from '@/services/api/procurement.api'
 import { formatCalendarDay } from '@/utils/format'
 import { cn } from '@/utils/cn'
 
-const EVENT_DOT: Record<PriceAnalysisEvent['type'], string> = { APPROVED: 'bg-success-600', REJECTED: 'bg-danger-600', APPROVAL_CLEARED: 'bg-warning-500' }
+const EVENT_DOT: Record<PriceAnalysisEvent['type'], string> = { APPROVED: 'bg-success-600', STEP_APPROVED: 'bg-success-500', REJECTED: 'bg-danger-600', APPROVAL_CLEARED: 'bg-warning-500' }
 
 const price = (event: PriceAnalysisEvent) => (event.unitPrice !== null && event.currency ? ` at ${formatCurrencyAmount(event.currency, event.unitPrice)}` : '')
 
-/** "xyz was approved by xyz on date", rejections with their reason, and the edits that took an approval back, newest first. */
+/** "xyz was approved by xyz on date" (each step of a chain, then the final one), rejections with their reason, and the approvals taken back, newest first. */
 function describe(event: PriceAnalysisEvent, productLabel: string): string {
   const who = event.by.name ?? 'a teammate'
   const day = formatCalendarDay(event.at)
   if (event.type === 'APPROVED') return `${productLabel} was approved for ${event.supplierName ?? 'a supplier'}${price(event)} by ${who} on ${day}`
+  if (event.type === 'STEP_APPROVED') return `${event.supplierName ?? 'A supplier'}'s quote${price(event)} for ${productLabel} was approved by ${who} on ${day}; the next step is still to approve`
   if (event.type === 'REJECTED') return `${event.supplierName ?? 'A supplier'}'s quote${price(event)} for ${productLabel} was rejected by ${who} on ${day}`
   return `${productLabel} was edited by ${who} on ${day}; the approval of ${event.supplierName ?? 'a supplier'}${price(event)} was taken back and needs approving again`
 }

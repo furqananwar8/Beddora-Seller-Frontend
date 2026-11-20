@@ -1,4 +1,5 @@
 import { baseApi } from './baseApi'
+import type { PoApproval } from './procurement.api'
 import { csv } from './queryParams'
 
 /* ─────────────── Shared ─────────────── */
@@ -475,6 +476,8 @@ export interface PaymentRequestDetail {
   decidedBy: UserRef | null
   documents: FinanceDocument[]
   events: TimelineEvent[]
+  /** The approval chain of its latest submission (who approves, in which order); null when it never had one. */
+  approval: PoApproval | null
   paymentDocument: { id: number; status: DocStatus; currency: string; amount: number; paidAmount: number; balance: number } | null
   can: { edit: boolean; submit: boolean; withdraw: boolean; decide: boolean; changeExpense: boolean }
 }

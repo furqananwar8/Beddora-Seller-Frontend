@@ -8,6 +8,7 @@ import { Button } from '@/design-system/buttons'
 import { Textarea } from '@/design-system/inputs'
 import { Spinner } from '@/design-system/loaders'
 import { Modal } from '@/design-system/modals'
+import { ApprovalStepper } from '@/components/approval-stepper/ApprovalStepper'
 import { ApprovalTimeline } from '@/features/finance/payment-requests/ApprovalTimeline'
 import { DocumentChips } from '@/features/finance/shared/DocumentChips'
 import { formatCurrencyAmount, formatDay, formatMoney } from '@/features/finance/shared/format'
@@ -162,6 +163,12 @@ const DetailBody: React.FC<{ detail: PurchaseInvoiceDetail; onClose: () => void 
           <p className="font-semibold">Rejected{detail.decidedBy?.name ? ` by ${detail.decidedBy.name}` : ''}</p>
           {detail.decisionNote && <p className="mt-1 break-words">{detail.decisionNote}</p>}
           <p className="mt-1 text-xs">Update the invoice and resubmit.</p>
+        </div>
+      )}
+
+      {detail.approval && detail.approval.status !== 'CANCELLED' && (
+        <div className="mb-4 rounded-xl border border-border px-4 pb-3">
+          <ApprovalStepper approval={detail.approval} startedBy={detail.createdBy.name ?? 'Someone'} startedAt={[...detail.events].reverse().find((event) => event.type === 'SUBMITTED')?.createdAt ?? detail.createdAt} />
         </div>
       )}
 
