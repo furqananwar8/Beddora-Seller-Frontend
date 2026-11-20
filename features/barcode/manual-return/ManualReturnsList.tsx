@@ -6,6 +6,7 @@ import { Button } from '@/design-system/buttons'
 import { Input } from '@/design-system/inputs'
 import { Tooltip } from '@/design-system/tooltips'
 import { PaginationFooter } from '@/components/pagination-footer/PaginationFooter'
+import { useReportExport } from '@/hooks/useReportExport'
 import { useDebounce } from '@/utils/debounce'
 import { useGetManualReturnsQuery } from '@/services/api/barcode.api'
 
@@ -18,6 +19,7 @@ export function ManualReturnsList({ onAdd }: { onAdd?: () => void }) {
   const [search, setSearch] = useState('')
   const debounced = useDebounce(search.trim(), 300)
   const { data, isLoading, isError } = useGetManualReturnsQuery({ page, limit: PAGE_SIZE, search: debounced })
+  const { start: startExport, isExporting } = useReportExport('manual-returns', { noun: 'Excel file' })
 
   return (
     <div className="space-y-4">
@@ -32,7 +34,13 @@ export function ManualReturnsList({ onAdd }: { onAdd?: () => void }) {
             }}
           />
         </div>
-        {onAdd && <Button onClick={onAdd}>＋ Manual return</Button>}
+        <div className="ml-auto flex items-center gap-3">
+          {/* Built on the server in the background; the file downloads by itself when it is ready */}
+          <Button variant="outline" onClick={() => void startExport('xlsx', debounced ? { search: debounced } : {})} disabled={isExporting}>
+            {isExporting ? 'Preparing…' : 'Export Excel'}
+          </Button>
+          {onAdd && <Button onClick={onAdd}>＋ Manual return</Button>}
+        </div>
       </div>
 
       <div className="overflow-hidden rounded-xl border border-border bg-surface">

@@ -325,6 +325,12 @@ export const barcodeApi = baseApi.injectEndpoints({
       transformResponse: unwrap,
       invalidatesTags: ['Barcode', 'Inventory', 'InboundShipments'],
     }),
+    // Several returns at once, all or nothing
+    createManualReturns: b.mutation<ManualReturn[], { entries: NewManualReturn[] }>({
+      query: (body) => ({ url: '/barcode/manual-returns/batch', method: 'POST', body }),
+      transformResponse: unwrap,
+      invalidatesTags: ['Barcode', 'Inventory', 'InboundShipments'],
+    }),
     getBarcodeScans: b.query<Page<BarcodeScan>, PageParams>({
       query: ({ search, ...params }) => ({ url: '/barcode/scans', params: { ...params, search: search || undefined } }),
       providesTags: ['Barcode'],
@@ -353,6 +359,7 @@ export const {
   useGetManualReturnProductsQuery,
   useGetManualReturnsQuery,
   useCreateManualReturnMutation,
+  useCreateManualReturnsMutation,
   useCloseScanRecordMutation,
   useUndoSessionScanMutation,
   useEndScanSessionMutation,

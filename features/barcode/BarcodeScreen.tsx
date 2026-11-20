@@ -126,12 +126,16 @@ export function BarcodeScreen() {
   if (tab === 'sessions')
     return (
       <div className="space-y-5 px-6 py-6">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0 max-w-3xl">
             <h1 className="text-2xl font-bold text-text-primary">Scanning Sessions</h1>
             <p className="text-sm text-text-muted">Every scanning session started from Shipments, Shipping orders or Inbound receiving. Scanning itself happens in each screen&apos;s Scan items modal. Returns whose product matches nothing by UPC are entered by hand.</p>
           </div>
-          {canEnter && <Button onClick={() => setManualOpen(true)}>＋ Manual return</Button>}
+          {canEnter && (
+            <Button className="ml-auto shrink-0" onClick={() => setManualOpen(true)}>
+              ＋ Manual return
+            </Button>
+          )}
         </div>
         {tabs}
         <SessionsListing />

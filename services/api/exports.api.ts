@@ -25,7 +25,8 @@ export type ExportReport =
   | "warehouse-inventory"
   | "order-invoice-pdf"
   | "inbound-receiving-pdf"
-  | "shipment-bol";
+  | "shipment-bol"
+  | "manual-returns";
 
 export interface ExportRequest {
   report: ExportReport;
