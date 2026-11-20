@@ -26,6 +26,21 @@ export interface WarehouseInventoryReport extends Page<WarehouseInventoryRow> {
   tracked: Record<StockColumn, boolean>
 }
 
+/** One time damaged or returned units were added for a SKU, and the screen they were scanned on. */
+export interface WarehouseEntry {
+  id: number
+  at: string
+  units: number
+  screen: string
+  ref: string | null
+  direction: 'IN' | 'OUT' | null
+  session: string | null
+  by: string | null
+  note: string | null
+}
+
+export type WarehouseEntryKind = 'damaged' | 'return'
+
 export interface WarehouseInventoryParams {
   /** YYYY-MM-DD; today when left out. */
   asOf?: string
@@ -41,7 +56,12 @@ export const warehouseInventoryApi = baseApi.injectEndpoints({
       query: ({ search, asOf, ...rest }) => ({ url: '/inventory/warehouse-inventory', params: { ...rest, asOf: asOf || undefined, search: search || undefined } }),
       providesTags: ['Inventory'],
     }),
+    getWarehouseEntries: builder.query<WarehouseEntry[], { productId: number; kind: WarehouseEntryKind }>({
+      query: ({ productId, kind }) => ({ url: `/inventory/warehouse-inventory/${productId}/entries`, params: { kind } }),
+      transformResponse: (response: { data: WarehouseEntry[] }) => response.data,
+      providesTags: ['Inventory'],
+    }),
   }),
 })
 
-export const { useGetWarehouseInventoryQuery } = warehouseInventoryApi
+export const { useGetWarehouseInventoryQuery, useGetWarehouseEntriesQuery } = warehouseInventoryApi

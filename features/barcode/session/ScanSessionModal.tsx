@@ -162,7 +162,7 @@ export function ScanSessionModal({ sessionId, onClose }: Props) {
         await discard(sessionId).unwrap()
         feedback.success('Session closed. Nothing was scanned, so inventory is unchanged')
       } else {
-        await endSession({ id: sessionId, confirmed: true, closeScanning, ...(isReturn ? { conditions: split } : {}) }).unwrap()
+        await endSession({ id: sessionId, confirmed: true, closeScanning, ...(session.lines.some((l) => l.scanned > 0) ? { conditions: split } : {}) }).unwrap()
         const updated = isReturn ? (isReceipt(session.scenario) ? 'Received units added to inventory' : 'Returned units added to inventory') : 'Inventory updated'
         feedback.success(closeScanning ? `${updated}. Scanning is closed for this record` : `${updated}. You can scan this record again later`)
       }
@@ -352,23 +352,27 @@ export function ScanSessionModal({ sessionId, onClose }: Props) {
               <div className="mb-2 text-xs font-semibold text-secondary-600">Scanner</div>
               {open ? (
                 <>
-                  {isReturn && <p className="mb-3 text-xs text-text-muted">When you end the session you will say how many units were damaged; the rest are added as sellable.</p>}
+                  <p className="mb-3 text-xs text-text-muted">Scan with the handheld scanner. When you finish you will say how many units were damaged; {isReturn ? 'the rest are added as sellable' : 'the rest go out'}.</p>
+                  {/* Invisible on purpose: it only has to hold focus so the scanner's keystrokes land in it, with no cursor to confuse anyone */}
                   <input
                     ref={inputRef}
-                    aria-label="Scan an item UPC"
+                    aria-label="Scanner input"
                     inputMode="none"
                     autoComplete="off"
                     autoFocus
-                    placeholder="Scan or type a UPC, then Enter"
+                    tabIndex={-1}
                     // Keeps focus for the scanner, unless the user moved to another field (units, product search)
                     onBlur={(event) => {
                       const next = event.relatedTarget
                       if (next instanceof HTMLInputElement || next instanceof HTMLTextAreaElement || next instanceof HTMLSelectElement) return
                       setTimeout(() => !confirming && !(document.activeElement instanceof HTMLInputElement) && inputRef.current?.focus({ preventScroll: true }), 0)
                     }}
-                    className="h-11 w-full rounded-lg border border-border bg-secondary-50 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-secondary-300"
+                    className="pointer-events-none absolute h-px w-px opacity-0"
                   />
-                  <div className="mt-2 text-xs font-semibold text-success-700">● Scanner ready</div>
+                  <div className="flex items-center gap-2 text-sm font-semibold text-success-700">
+                    <span className="h-2.5 w-2.5 rounded-full bg-success-600" />
+                    Scanner connected
+                  </div>
                 </>
               ) : (
                 <div className="text-sm text-text-muted">{session.status === 'COMPLETED' ? 'Session ended.' : session.status === 'DISCARDED' ? 'Session discarded.' : 'Not your session.'}</div>
@@ -481,9 +485,9 @@ function EndConfirm({ session, open, busy, matchedUnits, split, onSplit, receipt
   const matchedSkus = session.lines.filter((l) => l.scanned > 0)
   // Units that go into inventory per product: receiving counts every scan, the rest stop at what the record holds
   const counted = (l: Line) => (receipt && isIn ? l.scanned : Math.min(l.scanned, l.expected))
-  const otherConditions = conditionsFor(session.scenario).filter((c) => c !== 'SELLABLE')
+  const otherConditions = conditionsFor(session.scenario, session.direction).filter((c) => c !== 'SELLABLE')
   const otherOf = (l: Line) => otherConditions.reduce((sum, c) => sum + (split[l.inventoryItemId]?.[c] ?? 0), 0)
-  const invalid = isIn && matchedSkus.some((l) => otherOf(l) > counted(l))
+  const invalid = matchedSkus.some((l) => otherOf(l) > counted(l))
   const setCount = (l: Line, condition: ReturnCondition, raw: string) => {
     const value = Math.max(0, Math.floor(Number(raw.replace(/[^0-9]/g, '')) || 0))
     onSplit({ ...split, [l.inventoryItemId]: { ...split[l.inventoryItemId], [condition]: value } })
@@ -491,7 +495,7 @@ function EndConfirm({ session, open, busy, matchedUnits, split, onSplit, receipt
   const otherLabel = (c: ReturnCondition) => conditionName(session.scenario, c, c === 'DAMAGED' ? 'Damaged' : 'Normal return')
 
   return (
-    <Modal isOpen={open} onClose={onKeep} title={isIn ? 'Review the count and damaged units' : 'Review the count'} size="md">
+    <Modal isOpen={open} onClose={onKeep} title="Review the count and damaged units" size="md">
       <p className="-mt-2 mb-3 text-sm text-text-muted">
         Session {sessionCode(session.id)} · {session.ref} · {channelName(session.channel)}
       </p>
@@ -536,16 +540,16 @@ function EndConfirm({ session, open, busy, matchedUnits, split, onSplit, receipt
           )}
         </ul>
       )}
-      {isIn && !nothing && (
+      {!nothing && (
         <div className="mt-4">
-          <div className="mb-2 text-sm font-bold">How many of each were {receipt ? 'good and damaged' : 'sellable and damaged'}?</div>
+          <div className="mb-2 text-sm font-bold">How many of each were {receipt ? 'good and damaged' : isIn ? 'sellable and damaged' : 'good and damaged'}?</div>
           <div className="overflow-hidden rounded-lg border border-border text-sm">
             <table className="w-full">
               <thead className="bg-secondary-100 text-xs text-secondary-600">
                 <tr>
                   <th className="px-3 py-2 text-center font-semibold">SKU</th>
                   <th className="px-3 py-2 text-center font-semibold">Counted</th>
-                  <th className="px-3 py-2 text-center font-semibold">{receipt ? 'Good' : 'Sellable'}</th>
+                  <th className="px-3 py-2 text-center font-semibold">{receipt || !isIn ? 'Good' : 'Sellable'}</th>
                   {otherConditions.map((c) => (
                     <th key={c} className="px-3 py-2 text-center font-semibold">
                       {otherLabel(c)}
@@ -576,6 +580,7 @@ function EndConfirm({ session, open, busy, matchedUnits, split, onSplit, receipt
               </tbody>
             </table>
           </div>
+          {!isIn && <p className="mt-2 text-xs text-text-muted">Damaged units are not sent out: they stay in your inventory as damaged.</p>}
           {invalid && <p className="mt-2 text-xs text-danger-600">A product has more damaged or returned units than were counted.</p>}
         </div>
       )}

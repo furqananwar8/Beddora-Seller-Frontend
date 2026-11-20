@@ -3,7 +3,7 @@
 import { useScrollbarBelowHeader } from '@/hooks/useFitToViewport'
 import React from 'react'
 import { Table, TABLE_STATUS_VIEWPORT, TableBody, TableCell, TableHead, TableHeader, TableRow, TableStatusRow } from '@/design-system/tables'
-import type { WarehouseInventoryReport, WarehouseInventoryRow } from '@/services/api/warehouseInventory.api'
+import type { WarehouseEntryKind, WarehouseInventoryReport, WarehouseInventoryRow } from '@/services/api/warehouseInventory.api'
 import { cn } from '@/utils/cn'
 import { useColumnResize } from '@/hooks/useColumnResize'
 import { ColumnResizeHandle, columnWidthStyle, fillRemainingWidth } from '@/components/column-resize-handle/ColumnResizeHandle'
@@ -40,10 +40,12 @@ interface WarehouseInventoryTableProps {
   isError: boolean
   /** Opens a SKU's sample history (the Samples column's count). */
   onOpenSamples?: (product: WarehouseInventoryRow['product']) => void
+  /** Opens the entries behind a SKU's Return or Damaged count. */
+  onOpenEntries?: (product: WarehouseInventoryRow['product'], kind: WarehouseEntryKind) => void
 }
 
 /** One row per internal SKU: its stock in every place, what is on its way, and the pipeline at landed cost. */
-export const WarehouseInventoryTable: React.FC<WarehouseInventoryTableProps> = ({ report, isLoading, isError, onOpenSamples }) => {
+export const WarehouseInventoryTable: React.FC<WarehouseInventoryTableProps> = ({ report, isLoading, isError, onOpenSamples, onOpenEntries }) => {
   const scroll = useScrollbarBelowHeader<HTMLDivElement>()
   // The frozen SKU column: drag the handle on its right edge to widen or narrow it
   const skuColumn = useColumnResize({ initial: 224, min: 160, max: 560, storageKey: 'warehouse-inventory-sku-column-width' })
@@ -110,6 +112,10 @@ export const WarehouseInventoryTable: React.FC<WarehouseInventoryTableProps> = (
                       {column.opensSamples && onOpenSamples && row.samples > 0 ? (
                         <button type="button" className="font-semibold text-primary-600 hover:underline" onClick={() => onOpenSamples(row.product)}>
                           {row.samples.toLocaleString()}
+                        </button>
+                      ) : onOpenEntries && (column.source === 'returns' || column.source === 'damaged') && (column.value(row) ?? 0) > 0 ? (
+                        <button type="button" className="font-semibold text-primary-600 hover:underline" onClick={() => onOpenEntries(row.product, column.source === 'returns' ? 'return' : 'damaged')}>
+                          {figure(column, row)}
                         </button>
                       ) : (
                         figure(column, row)
