@@ -167,7 +167,7 @@ export function ProductIdentityCell({ product, isChild = false, isExpanded = fal
       )}
 
       {unitStatsShown && onFbaStockClick && (
-        <div className="flex flex-nowrap items-center gap-1.5 whitespace-nowrap text-xs text-text-muted">
+        <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-text-muted">
           <span>{formatMoneyIn((product.salesRevenue || 0) / Math.max(product.unitsSold || 1, 1), currency)}</span>
           <span aria-hidden>·</span>
           <span>COGS: {formatMoneyIn(product.cogsRate || 0, currency)}</span>
