@@ -74,7 +74,6 @@ const DepartmentEditor: React.FC<EditorProps> = ({ department, users, readOnly, 
   const [remove, { isLoading: removing }] = useDeleteDepartmentMutation()
   const [renaming, setRenaming] = useState(false)
   const [deleting, setDeleting] = useState(false)
-  const [newMember, setNewMember] = useState('')
 
   const change = async (next: Partial<DepartmentBody>, message?: string) => {
     try {
@@ -90,9 +89,13 @@ const DepartmentEditor: React.FC<EditorProps> = ({ department, users, readOnly, 
   // A fixed order (by name), so adding or removing someone never moves the rows around
   const sorted = [...department.members].sort(byName)
   const heads = sorted.filter((member) => member.isHead)
+  /** Several people join in one save. */
+  const addMembers = (userIds: number[]) => change({ members: [...members, ...userIds.filter((id) => !members.some((member) => member.userId === id)).map((userId) => ({ userId, isHead: false }))] })
+  /** Several people become heads in one save (a member is marked, anyone else joins as a head). */
+  const addHeads = (userIds: number[]) =>
+    change({ members: [...members.map((member) => (userIds.includes(member.userId) ? { ...member, isHead: true } : member)), ...userIds.filter((id) => !members.some((member) => member.userId === id)).map((userId) => ({ userId, isHead: true }))] })
   const memberIds = new Set(department.members.map((member) => member.id))
   const candidates = users.filter((user) => !memberIds.has(user.id))
-  const toAdd = users.find((user) => String(user.id) === newMember)
 
   return (
     <div>
@@ -119,14 +122,16 @@ const DepartmentEditor: React.FC<EditorProps> = ({ department, users, readOnly, 
             <AddPicker
               label="+ Add head"
               empty="Nobody left to add."
-              groups={[
-                { title: 'Members', options: sorted.filter((member) => !member.isHead).map((member) => ({ key: `m${member.id}`, label: nameOf(member), onPick: () => void setHead(member.id, true) })) },
-                { title: 'Other people', options: candidates.map((user) => ({ key: `u${user.id}`, label: nameOf(user), onPick: () => void setHead(user.id, true) })) },
+              options={[
+                ...sorted.filter((member) => !member.isHead).map((member) => ({ key: String(member.id), label: nameOf(member), hint: 'Member' })),
+                ...[...candidates].sort(byName).map((user) => ({ key: String(user.id), label: nameOf(user), hint: 'Other' })),
               ]}
+              onAdd={(picked) => void addHeads(picked.map((option) => Number(option.key)))}
+              width="w-56"
             />
           )}
           {heads.map((head) => (
-            <Chip key={head.id} onRemove={readOnly || saving ? undefined : () => void setHead(head.id, false)}>
+            <Chip key={head.id} onRemove={readOnly ? undefined : () => void setHead(head.id, false)}>
               {nameOf(head)}
             </Chip>
           ))}
@@ -138,7 +143,7 @@ const DepartmentEditor: React.FC<EditorProps> = ({ department, users, readOnly, 
 
       <div className="mb-6">
         <SectionLabel>Approves products on platform</SectionLabel>
-        <Select<Platform | null> options={PLATFORM_OPTIONS} value={department.platform} onChange={(platform) => void change({ platform })} searchable={false} disabled={readOnly || saving} width="w-60" />
+        <Select<Platform | null> options={PLATFORM_OPTIONS} value={department.platform} onChange={(platform) => void change({ platform })} searchable={false} disabled={readOnly} width="w-60" />
         <p className="mt-2 text-xs text-slate-500">Set to Retail or Ecommerce on the teams that approve those products.</p>
       </div>
 
@@ -169,25 +174,21 @@ const DepartmentEditor: React.FC<EditorProps> = ({ department, users, readOnly, 
                   </span>
                 </td>
                 <td className="px-4 py-2 text-slate-500">{member.email}</td>
-                <td className="px-2 py-1 text-right">{!member.isHead && !readOnly && <RemoveBtn label={`Remove ${nameOf(member)}`} disabled={saving} onClick={() => void change({ members: members.filter((candidate) => candidate.userId !== member.id) })} />}</td>
+                <td className="px-2 py-1 text-right">{!member.isHead && !readOnly && <RemoveBtn label={`Remove ${nameOf(member)}`} onClick={() => void change({ members: members.filter((candidate) => candidate.userId !== member.id) })} />}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
       {!readOnly && (
-        <div className="mt-3 flex items-center gap-3">
-          <Select<string> options={candidates.map((user) => ({ value: String(user.id), label: nameOf(user) }))} value={newMember || undefined} onChange={setNewMember} placeholder="Add member… (search users)" searchable width="w-72" />
-          <Btn
-            disabled={!toAdd || saving}
-            onClick={async () => {
-              if (!toAdd) return
-              await change({ members: [...members, { userId: toAdd.id, isHead: false }] })
-              setNewMember('')
-            }}
-          >
-            Add
-          </Btn>
+        <div className="mt-3">
+          <AddPicker
+            label="Add members… (search users)"
+            empty="Everyone is already a member."
+            options={[...candidates].sort(byName).map((user) => ({ key: String(user.id), label: nameOf(user), hint: user.email }))}
+            onAdd={(picked) => void addMembers(picked.map((option) => Number(option.key)))}
+            width="w-80"
+          />
         </div>
       )}
 

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { SearchableSelect } from '@/components/searchable-select/SearchableSelect'
 import { Button } from '@/design-system/buttons'
@@ -147,57 +147,45 @@ export interface PickOption {
   key: string
   label: string
   hint?: string
-  onPick: () => void
 }
 
-/** A button that opens a searchable menu, like the "+ Add person or department head" of the design. */
-export const AddPicker: React.FC<{ label: string; groups: Array<{ title?: string; options: PickOption[] }>; disabled?: boolean; empty?: string }> = ({ label, groups, disabled, empty = 'Nothing to add.' }) => {
-  const [open, setOpen] = useState(false)
-  const [search, setSearch] = useState('')
-  const box = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (!open) return
-    const away = (event: MouseEvent) => !box.current?.contains(event.target as Node) && setOpen(false)
-    document.addEventListener('mousedown', away)
-    return () => document.removeEventListener('mousedown', away)
-  }, [open])
-
-  const shown = useMemo(() => groups.map((group) => ({ ...group, options: group.options.filter((option) => option.label.toLowerCase().includes(search.trim().toLowerCase())) })).filter((group) => group.options.length > 0), [groups, search])
-
+/**
+ * "+ Add ..." as the app's multi-select (the one the Purchase Orders filters use): tick several, press Done, and they are
+ * all added at once. The button keeps its place; what was added shows up beside it.
+ */
+export function AddPicker<T extends PickOption>({ label, options, onAdd, disabled, empty = 'Nothing to add.', width = 'w-72' }: { label: string; options: T[]; onAdd: (picked: T[]) => void; disabled?: boolean; empty?: string; width?: string }) {
+  const [picked, setPicked] = useState<T[]>([])
+  const latest = useRef(picked)
+  latest.current = picked
   return (
-    <div ref={box} className="relative inline-block">
-      <Btn disabled={disabled} onClick={() => setOpen((value) => !value)}>
-        {label}
-      </Btn>
-      {open && (
-        <div className="absolute left-0 z-30 mt-1 w-64 rounded-lg border border-slate-200 bg-white p-2 shadow-lg">
-          <input autoFocus value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search…" className="mb-2 w-full rounded-md border border-slate-300 px-2 py-1 text-xs" />
-          <div className="max-h-56 overflow-auto">
-            {shown.length === 0 && <p className="px-2 py-2 text-xs text-slate-500">{empty}</p>}
-            {shown.map((group) => (
-              <div key={group.title ?? 'all'}>
-                {group.title && <div className="px-2 pb-0.5 pt-1.5 text-[9px] font-semibold uppercase tracking-wide text-slate-500">{group.title}</div>}
-                {group.options.map((option) => (
-                  <button
-                    key={option.key}
-                    type="button"
-                    onClick={() => {
-                      option.onPick()
-                      setOpen(false)
-                      setSearch('')
-                    }}
-                    className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-xs text-slate-800 hover:bg-slate-100"
-                  >
-                    <span className="truncate">{option.label}</span>
-                    {option.hint && <span className="ml-2 shrink-0 text-[10px] text-slate-500">{option.hint}</span>}
-                  </button>
-                ))}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+    <div className={cn('min-w-0 shrink-0', width)}>
+      <SearchableSelect<T>
+        multiple
+        searchable
+        options={options}
+        getKey={(option) => option.key}
+        getLabel={(option) => option.label}
+        value={picked}
+        onChange={setPicked}
+        renderValue={(value) => `${label.replace(/^\+\s*/, '')} · ${value.length} selected`}
+        renderOption={(option) => (
+          <span className="flex min-w-0 flex-1 items-center justify-between gap-2">
+            <span className="truncate">{option.label}</span>
+            {option.hint && <span className="shrink-0 text-xs text-slate-500">{option.hint}</span>}
+          </span>
+        )}
+        // Closing the menu (Done, Escape or a click outside) adds what was ticked
+        onOpenChange={(open) => {
+          if (open || latest.current.length === 0) return
+          onAdd(latest.current)
+          setPicked([])
+        }}
+        placeholder={label}
+        searchPlaceholder="Search…"
+        emptyText={empty}
+        disabled={disabled}
+        triggerClassName={cn('min-h-0 py-0 text-[13px]', CONTROL)}
+      />
     </div>
   )
 }

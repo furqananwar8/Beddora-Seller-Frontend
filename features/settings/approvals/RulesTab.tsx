@@ -42,7 +42,7 @@ const assigneeSchema = z.discriminatedUnion('kind', [
 
 const schema = z.object({
   isActive: z.boolean(),
-  steps: z.array(z.object({ completion: z.enum(['ANY', 'ALL', 'PER_GROUP']), assignees: z.array(assigneeSchema).min(1, 'Add at least one person to every step') })).max(10),
+  steps: z.array(z.object({ uid: z.string(), completion: z.enum(['ANY', 'ALL', 'PER_GROUP']), assignees: z.array(assigneeSchema).min(1, 'Add at least one person to every step') })).max(10),
 })
 
 type Values = z.infer<typeof schema>
@@ -52,7 +52,8 @@ const same = (a: RuleAssignee, b: RuleAssignee) => a.kind === b.kind && (a.kind 
 
 const valuesOf = (rule: ApprovalRule): Values => ({
   isActive: rule.isActive,
-  steps: rule.steps.map((step) => ({
+  steps: rule.steps.map((step, index) => ({
+    uid: `s${index}`,
     completion: step.completion,
     assignees: step.assignees.map((a): RuleAssignee => (a.kind === 'USER' ? { kind: 'USER', userId: a.userId } : a.kind === 'DEPARTMENT' ? { kind: 'DEPARTMENT', departmentId: a.departmentId } : { kind: 'PLATFORM' })),
   })),
@@ -98,11 +99,12 @@ const RuleEditor: React.FC<EditorProps> = ({ rule, lookups, readOnly, slots }) =
   const dirty = formState.isDirty
 
   const setAssignees = (index: number, next: RuleAssignee[]) => setValue(`steps.${index}.assignees`, next, { shouldDirty: true, shouldValidate: formState.isSubmitted })
-  const add = (index: number, assignee: RuleAssignee) => !steps[index].assignees.some((existing) => same(existing, assignee)) && setAssignees(index, [...steps[index].assignees, assignee])
+  const addMany = (index: number, added: RuleAssignee[]) => setAssignees(index, [...steps[index].assignees, ...added.filter((assignee) => !steps[index].assignees.some((existing) => same(existing, assignee)))])
 
   const submit = handleSubmit(async (values) => {
     try {
-      const saved = await save({ key: rule.key, body: values }).unwrap()
+      const body = { isActive: values.isActive, steps: values.steps.map(({ completion, assignees }) => ({ completion, assignees })) }
+      const saved = await save({ key: rule.key, body }).unwrap()
       reset(valuesOf(saved))
       success(values.steps.length === 0 ? `${rule.label}: rule removed, it works as before` : `${rule.label}: rule saved`)
     } catch (error) {
@@ -110,21 +112,16 @@ const RuleEditor: React.FC<EditorProps> = ({ rule, lookups, readOnly, slots }) =
     }
   })
 
-  const pickOptions = (index: number): Array<{ title?: string; options: PickOption[] }> => {
+  /** Everything that can still join a step: people, departments (their heads) and, where it applies, the product platform. */
+  const pickOptions = (index: number): Array<PickOption & { assignee: RuleAssignee }> => {
     const current = steps[index].assignees
     const taken = (candidate: RuleAssignee) => current.some((existing) => same(existing, candidate))
     return [
-      {
-        title: 'People',
-        options: lookups.users.filter((user) => !taken({ kind: 'USER', userId: user.id })).map((user) => ({ key: `u${user.id}`, label: nameOf(user), onPick: () => add(index, { kind: 'USER', userId: user.id }) })),
-      },
-      {
-        title: 'Department heads',
-        options: lookups.departments
-          .filter((department) => !taken({ kind: 'DEPARTMENT', departmentId: department.id }))
-          .map((department) => ({ key: `d${department.id}`, label: department.name, hint: headsOf(department).join(', ') || 'no head', onPick: () => add(index, { kind: 'DEPARTMENT', departmentId: department.id }) })),
-      },
-      ...(rule.supportsPlatform && !taken({ kind: 'PLATFORM' }) ? [{ title: 'Product platform', options: [{ key: 'platform', label: 'By product platform', hint: 'Retail / Ecommerce', onPick: () => add(index, { kind: 'PLATFORM' }) }] }] : []),
+      ...(rule.supportsPlatform && !taken({ kind: 'PLATFORM' }) ? [{ key: 'platform', label: 'By product platform', hint: 'Retail / Ecommerce', assignee: { kind: 'PLATFORM' } as RuleAssignee }] : []),
+      ...lookups.departments
+        .filter((department) => !taken({ kind: 'DEPARTMENT', departmentId: department.id }))
+        .map((department) => ({ key: `d${department.id}`, label: `${department.name} heads`, hint: headsOf(department).join(', ') || 'no head', assignee: { kind: 'DEPARTMENT', departmentId: department.id } as RuleAssignee })),
+      ...lookups.users.filter((user) => !taken({ kind: 'USER', userId: user.id })).map((user) => ({ key: `u${user.id}`, label: nameOf(user), hint: 'Person', assignee: { kind: 'USER', userId: user.id } as RuleAssignee })),
     ]
   }
 
@@ -146,12 +143,13 @@ const RuleEditor: React.FC<EditorProps> = ({ rule, lookups, readOnly, slots }) =
         Runs when the <b>{rule.buttonLabel}</b> button on {rule.where} is used.
       </PaneTitle>
 
-      {fields.map((field, index) => {
+      {fields.map((_, index) => {
         const step = steps[index]
         if (!step) return null
         const error = formState.errors.steps?.[index]?.assignees?.message
         return (
-          <div key={field.id} onDragOver={(event) => event.preventDefault()} onDrop={() => { if (dragFrom.current !== null && dragFrom.current !== index) move(dragFrom.current, index); dragFrom.current = null }}>
+          // A key of our own: the form library renews its row ids when a step's people change, which remounted the whole card
+          <div key={step.uid} onDragOver={(event) => event.preventDefault()} onDrop={() => { if (dragFrom.current !== null && dragFrom.current !== index) move(dragFrom.current, index); dragFrom.current = null }}>
             <div className="relative rounded-lg border border-slate-200 bg-white p-4">
               {!readOnly && <RemoveBtn corner label="Remove step" onClick={() => remove(index)} />}
               <div className="flex items-center gap-3 pr-10">
@@ -163,7 +161,7 @@ const RuleEditor: React.FC<EditorProps> = ({ rule, lookups, readOnly, slots }) =
                 <Controller control={control} name={`steps.${index}.completion`} render={({ field: completion }) => <Select options={COMPLETIONS} value={completion.value} onChange={completion.onChange} searchable={false} disabled={readOnly || saving} width="w-52" />} />
               </div>
               <div className="mt-4 flex flex-wrap items-center gap-2">
-                {!readOnly && <AddPicker label="+ Add person or department head" groups={pickOptions(index)} empty="Everyone is already in this step." />}
+                {!readOnly && <AddPicker label="+ Add person or department head" options={pickOptions(index)} onAdd={(picked) => addMany(index, picked.map((option) => option.assignee))} empty="Everyone is already in this step." width="w-80" />}
                 {step.assignees.map((assignee, at) => (
                   <Chip key={`${assignee.kind}-${at}`} teal={assignee.kind === 'PLATFORM'} onRemove={readOnly ? undefined : () => setAssignees(index, step.assignees.filter((_, position) => position !== at))}>
                     {chipText(assignee, lookups)}
@@ -188,7 +186,7 @@ const RuleEditor: React.FC<EditorProps> = ({ rule, lookups, readOnly, slots }) =
 
       {!readOnly && (
         <div className="my-4 flex items-center gap-3">
-          <Btn disabled={saving || fields.length >= 10} onClick={() => append({ completion: 'ANY', assignees: [] })}>
+          <Btn disabled={saving || fields.length >= 10} onClick={() => append({ uid: `n${Date.now()}`, completion: 'ANY', assignees: [] })}>
             + Add step
           </Btn>
           <span className="text-xs text-slate-500">Each step can hold several people</span>

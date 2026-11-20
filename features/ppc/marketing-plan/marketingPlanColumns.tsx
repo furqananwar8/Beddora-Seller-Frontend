@@ -1,6 +1,8 @@
 'use client'
 
 import React from 'react'
+import { ChoiceSelect } from '@/components/choice-select/ChoiceSelect'
+import { StatusBadge, type StatusTone } from '@/components/status-badge/StatusBadge'
 import { CellInput, Figure } from '@/features/breakeven/amazon/PricingCells'
 import { cn } from '@/utils/cn'
 import { STAGES, type Stage } from './marketingPlan.calc'
@@ -31,17 +33,16 @@ const whole = (value: number | null) => (value === null || !Number.isFinite(valu
 
 const signed = (value: number | null) => (value === null ? undefined : value < 0 ? ('bad' as const) : ('good' as const))
 
-const DECISION_TONE: Record<string, string> = {
-  'CUT - ads losing money': 'bg-danger-50 text-danger-700',
-  'TRIM to target': 'bg-warning-50 text-warning-700',
-  'OK - hold or scale': 'bg-success-50 text-success-700',
+const DECISION_TONE: Record<string, StatusTone> = {
+  'CUT - ads losing money': 'danger',
+  'TRIM to target': 'warning',
+  'OK - hold or scale': 'success',
 }
 
-const STOCK_TONE = (flag: string) => (flag === 'OK' ? 'text-success-700' : /STOCK-OUT|Stock-out|Overstock/.test(flag) ? 'text-danger-700' : 'text-text-muted')
+/** Stock-outs are urgent (danger), thin or excess cover is a warning, a healthy SKU is fine; the rest is just information. */
+const stockTone = (flag: string): StatusTone => (flag === 'OK' ? 'success' : /^STOCK-OUT/.test(flag) ? 'danger' : /^(Stock-out risk|Overstock)/.test(flag) ? 'warning' : 'neutral')
 
-const Tag: React.FC<{ className?: string; children: React.ReactNode }> = ({ className, children }) => (
-  <span className={cn('inline-block rounded-md px-2 py-0.5 text-xs font-medium', className ?? 'bg-secondary-100 text-text-secondary')}>{children}</span>
-)
+const STAGE_CHOICES = STAGES.map((stage) => ({ value: stage, label: stage }))
 
 /** The sheet's columns in its order. "Profit before Marketing (Old)" is left out: it was a typed-in snapshot with no source. */
 export const PLAN_COLUMNS: PlanColumn[] = [
@@ -53,18 +54,14 @@ export const PLAN_COLUMNS: PlanColumn[] = [
     width: 130,
     editable: true,
     cell: (line, { setStage }) => (
-      <select
-        aria-label={`Stage for ${line.sku}`}
+      <ChoiceSelect
+        variant="cell"
+        title={`Stage for ${line.sku}`}
         value={line.inputs.stage}
-        onChange={(event) => setStage(line.sku, event.target.value === 'Growth' ? undefined : (event.target.value as Stage))}
-        className={cn('w-full rounded border px-1.5 py-1 text-xs focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500', line.stageEdited ? 'border-warning-300 bg-warning-50' : 'border-border bg-surface')}
-      >
-        {STAGES.map((stage) => (
-          <option key={stage} value={stage}>
-            {stage}
-          </option>
-        ))}
-      </select>
+        options={STAGE_CHOICES}
+        onChange={(stage) => setStage(line.sku, stage === 'Growth' ? undefined : stage)}
+        className={cn('rounded-lg', line.stageEdited && 'ring-1 ring-warning-300')}
+      />
     ),
   },
   { id: 'suggested', header: 'Suggested Stage', width: 110, cell: (line) => line.result.suggestedStage },
@@ -95,10 +92,8 @@ export const PLAN_COLUMNS: PlanColumn[] = [
   { id: 'budget', header: 'Recommended Ad Budget', width: 130, cell: (line, { currency }) => <Figure bold>{money(line.result.recommendedAdBudget, currency)}</Figure> },
   { id: 'perDay', header: 'Per Day', width: 90, cell: (line, { currency }) => <Figure>{money(line.result.perDay, currency)}</Figure> },
   { id: 'change', header: 'Change vs Last Month Spend', width: 130, cell: (line, { currency }) => <Figure tone={line.result.changeVsLastMonth === null ? undefined : line.result.changeVsLastMonth > 0 ? 'good' : 'bad'}>{money(line.result.changeVsLastMonth, currency)}</Figure> },
-  { id: 'decision', header: 'Decision', width: 190, cell: (line) => <Tag className={DECISION_TONE[line.result.decision]}>{line.result.decision}</Tag> },
+  { id: 'decision', header: 'Decision', width: 190, cell: (line) => <StatusBadge label={line.result.decision} tone={DECISION_TONE[line.result.decision] ?? 'neutral'} /> },
   { id: 'available', header: 'Available Units (FBA)', width: 100, cell: (line) => <Figure>{whole(line.inputs.availableUnits)}</Figure> },
   { id: 'cover', header: 'Days of Cover', width: 90, cell: (line) => <Figure>{whole(line.result.daysOfCover)}</Figure> },
-  { id: 'stockFlag', header: 'Stock Flag', width: 230, cell: (line) => <span className={cn('text-xs font-medium', STOCK_TONE(line.result.stockFlag))}>{line.result.stockFlag}</span> },
+  { id: 'stockFlag', header: 'Stock Flag', width: 230, cell: (line) => <StatusBadge label={line.result.stockFlag} tone={stockTone(line.result.stockFlag)} /> },
 ]
-
-export const PLAN_TABLE_WIDTH = PLAN_COLUMNS.reduce((sum, column) => sum + column.width, 0)

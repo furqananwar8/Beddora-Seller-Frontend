@@ -82,7 +82,12 @@ export interface NotificationEvent {
   group: string
   label: string
   description: string
-  preview: { title: string; body?: string }
+  /** What is sent now: the admin's own wording, or the event's. Placeholders look like {shipment}. */
+  wording: { title: string; body: string }
+  /** The event's own wording, for "Reset to default". */
+  defaultWording: { title: string; body: string }
+  /** The words that can be dropped into the wording, with an example each for the preview. */
+  placeholders: Array<{ token: string; label: string; example: string }>
   /** False until an admin saves it: the event then uses the defaults written in code. */
   customised: boolean
   isActive: boolean
@@ -96,6 +101,8 @@ export interface NotificationBody {
   inApp: boolean
   email: boolean
   recipients: RecipientLine[]
+  title: string
+  body: string
 }
 
 export interface TabOption {
@@ -140,11 +147,7 @@ export const approvalsApi = baseApi.injectEndpoints({
           })
         )
         try {
-          const { data } = await queryFulfilled
-          dispatch(approvalsApi.util.updateQueryData('getDepartments', undefined, (draft) => {
-            const at = draft.findIndex((item) => item.id === data.id)
-            if (at >= 0) draft[at] = data
-          }))
+          await queryFulfilled
         } catch {
           patch.undo()
         }

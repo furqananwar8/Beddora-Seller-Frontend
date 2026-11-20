@@ -6,12 +6,16 @@ import { PageHeader } from '@/components/layout'
 import { MultiSelectInput } from '@/components/multi-select-input/MultiSelectInput'
 import { PaginationFooter } from '@/components/pagination-footer/PaginationFooter'
 import { Button } from '@/design-system/buttons'
+import { monthValue } from '@/components/month-picker/MonthPicker'
 import { CellInput } from '@/features/breakeven/amazon/PricingCells'
+import { MonthSelect } from '@/features/profit/pm-incentive/PmIncentiveView'
 import type { PricingCountry } from '@/services/api/amazonPricing.api'
+import { ColumnResizeHandle } from '@/components/column-resize-handle/ColumnResizeHandle'
+import { useColumnResize } from '@/hooks/useColumnResize'
 import { cn } from '@/utils/cn'
 import { useDebounce } from '@/utils/debounce'
 import { DEFAULT_AD_BUDGET_CAP, DEFAULT_OVERSTOCK_DAYS, DEFAULT_STAGE_TARGETS, DEFAULT_STOCKOUT_DAYS, previousMonth, STAGES, type Stage } from './marketingPlan.calc'
-import { PLAN_COLUMNS, PLAN_TABLE_WIDTH, type PlanColumn } from './marketingPlanColumns'
+import { PLAN_COLUMNS, type PlanColumn } from './marketingPlanColumns'
 import { useMarketingPlan } from './useMarketingPlan'
 
 /**
@@ -30,6 +34,11 @@ const COUNTRY_OPTIONS = [
 ]
 // Amazon only for now; Temu, Walmart and others join here later
 const CHANNEL_OPTIONS = [{ id: 'amazon', name: 'Amazon' }]
+
+const nextMonth = () => {
+  const now = new Date()
+  return monthValue(now.getFullYear(), now.getMonth() + 1)
+}
 
 const monthLabel = (month: string) => new Date(`${month}-01T00:00:00`).toLocaleDateString('en-CA', { month: 'short', year: 'numeric' })
 
@@ -50,6 +59,11 @@ const MarketingPlanBoard: React.FC<{ country: PricingCountry; onCountryChange: (
   const totalPages = Math.max(1, Math.ceil(plan.lines.length / PAGE_SIZE))
   const pageLines = useMemo(() => plan.lines.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [plan.lines, page])
   const context = useMemo(() => ({ currency, setStage: plan.setStage, setPlannedUnits: plan.setPlannedUnits }), [currency, plan.setStage, plan.setPlannedUnits])
+
+  // The SKU column can be dragged wider or narrower, like the product column of the settlement report
+  const skuResize = useColumnResize({ initial: 230, min: 140, max: 520, storageKey: 'marketing-plan-sku-column-width' })
+  const columns = useMemo(() => PLAN_COLUMNS.map((column) => (column.id === 'sku' ? { ...column, width: skuResize.width } : column)), [skuResize.width])
+  const tableWidth = columns.reduce((sum, column) => sum + column.width, 0)
 
   const overCap = plan.totals.recommendedBudget > budgetCap
   const money = (value: number) => new Intl.NumberFormat('en-CA', { style: 'currency', currency, maximumFractionDigits: 0 }).format(value)
@@ -91,13 +105,8 @@ const MarketingPlanBoard: React.FC<{ country: PricingCountry; onCountryChange: (
       <div className="grid gap-4 lg:grid-cols-3">
         <Panel title="Plan">
           <Row label="Plan month (1st date)">
-            <input
-              type="month"
-              aria-label="Plan month"
-              value={plan.planMonth}
-              onChange={(event) => event.target.value && plan.setPlanMonth(event.target.value)}
-              className="rounded border border-border bg-surface px-2 py-1 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-            />
+            {/* The plan looks ahead, so next month can be picked too */}
+            <MonthSelect value={plan.planMonth} onChange={plan.setPlanMonth} max={nextMonth()} />
           </Row>
           <Row label="Last month (data month)">{monthLabel(previousMonth(plan.planMonth))}</Row>
           <Row label={`Account ad budget cap (${currency})`}>
@@ -146,17 +155,18 @@ const MarketingPlanBoard: React.FC<{ country: PricingCountry; onCountryChange: (
 
       <div className="rounded-xl border border-border bg-surface">
         <div className={cn('max-h-[calc(100vh-330px)] min-h-[320px] overflow-auto rounded-t-xl', plan.isFetching && !plan.isLoading && 'opacity-70 transition-opacity')}>
-          <table className="border-separate border-spacing-0 text-sm" style={{ tableLayout: 'fixed', width: PLAN_TABLE_WIDTH }}>
+          <table className="border-separate border-spacing-0 text-sm" style={{ tableLayout: 'fixed', width: tableWidth }}>
             <colgroup>
-              {PLAN_COLUMNS.map((column) => (
+              {columns.map((column) => (
                 <col key={column.id} style={{ width: column.width }} />
               ))}
             </colgroup>
             <thead>
               <tr>
-                {PLAN_COLUMNS.map((column) => (
+                {columns.map((column) => (
                   <th key={column.id} scope="col" style={headStyle(column)} className={cn(HEAD, column.editable && 'text-warning-700', column.frozen && EDGE)}>
                     <span className="block leading-tight">{column.header}</span>
+                    {column.id === 'sku' && <ColumnResizeHandle resize={skuResize} column={column.header} />}
                   </th>
                 ))}
               </tr>
@@ -171,7 +181,7 @@ const MarketingPlanBoard: React.FC<{ country: PricingCountry; onCountryChange: (
               ) : (
                 pageLines.map((line) => (
                   <tr key={line.sku} className="group">
-                    {PLAN_COLUMNS.map((column) => (
+                    {columns.map((column) => (
                       <td key={column.id} style={bodyStyle(column)} className={cn(CELL, column.frozen ? 'bg-surface' : 'group-hover:bg-secondary-50', column.frozen && EDGE)}>
                         {column.cell(line, context)}
                       </td>
