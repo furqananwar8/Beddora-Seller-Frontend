@@ -94,6 +94,8 @@ export interface NotificationEvent {
   inApp: boolean
   email: boolean
   recipients: Array<RecipientLine & { label: string; count: number | null }>
+  /** For events that run on a schedule: which days (counted down to the event's date) it is sent on. */
+  schedule: { label: string; note: string; max: number; extra: { value: number; label: string; hint: string } | null; days: number[] } | null
 }
 
 /** The email as it would be sent, shown for one of the people who receive it (each gets their own name). */
@@ -115,6 +117,8 @@ export interface NotificationBody {
   recipients: RecipientLine[]
   title: string
   body: string
+  /** For scheduled events: the days it is sent on. */
+  days?: number[]
 }
 
 export interface TabOption {

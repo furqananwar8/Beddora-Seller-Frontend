@@ -43,6 +43,7 @@ const schema = z.object({
   inApp: z.boolean(),
   email: z.boolean(),
   recipients: recipientsSchema,
+  days: z.array(z.number().int()),
   title: z.string().trim().min(1, 'The title cannot be empty').max(150, 'The title is too long'),
   body: z.string().trim().max(1000, 'The message is too long'),
 })
@@ -71,6 +72,7 @@ const valuesOf = (event: NotificationEvent): Values => ({
   title: event.wording.title,
   body: event.wording.body,
   recipients: recipientsOf(event.recipients),
+  days: event.schedule?.days ?? [],
 })
 
 const nameOf = (person: PersonRef) => person.name ?? person.email
@@ -152,7 +154,7 @@ const EventEditor: React.FC<EditorProps> = ({ event, tabs, users, departments, r
 
   const submit = handleSubmit(async (values) => {
     try {
-      const saved = await save({ key: event.key, body: { isActive: values.isActive, inApp: values.inApp, email: values.email, recipients: linesOf(values.recipients), title: values.title, body: values.body } }).unwrap()
+      const saved = await save({ key: event.key, body: { isActive: values.isActive, inApp: values.inApp, email: values.email, recipients: linesOf(values.recipients), title: values.title, body: values.body, days: event.schedule ? values.days : undefined } }).unwrap()
       reset(valuesOf(saved))
       success(`${event.label}: saved`)
     } catch (error) {
@@ -271,6 +273,75 @@ const EventEditor: React.FC<EditorProps> = ({ event, tabs, users, departments, r
         }}
       />
       {formState.errors.recipients && <p className="-mt-4 mb-6 text-xs text-red-600">{formState.errors.recipients.message}</p>}
+
+      {event.schedule && (
+        <div className="mb-6 border-t border-slate-200 pt-5">
+          <SectionLabel>{event.schedule.label}</SectionLabel>
+          <Controller
+            control={control}
+            name="days"
+            render={({ field }) => {
+              const off = readOnly || saving
+              const toggle = (day: number) => field.onChange(field.value.includes(day) ? field.value.filter((item) => item !== day) : [...field.value, day])
+              const extra = event.schedule!.extra
+              const chosen = [...field.value].filter((day) => day >= 0).sort((a, b) => a - b)
+              const extraOn = Boolean(extra && field.value.includes(extra.value))
+              return (
+                <div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {Array.from({ length: event.schedule!.max + 1 }, (_, day) => {
+                      const on = field.value.includes(day)
+                      return (
+                        <button
+                          key={day}
+                          type="button"
+                          disabled={off}
+                          aria-pressed={on}
+                          title={day === 0 ? 'On the ETA day' : `${day} ${day === 1 ? 'day' : 'days'} before the ETA`}
+                          onClick={() => toggle(day)}
+                          className={cn(
+                            'flex h-11 min-w-[2.9rem] flex-col items-center justify-center rounded-lg border px-1 leading-none',
+                            on ? 'border-blue-600 bg-blue-600 text-white' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50',
+                            off && 'cursor-not-allowed opacity-60'
+                          )}
+                        >
+                          <span className="text-[13px] font-semibold">{day === 0 ? 'ETA' : day}</span>
+                          <span className={cn('mt-0.5 text-[9px]', on ? 'text-blue-100' : 'text-slate-400')}>{day === 0 ? 'day' : day === 1 ? 'day left' : 'days left'}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                  {extra && (
+                    <button
+                      type="button"
+                      disabled={off}
+                      aria-pressed={extraOn}
+                      onClick={() => toggle(extra.value)}
+                      className={cn(
+                        'mt-2 flex items-center gap-3 rounded-lg border px-3 py-2 text-left',
+                        extraOn ? 'border-blue-600 bg-blue-50' : 'border-slate-300 bg-white hover:bg-slate-50',
+                        off && 'cursor-not-allowed opacity-60'
+                      )}
+                    >
+                      <span className={cn('flex h-5 w-5 items-center justify-center rounded border text-xs font-bold', extraOn ? 'border-blue-600 bg-blue-600 text-white' : 'border-slate-400 bg-white text-transparent')}>✓</span>
+                      <span>
+                        <span className="block text-[13px] font-semibold text-slate-800">{extra.label}</span>
+                        <span className="block text-xs text-slate-500">{extra.hint}</span>
+                      </span>
+                    </button>
+                  )}
+                  <p className="mt-2 text-xs text-slate-500">
+                    {chosen.length === 0 && !extraOn
+                      ? 'Nothing is ticked, so nothing is sent.'
+                      : `Sent ${[...chosen.map((day) => (day === 0 ? 'on the ETA day' : `${day} ${day === 1 ? 'day' : 'days'} before`)), ...(extraOn ? ['every day while overdue'] : [])].join(', ')}.`}{' '}
+                    {event.schedule!.note}
+                  </p>
+                </div>
+              )
+            }}
+          />
+        </div>
+      )}
 
       <div className="border-t border-slate-200 pt-5">
         <SectionLabel>Send by</SectionLabel>
