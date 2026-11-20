@@ -15,6 +15,8 @@ import {
   usePauseScanSessionMutation,
   useRecheckUnmatchedScansMutation,
   useScanSessionHeartbeatMutation,
+  useAssignUnmatchedUpcMutation,
+  useSearchScanProductsQuery,
   useSetScanLineCountMutation,
   useUndoSessionScanMutation,
   type ReturnCondition,
@@ -22,7 +24,6 @@ import {
 } from '@/services/api/barcode.api'
 import { ScanFieldSource } from '../scanner/ScanFieldSource'
 import { LiveChip } from './StatusChip'
-import { MatchedScans } from './MatchedScans'
 import { DIRECTION_META, channelName, conditionName, conditionsFor, isReceipt, sessionCode } from './scanSession'
 
 /** The server's lock lapses after 90 s; this keeps it alive for as long as the modal is open. */
@@ -54,25 +55,16 @@ export function ScanSessionModal({ sessionId, onClose }: Props) {
   const [heartbeat] = useScanSessionHeartbeatMutation()
   const [pause, { isLoading: pausing }] = usePauseScanSessionMutation()
   const [undoScan] = useUndoSessionScanMutation()
-  const [setLineCount, { isLoading: savingCount }] = useSetScanLineCountMutation()
+  const [setLineCount] = useSetScanLineCountMutation()
+  const [assignUnmatched] = useAssignUnmatchedUpcMutation()
   const [dismissUnmatched] = useDismissUnmatchedUpcMutation()
   const [recheck, { isLoading: rechecking }] = useRecheckUnmatchedScansMutation()
 
   // Finishing: first the review (counts and damaged units), then the choice of how to end
   const [confirming, setConfirming] = useState(false)
   const [choosing, setChoosing] = useState(false)
-  // A product whose count is being lowered, and the number typed
-  const [editing, setEditing] = useState<{ inventoryItemId: number; value: string } | null>(null)
   // Inventory-in: per product, how many units were damaged / a normal return (asked once, when ending); the rest are sellable
   const [split, setSplit] = useState<ConditionCounts>({})
-  // Products whose matched UPCs are opened under their row
-  const [expanded, setExpanded] = useState<Set<number>>(new Set())
-  const toggleExpanded = (inventoryItemId: number) =>
-    setExpanded((current) => {
-      const next = new Set(current)
-      if (!next.delete(inventoryItemId)) next.add(inventoryItemId)
-      return next
-    })
   const [lastSaved, setLastSaved] = useState<Date | null>(null)
   // Scans sent but not yet matched: each shows as a skeleton row until the session read that matches it arrives
   const [waiting, setWaiting] = useState<Array<{ key: number; upc: string }>>([])
@@ -116,12 +108,13 @@ export function ScanSessionModal({ sessionId, onClose }: Props) {
     }
   }
   const removeScan = (scanId: number) => run(() => undoScan({ id: sessionId, scanId }).unwrap(), 'Could not remove the scan')
-  const saveCount = () =>
-    editing &&
+  // A product's units are typed in once (a master carton scanned a single time); more scans still add one each
+  const saveCount = (inventoryItemId: number, count: number) => run(() => setLineCount({ id: sessionId, inventoryItemId, count }).unwrap(), 'Could not change the count')
+  const assignUpc = (upc: string, sku: string) =>
     run(async () => {
-      await setLineCount({ id: sessionId, inventoryItemId: editing.inventoryItemId, count: Math.max(0, Math.floor(Number(editing.value.replace(/[^0-9]/g, '')) || 0)) }).unwrap()
-      setEditing(null)
-    }, 'Could not change the count')
+      await assignUnmatched({ id: sessionId, upc, sku }).unwrap()
+      feedback.success(`${upc} saved on ${sku}`)
+    }, 'Could not save the UPC')
   const dropUnmatched = (upc: string) => run(() => dismissUnmatched({ id: sessionId, upc }).unwrap(), 'Could not remove the UPC')
   const recheckUnmatched = () =>
     run(async () => {
@@ -261,47 +254,12 @@ export function ScanSessionModal({ sessionId, onClose }: Props) {
                         <td className="px-3 py-2.5 text-center align-middle">
                           <div className="font-mono text-xs text-text-primary">{line.sku}</div>
                           {line.channelSku && <div className="text-xs text-text-muted">{line.channelSku}</div>}
-                          {line.scanned > 0 && (
-                            <div className="mt-1 flex items-center justify-center gap-3">
-                              <button
-                                type="button"
-                                onClick={() => toggleExpanded(line.inventoryItemId)}
-                                aria-expanded={expanded.has(line.inventoryItemId)}
-                                className="text-xs font-medium text-primary-700 hover:underline"
-                              >
-                                {expanded.has(line.inventoryItemId) ? 'Hide scanned UPCs' : `Show ${line.scanned} scanned UPC${line.scanned === 1 ? '' : 's'}`}
-                              </button>
-                              {open && (
-                                <button type="button" onClick={() => setEditing({ inventoryItemId: line.inventoryItemId, value: String(line.scanned) })} className="text-xs font-medium text-primary-700 hover:underline">
-                                  Edit count
-                                </button>
-                              )}
-                            </div>
-                          )}
-                          {editing?.inventoryItemId === line.inventoryItemId && (
-                            <div className="mt-2 flex items-center justify-center gap-2">
-                              <input
-                                autoFocus
-                                type="text"
-                                inputMode="numeric"
-                                aria-label={`Scanned count of ${line.sku}`}
-                                value={editing.value}
-                                onChange={(event) => setEditing({ ...editing, value: event.target.value })}
-                                onKeyDown={(event) => event.key === 'Enter' && void saveCount()}
-                                className="w-16 rounded border border-border bg-surface px-2 py-1 text-center text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
-                              />
-                              <Button size="sm" onClick={() => void saveCount()} disabled={savingCount}>
-                                Save
-                              </Button>
-                              <Button size="sm" variant="ghost" onClick={() => setEditing(null)} disabled={savingCount}>
-                                Cancel
-                              </Button>
-                            </div>
-                          )}
                         </td>
                         <td className="px-3 py-2.5 font-mono text-xs text-center align-middle">{line.upc ?? <Badge variant="warning" size="sm">No UPC</Badge>}</td>
                         <td className="px-3 py-2.5 text-center align-middle">{line.expected}</td>
-                        <td className={`px-3 py-2.5 text-center align-middle font-semibold ${line.state === 'MATCHED' ? 'text-success-700' : line.state === 'OVER' ? 'text-warning-700' : ''}`}>{line.scanned}</td>
+                        <td className={`px-3 py-2.5 text-center align-middle font-semibold ${line.state === 'MATCHED' ? 'text-success-700' : line.state === 'OVER' ? 'text-warning-700' : ''}`}>
+                          {open ? <UnitsInput sku={line.sku} value={line.scanned} onCommit={(count) => saveCount(line.inventoryItemId, count)} /> : line.scanned}
+                        </td>
                         <td className="px-3 py-2.5 text-center align-middle">
                           <div className="mx-auto h-1.5 w-24 overflow-hidden rounded-full bg-secondary-200">
                             <div className={`h-full rounded-full ${line.state === 'OVER' ? 'bg-warning-600' : 'bg-primary-600'}`} style={{ width: `${Math.min(100, line.expected ? (line.scanned / line.expected) * 100 : 0)}%` }} />
@@ -309,18 +267,6 @@ export function ScanSessionModal({ sessionId, onClose }: Props) {
                           {line.state === 'OVER' && <span className="text-xs font-semibold text-warning-700">+{line.scanned - line.expected} over</span>}
                         </td>
                       </tr>
-                      {expanded.has(line.inventoryItemId) && line.scanned > 0 && (
-                        <tr className="bg-secondary-50">
-                          <td colSpan={5} className="p-0">
-                            <MatchedScans
-                              sessionId={sessionId}
-                              inventoryItemId={line.inventoryItemId}
-                              scanned={line.scanned}
-                              onRemove={open ? removeScan : undefined}
-                            />
-                          </td>
-                        </tr>
-                      )}
                     </Fragment>
                   ))}
                   <tr className="border-t border-border bg-secondary-50 font-bold">
@@ -351,7 +297,7 @@ export function ScanSessionModal({ sessionId, onClose }: Props) {
                 </span>
               </div>
               {session.unmatched.length === 0 && waiting.length === 0 ? (
-                <p className="p-4 text-sm text-text-muted">{session.scanned === 0 ? 'Nothing scanned yet. Scan a UPC to start.' : 'Every scanned UPC matched. Matched UPCs are listed under their SKU above.'}</p>
+                <p className="p-4 text-sm text-text-muted">{session.scanned === 0 ? 'Nothing scanned yet. Scan a UPC to start.' : 'Every scanned UPC matched. Type a SKU’s units above when a carton holds more than you scan.'}</p>
               ) : (
                 <table className="w-full text-sm">
                   <tbody>
@@ -383,6 +329,11 @@ export function ScanSessionModal({ sessionId, onClose }: Props) {
                         </td>
                         {open && (
                           <td className="px-3 py-2 text-center align-middle">
+                            <ProductPicker sessionId={sessionId} onPick={(sku) => void assignUpc(entry.upc, sku)} />
+                          </td>
+                        )}
+                        {open && (
+                          <td className="px-3 py-2 text-center align-middle">
                             <button type="button" onClick={() => void dropUnmatched(entry.upc)} className="text-xs font-semibold text-danger-600 hover:underline" title="Remove these scans from the session">
                               Remove
                             </button>
@@ -409,7 +360,12 @@ export function ScanSessionModal({ sessionId, onClose }: Props) {
                     autoComplete="off"
                     autoFocus
                     placeholder="Scan or type a UPC, then Enter"
-                    onBlur={() => setTimeout(() => !confirming && inputRef.current?.focus({ preventScroll: true }), 0)}
+                    // Keeps focus for the scanner, unless the user moved to another field (units, product search)
+                    onBlur={(event) => {
+                      const next = event.relatedTarget
+                      if (next instanceof HTMLInputElement || next instanceof HTMLTextAreaElement || next instanceof HTMLSelectElement) return
+                      setTimeout(() => !confirming && !(document.activeElement instanceof HTMLInputElement) && inputRef.current?.focus({ preventScroll: true }), 0)
+                    }}
                     className="h-11 w-full rounded-lg border border-border bg-secondary-50 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-secondary-300"
                   />
                   <div className="mt-2 text-xs font-semibold text-success-700">● Scanner ready</div>
@@ -633,5 +589,72 @@ function EndConfirm({ session, open, busy, matchedUnits, split, onSplit, receipt
         </Button>
       </div>
     </Modal>
+  )
+}
+
+/** The units of one product: editable, saved when the field is left or Enter is pressed. A carton scanned once is typed in as its full count. */
+function UnitsInput({ sku, value, onCommit }: { sku: string; value: number; onCommit: (count: number) => void }) {
+  const [draft, setDraft] = useState<string | null>(null)
+  const commit = () => {
+    if (draft === null) return
+    const count = Math.max(0, Math.floor(Number(draft.replace(/[^0-9]/g, '')) || 0))
+    setDraft(null)
+    if (count !== value) onCommit(count)
+  }
+  return (
+    <input
+      type="text"
+      inputMode="numeric"
+      aria-label={`Units of ${sku}`}
+      value={draft ?? value}
+      onFocus={(event) => event.target.select()}
+      onChange={(event) => setDraft(event.target.value)}
+      onBlur={commit}
+      onKeyDown={(event) => event.key === 'Enter' && event.currentTarget.blur()}
+      className="w-20 rounded border border-border bg-surface px-2 py-1 text-center text-sm font-semibold outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+    />
+  )
+}
+
+/** Search the products (this record's first) and pick the one a scanned UPC belongs to; the UPC is saved on it and the scan matches. */
+function ProductPicker({ sessionId, onPick }: { sessionId: number; onPick: (sku: string) => void }) {
+  const [text, setText] = useState('')
+  const [q, setQ] = useState('')
+  const [shown, setShown] = useState(false)
+  const field = useRef<HTMLInputElement>(null)
+  // The list floats over the table (its card clips anything that overflows), placed under the field
+  const box = shown ? field.current?.getBoundingClientRect() : undefined
+  useEffect(() => {
+    const timer = setTimeout(() => setQ(text), 250)
+    return () => clearTimeout(timer)
+  }, [text])
+  const { data = [] } = useSearchScanProductsQuery({ id: sessionId, q }, { skip: !shown })
+  return (
+    <div className="relative mx-auto w-52">
+      <input
+        ref={field}
+        value={text}
+        placeholder="Search product to set UPC"
+        aria-label="Search a product to set this UPC on"
+        onFocus={() => setShown(true)}
+        onBlur={() => setTimeout(() => setShown(false), 150)}
+        onChange={(event) => setText(event.target.value)}
+        className="h-8 w-full rounded border border-border bg-surface px-2 text-xs outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+      />
+      {shown && box && (
+        <ul style={{ position: 'fixed', top: box.bottom + 4, left: box.left, width: Math.max(box.width, 240) }} className="z-[1000] max-h-48 overflow-auto rounded-lg border border-border bg-surface text-left text-xs shadow-lg">
+          {data.length === 0 && <li className="px-3 py-2 text-text-muted">No products found</li>}
+          {data.map((p) => (
+            <li key={p.sku}>
+              <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => (onPick(p.sku), setShown(false), setText(''))} className="block w-full px-3 py-2 text-left hover:bg-secondary-50">
+                <span className="font-mono font-semibold">{p.sku}</span>
+                {p.onRecord && <span className="ml-1 text-success-700">· on this record</span>}
+                <span className="block truncate text-text-muted">{p.name}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   )
 }
