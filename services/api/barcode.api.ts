@@ -304,6 +304,16 @@ export const barcodeApi = baseApi.injectEndpoints({
       query: ({ id, inventoryItemId, ...params }) => ({ url: `/barcode/sessions/${id}/lines/${inventoryItemId}/scans`, params }),
       transformResponse: unwrap,
     }),
+    // Products to pick for an unmatched UPC (this record's first), and saving the scanned UPC on the picked product
+    searchScanProducts: b.query<Array<{ sku: string; name: string; upc: string | null; onRecord: boolean }>, { id: number; q: string }>({
+      query: ({ id, q }) => ({ url: `/barcode/sessions/${id}/products`, params: { q } }),
+      transformResponse: unwrap,
+    }),
+    assignUnmatchedUpc: b.mutation<ScanSession, { id: number; upc: string; sku: string }>({
+      query: ({ id, ...body }) => ({ url: `/barcode/sessions/${id}/unmatched/assign`, method: 'POST', body }),
+      transformResponse: unwrap,
+      invalidatesTags: ['Barcode'],
+    }),
     // Closes a record's scanning for good; an open session of yours is ended first
     closeScanRecord: b.mutation<{ closed: true }, { scenario: ScanScenario; sourceId: string; direction: ScanDirection }>({
       query: (body) => ({ url: '/barcode/sessions/close', method: 'POST', body }),
@@ -408,6 +418,8 @@ export const {
   useCloseScanRecordMutation,
   useUndoSessionScanMutation,
   useSetScanLineCountMutation,
+  useSearchScanProductsQuery,
+  useAssignUnmatchedUpcMutation,
   useDismissUnmatchedUpcMutation,
   useRecheckUnmatchedScansMutation,
   useEndScanSessionMutation,

@@ -10,9 +10,10 @@ import { SegmentedToggle } from '@/components/segmented-toggle/SegmentedToggle'
 import { SingleDatePicker } from '@/components/single-date-picker/SingleDatePicker'
 import { Button } from '@/design-system/buttons'
 import { useReportExport } from '@/hooks/useReportExport'
-import { useGetWarehouseInventoryQuery, type StockFilter, type WarehouseInventoryRow } from '@/services/api/warehouseInventory.api'
+import { useGetWarehouseInventoryQuery, type StockFilter, type WarehouseEntryKind, type WarehouseInventoryRow } from '@/services/api/warehouseInventory.api'
 import { cn } from '@/utils/cn'
 import { SampleHistoryModal } from '../samples/SampleHistoryModal'
+import { WarehouseEntriesModal } from './WarehouseEntriesModal'
 import { WarehouseInventoryTable } from './WarehouseInventoryTable'
 import { defaultFilters, earliestAsOf, STOCK_OPTIONS, todayDay } from './warehouseInventoryFilters'
 
@@ -27,6 +28,8 @@ export const WarehouseInventoryScreen: React.FC = () => {
   const [page, setPage] = useState(1)
   /** The SKU whose sample history is open. */
   const [samplesOf, setSamplesOf] = useState<WarehouseInventoryRow['product'] | null>(null)
+  /** The SKU whose damaged or returned entries are open. */
+  const [entriesOf, setEntriesOf] = useState<{ product: WarehouseInventoryRow['product']; kind: WarehouseEntryKind } | null>(null)
   const filters = useStagedFilters(defaults, () => setPage(1))
   const { draft, setDraft, applied, changed } = filters
 
@@ -82,11 +85,12 @@ export const WarehouseInventoryScreen: React.FC = () => {
       </div>
 
       <div className={cn('space-y-3', isFetching && !isLoading && 'opacity-70 transition-opacity')}>
-        <WarehouseInventoryTable report={data} isLoading={isLoading} isError={isError} onOpenSamples={setSamplesOf} />
+        <WarehouseInventoryTable report={data} isLoading={isLoading} isError={isError} onOpenSamples={setSamplesOf} onOpenEntries={(product, kind) => setEntriesOf({ product, kind })} />
         {data && data.totalRecords > 0 && (
           <PaginationFooter page={data.page} pageSize={data.limit} totalItems={data.totalRecords} totalPages={data.totalPages} onPageChange={setPage} itemLabel="SKUs" />
         )}
       </div>
+      <WarehouseEntriesModal target={entriesOf} onClose={() => setEntriesOf(null)} />
       <SampleHistoryModal product={samplesOf} onClose={() => setSamplesOf(null)} />
     </Container>
   )
