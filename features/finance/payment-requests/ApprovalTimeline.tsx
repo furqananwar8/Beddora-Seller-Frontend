@@ -46,13 +46,6 @@ const amountLine = (payload: TimelineEvent['payload'], key: string): string | un
   return value === undefined ? undefined : `${currency ?? ''} ${value.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`.trim()
 }
 
-/** "Email + in-app" / "In-app": how the person was told, as recorded with the event. */
-const channelsOf = (payload: TimelineEvent['payload']): string => {
-  const channels = Array.isArray(payload?.channels) ? (payload.channels as string[]) : ['email', 'in-app']
-  const text = channels.map((channel) => (channel === 'email' ? 'Email' : 'in-app')).join(' + ')
-  return text.charAt(0).toUpperCase() + text.slice(1)
-}
-
 const stamp = (value: string) => format(new Date(value), 'dd MMM, hh:mm a')
 
 function toStep(event: TimelineEvent): Step {
@@ -66,14 +59,6 @@ function toStep(event: TimelineEvent): Step {
       return { key: String(event.id), title: 'Created', sub: `by ${by} · ${when}`, glyph: '+', tone: TONE.neutral }
     case 'SUBMITTED':
       return { key: String(event.id), title: 'Submitted', sub: `by ${by} · ${when}`, glyph: '✓', tone: TONE.done }
-    case 'NOTIFIED':
-      return {
-        key: String(event.id),
-        title: `Notified ${text(event.payload, 'name') ?? 'approver'}`,
-        sub: `${channelsOf(event.payload)} · ${when}`,
-        glyph: '✉',
-        tone: TONE.info,
-      }
     case 'APPROVED':
       return { key: String(event.id), title: 'Approved', sub: withNote(`by ${by} · ${when}`), glyph: '✓', tone: TONE.done }
     case 'REJECTED':
@@ -124,7 +109,8 @@ function toStep(event: TimelineEvent): Step {
 
 /** Audit trail of the request; a trailing "awaiting decision" step shows while it is pending. */
 export const ApprovalTimeline: React.FC<{ events: TimelineEntry[]; status: string }> = ({ events, status }) => {
-  const steps = events.map(toStep)
+  // Who was notified is not part of the history (the bell and email already told them)
+  const steps = events.filter((event) => event.type !== 'NOTIFIED').map(toStep)
   if (status === 'PENDING_APPROVAL') {
     steps.push({ key: 'awaiting', title: 'Awaiting decision', sub: 'Approve or Reject', glyph: '…', tone: TONE.pending })
   }

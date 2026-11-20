@@ -10,10 +10,23 @@ export interface PermissionRow {
 }
 
 /**
+ * Screens whose write permission is its own "Edit" box nested under the screen's box (`page.subpage`), like Purchase Orders > Edit,
+ * so an account that can only view shows an empty Edit instead of a half-ticked screen.
+ */
+const EDIT_NESTED = new Set(['finance.payment-request'])
+
+/**
+ * Screens whose permissions are granted outside the Users dialog (by SQL), so the dialog does not list them. A user's saved
+ * ids still include them: the dialog keeps every id it was given and sends them all back, so saving never drops them.
+ */
+const NOT_LISTED = new Set(['settings.approvals'])
+
+/**
  * Groups permissions into the tree the Settings screens show: page → subpage (read and write together). A subpage
  * named `parent.child` (e.g. `price-analysis.approval`) is listed under its parent subpage instead of beside it.
  */
-export function buildPermissionTree(permissions: PermissionRow[]): PermissionNode[] {
+export function buildPermissionTree(all: PermissionRow[]): PermissionNode[] {
+  const permissions = all.filter((permission) => !NOT_LISTED.has(`${permission.page}.${permission.subpage}`))
   const byPage = new Map<string, { parent: PermissionRow | null; subs: Map<string, { read: PermissionRow; write?: PermissionRow }> }>()
 
   for (const permission of permissions) {
@@ -30,13 +43,12 @@ export function buildPermissionTree(permissions: PermissionRow[]): PermissionNod
   }
 
   return [...byPage.entries()].map(([page, entry]) => {
-    const flat: PermissionNode[] = [...entry.subs.entries()].map(([subpage, pair]) => ({
-      id: pair.read.id,
-      name: pair.read.name,
-      page,
-      subpage,
-      allIds: [pair.read.id, pair.write?.id].filter((id): id is number => id !== undefined),
-    }))
+    const flat: PermissionNode[] = [...entry.subs.entries()].flatMap(([subpage, pair]) => {
+      const screen: PermissionNode = { id: pair.read.id, name: pair.read.name, page, subpage, allIds: [pair.read.id, pair.write?.id].filter((id): id is number => id !== undefined) }
+      if (!pair.write || !EDIT_NESTED.has(`${page}.${subpage}`)) return [screen]
+      // The screen's box keeps viewing; write moves into "Edit" (a subpage named `<screen>.edit` nests under the screen)
+      return [{ ...screen, allIds: [pair.read.id] }, { id: pair.write.id, name: pair.write.name, page, subpage: `${subpage}.edit`, allIds: [pair.write.id] }]
+    })
     const bySubpage = new Map(flat.map((node) => [node.subpage!, node]))
     const parentOf = (node: PermissionNode) => bySubpage.get(node.subpage!.split('.').slice(0, -1).join('.'))
     const top: PermissionNode[] = []

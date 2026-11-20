@@ -20,6 +20,8 @@ export interface ApprovalControl {
   canApprove: boolean
   canReject: boolean
   approved: { supplierId: number; by: string | null; at: string } | null
+  /** The supplier an earlier step of the chain approved: a later step may confirm it or approve another one. Null when no step has picked yet. */
+  picked: { supplierId: number; by: string | null; step: number } | null
   /** Why no quote can be approved right now (e.g. unsaved edits); null when approving is open. */
   blockedReason: string | null
   /** Suppliers whose row is not saved yet cannot be approved. */
@@ -51,6 +53,10 @@ function reviewBlocked(approval: ApprovalControl, supplierId: number): string | 
 /** Why one row's Approve button is off, or null when it can be pressed. */
 const approveBlocked = (approval: ApprovalControl, supplierId: number): string | null =>
   approval.approved ? 'Another supplier is approved; edit the analysis to approve again' : reviewBlocked(approval, supplierId)
+
+/** What approving this row does to an earlier step's pick: nothing for the same supplier, an override for another one. */
+const overrideNote = (approval: ApprovalControl, supplierId: number): string | undefined =>
+  approval.picked && approval.picked.supplierId !== supplierId ? `Approves this supplier instead of the one step ${approval.picked.step} (${approval.picked.by ?? 'an approver'}) approved` : undefined
 
 /**
  * One row per supplier: point of contact, price and remarks typed here, "vs lowest" and rank worked out live, and
@@ -85,11 +91,12 @@ export const QuotesTable: React.FC<QuotesTableProps> = ({ rows, errors, showErro
             const rowErrors = errors.get(row.supplier.id) ?? {}
             const priceError = showErrors || rowErrors.supplierId ? rowErrors.unitPrice : undefined
             const isApproved = approval.approved?.supplierId === row.supplier.id
+            const isPicked = !approval.approved && approval.picked?.supplierId === row.supplier.id
             const rejection = row.rejection
             const blocked = approveBlocked(approval, row.supplier.id)
             const rejectBlocked = reviewBlocked(approval, row.supplier.id)
             return (
-              <TableRow key={row.supplier.id} className={isApproved ? 'bg-success-50/60' : rejection ? 'bg-danger-50/40' : undefined}>
+              <TableRow key={row.supplier.id} className={isApproved ? 'bg-success-50/60' : isPicked ? 'bg-success-50/40' : rejection ? 'bg-danger-50/40' : undefined}>
                 <TableCell className={cn(CELL, 'text-text-muted')}>{index + 1}</TableCell>
                 <TableCell className="align-middle">
                   <p className="font-semibold text-text-primary">{row.supplier.name}</p>
@@ -162,6 +169,11 @@ export const QuotesTable: React.FC<QuotesTableProps> = ({ rows, errors, showErro
                           {approval.approved!.by ?? 'An approver'} · {formatCalendarDay(approval.approved!.at)}
                         </span>
                       </span>
+                    ) : isPicked ? (
+                      <span className="inline-flex flex-col items-center gap-0.5">
+                        <StatusBadge label={`APPROVED · STEP ${approval.picked!.step}`} tone="success" />
+                        <span className="whitespace-nowrap text-[11px] text-text-muted">{approval.picked!.by ?? 'An approver'}</span>
+                      </span>
                     ) : rejection ? (
                       <span className="inline-flex max-w-[200px] flex-col items-center gap-0.5">
                         <StatusBadge label="REJECTED" tone="danger" />
@@ -176,7 +188,7 @@ export const QuotesTable: React.FC<QuotesTableProps> = ({ rows, errors, showErro
                     {!rejection && (approval.canApprove || approval.canReject) && (
                       <div className="flex items-center gap-1.5">
                         {approval.canApprove && !isApproved && (
-                          <span title={blocked ?? undefined}>
+                          <span title={blocked ?? overrideNote(approval, row.supplier.id)}>
                             <Button type="button" size="sm" variant="outline" disabled={Boolean(blocked)} isLoading={approval.busySupplierId === row.supplier.id} onClick={() => approval.onApprove(row.supplier.id)}>
                               Approve
                             </Button>

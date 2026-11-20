@@ -18,6 +18,7 @@ import {
   useApprovePriceAnalysisMutation,
   useGetPriceAnalysisQuery,
   useRejectPriceAnalysisQuoteMutation,
+  useReopenPriceAnalysisMutation,
   useSavePriceAnalysisMutation,
   type PoCurrency,
   type SupplierRef,
@@ -26,6 +27,7 @@ import { serverIssues } from '@/utils/apiErrors'
 import { formatCalendarDay } from '@/utils/format'
 import { productLabel } from '../shared/ProductPicker'
 import { SupplierMultiSelect } from '../shared/SupplierSelect'
+import { ApprovalStepper } from '@/components/approval-stepper/ApprovalStepper'
 import { ApprovalHistory } from './ApprovalHistory'
 import { ProductDetails } from './ProductDetails'
 import { formFrom, rankRows, rowError, sameForm, toBody, type PriceAnalysisForm, type QuoteRow, type RowErrors } from './priceAnalysisForm'
@@ -42,8 +44,8 @@ const CURRENCIES: Array<{ value: PoCurrency; label: string }> = [
 const EMPTY: PriceAnalysisForm = { material: '', currency: 'USD', rows: [] }
 
 /**
- * One product's price analysis: supplier quotes ranked by price, one of them approved by an approver, and the
- * approval history. It can always be edited; an edit takes the approval back so it is approved again.
+ * One product's price analysis: supplier quotes ranked by price, one of them approved by the approval chain, and the
+ * approval history. Once approved it is locked; an approver can reopen it, which starts a fresh approval.
  */
 export const PriceAnalysisScreen: React.FC<{ productId: number }> = ({ productId }) => {
   const ability = useAppAbility()
@@ -54,6 +56,8 @@ export const PriceAnalysisScreen: React.FC<{ productId: number }> = ({ productId
   const [save, { isLoading: saving }] = useSavePriceAnalysisMutation()
   const [approve, { isLoading: approvingBusy }] = useApprovePriceAnalysisMutation()
   const [reject, { isLoading: rejectingBusy }] = useRejectPriceAnalysisQuoteMutation()
+  const [reopen, { isLoading: reopening }] = useReopenPriceAnalysisMutation()
+  const [confirmReopen, setConfirmReopen] = useState(false)
 
   const loadedFor = useRef<string | null>(null)
   const [form, setForm] = useState<PriceAnalysisForm>(EMPTY)
@@ -189,9 +193,18 @@ export const PriceAnalysisScreen: React.FC<{ productId: number }> = ({ productId
   }
 
   const product = data?.product.id === productId ? data.product : null
-  const readOnly = !canWrite
-  const loadError = isError ? ((error as { data?: { error?: string } })?.data?.error ?? 'Could not load this product.') : null
   const approval = data?.analysis?.approval ?? null
+  // An approved analysis is locked: nobody edits, removes or rejects until an approver reopens it
+  const locked = Boolean(approval)
+  const readOnly = !canWrite || locked
+  const loadError = isError ? ((error as { data?: { error?: string } })?.data?.error ?? 'Could not load this product.') : null
+  // The supplier an earlier step of a waiting chain approved (it travels as that step's decision note, "supplier:<id>"): the next step confirms it
+  const pick = data?.approval?.status === 'PENDING'
+    ? data.approval.steps
+        .flatMap((step) => step.people.filter((person) => person.status === 'APPROVED').map((person) => ({ step: step.position, by: person.name, supplierId: Number(/^supplier:(\d+)$/.exec(person.note ?? '')?.[1]) })))
+        .filter((item) => item.supplierId)
+        .pop()
+    : undefined
   const label = product ? `${product.ref} · ${productLabel(product)}` : ''
 
   return (
@@ -218,15 +231,27 @@ export const PriceAnalysisScreen: React.FC<{ productId: number }> = ({ productId
         ) : (
           <>
             {approval ? (
-              <p className="rounded-lg border border-success-500 bg-success-50 px-3 py-2 text-sm text-success-700">
-                <strong>{approval.supplier.name}</strong> approved at {formatCurrencyAmount(data!.analysis!.currency, approval.unitPrice)} by {approval.by.name ?? 'an approver'} on {formatCalendarDay(approval.at)}.
-                {canWrite && ' You can still edit; saving a change takes the approval back so it is approved again.'}
-              </p>
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-success-500 bg-success-50 px-3 py-2 text-sm text-success-700">
+                <p>
+                  <strong>{approval.supplier.name}</strong> approved at {formatCurrencyAmount(data!.analysis!.currency, approval.unitPrice)} by {approval.by.name ?? 'an approver'} on {formatCalendarDay(approval.at)}. It is locked.
+                </p>
+                {data!.permissions.canApprove && (
+                  <Button type="button" size="sm" variant="outline" onClick={() => setConfirmReopen(true)}>
+                    Reopen
+                  </Button>
+                )}
+              </div>
             ) : data?.analysis ? (
               <p className="rounded-lg border border-warning-500 bg-warning-50 px-3 py-2 text-sm text-warning-700">
                 Awaiting approval{data.permissions.canApprove ? ': approve one supplier below, or reject the ones that will not do.' : ' by an approver.'}
               </p>
             ) : null}
+
+            {data?.analysis && data.approval && data.approval.status !== 'CANCELLED' && (
+              <div className="rounded-lg border border-border bg-surface px-4 pb-3">
+                <ApprovalStepper approval={data.approval} startedBy={data.analysis.updatedBy.name ?? 'A teammate'} startedAt={data.analysis.updatedAt} startLabel="Quotes saved" />
+              </div>
+            )}
 
             <Card>
               <CardHeader>
@@ -273,8 +298,9 @@ export const PriceAnalysisScreen: React.FC<{ productId: number }> = ({ productId
                   readOnly={readOnly}
                   approval={{
                     canApprove: data!.permissions.canApprove,
-                    canReject: data!.permissions.canReject,
+                    canReject: data!.permissions.canReject && !locked,
                     approved: approval ? { supplierId: approval.supplier.id, by: approval.by.name, at: approval.at } : null,
+                    picked: pick ?? null,
                     blockedReason: dirty ? 'Save or discard your changes first' : null,
                     savedSupplierIds: new Set(data!.analysis?.quotes.map((quote) => quote.supplier.id) ?? []),
                     busySupplierId: approvingBusy ? (approving?.supplier.id ?? null) : null,
@@ -323,6 +349,25 @@ export const PriceAnalysisScreen: React.FC<{ productId: number }> = ({ productId
           </>
         )}
       </div>
+
+      <ConfirmDialog
+        isOpen={confirmReopen}
+        title="Reopen this price analysis"
+        confirmLabel="Reopen"
+        busy={reopening}
+        onConfirm={async () => {
+          try {
+            await reopen({ productId }).unwrap()
+            success('Reopened: the quotes can be changed, and the approval chain starts again')
+            setConfirmReopen(false)
+          } catch (error) {
+            failure(error, 'Could not reopen the analysis')
+          }
+        }}
+        onClose={() => setConfirmReopen(false)}
+      >
+        <p>The approval of {approval?.supplier.name} is taken back and the approval chain starts again from its first step. The earlier approvals stay in the history.</p>
+      </ConfirmDialog>
 
       <ConfirmDialog
         isOpen={approving !== null}

@@ -13,6 +13,7 @@ import { PaymentRequestDetail, useGetPaymentRequestQuery } from '@/services/api/
 import { financeErrorMessage } from '../shared/useFinanceFeedback'
 import { formatCurrencyAmount, formatDay, formatRequestNo, percentOfPoText, requestReference } from '../shared/format'
 import { REQUEST_STATUS_META } from '../shared/statusMeta'
+import { ApprovalStepper } from '@/components/approval-stepper/ApprovalStepper'
 import { ApprovalTimeline } from './ApprovalTimeline'
 import { DocumentChips } from '../shared/DocumentChips'
 import { ChangeExpenseDialog } from './ChangeExpenseDialog'
@@ -131,6 +132,12 @@ const DetailBody: React.FC<DetailBodyProps> = ({ detail, onClose }) => {
           <p className="font-semibold">Rejected{detail.decidedBy?.name ? ` by ${detail.decidedBy.name}` : ''}</p>
           {rejectedReason && <p className="mt-1 break-words">{rejectedReason}</p>}
           <p className="mt-1 text-xs">Update your request and resubmit.</p>
+        </div>
+      )}
+
+      {detail.approval && detail.approval.status !== 'CANCELLED' && (
+        <div className="mb-4 rounded-xl border border-border px-4 pb-3">
+          <ApprovalStepper approval={detail.approval} startedBy={detail.requestedBy.name ?? 'Someone'} startedAt={detail.submittedAt ?? detail.decidedAt ?? new Date().toISOString()} />
         </div>
       )}
 

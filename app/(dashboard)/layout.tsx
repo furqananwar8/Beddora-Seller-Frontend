@@ -19,6 +19,7 @@ const FIT_BELOW_HEADER_ROUTES = [
   '/dashboard/settings/general',
   '/dashboard/settings/users',
   '/dashboard/settings/addresses',
+  '/dashboard/settings/approvals',
 ]
 
 export interface NavItem {
