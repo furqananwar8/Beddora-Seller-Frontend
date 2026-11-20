@@ -48,7 +48,7 @@ export const ApprovalsScreen: React.FC = () => {
           </button>
         ))}
       </div>
-      <div style={{ height: 'clamp(480px, calc(100vh - 380px), 760px)' }}>
+      <div style={{ height: 'clamp(360px, calc(100vh - 380px), 760px)' }}>
         {tab === 'rules' && <RulesTab slots={slots} />}
         {tab === 'departments' && <DepartmentsTab slots={slots} />}
         {tab === 'notifications' && <NotificationsTab slots={slots} />}

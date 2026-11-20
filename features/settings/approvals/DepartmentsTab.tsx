@@ -168,7 +168,7 @@ const DepartmentEditor: React.FC<EditorProps> = ({ department, users, readOnly, 
               <tr key={member.id} className="border-t border-slate-100">
                 <td className="px-4 py-2">
                   <span className="flex items-center gap-2">
-                    <Avatar />
+                    <Avatar seed={nameOf(member)} />
                     {nameOf(member)} {member.isHead && <Tag tone="indigo">Head</Tag>}
                   </span>
                 </td>

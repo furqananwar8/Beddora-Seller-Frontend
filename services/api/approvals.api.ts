@@ -96,6 +96,18 @@ export interface NotificationEvent {
   recipients: Array<RecipientLine & { label: string; count: number | null }>
 }
 
+/** The email as it would be sent, shown for one of the people who receive it (each gets their own name). */
+export interface NotificationEmailPreview {
+  subject: string
+  html: string
+  shownFor: { id: number | null; name: string }
+  /** Nobody is picked yet, so the viewer's own name stands in. */
+  usesYourName: boolean
+  people: Array<{ id: number; name: string }>
+  total: number
+  includesCreator: boolean
+}
+
 export interface NotificationBody {
   isActive: boolean
   inApp: boolean
@@ -181,6 +193,11 @@ export const approvalsApi = baseApi.injectEndpoints({
       transformResponse: (response: Envelope<NotificationEvent>) => unwrap(response),
       invalidatesTags: ['NotificationRules'],
     }),
+    /** The email as the wording being typed would send it (the real template, filled with the event's examples). */
+    previewNotificationEmail: b.mutation<NotificationEmailPreview, { key: string; title: string; body: string; recipients: RecipientLine[]; asUserId?: number }>({
+      query: ({ key, ...body }) => ({ url: `/settings/approvals/notifications/${key}/preview`, method: 'POST', body }),
+      transformResponse: (response: Envelope<NotificationEmailPreview>) => unwrap(response),
+    }),
     getApprovalRule: b.query<ApprovalRule, string>({
       query: (key) => `/settings/approvals/rules/${key}`,
       transformResponse: (response: Envelope<ApprovalRule>) => unwrap(response),
@@ -206,5 +223,6 @@ export const {
   useGetNotificationEventQuery,
   useGetNotificationTabsQuery,
   useSaveNotificationEventMutation,
+  usePreviewNotificationEmailMutation,
   useSaveApprovalRuleMutation,
 } = approvalsApi

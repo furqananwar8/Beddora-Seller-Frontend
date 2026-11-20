@@ -44,11 +44,17 @@ export const Tag: React.FC<{ tone?: keyof typeof TAG_TONES; children: React.Reac
   <span className={cn('inline-block shrink-0 whitespace-nowrap ds-circle px-2 py-px text-[10px] font-semibold', TAG_TONES[tone], className)}>{children}</span>
 )
 
-export const Avatar: React.FC = () => <span className="mr-1.5 inline-block h-5 w-5 shrink-0 ds-circle bg-slate-300 align-middle" />
+/** Fixed classes (Tailwind only keeps classes it can read in the source), one per colour a person can get. */
+const AVATAR_COLORS = ['bg-rose-400', 'bg-orange-400', 'bg-amber-400', 'bg-lime-500', 'bg-emerald-500', 'bg-teal-500', 'bg-cyan-500', 'bg-sky-500', 'bg-indigo-400', 'bg-violet-400', 'bg-fuchsia-400', 'bg-pink-400']
+
+/** The same name always gets the same colour, so a person is easy to spot across the screen. Without a name it stays grey. */
+const colorOf = (seed: string) => AVATAR_COLORS[[...seed].reduce((sum, char) => (sum * 31 + char.charCodeAt(0)) % 9973, 7) % AVATAR_COLORS.length]
+
+export const Avatar: React.FC<{ seed?: string }> = ({ seed }) => <span className={cn('mr-1.5 inline-block h-5 w-5 shrink-0 ds-circle align-middle', seed ? colorOf(seed) : 'bg-slate-300')} />
 
 export const Chip: React.FC<{ teal?: boolean; onRemove?: () => void; children: React.ReactNode }> = ({ teal, onRemove, children }) => (
   <span className={cn('inline-flex h-9 items-center ds-circle border pl-2 pr-3 text-[13px]', teal ? 'border-teal-300 bg-teal-50 text-teal-800' : 'border-blue-200 bg-blue-50 text-blue-900')}>
-    <Avatar />
+    <Avatar seed={teal || typeof children !== 'string' ? undefined : children} />
     <span>{children}</span>
     {onRemove && (
       <button type="button" aria-label="Remove" onClick={onRemove} className="ml-2 flex h-5 w-5 items-center justify-center text-slate-500 hover:text-red-600">

@@ -1,7 +1,7 @@
 'use client'
 
-import React, { useRef, useState } from 'react'
-import { Controller, useFieldArray, useForm } from 'react-hook-form'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
+import { Controller, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useApiFeedback } from '@/hooks/useApiFeedback'
@@ -13,6 +13,8 @@ import {
   useGetNotificationEventsQuery,
   useGetNotificationTabsQuery,
   useSaveNotificationEventMutation,
+  usePreviewNotificationEmailMutation,
+  type NotificationEmailPreview,
   type NotificationEvent,
   type PersonRef,
   type RecipientLine,
@@ -21,39 +23,46 @@ import {
 import { Switch } from '@/components/switch/Switch'
 import type { Slots } from './ApprovalsScreen'
 import { fieldClass } from '@/components/form-field/FormField'
-import { Btn, FooterBar, Loading, OnOff, PaneTitle, RemoveBtn, SectionLabel, Select, SideItem, SideTitle, TwoPane } from './ui'
+import { AddPicker, Btn, Chip, FooterBar, Loading, OnOff, PaneTitle, SectionLabel, Select, SideItem, SideTitle, TwoPane } from './ui'
 import { cn } from '@/utils/cn'
 
 const GROUP_ORDER = ['Finance', 'Containers', 'Shipping', 'Procurement']
 
-const KINDS = [
-  { value: 'CREATOR', label: 'The creator' },
-  { value: 'TAB_ACCESS', label: 'Everyone with access to' },
-  { value: 'DEPARTMENT', label: 'A department' },
-  { value: 'USER', label: 'A person' },
-] as const
+/** Events that exist on the server but are not offered here for now (they keep sending with their defaults). */
+const HIDDEN_EVENTS: ReadonlySet<string> = new Set(['procurement.purchase-order.rejected'])
 
-type Kind = (typeof KINDS)[number]['value']
+/** Who is told, grouped by kind: one multi-select each, so a screen, a department or a person never needs its own row. */
+const recipientsSchema = z
+  .object({ creator: z.boolean(), tabs: z.array(z.string()), departments: z.array(z.number()), users: z.array(z.number()) })
+  .refine((who) => Number(who.creator) + who.tabs.length + who.departments.length + who.users.length <= 30, 'Too many recipients')
 
-const rowSchema = z
-  .object({ kind: z.enum(['CREATOR', 'TAB_ACCESS', 'DEPARTMENT', 'USER']), permissionPage: z.string(), departmentId: z.string(), userId: z.string() })
-  .superRefine((row, ctx) => {
-    const missing = (field: 'permissionPage' | 'departmentId' | 'userId', message: string) => ctx.addIssue({ code: z.ZodIssueCode.custom, path: [field], message })
-    if (row.kind === 'TAB_ACCESS' && !row.permissionPage) missing('permissionPage', 'Pick a tab')
-    if (row.kind === 'DEPARTMENT' && !row.departmentId) missing('departmentId', 'Pick a department')
-    if (row.kind === 'USER' && !row.userId) missing('userId', 'Pick a person')
-  })
+type Recipients = z.infer<typeof recipientsSchema>
 
 const schema = z.object({
   isActive: z.boolean(),
   inApp: z.boolean(),
   email: z.boolean(),
-  recipients: z.array(rowSchema).max(30),
+  recipients: recipientsSchema,
   title: z.string().trim().min(1, 'The title cannot be empty').max(150, 'The title is too long'),
   body: z.string().trim().max(1000, 'The message is too long'),
 })
 
 type Values = z.infer<typeof schema>
+
+const recipientsOf = (lines: RecipientLine[]): Recipients => ({
+  creator: lines.some((line) => line.kind === 'CREATOR'),
+  tabs: lines.flatMap((line) => (line.kind === 'TAB_ACCESS' ? [line.permissionPage] : [])),
+  departments: lines.flatMap((line) => (line.kind === 'DEPARTMENT' ? [line.departmentId] : [])),
+  users: lines.flatMap((line) => (line.kind === 'USER' ? [line.userId] : [])),
+})
+
+/** What the server stores: one line per pick. */
+const linesOf = (who: Recipients): RecipientLine[] => [
+  ...(who.creator ? [{ kind: 'CREATOR' as const }] : []),
+  ...who.tabs.map((permissionPage) => ({ kind: 'TAB_ACCESS' as const, permissionPage })),
+  ...who.departments.map((departmentId) => ({ kind: 'DEPARTMENT' as const, departmentId })),
+  ...who.users.map((userId) => ({ kind: 'USER' as const, userId })),
+]
 
 const valuesOf = (event: NotificationEvent): Values => ({
   isActive: event.isActive,
@@ -61,18 +70,27 @@ const valuesOf = (event: NotificationEvent): Values => ({
   email: event.email,
   title: event.wording.title,
   body: event.wording.body,
-  recipients: event.recipients.map((line) => ({
-    kind: line.kind,
-    permissionPage: line.kind === 'TAB_ACCESS' ? line.permissionPage : '',
-    departmentId: line.kind === 'DEPARTMENT' ? String(line.departmentId) : '',
-    userId: line.kind === 'USER' ? String(line.userId) : '',
-  })),
+  recipients: recipientsOf(event.recipients),
 })
 
-const lineOf = (row: Values['recipients'][number]): RecipientLine =>
-  row.kind === 'CREATOR' ? { kind: 'CREATOR' } : row.kind === 'TAB_ACCESS' ? { kind: 'TAB_ACCESS', permissionPage: row.permissionPage } : row.kind === 'DEPARTMENT' ? { kind: 'DEPARTMENT', departmentId: Number(row.departmentId) } : { kind: 'USER', userId: Number(row.userId) }
-
 const nameOf = (person: PersonRef) => person.name ?? person.email
+
+/** The email in a frame as tall as the email itself, so the pane's own scrollbar is the only one. */
+const EmailFrame: React.FC<{ html: string }> = ({ html }) => {
+  const frame = useRef<HTMLIFrameElement>(null)
+  const fit = useCallback(() => {
+    const box = frame.current
+    const page = box?.contentDocument?.documentElement
+    // The border is part of the frame's height, so it is added on top of the email's own
+    if (box && page) box.style.height = `${page.scrollHeight + (box.offsetHeight - box.clientHeight)}px`
+  }, [])
+  useEffect(() => {
+    window.addEventListener('resize', fit)
+    return () => window.removeEventListener('resize', fit)
+  }, [fit])
+  // No scripts run in it; allowing the same origin only lets us read its height
+  return <iframe ref={frame} title="Email preview" sandbox="allow-same-origin" scrolling="no" srcDoc={html} onLoad={fit} style={{ height: 600 }} className="block w-full rounded-lg border border-slate-200 bg-white" />
+}
 
 interface EditorProps {
   event: NotificationEvent
@@ -108,13 +126,33 @@ const EventEditor: React.FC<EditorProps> = ({ event, tabs, users, departments, r
   }
   const example = (text: string) => text.replace(/\{(\w+)\}/g, (match, token: string) => event.placeholders.find((placeholder) => placeholder.token === token)?.example ?? match)
   const differsFromDefault = wording.title !== event.defaultWording.title || wording.body !== event.defaultWording.body
-  const { fields, append, remove } = useFieldArray({ control, name: 'recipients' })
-  const rows = watch('recipients')
   const dirty = formState.isDirty
+
+  // The email below the editor is the real template, rendered by the server for what is typed (a moment after typing stops)
+  const [previewEmail] = usePreviewNotificationEmailMutation()
+  const [mail, setMail] = useState<NotificationEmailPreview | null>(null)
+  const [mailFailed, setMailFailed] = useState(false)
+  const [previewAs, setPreviewAs] = useState<number | undefined>(undefined)
+  const latestPreview = useRef(0)
+  const picked = JSON.stringify(linesOf(watch('recipients')))
+  useEffect(() => {
+    const run = ++latestPreview.current
+    const timer = setTimeout(() => {
+      previewEmail({ key: event.key, title: wording.title, body: wording.body, recipients: JSON.parse(picked) as RecipientLine[], asUserId: previewAs })
+        .unwrap()
+        .then((result) => {
+          if (run !== latestPreview.current) return
+          setMail(result)
+          setMailFailed(false)
+        })
+        .catch(() => run === latestPreview.current && setMailFailed(true))
+    }, 350)
+    return () => clearTimeout(timer)
+  }, [event.key, wording.title, wording.body, picked, previewAs, previewEmail])
 
   const submit = handleSubmit(async (values) => {
     try {
-      const saved = await save({ key: event.key, body: { isActive: values.isActive, inApp: values.inApp, email: values.email, recipients: values.recipients.map(lineOf), title: values.title, body: values.body } }).unwrap()
+      const saved = await save({ key: event.key, body: { isActive: values.isActive, inApp: values.inApp, email: values.email, recipients: linesOf(values.recipients), title: values.title, body: values.body } }).unwrap()
       reset(valuesOf(saved))
       success(`${event.label}: saved`)
     } catch (error) {
@@ -122,12 +160,10 @@ const EventEditor: React.FC<EditorProps> = ({ event, tabs, users, departments, r
     }
   })
 
-  const countOf = (index: number): string => {
-    const saved = event.recipients[index]
-    const row = rows[index]
-    if (!saved || !row || saved.count === null || saved.kind !== row.kind) return ''
-    const unchanged = (saved.kind === 'TAB_ACCESS' && saved.permissionPage === row.permissionPage) || (saved.kind === 'DEPARTMENT' && String(saved.departmentId) === row.departmentId) || (saved.kind === 'USER' && String(saved.userId) === row.userId)
-    return unchanged ? `${saved.count} ${saved.count === 1 ? 'person' : 'people'} today` : ''
+  /** "9 people today" for a pick that is already saved. */
+  const countOf = (kind: RecipientLine['kind'], same: (line: RecipientLine) => boolean): string => {
+    const saved = event.recipients.find((line) => line.kind === kind && same(line))
+    return saved && saved.count !== null ? ` · ${saved.count}` : ''
   }
 
   return (
@@ -149,40 +185,92 @@ const EventEditor: React.FC<EditorProps> = ({ event, tabs, users, departments, r
       </PaneTitle>
 
       <SectionLabel>Tell these people</SectionLabel>
-      {fields.map((field, index) => {
-        const row = rows[index]
-        if (!row) return null
-        const errors = formState.errors.recipients?.[index]
-        const problem = errors?.permissionPage?.message ?? errors?.departmentId?.message ?? errors?.userId?.message
-        return (
-          <div key={field.id} className="relative mb-3 rounded-lg border border-slate-200 bg-white p-4">
-            {!readOnly && <RemoveBtn corner label="Remove recipient" onClick={() => remove(index)} />}
-            <div className="flex items-center gap-3 pr-10">
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center ds-circle bg-teal-700 text-[13px] font-bold leading-none text-white">{index + 1}</span>
-              <Controller control={control} name={`recipients.${index}.kind`} render={({ field: kind }) => <Select options={KINDS as unknown as Array<{ value: Kind; label: string }>} value={kind.value} onChange={kind.onChange} searchable={false} disabled={readOnly || saving} width="w-52 shrink-0" />} />
-              {row.kind === 'TAB_ACCESS' && (
-                <Controller control={control} name={`recipients.${index}.permissionPage`} render={({ field: tab }) => <Select options={tabs.map((option) => ({ value: option.permissionPage, label: option.label }))} value={tab.value || undefined} onChange={tab.onChange} placeholder="Pick a tab…" searchable disabled={readOnly || saving} width="flex-1" />} />
-              )}
-              {row.kind === 'DEPARTMENT' && (
-                <Controller control={control} name={`recipients.${index}.departmentId`} render={({ field: department }) => <Select options={departments.map((option) => ({ value: String(option.id), label: `${option.name} (heads)` }))} value={department.value || undefined} onChange={department.onChange} placeholder="Pick a department…" disabled={readOnly || saving} width="flex-1" />} />
-              )}
-              {row.kind === 'USER' && (
-                <Controller control={control} name={`recipients.${index}.userId`} render={({ field: user }) => <Select options={users.map((option) => ({ value: String(option.id), label: nameOf(option) }))} value={user.value || undefined} onChange={user.onChange} placeholder="Pick a person…" searchable disabled={readOnly || saving} width="flex-1" />} />
-              )}
+      <Controller
+        control={control}
+        name="recipients"
+        render={({ field }) => {
+          const who = field.value
+          const set = (next: Partial<Recipients>) => field.onChange({ ...who, ...next })
+          const off = readOnly || saving
+          const group = (title: string, hint: string, children: React.ReactNode) => (
+            <div>
+              <p className="mb-1.5 text-[13px] font-medium text-slate-800">
+                {title} <span className="font-normal text-slate-500">{hint}</span>
+              </p>
+              <div className="flex flex-wrap items-center gap-2">{children}</div>
             </div>
-            {countOf(index) && <p className="mt-2 pl-10 text-[13px] text-slate-500">{countOf(index)}</p>}
-            {problem && <p className="mt-2 text-xs text-red-600">{problem}</p>}
-          </div>
-        )
-      })}
-      {!readOnly && (
-        <div className="mb-6 mt-1 flex flex-wrap items-center gap-3">
-          <Btn disabled={saving} onClick={() => append({ kind: 'TAB_ACCESS' as Kind, permissionPage: '', departmentId: '', userId: '' })}>
-            + Add recipient
-          </Btn>
-          <span className="text-xs text-slate-500">The creator · Everyone with access to a tab · A department · A person</span>
-        </div>
-      )}
+          )
+          return (
+            <div className="mb-6 flex flex-col gap-5 rounded-lg border border-slate-200 bg-white p-4">
+              <label className="flex items-center gap-3 text-[13px] text-slate-800">
+                <Switch checked={who.creator} onCheckedChange={(creator) => set({ creator })} disabled={off} aria-label="The creator" />
+                The creator
+              </label>
+              {group('Everyone with access to', 'pick as many screens as you need', (
+                <>
+                  {!readOnly && (
+                    <AddPicker
+                      label="+ Add screens"
+                      options={tabs.filter((tab) => !who.tabs.includes(tab.permissionPage)).map((tab) => ({ key: tab.permissionPage, label: tab.label }))}
+                      onAdd={(picked) => set({ tabs: [...who.tabs, ...picked.map((option) => option.key)] })}
+                      empty="Every screen is already picked."
+                      disabled={off}
+                      width="w-64"
+                    />
+                  )}
+                  {who.tabs.map((page) => (
+                    <Chip key={page} onRemove={off ? undefined : () => set({ tabs: who.tabs.filter((item) => item !== page) })}>
+                      {(tabs.find((tab) => tab.permissionPage === page)?.label ?? page) + countOf('TAB_ACCESS', (line) => line.kind === 'TAB_ACCESS' && line.permissionPage === page)}
+                    </Chip>
+                  ))}
+                </>
+              ))}
+              {group('Department heads', 'of these departments', (
+                <>
+                  {!readOnly && (
+                    <AddPicker
+                      label="+ Add departments"
+                      options={departments.filter((department) => !who.departments.includes(department.id)).map((department) => ({ key: String(department.id), label: `${department.name} (heads)` }))}
+                      onAdd={(picked) => set({ departments: [...who.departments, ...picked.map((option) => Number(option.key))] })}
+                      empty="Every department is already picked."
+                      disabled={off}
+                      width="w-64"
+                    />
+                  )}
+                  {who.departments.map((id) => (
+                    <Chip key={id} onRemove={off ? undefined : () => set({ departments: who.departments.filter((item) => item !== id) })}>
+                      {(departments.find((department) => department.id === id)?.name ?? 'Department') + countOf('DEPARTMENT', (line) => line.kind === 'DEPARTMENT' && line.departmentId === id)}
+                    </Chip>
+                  ))}
+                </>
+              ))}
+              {group('People', 'named people', (
+                <>
+                  {!readOnly && (
+                    <AddPicker
+                      label="+ Add people"
+                      options={users.filter((user) => !who.users.includes(user.id)).map((user) => ({ key: String(user.id), label: nameOf(user), hint: user.email }))}
+                      onAdd={(picked) => set({ users: [...who.users, ...picked.map((option) => Number(option.key))] })}
+                      empty="Everyone is already picked."
+                      disabled={off}
+                      width="w-64"
+                    />
+                  )}
+                  {who.users.map((id) => {
+                    const person = users.find((user) => user.id === id)
+                    return (
+                      <Chip key={id} onRemove={off ? undefined : () => set({ users: who.users.filter((item) => item !== id) })}>
+                        {person ? nameOf(person) : 'A person'}
+                      </Chip>
+                    )
+                  })}
+                </>
+              ))}
+            </div>
+          )
+        }}
+      />
+      {formState.errors.recipients && <p className="-mt-4 mb-6 text-xs text-red-600">{formState.errors.recipients.message}</p>}
 
       <div className="border-t border-slate-200 pt-5">
         <SectionLabel>Send by</SectionLabel>
@@ -194,7 +282,7 @@ const EventEditor: React.FC<EditorProps> = ({ event, tabs, users, departments, r
 
       <div className="mt-6 border-t border-slate-200 pt-5">
         <div className="mb-2 flex min-h-8 items-center justify-between">
-          <SectionLabel>Wording</SectionLabel>
+          <SectionLabel>Template settings</SectionLabel>
           {!readOnly && differsFromDefault && (
             <button type="button" onClick={() => { setValue('title', event.defaultWording.title, { shouldDirty: true }); setValue('body', event.defaultWording.body, { shouldDirty: true }) }} className="text-[13px] text-slate-500 underline hover:text-slate-800">
               Reset to default
@@ -236,9 +324,35 @@ const EventEditor: React.FC<EditorProps> = ({ event, tabs, users, departments, r
         )}
 
         <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-[13px]">
-          <div className="mb-1 text-xs text-slate-500">What they receive (with an example):</div>
+          <div className="mb-1 text-xs text-slate-500">In the bell (with an example):</div>
           <b>{example(wording.title) || '…'}</b>
           {wording.body.trim() && <div className="mt-0.5 whitespace-pre-line text-slate-600">{example(wording.body)}</div>}
+        </div>
+
+        <div className="mt-6">
+          <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+            <SectionLabel>Email preview</SectionLabel>
+            {mail && <span className="text-xs text-slate-500">Subject: {mail.subject || '(empty)'}</span>}
+          </div>
+          {mail && (
+            <div className="mb-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-500">
+              <p className="min-w-0 flex-1">
+                {mail.usesYourName
+                  ? 'Nobody is picked yet, so your name is shown. '
+                  : `${mail.total} ${mail.total === 1 ? 'person receives' : 'people receive'} this. `}
+                Each person gets it with their own name{mail.includesCreator ? ', and so does the creator of the record' : ''}. Shown for <b className="text-slate-700">{mail.shownFor.name}</b>.
+              </p>
+              {mail.people.length > 1 && (
+                <span className="flex items-center gap-2">
+                  Preview as
+                  <Select<number> options={mail.people.map((person) => ({ value: person.id, label: person.name }))} value={mail.shownFor.id ?? undefined} onChange={setPreviewAs} searchable width="w-52" />
+                </span>
+              )}
+            </div>
+          )}
+          {!watch('email') && <p className="mb-2 text-xs text-amber-700">Email is switched off for this event. This is what would be sent once you switch it on.</p>}
+          <EmailFrame html={mail?.html ?? ''} />
+          {mailFailed && <p className="mt-1 text-xs text-red-600">Could not refresh the preview. It shows the last one that loaded.</p>}
         </div>
       </div>
     </form>
@@ -258,7 +372,8 @@ const EventLoader: React.FC<{ eventKey: string; readOnly: boolean; slots: Slots 
 /** Notifications tab: for each thing that happens in the app, who is told, and how. */
 export const NotificationsTab: React.FC<{ slots: Slots }> = ({ slots }) => {
   const canEdit = useAppAbility().can('write', 'settings:approvals')
-  const { data: events = [], isLoading } = useGetNotificationEventsQuery()
+  const { data: allEvents = [], isLoading } = useGetNotificationEventsQuery()
+  const events = allEvents.filter((event) => !HIDDEN_EVENTS.has(event.key))
   const [selected, setSelected] = useState<string | null>(null)
   if (isLoading) return <Loading />
   const key = selected ?? events[0]?.key
