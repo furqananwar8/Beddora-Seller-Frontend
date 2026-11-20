@@ -4,7 +4,6 @@ import React, { useMemo, useRef, useState } from 'react'
 import { Controller, useFieldArray, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Spinner } from '@/design-system/loaders'
 import { useApiFeedback } from '@/hooks/useApiFeedback'
 import { useAppAbility } from '@/hooks/useAppAbility'
 import {
@@ -20,7 +19,7 @@ import {
   type RuleAssignee,
 } from '@/services/api/approvals.api'
 import type { Slots } from './ApprovalsScreen'
-import { AddPicker, Btn, Chip, FooterBar, OnOff, PaneTitle, RemoveBtn, Select, SideItem, SideTitle, Tag, TwoPane, type PickOption } from './ui'
+import { AddPicker, Btn, Chip, FooterBar, Loading, OnOff, PaneTitle, RemoveBtn, Select, SideItem, SideTitle, Tag, TwoPane, type PickOption } from './ui'
 import { cn } from '@/utils/cn'
 
 // Same order as the design
@@ -203,7 +202,7 @@ const RuleEditor: React.FC<EditorProps> = ({ rule, lookups, readOnly, slots }) =
 /** Loads one action's rule; the editor mounts only once the rule is here, so its form starts from it. */
 const RuleLoader: React.FC<{ actionKey: string; lookups: Lookups; readOnly: boolean; slots: Slots }> = ({ actionKey, lookups, readOnly, slots }) => {
   const { data: rule, isLoading, isError } = useGetApprovalRuleQuery(actionKey)
-  if (isLoading) return <Spinner />
+  if (isLoading) return <Loading />
   if (isError || !rule) return <p className="text-sm text-red-600">Could not load this rule.</p>
   return <RuleEditor key={`${rule.key}-${JSON.stringify(rule.steps)}`} rule={rule} lookups={lookups} readOnly={readOnly} slots={slots} />
 }
@@ -217,7 +216,7 @@ export const RulesTab: React.FC<{ slots: Slots }> = ({ slots }) => {
   const [selected, setSelected] = useState<string | null>(null)
   const lookups = useMemo(() => ({ users, departments }), [users, departments])
 
-  if (isLoading) return <div className="p-6"><Spinner /></div>
+  if (isLoading) return <Loading />
   // The first rule in the design's order is open until another is picked
   const first = [...actions].filter((action) => action.available).sort((x, y) => rank(GROUP_ORDER, x.group) - rank(GROUP_ORDER, y.group) || rank(ACTION_ORDER, x.key) - rank(ACTION_ORDER, y.key))[0]
   const key = selected ?? first?.key

@@ -4,7 +4,6 @@ import React, { useRef, useState } from 'react'
 import { Controller, useFieldArray, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Spinner } from '@/design-system/loaders'
 import { useApiFeedback } from '@/hooks/useApiFeedback'
 import { useAppAbility } from '@/hooks/useAppAbility'
 import {
@@ -22,7 +21,7 @@ import {
 import { Switch } from '@/components/switch/Switch'
 import type { Slots } from './ApprovalsScreen'
 import { fieldClass } from '@/components/form-field/FormField'
-import { Btn, FooterBar, OnOff, PaneTitle, RemoveBtn, SectionLabel, Select, SideItem, SideTitle, TwoPane } from './ui'
+import { Btn, FooterBar, Loading, OnOff, PaneTitle, RemoveBtn, SectionLabel, Select, SideItem, SideTitle, TwoPane } from './ui'
 import { cn } from '@/utils/cn'
 
 const GROUP_ORDER = ['Finance', 'Containers', 'Shipping', 'Procurement']
@@ -251,7 +250,7 @@ const EventLoader: React.FC<{ eventKey: string; readOnly: boolean; slots: Slots 
   const { data: tabs = [] } = useGetNotificationTabsQuery()
   const { data: users = [] } = useGetApprovalUsersQuery()
   const { data: departments = [] } = useGetDepartmentsQuery()
-  if (isLoading) return <Spinner />
+  if (isLoading) return <Loading />
   if (isError || !event) return <p className="text-sm text-red-600">Could not load this event.</p>
   return <EventEditor key={`${event.key}-${event.customised}-${JSON.stringify(event.recipients.map((line) => [line.kind, line.label]))}-${event.isActive}-${event.inApp}-${event.email}-${event.wording.title}-${event.wording.body}`} event={event} tabs={tabs} users={users} departments={departments} readOnly={readOnly} slots={slots} />
 }
@@ -261,7 +260,7 @@ export const NotificationsTab: React.FC<{ slots: Slots }> = ({ slots }) => {
   const canEdit = useAppAbility().can('write', 'settings:approvals')
   const { data: events = [], isLoading } = useGetNotificationEventsQuery()
   const [selected, setSelected] = useState<string | null>(null)
-  if (isLoading) return <div className="p-6"><Spinner /></div>
+  if (isLoading) return <Loading />
   const key = selected ?? events[0]?.key
   // Same order as the design; a group the design does not know goes last
   const groups = [...new Set(events.map((event) => event.group))].sort((x, y) => (GROUP_ORDER.indexOf(x) + 1 || 99) - (GROUP_ORDER.indexOf(y) + 1 || 99))

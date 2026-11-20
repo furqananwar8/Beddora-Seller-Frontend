@@ -7,7 +7,6 @@ import { z } from 'zod'
 import { ConfirmDialog } from '@/components/confirm-dialog/ConfirmDialog'
 import { FormField, fieldClass } from '@/components/form-field/FormField'
 import { Button } from '@/design-system/buttons'
-import { Spinner } from '@/design-system/loaders'
 import { Modal } from '@/design-system/modals'
 import { useApiFeedback } from '@/hooks/useApiFeedback'
 import { useAppAbility } from '@/hooks/useAppAbility'
@@ -23,7 +22,7 @@ import {
   type Platform,
 } from '@/services/api/approvals.api'
 import type { Slots } from './ApprovalsScreen'
-import { AddPicker, Avatar, Btn, Chip, FooterBar, InHeader, PaneTitle, RemoveBtn, SectionLabel, Select, SideItem, Tag, TwoPane, XIcon } from './ui'
+import { AddPicker, Avatar, Btn, Chip, FooterBar, InHeader, Loading, PaneTitle, RemoveBtn, SectionLabel, Select, SideItem, Tag, TwoPane, XIcon } from './ui'
 
 const nameOf = (person: PersonRef) => person.name ?? person.email
 const byName = (a: PersonRef, b: PersonRef) => nameOf(a).localeCompare(nameOf(b), undefined, { sensitivity: 'base' })
@@ -245,7 +244,7 @@ export const DepartmentsTab: React.FC<{ slots: Slots }> = ({ slots }) => {
 
   const current = departments.find((department) => department.id === (selected ?? departments[0]?.id)) ?? null
 
-  if (isLoading) return <div className="p-6"><Spinner /></div>
+  if (isLoading) return <Loading />
 
   return (
     <>

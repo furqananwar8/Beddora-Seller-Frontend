@@ -4,6 +4,7 @@ import React, { useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { SearchableSelect } from '@/components/searchable-select/SearchableSelect'
 import { Button } from '@/design-system/buttons'
+import { Spinner } from '@/design-system/loaders'
 import { cn } from '@/utils/cn'
 
 /** Building blocks of the Approvals screen, styled to match the approved design (v3 PDF) piece by piece. */
@@ -128,6 +129,13 @@ export const PaneTitle: React.FC<{ title: React.ReactNode; right?: React.ReactNo
 )
 
 /** A section label inside a pane ("Heads", "Members", "Tell these people"). */
+/** A spinner in the middle of the space it will fill. */
+export const Loading: React.FC = () => (
+  <div className="flex min-h-[240px] w-full items-center justify-center">
+    <Spinner />
+  </div>
+)
+
 export const SectionLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => <div className="mb-2 text-sm font-semibold text-slate-900">{children}</div>
 
 export const OnOff: React.FC<{ on: boolean; onChange?: (on: boolean) => void; disabled?: boolean }> = ({ on, onChange, disabled }) => (
