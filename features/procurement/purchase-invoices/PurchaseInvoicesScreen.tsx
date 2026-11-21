@@ -9,6 +9,7 @@ import { useStagedFilters } from '@/components/filter-bar/useStagedFilters'
 import { FormField } from '@/components/form-field/FormField'
 import { Container } from '@/components/layout'
 import { useFitToViewport } from '@/hooks/useFitToViewport'
+import { useRowHighlight } from '@/hooks/useRowHighlight'
 import { PaginationFooter } from '@/components/pagination-footer/PaginationFooter'
 import { ReasonDialog } from '@/components/reason-dialog/ReasonDialog'
 import { RowActionsMenu, type RowActionItem } from '@/components/row-actions-menu/RowActionsMenu'
@@ -107,6 +108,7 @@ export const PurchaseInvoicesScreen: React.FC = () => {
   ]
 
   const rows = data?.data ?? []
+  const highlight = useRowHighlight(rows.map((row) => row.id))
 
   return (
     <Container size="full" className="py-4 sm:py-8">
@@ -198,7 +200,7 @@ export const PurchaseInvoicesScreen: React.FC = () => {
                 </TableRow>
               ) : (
                 rows.map((row) => (
-                  <TableRow key={row.id} className={cn('hover:bg-secondary-50', row.id === openId && 'bg-warning-50 hover:bg-warning-50')}>
+                  <TableRow key={row.id} {...highlight.rowProps(row.id)} className={cn('hover:bg-secondary-50', row.id === openId && 'bg-warning-50 hover:bg-warning-50', highlight.highlightClass(row.id))}>
                     <TableCell className={cn(CELL, 'whitespace-nowrap font-semibold text-text-primary')}>{row.invoiceRef}</TableCell>
                     <TableCell className={cn(CELL, 'whitespace-nowrap')}>{row.invoiceNo}</TableCell>
                     <TableCell className={cn(CELL, 'whitespace-nowrap')}>

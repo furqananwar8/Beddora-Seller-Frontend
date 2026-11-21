@@ -2,6 +2,7 @@
 
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { formatDistanceToNow } from 'date-fns'
 import { NavIcons } from '@/components/navigation/icons'
@@ -14,21 +15,23 @@ import {
   useMarkNotificationReadMutation,
 } from '@/services/api/notifications.api'
 import { cn } from '@/utils/cn'
+import { notificationHref } from '@/utils/notificationLink'
 
-const PAGE_SIZE = 10
+/** The bell shows the latest few; the full history lives on the notifications screen. */
+const PREVIEW_SIZE = 10
+const ALL_NOTIFICATIONS_HREF = '/dashboard/notifications'
 
 /** Bell with unread badge and a dropdown of the user's notifications. Live via the Notifications cache tag. */
 export const NotificationBell: React.FC = () => {
   const router = useRouter()
   const [open, setOpen] = useState(false)
-  const [limit, setLimit] = useState(PAGE_SIZE)
   const wrapperRef = useRef<HTMLDivElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
   const [panelTop, setPanelTop] = useState(64)
   const [panelRight, setPanelRight] = useState(12)
 
   const { data: unread = 0 } = useGetUnreadCountQuery()
-  const { data, isLoading, isFetching } = useGetNotificationsQuery({ page: 1, limit })
+  const { data, isLoading } = useGetNotificationsQuery({ page: 1, limit: PREVIEW_SIZE })
   const [markRead] = useMarkNotificationReadMutation()
   const [markAll] = useMarkAllNotificationsReadMutation()
 
@@ -63,11 +66,11 @@ export const NotificationBell: React.FC = () => {
   const openNotification = (notification: AppNotification) => {
     if (!notification.readAt) void markRead(notification.id)
     setOpen(false)
-    if (notification.link) router.push(notification.link)
+    const href = notificationHref(notification)
+    if (href) router.push(href)
   }
 
   const items = data?.data ?? []
-  const hasMore = data ? data.totalRecords > items.length : false
 
   return (
     <div ref={wrapperRef} className="relative">
@@ -137,16 +140,13 @@ export const NotificationBell: React.FC = () => {
             )}
           </div>
 
-          {hasMore && (
-            <button
-              type="button"
-              disabled={isFetching}
-              onClick={() => setLimit((value) => value + PAGE_SIZE)}
-              className="w-full border-t border-border px-4 py-2.5 text-xs font-medium text-text-muted hover:bg-secondary-50 hover:text-text-primary disabled:opacity-50"
-            >
-              {isFetching ? 'Loading…' : 'Load older notifications'}
-            </button>
-          )}
+          <Link
+            href={ALL_NOTIFICATIONS_HREF}
+            onClick={() => setOpen(false)}
+            className="block w-full border-t border-border px-4 py-2.5 text-center text-xs font-medium text-text-muted hover:bg-secondary-50 hover:text-text-primary"
+          >
+            View all notifications
+          </Link>
         </div>,
         document.body
       )}
