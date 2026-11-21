@@ -19,6 +19,7 @@ const FIT_BELOW_HEADER_ROUTES = [
   '/dashboard/settings/general',
   '/dashboard/settings/users',
   '/dashboard/settings/addresses',
+  '/dashboard/settings/approvals',
 ]
 
 export interface NavItem {
@@ -406,6 +407,12 @@ export default function DashboardLayout({
                 subject: 'settings:gst',
                 action: 'read',
                 href: '/dashboard/settings/gst',
+              },
+              {
+                label: 'Approvals',
+                subject: 'settings:approvals',
+                action: 'read',
+                href: '/dashboard/settings/approvals',
               },
             ],
           },

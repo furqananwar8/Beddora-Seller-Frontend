@@ -81,11 +81,12 @@ export const ContainersScreen: React.FC = () => {
     },
     {
       key: 'weight',
-      header: 'Net / Gross wt', className: 'min-w-[230px]',
-      // Net and gross side by side on one line; it wraps only when the column is too narrow for both
+      header: 'Net / Gross wt', className: 'min-w-[130px]',
+      // Net weight on the first line, gross weight under it
       render: (container) => (
-        <span className="text-sm tabular-nums">
-          {kg(container.totals.netWeightKg)} / {kg(container.totals.grossWeightKg)}
+        <span className="flex flex-col items-center text-sm tabular-nums">
+          <span title="Net weight">{kg(container.totals.netWeightKg)}</span>
+          <span className="text-xs" title="Gross weight">{kg(container.totals.grossWeightKg)}</span>
         </span>
       ),
     },

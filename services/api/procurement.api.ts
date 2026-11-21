@@ -300,6 +300,24 @@ export interface SupplierRef {
   currency: string
 }
 
+/** One step of a PO's approval chain: who decided, who is next, who is still to come. */
+export interface PoApprovalStep {
+  position: number
+  completion: 'ANY' | 'ALL' | 'PER_GROUP'
+  state: 'DONE' | 'CURRENT' | 'WAITING' | 'REJECTED'
+  /** Who the step goes to, as the rule names them (shown before the step opens). */
+  labels: string[]
+  people: Array<{ userId: number; name: string; status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED'; note: string | null; decidedAt: string | null }>
+}
+
+export interface PoApproval {
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED'
+  currentPosition: number
+  steps: PoApprovalStep[]
+  /** The viewer holds a pending task in the current step. */
+  canDecide: boolean
+}
+
 export interface PurchaseOrderDetail {
   id: number
   poNo: string
@@ -341,6 +359,8 @@ export interface PurchaseOrderDetail {
   totals: { units: number; allocated: number; amount: number; linesAmount: number }
   remainingForNewPo: number
   events: PoEvent[]
+  /** The approval chain of the latest submission; null when it never had one. */
+  approval: PoApproval | null
   /** Set while an approver has unlocked this approved PO for editing; the next save locks it again. */
   unlockedAt: string | null
   unlockedBy: { id: number; name: string | null } | null
@@ -470,6 +490,8 @@ export interface PurchaseInvoiceDetail extends Omit<PurchaseInvoiceListItem, 'pa
   marketplace: { id: number; name: string; code: string } | null
   documents: PurchaseInvoiceDocument[]
   events: Array<{ id: number; type: string; actor: UserRef | null; payload: Record<string, unknown> | null; createdAt: string }>
+  /** The approval chain of its latest submission (who approves, in which order); null when it never had one. */
+  approval: PoApproval | null
   can: PurchaseInvoiceCan
 }
 
@@ -1020,7 +1042,7 @@ export interface PriceAnalysis {
 /** One line of an analysis's approval history: an approval, or an edit that took it back. */
 export interface PriceAnalysisEvent {
   id: number
-  type: 'APPROVED' | 'REJECTED' | 'APPROVAL_CLEARED'
+  type: 'APPROVED' | 'STEP_APPROVED' | 'REJECTED' | 'APPROVAL_CLEARED'
   supplierName: string | null
   unitPrice: number | null
   currency: string | null
@@ -1046,6 +1068,8 @@ export interface PriceAnalysisView {
   /** Newest first. */
   history: PriceAnalysisEvent[]
   permissions: { canApprove: boolean; canReject: boolean }
+  /** The approval chain waiting on this analysis (who approved which supplier at each step); null without one. */
+  approval: PoApproval | null
 }
 
 /** NONE: no quotes yet · PENDING: quoted, waiting for approval · APPROVED: one quote approved. */
@@ -1540,6 +1564,12 @@ export const procurementApi = baseApi.injectEndpoints({
       transformResponse: unwrap,
       invalidatesTags: ['ProcurementPriceAnalysis'],
     }),
+    /** Takes an approval back so the locked analysis can be changed; a fresh approval chain starts. */
+    reopenPriceAnalysis: b.mutation<PriceAnalysisView, { productId: number }>({
+      query: ({ productId }) => ({ url: `/procurement/price-analysis/${productId}/reopen`, method: 'POST' }),
+      transformResponse: unwrap,
+      invalidatesTags: ['ProcurementPriceAnalysis'],
+    }),
     rejectPriceAnalysisQuote: b.mutation<PriceAnalysisView, { productId: number; supplierId: number; reason: string; expectedUpdatedAt?: string }>({
       query: ({ productId, ...body }) => ({ url: `/procurement/price-analysis/${productId}/reject`, method: 'POST', body }),
       transformResponse: unwrap,
@@ -1668,6 +1698,7 @@ export const {
   useRemoveContainerPackagingListMutation,
   useGetPriceAnalysesQuery,
   useApprovePriceAnalysisMutation,
+  useReopenPriceAnalysisMutation,
   useRejectPriceAnalysisQuoteMutation,
   useGetPriceAnalysisQuery,
   useGetPriceAnalysisRevisionsQuery,

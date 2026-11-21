@@ -9,7 +9,7 @@ import { formatCurrency, formatNumber, formatPercentage } from "@/utils"
  * fit (five on a laptop, wrapping on narrow screens), a small fixed gap apart. Spare width stays on the right instead
  * of stretching tiles.
  */
-export const RESPONSIVE_TILE_COLUMNS = 'grid gap-4 grid-cols-[repeat(auto-fit,minmax(200px,280px))] justify-start'
+export const RESPONSIVE_TILE_COLUMNS = 'grid gap-4 grid-cols-[repeat(auto-fit,minmax(min(200px,100%),280px))] justify-start'
 export const SUMMARY_TILE_GRID = `${RESPONSIVE_TILE_COLUMNS} mb-6`
 
 /** Optional cells of the tile's metric grid. */

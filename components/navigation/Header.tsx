@@ -57,7 +57,7 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header className="ds-header">
       <div className="ds-header-inner">
-        <div className="ds-header-filters flex items-center gap-4 flex-1">
+        <div className="ds-header-filters flex items-center gap-2 sm:gap-4 flex-1 min-w-0">
           <button
             onClick={() => dispatch(toggleSidebar())}
             className="ds-icon-button lg:hidden"
@@ -71,15 +71,15 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Dashboard Title and Tabs in the same row */}
           {dashboardTitle && (
             <>
-              <div className="flex items-center gap-6 ml-4">
-                <h1 className="text-xl font-bold text-text-primary whitespace-nowrap">{dashboardTitle}</h1>
+              <div className="flex items-center gap-3 sm:gap-6 ml-1 sm:ml-4 min-w-0">
+                <h1 className="text-base sm:text-xl font-bold text-text-primary whitespace-nowrap hidden min-[480px]:block">{dashboardTitle}</h1>
                 {dashboardTabs.length > 0 && (
-                  <div className="flex gap-1 items-center">
+                  <div className="flex gap-1 items-center min-w-0 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                     {dashboardTabs.map((tab) => (
                       <button
                         key={tab.id}
                         onClick={() => onDashboardTabChange?.(tab.id)}
-                        className={`px-3 py-2 text-sm font-medium transition-colors flex items-center gap-1.5 border-b-2 ${
+                        className={`px-2 sm:px-3 py-2 text-sm font-medium transition-colors flex items-center gap-1.5 border-b-2 shrink-0 whitespace-nowrap ${
                           activeDashboardTab === tab.id
                             ? 'border-primary-600 text-primary-600'
                             : 'border-transparent text-text-muted hover:text-text-primary hover:border-border'
@@ -96,8 +96,8 @@ export const Header: React.FC<HeaderProps> = ({
           )}
         </div>
 
-        <div className="ds-header-actions">
-          <HeaderClock />
+        <div className="ds-header-actions shrink-0">
+          <div className="hidden md:block"><HeaderClock /></div>
           <NotificationBell />
           {onLogout && (
             <Button variant="primary" size="sm" onClick={onLogout}>

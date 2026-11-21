@@ -3,7 +3,8 @@ import { cn } from '@/utils/cn'
 import { LabelNote } from '@/components/label-note/LabelNote'
 
 interface FormFieldProps {
-  label: string
+  /** Plain text (a trailing "(note)" goes on its own line under it) or your own markup, shown as it is. */
+  label: React.ReactNode
   htmlFor?: string
   required?: boolean
   error?: string

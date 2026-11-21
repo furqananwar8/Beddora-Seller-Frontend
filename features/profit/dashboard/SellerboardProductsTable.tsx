@@ -33,6 +33,7 @@ import { FbaStockPopover } from './components/FbaStockPopover'
 import { useGetFbaStockQuery, type FbaStockSummary } from '@/services/api/inventoryPlanner.api'
 import { cn } from '@/utils/cn'
 import { useColumnResize } from '@/hooks/useColumnResize'
+import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { ColumnResizeHandle, columnWidthStyle } from '@/components/column-resize-handle/ColumnResizeHandle'
 import { lossTone, profitTone } from '@/utils/profitTone'
 
@@ -89,6 +90,8 @@ export interface SellerboardProductsTableProps {
   fbaStockScope?: { marketplace?: string }
   /** The report's currency; the product cell's price and COGS show its symbol (C$...). */
   currency?: string
+  /** Who manages a SKU (Profit > PM Incentive). When given, a Manager column shows next to the product. */
+  managersOfSku?: (sku: string) => string[]
 }
 
 type SortColumn = string
@@ -97,6 +100,8 @@ type BuiltInSortColumn =
   | 'name'
   | 'units'
   | 'refunds'
+  | 'refundPct'
+  | 'manager'
   | 'sales'
   | 'promo'
   | 'ads'
@@ -127,6 +132,9 @@ const storageFeeOf = (product: ProductProfitBreakdown) => Number(product.estimat
 /** Net profit once the estimated storage cost is taken out (display only). */
 const netAfterStorageOf = (product: ProductProfitBreakdown) => (product.netProfit || 0) - storageFeeOf(product)
 
+/** Refunded units as a percentage of units sold (the same rate the period tiles use). */
+const refundRateOf = (product: ProductProfitBreakdown) => (product.unitsSold ? ((product.totalRefunds || 0) / product.unitsSold) * 100 : 0)
+
 /** Ads as a percentage of sales. */
 const tacosOf = (product: ProductProfitBreakdown) => (product.salesRevenue ? (Math.abs(product.advertisingCost || 0) / product.salesRevenue) * 100 : 0)
 
@@ -155,6 +163,16 @@ const COLUMN_TOOLTIPS: Record<
     title: 'Refund Units Count',
     formula: 'Sum(Quantity Refunded across Refund Events)',
     note: 'Total units returned or adjusted during the selected period.',
+  },
+  refundPct: {
+    title: 'Refund %',
+    formula: '(Refund Units / Units Sold) × 100',
+    note: 'Share of the units sold in the period that were refunded.',
+  },
+  manager: {
+    title: 'Product Manager',
+    formula: 'Managers assigned on Profit > PM Incentive',
+    note: 'A parent or group row lists the managers of the SKUs under it.',
   },
   sales: {
     title: 'Sales Revenue',
@@ -274,6 +292,19 @@ const HeaderTooltip: React.FC<{ columnKey: BuiltInSortColumn | 'info' }> = ({
     </div>
   )
 }
+
+/** The managers of a row: each name on its own line, "—" when nobody manages the SKU. */
+const ManagerCell: React.FC<{ names: string[] }> = ({ names }) =>
+  names.length === 0 ? (
+    <span className="text-text-muted">—</span>
+  ) : (
+    <div className="flex flex-col text-sm leading-tight" title={names.join(', ')}>
+      {names.slice(0, 2).map((name) => (
+        <span key={name} className="max-w-[160px] truncate">{name}</span>
+      ))}
+      {names.length > 2 && <span className="text-xs text-text-muted">+{names.length - 2} more</span>}
+    </div>
+  )
 
 /* ──────────────────────────────────────────────────────
  * Build StatModal Data
@@ -513,6 +544,7 @@ export const SellerboardProductsTable: React.FC<
     refundReasonsScope,
     fbaStockScope,
     currency,
+    managersOfSku,
   }) => {
     const [sortColumn, setSortColumn] = useState<SortColumn>(defaultSortColumn)
     const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
@@ -521,7 +553,14 @@ export const SellerboardProductsTable: React.FC<
     const itemsPerPage = pageSize
     // The frozen Product column: drag the handle on its right edge to widen or narrow it (300 is the least its image and SKU need)
     const productColumn = useColumnResize({ initial: 360, min: 300, max: 760, storageKey: 'profit-products-name-column-width' })
-    const productColumnStyle = columnWidthStyle(productColumn.width)
+    // Phones: the frozen Product column would fill the screen and hide every other column, so it scrolls with the row and is narrower
+    const compact = useMediaQuery('(max-width: 767px)')
+    const productColumnStyle = columnWidthStyle(compact ? 220 : productColumn.width)
+    const managersOfRow = (product: ProductWithChildren): string[] => {
+      if (!managersOfSku) return []
+      const skus = product.children?.length ? product.children.map((child) => child.sku) : [product.sku]
+      return [...new Set(skus.flatMap(managersOfSku))]
+    }
     const rowKeyOf = (row: any): string => (getRowKey ? getRowKey(row) : row.sku)
 
     // Preserve previous products so search refetches don't drop data to undefined
@@ -639,6 +678,14 @@ export const SellerboardProductsTable: React.FC<
             aVal = a.totalRefunds || 0
             bVal = b.totalRefunds || 0
             break
+          case 'refundPct':
+            aVal = refundRateOf(a)
+            bVal = refundRateOf(b)
+            break
+          case 'manager':
+            aVal = managersOfRow(a).join(', ').toLowerCase()
+            bVal = managersOfRow(b).join(', ').toLowerCase()
+            break
           case 'sales':
             aVal = a.salesRevenue || 0
             bVal = b.salesRevenue || 0
@@ -715,7 +762,7 @@ export const SellerboardProductsTable: React.FC<
       })
 
       return result
-    }, [activeProducts, sortColumn, sortDirection, columns])
+    }, [activeProducts, sortColumn, sortDirection, columns, managersOfSku])
 
     const paginatedProducts = useMemo(() => {
       const startIndex = (currentPage - 1) * itemsPerPage
@@ -807,17 +854,17 @@ export const SellerboardProductsTable: React.FC<
                 other columns pass under it; it follows the row's hover colour */}
             <TableCell
               // Inline rather than the `sticky` class: the global `td.sticky` rule would lift it to the header's level (z-20)
-              style={{ position: 'sticky', left: 0, zIndex: 10, ...productColumnStyle }}
+              style={compact ? productColumnStyle : { position: 'sticky', left: 0, zIndex: 10, ...productColumnStyle }}
               // Solid white for parents and children alike (surface-secondary is not a colour in the theme, so it painted nothing and
               // the columns scrolling underneath showed through); hover uses an opaque shade for the same reason
               // Only the right edge takes the full-strength colour: `border-border` would also recolour the bottom edge, so the row's line looked stronger under this cell than under the rest
-              className="border-r border-r-border bg-surface text-left px-4 py-3 transition-colors group-hover/row:bg-secondary-50"
+              className={cn('border-r border-r-border bg-surface text-left px-4 py-3 transition-colors group-hover/row:bg-secondary-50', compact && '!max-w-[220px]')}
             >
               <ProductIdentityCell
                 product={product}
                 isChild={isChild}
                 isExpanded={isExpanded}
-                onToggle={() => toggleRow(product.sku)}
+                onToggle={product.children?.length ? () => toggleRow(product.sku) : undefined}
                 titleInTooltip
                 fullSku
                 currency={currency}
@@ -833,6 +880,13 @@ export const SellerboardProductsTable: React.FC<
                 }
               />
             </TableCell>
+
+            {/* Manager */}
+            {managersOfSku && (
+              <TableCell className="text-left px-4 py-3 min-w-[140px]">
+                <ManagerCell names={managersOfRow(product)} />
+              </TableCell>
+            )}
 
             {/* Sales */}
             <TableCell className="text-center font-medium whitespace-nowrap px-4 py-3">
@@ -858,6 +912,11 @@ export const SellerboardProductsTable: React.FC<
               ) : (
                 formatNumber(refundCount, 0)
               )}
+            </TableCell>
+
+            {/* Refund % */}
+            <TableCell className="text-center whitespace-nowrap px-4 py-3">
+              {formatPercentage(refundRateOf(product))}
             </TableCell>
 
             {/* Refund Cost */}
@@ -1066,7 +1125,7 @@ export const SellerboardProductsTable: React.FC<
                     Every sticky header is forced to z-30 by a global rule, so this one is lifted above them (else the next
                     headers, later in the DOM, paint over it) */}
                 <TableHead
-                  className="!max-w-none sticky left-0 top-0 [&&&&]:!z-40 bg-surface group cursor-pointer hover:bg-surface-secondary text-left py-3 px-4 border-b border-r border-border align-middle"
+                  className={cn("!max-w-none sticky top-0 [&&&&]:!z-40 bg-surface group cursor-pointer hover:bg-surface-secondary text-left py-3 px-4 border-b border-r border-border align-middle", compact ? "!max-w-[220px]" : "left-0")}
                   style={productColumnStyle}
                   onClick={() => handleSort('name')}
                 >
@@ -1075,8 +1134,22 @@ export const SellerboardProductsTable: React.FC<
                     <SortIcon column="name" />
                   </div>
                   <HeaderTooltip columnKey="name" />
-                  <ColumnResizeHandle resize={productColumn} column="Product" />
+                  {!compact && <ColumnResizeHandle resize={productColumn} column="Product" />}
                 </TableHead>
+
+                {/* Manager Column */}
+                {managersOfSku && (
+                  <TableHead
+                    className="!max-w-none sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-left min-w-[140px] py-3 px-4 border-b border-border align-middle"
+                    onClick={() => handleSort('manager')}
+                  >
+                    <div className="flex items-center justify-start gap-1 font-semibold text-xs tracking-wider uppercase leading-tight">
+                      <span className="min-w-0">Manager</span>
+                      <SortIcon column="manager" />
+                    </div>
+                    <HeaderTooltip columnKey="manager" />
+                  </TableHead>
+                )}
 
                 {/* Sales Column */}
                 <TableHead
@@ -1112,6 +1185,18 @@ export const SellerboardProductsTable: React.FC<
                     <SortIcon column="refunds" />
                   </div>
                   <HeaderTooltip columnKey="refunds" />
+                </TableHead>
+
+                {/* Refund % Column */}
+                <TableHead
+                  className="!max-w-none sticky top-0 z-20 bg-surface group relative cursor-pointer hover:bg-surface-secondary text-center w-[100px] min-w-[100px] py-3 px-4 border-b border-border align-middle"
+                  onClick={() => handleSort('refundPct')}
+                >
+                  <div className="flex items-center justify-center gap-1 font-semibold text-xs tracking-wider uppercase text-center leading-tight">
+                    <span className="min-w-0">Refund %</span>
+                    <SortIcon column="refundPct" />
+                  </div>
+                  <HeaderTooltip columnKey="refundPct" />
                 </TableHead>
 
                 {/* Refund Cost Column */}
@@ -1317,7 +1402,7 @@ export const SellerboardProductsTable: React.FC<
         </div>
 
         {(totalPages > 1 || footerContent) && (
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="text-sm text-text-muted">
               {typeof footerContent === 'function'
                 ? footerContent({

@@ -39,6 +39,7 @@ import { SellerboardProductsTable } from './SellerboardProductsTable'
 import { RowActionsMenu } from '@/components/row-actions-menu/RowActionsMenu'
 import { TableSearchInput } from './components/TableSearchInput'
 import { GroupByMenu } from './components/GroupByMenu'
+import { useSkuManagers } from '../pm-incentive/useSkuManagers'
 import { ProfitOverviewBanner } from './components/ProfitOverviewBanner'
 import { useReportExport } from '@/hooks/useReportExport'
 import { OrderItemsTable } from './OrderItemsTable'
@@ -133,6 +134,7 @@ export const ProfitDashboardScreen: React.FC = () => {
   const [appliedMarketplaces, setAppliedMarketplaces] = useState<string[]>(['Amazon.ca'])
   // One marketplace picked: its FBA stock only; otherwise summed over every marketplace
   const fbaStockScope = useMemo(() => ({ marketplace: singleMarketplaceCode(appliedMarketplaces) }), [appliedMarketplaces])
+  const managersOfSku = useSkuManagers()
   const [appliedCurrency, setAppliedCurrency] = useState<CurrencyCode>('CAD')
 
   // ──────────────────────────────
@@ -715,7 +717,8 @@ export const ProfitDashboardScreen: React.FC = () => {
                 { value: 'EUR', label: 'EUR' },
               ]}
               onFilter={handleApplyTileFilters}
-              searchWidth="w-[55%]"
+              wrap
+              searchWidth="w-full lg:w-[55%]"
               datePickerKey={tileDatePickerKey}
             />
 
@@ -760,7 +763,7 @@ export const ProfitDashboardScreen: React.FC = () => {
             {!periodCardsData.some((period) => period.isFetching) && (
             <Card className="overflow-visible">
               <CardContent className="p-0">
-                <div className="flex items-center justify-between px-6 pt-4 pb-2 border-b border-border flex-wrap gap-3">
+                <div className="flex items-center justify-between px-3 sm:px-6 pt-4 pb-2 border-b border-border flex-wrap gap-3">
                   <div className="flex items-center gap-4">
                     <h2 className="text-lg font-semibold text-text-primary">
                       {selectedTileConfig?.label || 'Period'}
@@ -812,7 +815,7 @@ export const ProfitDashboardScreen: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="p-6">
+                <div className="p-3 sm:p-6">
                   {tableView === 'products' ? (
                     <SellerboardProductsTable
                       products={productData as any}
@@ -822,6 +825,7 @@ export const ProfitDashboardScreen: React.FC = () => {
                       onSearchChange={setSearchTerm as any}
                       refundReasonsScope={productQueryFilters}
                       fbaStockScope={fbaStockScope}
+                      managersOfSku={managersOfSku}
                       currency={appliedCurrency}
                     />
                   ) : (

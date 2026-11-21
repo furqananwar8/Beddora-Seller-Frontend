@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
+import { ApprovalStepper } from '@/components/approval-stepper/ApprovalStepper'
 import { fieldClass } from '@/components/form-field/FormField'
 import { Button } from '@/design-system/buttons'
 import type { PurchaseOrderDetail } from '@/services/api/procurement.api'
@@ -64,10 +65,11 @@ export const ApprovalPanel: React.FC<ApprovalPanelProps> = ({ po, busy, onApprov
             <Button type="button" variant="outline" className="text-danger-600" onClick={reject} isLoading={busy === 'reject'} disabled={busy !== null}>
               Reject
             </Button>
-            <p className="text-center text-xs text-text-muted">Admin only</p>
+            <p className="text-center text-xs text-text-muted">{po.approval ? 'It is your turn' : 'Admin only'}</p>
           </div>
         )}
       </div>
+      {po.approval && po.approval.status !== 'CANCELLED' && <ApprovalStepper approval={po.approval} startedBy={po.createdBy.name ?? 'Someone'} startedAt={po.createdAt} />}
     </section>
   )
 }
