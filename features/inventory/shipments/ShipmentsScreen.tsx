@@ -17,7 +17,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/design-system/tables'
-import { useDebounce } from '@/utils/debounce'
 import { cn } from '@/utils/cn'
 import { AmazonOption, InboundShipment, LabelType, Marketplace, PackingSubmission, ShipmentChannel, ShipmentStatus, WfsCarrierEntry, WfsCartons, legId } from './types'
 import { CarrierEntry, ChannelConfig, CreateShipmentInput, OptionKind, RewindTarget, ShipFromRequest, useShipments } from './useShipments'
@@ -157,7 +156,10 @@ export const ShipmentsScreen: React.FC = () => {
   })
   const { search, status: statusFilter, marketplace: marketplaceFilter } = filters
   const setFilter = (next: Partial<typeof filters>) => setFilters((prev) => ({ ...prev, ...next }))
-  const debouncedSearch = useDebounce(search, 250)
+  // Search and marketplace only narrow the list once Filter is pressed (the status chips stay instant, like tabs)
+  const [applied, setApplied] = useState<{ search: string; marketplace: 'all' | Marketplace }>({ search: '', marketplace: 'all' })
+  const applyFilters = () => setApplied({ search: search.trim(), marketplace: marketplaceFilter })
+  const debouncedSearch = applied.search
 
   // ---- Expansion ----
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
@@ -261,7 +263,7 @@ export const ShipmentsScreen: React.FC = () => {
     const has = (value?: string) => !!value && value.toLowerCase().includes(q)
     return scopedShipments
       .filter((s) => statusFilter === 'all' || s.status === statusFilter)
-      .filter((s) => marketplaceFilter === 'all' || s.marketplace === marketplaceFilter)
+      .filter((s) => applied.marketplace === 'all' || s.marketplace === applied.marketplace)
       .filter(
         (s) =>
           !q ||
@@ -277,7 +279,7 @@ export const ShipmentsScreen: React.FC = () => {
           STATUS_ORDER.indexOf(a.status) - STATUS_ORDER.indexOf(b.status) ||
           b.updatedAt.localeCompare(a.updatedAt)
       )
-  }, [scopedShipments, statusFilter, marketplaceFilter, debouncedSearch])
+  }, [scopedShipments, statusFilter, applied])
 
   const byId = (id: string | null) => (id ? shipments.find((s) => s.id === id) ?? null : null)
   /** The marketplace's optional features, as the backend reported them. */
@@ -608,6 +610,7 @@ export const ShipmentsScreen: React.FC = () => {
             placeholder={multiChannel ? 'Search shipment ID, FBA / WFS ID, FC, SKU or product' : 'Search shipment ID, FBA ID, FC, SKU or product'}
             value={search}
             onChange={(e) => setFilter({ search: e.target.value })}
+            onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
             className="w-full rounded-md border border-border bg-surface py-2 pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-secondary-200"
           />
         </div>
@@ -634,6 +637,10 @@ export const ShipmentsScreen: React.FC = () => {
             )
           })}
         </select>
+
+        <Button variant="primary" size="sm" onClick={applyFilters}>
+          Filter
+        </Button>
 
         {expanded.size > 0 && (
           <Button variant="ghost" size="sm" onClick={() => setExpanded(new Set())}>

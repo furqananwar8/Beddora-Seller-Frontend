@@ -4,7 +4,6 @@ import React, { useState, useMemo } from 'react'
 import { Container } from '@/components/layout'
 import { Select } from '@/design-system/inputs'
 import { Card, CardContent } from '@/design-system/cards'
-import { useDebounce } from '@/utils/debounce'
 import {
   useGetPurchaseOrderSummaryQuery,
   useGetPurchaseOrdersQuery,
@@ -28,18 +27,19 @@ export const PurchaseOrdersScreen = () => {
   const [selectedStatus, setSelectedStatus] = useState<string>('all')
   const [groupBy, setGroupBy] = useState<string>('none')
   
-  const debouncedSearch = useDebounce(searchTerm, 300)
-  const debouncedPOSearch = useDebounce(searchByPO, 300)
+  // Search and the dropdowns are staged: the list only changes when Filter is pressed
+  const [applied, setApplied] = useState({ search: '', searchByPO: '', supplier: 'all', status: 'all' })
+  const applyFilters = () => setApplied({ search: searchTerm.trim(), searchByPO: searchByPO.trim(), supplier: selectedSupplier, status: selectedStatus })
 
   // Build filters
   const filters: PurchaseOrderFilters = useMemo(() => {
     return {
-      search: debouncedSearch || undefined,
-      searchByPOName: debouncedPOSearch || undefined,
-      supplierId: selectedSupplier !== 'all' ? selectedSupplier : undefined,
-      status: selectedStatus !== 'all' ? (selectedStatus as PurchaseOrderStatus) : undefined,
+      search: applied.search || undefined,
+      searchByPOName: applied.searchByPO || undefined,
+      supplierId: applied.supplier !== 'all' ? applied.supplier : undefined,
+      status: applied.status !== 'all' ? (applied.status as PurchaseOrderStatus) : undefined,
     }
-  }, [debouncedSearch, debouncedPOSearch, selectedSupplier, selectedStatus])
+  }, [applied])
 
   // API Queries
   const { data: summaryData, isLoading: summaryLoading } =
@@ -160,6 +160,7 @@ export const PurchaseOrdersScreen = () => {
                   placeholder="Search"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
                   className="w-full pl-10 pr-4 py-2.5 text-sm bg-surface-primary border border-border-primary rounded-md text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary-200 focus:border-primary-600"
                 />
               </div>
@@ -171,6 +172,7 @@ export const PurchaseOrdersScreen = () => {
                   placeholder="Search by PO name"
                   value={searchByPO}
                   onChange={(e) => setSearchByPO(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
                   className="w-full px-4 py-2.5 text-sm bg-surface-primary border border-border-primary rounded-md text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary-200 focus:border-primary-600"
                 />
               </div>
@@ -202,7 +204,7 @@ export const PurchaseOrdersScreen = () => {
                   className="w-[180px]"
                 />
 
-                <button className="inline-flex items-center gap-2 px-3 py-2.5 text-sm font-medium text-text-primary bg-surface-primary border border-border-primary rounded-md hover:bg-surface-secondary transition-colors">
+                <button type="button" onClick={applyFilters} className="inline-flex items-center gap-2 px-3 py-2.5 text-sm font-medium text-text-primary bg-surface-primary border border-border-primary rounded-md hover:bg-surface-secondary transition-colors">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path
                       strokeLinecap="round"
@@ -281,7 +283,7 @@ export const PurchaseOrdersScreen = () => {
         <PurchaseOrdersTable
           purchaseOrders={displayOrders}
           isLoading={ordersLoading}
-          searchTerm={debouncedSearch}
+          searchTerm={applied.search}
         />
       </div>
     </Container>

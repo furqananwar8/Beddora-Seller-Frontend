@@ -9,7 +9,6 @@ import { Tabs } from '@/design-system/tabs'
 import { KpiCardSkeleton } from '@/design-system/loaders'
 import { Badge } from '@/design-system/badges'
 import { useGetAccountsQuery } from '@/services/api/accounts.api'
-import { useDebounce } from '@/utils/debounce'
 import {
   useGetRepricerSummaryQuery,
   useGetRepricerProductsQuery,
@@ -65,8 +64,16 @@ export const RepricerDashboardScreen = () => {
   const [statusFilter, setStatusFilter] = useState<RepricingStatus | 'all'>('all')
   const [buyBoxFilter, setBuyBoxFilter] = useState<BuyBoxStatus | 'all'>('all')
 
-  // Debounce search
-  const debouncedSearch = useDebounce(searchTerm, 300)
+  // The boxes above only edit a draft; the dashboard changes when Filter is pressed
+  const [applied, setApplied] = useState<{ account: string; period: TimePeriod; status: RepricingStatus | 'all'; buyBox: BuyBoxStatus | 'all'; search: string }>({
+    account: '',
+    period: '30days',
+    status: 'all',
+    buyBox: 'all',
+    search: '',
+  })
+  const applyFilters = () => setApplied({ account: selectedAccount, period: timePeriod, status: statusFilter, buyBox: buyBoxFilter, search: searchTerm.trim() })
+  const debouncedSearch = applied.search
 
   // API Queries
   const { data: accounts } = useGetAccountsQuery()
@@ -78,30 +85,30 @@ export const RepricerDashboardScreen = () => {
     const now = new Date()
     const startDate = new Date(now)
 
-    if (timePeriod === 'today') {
+    if (applied.period === 'today') {
       startDate.setHours(0, 0, 0, 0)
-    } else if (timePeriod === 'yesterday') {
+    } else if (applied.period === 'yesterday') {
       startDate.setDate(startDate.getDate() - 1)
       startDate.setHours(0, 0, 0, 0)
     } else {
-      startDate.setDate(startDate.getDate() - timePeriods[timePeriod].days)
+      startDate.setDate(startDate.getDate() - timePeriods[applied.period].days)
     }
 
     return {
-      accountId: selectedAccount || undefined,
-      status: statusFilter !== 'all' ? statusFilter : undefined,
-      buyBoxStatus: buyBoxFilter !== 'all' ? buyBoxFilter : undefined,
+      accountId: applied.account || undefined,
+      status: applied.status !== 'all' ? applied.status : undefined,
+      buyBoxStatus: applied.buyBox !== 'all' ? applied.buyBox : undefined,
       search: debouncedSearch || undefined,
       startDate: startDate.toISOString(),
       endDate: now.toISOString(),
     }
-  }, [selectedAccount, timePeriod, statusFilter, buyBoxFilter, debouncedSearch])
+  }, [applied, debouncedSearch])
 
   const { data: summary, isLoading: summaryLoading } = useGetRepricerSummaryQuery(filters)
   const { data: products, isLoading: productsLoading } = useGetRepricerProductsQuery(filters)
   const { data: chartData, isLoading: chartLoading } = useGetRepricerChartQuery(filters)
   const { data: rules, isLoading: rulesLoading } = useGetRepricerRulesQuery({
-    accountId: selectedAccount || undefined,
+    accountId: applied.account || undefined,
   })
 
   // Handle manual repricing
@@ -297,8 +304,15 @@ export const RepricerDashboardScreen = () => {
               placeholder="Search by title, SKU, or ASIN..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
               className="w-[300px]"
             />
+          </div>
+
+          <div className="flex-shrink-0 self-end">
+            <Button variant="primary" onClick={applyFilters}>
+              Filter
+            </Button>
           </div>
         </div>
       </div>

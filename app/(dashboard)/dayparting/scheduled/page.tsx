@@ -52,21 +52,6 @@ function safeFormatPDT(value: any, fmt: string): string {
   }
 }
 
-function useDebounce<T>(value: T, delay: number): T {
-  const [debouncedValue, setDebouncedValue] = useState(value);
-
-  useEffect(() => {
-    if (value === "") {
-      setDebouncedValue(value); // instant clear, no delay
-      return;
-    }
-    const timer = setTimeout(() => setDebouncedValue(value), delay);
-    return () => clearTimeout(timer);
-  }, [value, delay]);
-
-  return debouncedValue;
-}
-
 function getPageWindow(current: number, total: number, size: number) {
   if (total <= size) return { start: 1, end: total };
   const block = Math.ceil(current / size);
@@ -89,27 +74,26 @@ export default function ScheduledCampaignsPage() {
   const [searchInput, setSearchInput] = useState(search);
   const { clearSelectedCampaign } = useDashboard();
 
-  const debouncedSearchInput = useDebounce(searchInput, 500);
-
-  // Sync local input with URL when user navigates back/forward
+  // Sync the draft boxes with the URL when the user navigates back/forward
+  const [statusInput, setStatusInput] = useState(status || "all");
   useEffect(() => {
     setSearchInput(search);
   }, [search]);
-
-  // Push debounced search to URL (resets page to 1)
   useEffect(() => {
-    if (debouncedSearchInput === search) return;
+    setStatusInput(status || "all");
+  }, [status]);
 
+  // Search and status only reach the URL (and the list) when Filter is pressed
+  const applyFilters = () => {
     const params = new URLSearchParams(searchParams);
-    const trimmed = debouncedSearchInput.trim();
-    if (trimmed) {
-      params.set("search", trimmed);
-    } else {
-      params.delete("search");
-    }
+    const trimmed = searchInput.trim();
+    if (trimmed) params.set("search", trimmed);
+    else params.delete("search");
+    if (statusInput === "all") params.delete("status");
+    else params.set("status", statusInput);
     params.set("page", "1");
     router.push(`/dashboard/scheduled?${params.toString()}`);
-  }, [debouncedSearchInput, search, searchParams, router]);
+  };
 
   const {
     data,
@@ -164,17 +148,6 @@ export default function ScheduledCampaignsPage() {
     if (isFetching) return;
     const params = new URLSearchParams(searchParams);
     params.set("page", String(newPage));
-    router.push(`/dashboard/scheduled?${params.toString()}`);
-  };
-
-  const handleStatusFilter = (value: string) => {
-    const params = new URLSearchParams(searchParams);
-    if (value === "all") {
-      params.delete("status");
-    } else {
-      params.set("status", value);
-    }
-    params.set("page", "1");
     router.push(`/dashboard/scheduled?${params.toString()}`);
   };
 
@@ -233,6 +206,7 @@ export default function ScheduledCampaignsPage() {
               placeholder="Search by campaign name..."
               value={searchInput}
               onChange={(e) => handleSearchChange(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && applyFilters()}
               className="pl-9 pr-9 py-2 w-64 border border-zinc-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
             {searchInput && (
@@ -249,8 +223,8 @@ export default function ScheduledCampaignsPage() {
           <div className="relative">
             <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
             <select
-              value={status || "all"}
-              onChange={(e) => handleStatusFilter(e.target.value)}
+              value={statusInput}
+              onChange={(e) => setStatusInput(e.target.value)}
               className="pl-9 pr-4 py-2 border border-zinc-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
               <option value="all">All Status</option>
@@ -261,6 +235,14 @@ export default function ScheduledCampaignsPage() {
               <option value="cancelled">Cancelled</option>
             </select>
           </div>
+
+          <button
+            type="button"
+            onClick={applyFilters}
+            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium"
+          >
+            Filter
+          </button>
 
           {/* Delete Button */}
           <button
