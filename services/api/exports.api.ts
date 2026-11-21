@@ -32,7 +32,8 @@ export type ExportReport =
   | "packaging-lists"
   | "price-analysis"
   | "purchase-invoices"
-  | "shipping-orders";
+  | "shipping-orders"
+  | "pm-managers";
 
 export interface ExportRequest {
   report: ExportReport;

@@ -10,10 +10,12 @@ interface ViewProductsDialogProps {
   manager: ProductManager | null
   channels: ManagerChannel[]
   onClose: () => void
+  /** Left out when the user cannot assign products. */
+  onAssign?: (manager: ProductManager) => void
 }
 
 /** The SKUs a manager looks after, grouped by sales channel. */
-export const ViewProductsDialog: React.FC<ViewProductsDialogProps> = ({ manager, channels, onClose }) => (
+export const ViewProductsDialog: React.FC<ViewProductsDialogProps> = ({ manager, channels, onClose, onAssign }) => (
   <Modal isOpen={manager !== null} onClose={onClose} title={manager ? `${manager.name}'s products` : 'Products'} size="md">
     {manager &&
       (manager.products.length === 0 ? (
@@ -36,7 +38,12 @@ export const ViewProductsDialog: React.FC<ViewProductsDialogProps> = ({ manager,
           ))}
         </div>
       ))}
-    <div className="mt-6 flex justify-end">
+    <div className="mt-6 flex justify-end gap-2">
+      {manager && onAssign && (
+        <Button type="button" onClick={() => onAssign(manager)}>
+          Assign products
+        </Button>
+      )}
       <Button type="button" variant="outline" onClick={onClose}>
         Close
       </Button>

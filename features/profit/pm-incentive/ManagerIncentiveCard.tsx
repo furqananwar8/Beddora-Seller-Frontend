@@ -1,11 +1,11 @@
 'use client'
 
 import React from 'react'
-import { FormField, fieldClass, selectClass } from '@/components/form-field/FormField'
+import { ChoiceSelect } from '@/components/choice-select/ChoiceSelect'
+import { FormField, fieldClass } from '@/components/form-field/FormField'
 import { NumericInput } from '@/components/form-field/NumericInput'
 import { Badge } from '@/design-system/badges'
 import { Button } from '@/design-system/buttons'
-import { SelectShell } from '@/features/finance/shared/SelectShell'
 import { skusOn, type ProductManager } from '@/services/api/productManagers.api'
 import { cn } from '@/utils/cn'
 import { formatAmount, formatPkr, formatUsd } from './format'
@@ -13,9 +13,8 @@ import type { ManagerPayout } from './plan/incentiveCalculator'
 import { BONUS_MAX_PKR, INCENTIVE_PLAN, TIER_NAMES } from './plan/incentivePlan'
 import type { ManagerSales } from './useManagerProducts'
 
-/** What is typed in per manager: the by-product report has neither. */
+/** What is typed in per manager: the by-product report has no category rank. */
 export interface ManualMetrics {
-  conversionPct: number
   categoryRank: number
 }
 
@@ -63,7 +62,7 @@ const ReadOnlyValue: React.FC<{ id: string; value: string }> = ({ id, value }) =
 
 const adsWhy = (p: ManagerPayout) =>
   p.manager.acosPct > 0
-    ? `ACoS ${p.manager.acosPct}% (ROAS ${p.roas}) is ${TIER_NAMES[p.acosTier]}; conversion ${p.manager.conversionPct}% is ${TIER_NAMES[p.conversionTier]}. The lower tier is paid.`
+    ? `TACoS ${p.manager.tacosPct}%: ${TIER_NAMES[p.tacosTier]}. ACoS ${p.manager.acosPct}% (ROAS ${p.roas}): ${TIER_NAMES[p.acosTier]}. Paid at ${TIER_NAMES[Math.min(p.acosTier, p.tacosTier)]}.`
     : 'No ad spend or sales on these SKUs this month.'
 
 const rankWhy = (p: ManagerPayout) =>
@@ -78,15 +77,7 @@ export const ManagerIncentiveCard: React.FC<ManagerIncentiveCardProps> = ({ mana
     <article className="grid min-w-0 content-start gap-4 rounded-xl border border-border bg-surface p-4 shadow-sm">
       <div className="grid grid-cols-[1fr_auto] items-end gap-2">
         <FormField label="Product manager" htmlFor="pm-select">
-          <SelectShell>
-            <select id="pm-select" value={selectedId} onChange={(event) => onSelect(event.target.value)} className={cn(selectClass(), 'font-semibold')}>
-              {managers.map((manager) => (
-                <option key={manager.id} value={manager.id}>
-                  {manager.name}
-                </option>
-              ))}
-            </select>
-          </SelectShell>
+          <ChoiceSelect id="pm-select" title="Product manager" value={selectedId} onChange={onSelect} options={managers.map((manager) => ({ value: manager.id, label: manager.name }))} />
         </FormField>
         {selected && onEdit && (
           <Button type="button" variant="outline" size="field" onClick={() => onEdit(selected)}>
@@ -99,11 +90,11 @@ export const ManagerIncentiveCard: React.FC<ManagerIncentiveCardProps> = ({ mana
         <FormField label="Monthly sales (USD)" htmlFor="pm-sales" className="col-span-2" hint={selected ? `From ${sales.activeSkus} of ${skusOn(selected, 'amazon').length} managed Amazon SKUs with activity this month` : undefined}>
           <ReadOnlyValue id="pm-sales" value={loading ? 'Loading…' : formatUsd(sales.salesUsd)} />
         </FormField>
-        <FormField label="ACoS (%)" htmlFor="pm-acos" hint={loading ? undefined : `Ad spend ${formatUsd(sales.adSpendUsd)}`}>
-          <ReadOnlyValue id="pm-acos" value={loading ? 'Loading…' : String(sales.acosPct)} />
+        <FormField label="TACoS (%)" htmlFor="pm-tacos" hint={loading ? undefined : `Ad spend ${formatUsd(sales.adSpendUsd)} / total sales. Max ${INCENTIVE_PLAN.tacosTierMaxPct[2]}% for full payout`}>
+          <ReadOnlyValue id="pm-tacos" value={loading ? 'Loading…' : String(sales.tacosPct)} />
         </FormField>
-        <FormField label="Conversion, Unit Session (%)" htmlFor="pm-conversion" hint="From Seller Central Business Reports">
-          <NumericInput id="pm-conversion" decimal value={metrics.conversionPct || ''} onChange={setMetric('conversionPct')} placeholder="0" className={cn(fieldClass(), 'font-mono')} />
+        <FormField label="ACoS (%)" htmlFor="pm-acos" hint={`Ad spend / ad sales. Max ${INCENTIVE_PLAN.acosTierMaxPct[2]}% for full payout`}>
+          <ReadOnlyValue id="pm-acos" value={loading ? 'Loading…' : String(sales.acosPct)} />
         </FormField>
         <FormField label="Best category rank (0 = not ranked)" htmlFor="pm-rank" className="col-span-2">
           <NumericInput id="pm-rank" value={metrics.categoryRank || ''} onChange={setMetric('categoryRank')} placeholder="0" className={cn(fieldClass(), 'font-mono')} />
@@ -123,7 +114,7 @@ export const ManagerIncentiveCard: React.FC<ManagerIncentiveCardProps> = ({ mana
           )}
 
           <div className="grid gap-2">
-            <BonusRow label="Ads & conversion" amount={payout.adsBonus} why={adsWhy(payout)} />
+            <BonusRow label="Advertising performance" amount={payout.adsBonus} why={adsWhy(payout)} />
             <BonusRow label="Category ranking" amount={payout.rankingBonus} why={rankWhy(payout)} />
           </div>
 

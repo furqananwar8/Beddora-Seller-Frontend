@@ -26,7 +26,7 @@ const DEFAULT_INPUTS: MonthInputs = {
   metrics: {},
 }
 
-const NO_METRICS: ManualMetrics = { conversionPct: 0, categoryRank: 0 }
+const NO_METRICS: ManualMetrics = { categoryRank: 0 }
 
 /** A button showing the month, opening the month picker; months after `max` (default: this month) cannot be picked. */
 export const MonthSelect: React.FC<{ value: MonthValue; onChange: (month: MonthValue) => void; max?: MonthValue }> = ({ value, onChange, max = currentMonth() }) => {
@@ -70,7 +70,7 @@ export const PmIncentiveView: React.FC = () => {
   const result = useMemo(() => {
     const months = managers.map((manager): ManagerMonth => {
       const sales = salesByManager.get(manager.id) ?? EMPTY_SALES
-      return { id: manager.id, name: manager.name, salesUsd: sales.salesUsd, acosPct: sales.acosPct, ...(inputs.metrics[manager.id] ?? NO_METRICS) }
+      return { id: manager.id, name: manager.name, salesUsd: sales.salesUsd, acosPct: sales.acosPct, tacosPct: sales.tacosPct, ...(inputs.metrics[manager.id] ?? NO_METRICS) }
     })
     return calculateIncentives(months, inputs.company, inputs.picks)
   }, [managers, salesByManager, inputs])
@@ -82,7 +82,7 @@ export const PmIncentiveView: React.FC = () => {
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold text-text-primary sm:text-2xl">PM Incentive</h1>
-          <p className="text-sm text-text-muted">Each product manager&apos;s monthly incentive in PKR, from the sales and ACoS of the Amazon SKUs they manage</p>
+          <p className="text-sm text-text-muted">Each product manager&apos;s monthly incentive in PKR, from the sales, ACoS and TACoS of the Amazon SKUs they manage</p>
         </div>
         <div className="ml-auto flex flex-wrap items-center gap-2">
           <MonthSelect value={month} onChange={setMonth} />

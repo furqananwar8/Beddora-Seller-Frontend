@@ -15,12 +15,12 @@ export const INCENTIVE_PLAN = {
   /** Sales above this are still paid at the top tier until a higher one is added. */
   salesSlabTopUsd: 150_000,
 
-  /** Section 2: ads & conversion, paid at the lower of the two tiers. Index = tier. */
-  adsPayoutByTier: [0, 3_000, 6_000, 8_000, 10_000] as readonly number[],
-  /** ACoS below 30 → tier 1, below 25 → 2, below 20 → 3, below 15 → 4. */
-  acosTierMaxPct: [30, 25, 20, 15] as readonly number[],
-  /** Conversion ≥ 8 → tier 1, ≥ 10 → 2, ≥ 12 → 3, ≥ 14 → 4. */
-  conversionTierMinPct: [8, 10, 12, 14] as readonly number[],
+  /** Section 2: advertising performance, paid at the lower of the ACoS and TACoS tiers. Index = tier. */
+  adsPayoutByTier: [0, 3_000, 6_000, 10_000] as readonly number[],
+  /** ACoS at or below 35 -> tier 1, 30 -> tier 2, 25 -> tier 3 (Target Achieved). */
+  acosTierMaxPct: [35, 30, 25] as readonly number[],
+  /** TACoS at or below 10 -> tier 1, 9 -> tier 2, 8 -> tier 3 (Target Achieved). */
+  tacosTierMaxPct: [10, 9, 8] as readonly number[],
 
   /** Section 3: best Amazon category rank. */
   rankBands: [[1, 3, 10_000], [4, 7, 6_000], [8, 10, 3_000]] as readonly RankBand[],
@@ -32,7 +32,7 @@ export const INCENTIVE_PLAN = {
   payoutCapPctOfContribution: 20,
 } as const
 
-/** Most either performance bonus (ads & conversion, ranking) pays. */
+/** Most either performance bonus (advertising, ranking) pays. */
 export const BONUS_MAX_PKR = 10_000
 
 /** Additional rewards with one winner each. */
@@ -47,4 +47,5 @@ export const RAMADAN_ALLOWANCE_PKR = 10_000
 
 export type RewardKey = (typeof REWARDS)[number]['key']
 
-export const TIER_NAMES = ['below plan', 'tier 1', 'tier 2', 'tier 3', 'tier 4'] as const
+/** Advertising performance level per tier. */
+export const TIER_NAMES = ['Not eligible', 'Needs Improvement', 'Good', 'Target Achieved'] as const

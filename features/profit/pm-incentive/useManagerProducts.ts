@@ -7,16 +7,20 @@ import { skusOn, type ProductManager } from '@/services/api/productManagers.api'
 import { useAppSelector } from '@/store/hooks'
 import { ALL_MARKETPLACES } from '@/utils/profitDashboard.util'
 
-/** Sales and ACoS of one manager's SKUs over the month. */
+/** Sales, ACoS and TACoS of one manager's SKUs over the month. */
 export interface ManagerSales {
+  /** Total sales (organic + ads). */
   salesUsd: number
   adSpendUsd: number
+  /** Ad spend / sales Amazon attributes to the ads. */
   acosPct: number
+  /** Ad spend / total sales. */
+  tacosPct: number
   /** Managed SKUs that sold or spent on ads this month. */
   activeSkus: number
 }
 
-export const EMPTY_SALES: ManagerSales = { salesUsd: 0, adSpendUsd: 0, acosPct: 0, activeSkus: 0 }
+export const EMPTY_SALES: ManagerSales = { salesUsd: 0, adSpendUsd: 0, acosPct: 0, tacosPct: 0, activeSkus: 0 }
 
 interface DayRange {
   startDate: string
@@ -51,11 +55,12 @@ function salesOf(rows: ProductProfitBreakdown[]): ManagerSales {
   if (!rows.length) return EMPTY_SALES
   const salesUsd = rows.reduce((sum, row) => sum + row.salesRevenue, 0)
   const adSpendUsd = rows.reduce((sum, row) => sum + Math.abs(row.advertisingCost), 0)
-  const acosPct = salesUsd > 0 ? Math.round((adSpendUsd / salesUsd) * 1000) / 10 : 0
-  return { salesUsd, adSpendUsd, acosPct, activeSkus: rows.length }
+  const adSalesUsd = rows.reduce((sum, row) => sum + (row.advertisingSales ?? 0), 0)
+  const pct = (part: number, whole: number) => (whole > 0 ? Math.round((part / whole) * 1000) / 10 : 0)
+  return { salesUsd, adSpendUsd, acosPct: pct(adSpendUsd, adSalesUsd), tacosPct: pct(adSpendUsd, salesUsd), activeSkus: rows.length }
 }
 
-/** Each manager's sales and ACoS for the month, from only the SKUs they manage. */
+/** Each manager's sales, ACoS and TACoS for the month, from only the SKUs they manage. */
 export function useManagerSales(month: MonthValue, managers: ProductManager[]) {
   const range = useMemo(() => monthRange(month), [month])
   const { rows, isFetching, isError } = useAmazonProducts(range)

@@ -1,9 +1,9 @@
 'use client'
 
 import React from 'react'
-import { FormField, fieldClass, selectClass } from '@/components/form-field/FormField'
+import { ChoiceSelect } from '@/components/choice-select/ChoiceSelect'
+import { FormField, fieldClass } from '@/components/form-field/FormField'
 import { NumericInput } from '@/components/form-field/NumericInput'
-import { SelectShell } from '@/features/finance/shared/SelectShell'
 import type { ProductManager } from '@/services/api/productManagers.api'
 import { cn } from '@/utils/cn'
 import { formatPkr, formatUsd } from './format'
@@ -71,22 +71,14 @@ interface RewardsPanelProps {
 
 /** The month's award winners; each amount is added to that manager's total. */
 export const RewardsPanel: React.FC<RewardsPanelProps> = ({ managers, picks, onChange }) => {
-  const setWinner = (key: RewardKey) => (event: React.ChangeEvent<HTMLSelectElement>) => onChange({ ...picks, winners: { ...picks.winners, [key]: event.target.value } })
+  const setWinner = (key: RewardKey) => (winner: string) => onChange({ ...picks, winners: { ...picks.winners, [key]: winner } })
+  const options = [{ value: '', label: 'No one this month' }, ...managers.map((manager) => ({ value: manager.id, label: manager.name }))]
   return (
     <Panel title="Additional rewards" note="Choose the winners for this month.">
       <div className="grid gap-3">
         {REWARDS.map(({ key, label, amount }) => (
           <FormField key={key} label={`${label} (${formatPkr(amount)})`} htmlFor={`pm-rw-${key}`}>
-            <SelectShell>
-              <select id={`pm-rw-${key}`} value={picks.winners[key] ?? ''} onChange={setWinner(key)} className={selectClass()}>
-                <option value="">No one this month</option>
-                {managers.map((manager) => (
-                  <option key={manager.id} value={manager.id}>
-                    {manager.name}
-                  </option>
-                ))}
-              </select>
-            </SelectShell>
+            <ChoiceSelect id={`pm-rw-${key}`} title={label} value={picks.winners[key] ?? ''} onChange={setWinner(key)} options={options} />
           </FormField>
         ))}
       </div>

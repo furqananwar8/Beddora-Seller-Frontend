@@ -29,6 +29,16 @@ export type ProductManagerInput = Pick<ProductManager, 'name' | 'email'>
 /** The SKUs on one channel a manager is to look after (replaces the ones they had there). */
 export type ProductAssignmentInput = ManagerProducts
 
+/** Filters of the PM Managers list. */
+export interface ProductManagerListParams {
+  page: number
+  limit: number
+  search?: string
+  /** Managers with products on any of these channels. */
+  channels?: string[]
+  assignment?: 'assigned' | 'unassigned'
+}
+
 /** A manager's SKUs on one channel. */
 export const skusOn = (manager: ProductManager, channel: string): string[] => manager.products.find((group) => group.channel === channel)?.skus ?? []
 
@@ -44,9 +54,12 @@ export const productManagersApi = baseApi.injectEndpoints({
       providesTags: ['ProductManagers'],
     }),
 
-    /** One page of managers whose name or email matches `search`. */
-    getProductManagersPage: builder.query<Page<ProductManager>, { page: number; limit: number; search?: string }>({
-      query: ({ search, ...params }) => ({ url: '/profit/product-managers', params: { ...params, search: search || undefined } }),
+    /** One page of managers matching the search and filters. */
+    getProductManagersPage: builder.query<Page<ProductManager>, ProductManagerListParams>({
+      query: ({ search, channels, assignment, ...params }) => ({
+        url: '/profit/product-managers',
+        params: { ...params, search: search || undefined, channels: channels?.length ? channels.join(',') : undefined, assignment },
+      }),
       providesTags: ['ProductManagers'],
     }),
 
@@ -72,8 +85,9 @@ export const productManagersApi = baseApi.injectEndpoints({
       invalidatesTags: ['ProductManagers'],
     }),
 
-    assignManagerProducts: builder.mutation<ProductManager, { id: string; body: ProductAssignmentInput }>({
-      query: ({ id, body }) => ({ url: `/profit/product-managers/${id}/products`, method: 'PUT', body }),
+    /** Sets the manager's SKUs on every channel given, in one request. */
+    assignManagerProducts: builder.mutation<ProductManager, { id: string; assignments: ProductAssignmentInput[] }>({
+      query: ({ id, assignments }) => ({ url: `/profit/product-managers/${id}/products`, method: 'PUT', body: { assignments } }),
       transformResponse: unwrap<ProductManager>,
       invalidatesTags: ['ProductManagers'],
     }),

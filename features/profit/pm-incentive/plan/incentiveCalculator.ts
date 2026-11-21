@@ -1,12 +1,12 @@
 import { INCENTIVE_PLAN as PLAN, RAMADAN_ALLOWANCE_PKR, REWARDS, type RewardKey, type Slab } from './incentivePlan'
 
-/** One manager's month: sales and ACoS come from their SKUs, conversion and rank are typed in. */
+/** One manager's month: sales, ACoS and TACoS come from their SKUs, the category rank is typed in. */
 export interface ManagerMonth {
   id: string
   name: string
   salesUsd: number
   acosPct: number
-  conversionPct: number
+  tacosPct: number
   categoryRank: number
 }
 
@@ -29,7 +29,7 @@ export interface ManagerPayout {
   salesIncentive: number
   aboveTopSlab: boolean
   acosTier: number
-  conversionTier: number
+  tacosTier: number
   adsBonus: number
   rankingBonus: number
   teamBonus: number
@@ -59,13 +59,13 @@ export interface IncentiveResult {
 /** The payout of the highest slab the value reaches (0 below the first). */
 const slabPayout = (slabs: readonly Slab[], value: number) => slabs.reduce((paid, [from, payout]) => (value >= from ? payout : paid), 0)
 
-/** How many thresholds the value passes, read as a tier (0 = below plan). */
-const tierOf = (thresholds: readonly number[], passes: (threshold: number) => boolean) => thresholds.filter(passes).length
+/** How many maximums the percentage stays within (a figure exactly on the limit counts), read as a tier. 0 = not eligible, also without ad data. */
+const tierWithin = (maxima: readonly number[], pct: number) => (pct > 0 ? maxima.filter((max) => pct <= max).length : 0)
 
 export const salesIncentive = (salesUsd: number) => slabPayout(PLAN.salesSlabs, salesUsd)
 export const teamPool = (totalSalesUsd: number) => slabPayout(PLAN.teamSlabs, totalSalesUsd)
-export const acosTier = (acosPct: number) => (acosPct > 0 ? tierOf(PLAN.acosTierMaxPct, (max) => acosPct < max) : 0)
-export const conversionTier = (conversionPct: number) => tierOf(PLAN.conversionTierMinPct, (min) => conversionPct >= min)
+export const acosTier = (acosPct: number) => tierWithin(PLAN.acosTierMaxPct, acosPct)
+export const tacosTier = (tacosPct: number) => tierWithin(PLAN.tacosTierMaxPct, tacosPct)
 export const rankingBonus = (rank: number) => PLAN.rankBands.find(([best, worst]) => rank >= best && rank <= worst)?.[2] ?? 0
 export const roasOf = (acosPct: number) => (acosPct > 0 ? Math.round((100 / acosPct) * 100) / 100 : 0)
 
@@ -76,9 +76,9 @@ function rewardsFor(managerId: string, picks: RewardPicks): number {
 
 function payoutOf(manager: ManagerMonth, teamBonus: number, picks: RewardPicks): ManagerPayout {
   const acos = acosTier(manager.acosPct)
-  const conversion = conversionTier(manager.conversionPct)
+  const tacos = tacosTier(manager.tacosPct)
   const sales = salesIncentive(manager.salesUsd)
-  const ads = PLAN.adsPayoutByTier[Math.min(acos, conversion)]
+  const ads = PLAN.adsPayoutByTier[Math.min(acos, tacos)]
   const ranking = rankingBonus(manager.categoryRank)
   const rewards = rewardsFor(manager.id, picks)
   return {
@@ -87,7 +87,7 @@ function payoutOf(manager: ManagerMonth, teamBonus: number, picks: RewardPicks):
     salesIncentive: sales,
     aboveTopSlab: manager.salesUsd > PLAN.salesSlabTopUsd,
     acosTier: acos,
-    conversionTier: conversion,
+    tacosTier: tacos,
     adsBonus: ads,
     rankingBonus: ranking,
     teamBonus,
