@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
+import Link from 'next/link'
 import { PageHeader } from '@/components/layout'
 import { Card, CardContent, CardHeader, CardTitle } from '@/design-system/cards'
 import { Button } from '@/design-system/buttons'
@@ -117,6 +118,11 @@ export default function AdminPage() {
       <PageHeader
         title="User Role Management"
         description="Manage roles and permissions for all users"
+        actions={
+          <Link href="/admin/activity" className="text-sm font-medium text-primary-600 hover:underline">
+            Activity timeline →
+          </Link>
+        }
       />
       
       <Card>

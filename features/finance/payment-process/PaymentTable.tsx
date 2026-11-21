@@ -1,6 +1,7 @@
 'use client'
 
 import { useFitToViewport } from '@/hooks/useFitToViewport'
+import { useRowHighlight } from '@/hooks/useRowHighlight'
 import React from 'react'
 import Link from 'next/link'
 import { PaginationFooter } from '@/components/pagination-footer/PaginationFooter'
@@ -32,6 +33,7 @@ interface PaymentTableProps {
 export const PaymentTable: React.FC<PaymentTableProps> = ({ page, isLoading, isFetching, isError, onPageChange, onOpen, onAction }) => {
   const fit = useFitToViewport<HTMLDivElement>()
   const rows = page?.data ?? []
+  const highlight = useRowHighlight(rows.map((row) => row.id))
 
   return (
     <div className={cn('overflow-hidden rounded-lg border border-border shadow-sm', isFetching && 'opacity-70 transition-opacity')}>
@@ -74,7 +76,7 @@ export const PaymentTable: React.FC<PaymentTableProps> = ({ page, isLoading, isF
                 const meta = DOC_STATUS_META[row.status]
                 const payment = PAYMENT_STATE_META[paymentStateOf(row.paidAmount, row.amount, row.status)]
                 return (
-                  <TableRow key={row.id}>
+                  <TableRow key={row.id} {...highlight.rowProps(row.id)} className={highlight.highlightClass(row.id)}>
                     <TableCell className={CELL}>
                       <button type="button" onClick={() => onOpen(row)} className="font-medium text-text-primary underline-offset-2 hover:underline">
                         {formatDocNo(row.id)}

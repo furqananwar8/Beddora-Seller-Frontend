@@ -46,7 +46,12 @@ export const PaymentProcessScreen: React.FC = () => {
 
   const closeDetail = useCallback(() => {
     setDetailId(null)
-    if (searchParams.get('open')) router.replace(pathname)
+    if (searchParams.get('open')) {
+      // Closing the modal drops `open` but keeps `highlight`, so the row stays marked
+      const next = new URLSearchParams(searchParams.toString())
+      next.delete('open')
+      router.replace(next.size ? `${pathname}?${next}` : pathname)
+    }
   }, [pathname, router, searchParams])
 
   const list = useGetPaymentDocumentsQuery({ search: debouncedSearch, page, limit: PAGE_SIZE, status: status ?? undefined })
