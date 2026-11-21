@@ -65,7 +65,6 @@ export const tagTypes = [
   'ManagedUsers',
   'FailedJobs',
   'RetryStats',
-  'Repricer',
   'ResellerWorkflow',
   'Suppliers',
   'AutoresponderCampaigns',

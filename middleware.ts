@@ -67,7 +67,6 @@ const HIDDEN_ROUTES = [
   '/dashboard/settings/billing',
 
   // Other
-  '/dashboard/repricer',
   '/dashboard/keyword-research',
 
   // Root-level

@@ -35,7 +35,7 @@ In `.env` or server env:
 
 ## 3. What we optimized in the app
 
-- **Lazy loading** – Heavy screens (Profit dashboard, eBay dashboard, Repricer, Cashflow, PPC dashboard) load their JS only when you open that route. First load stays smaller.
+- **Lazy loading** – Heavy screens (Profit dashboard, eBay dashboard, Cashflow, PPC dashboard) load their JS only when you open that route. First load stays smaller.
 - **Charts** – Recharts and map (Leaflet) are loaded only when the page that uses them is opened (dynamic import).
 - **Production build** – `next build` enables minification, tree-shaking, and chunk splitting. Always use it on the server.
 
@@ -47,7 +47,7 @@ In `.env` or server env:
 |------|--------|
 | **First page load** | Use production build; check Network tab for large JS chunks. |
 | **After login (dashboard)** | Backend might be slow (see backend SERVER-PERFORMANCE.md). |
-| **Switching tabs/pages** | First time opening a lazy-loaded page (e.g. Repricer) will fetch its chunk; next time it’s cached. |
+| **Switching tabs/pages** | First time opening a lazy-loaded page (e.g. the Profit dashboard) will fetch its chunk; next time it’s cached. |
 | **Sluggish UI** | Too many re-renders or heavy lists; we can add virtualization or memo. |
 
 ---
