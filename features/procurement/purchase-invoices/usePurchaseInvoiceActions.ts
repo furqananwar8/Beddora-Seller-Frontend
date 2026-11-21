@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { apiErrorMessage, useApiFeedback } from '@/hooks/useApiFeedback'
-import { purchaseInvoicePdfPath, usePurchaseInvoiceActionMutation } from '@/services/api/procurement.api'
+import { purchaseInvoicePdfPath, useDeletePurchaseInvoiceMutation, usePurchaseInvoiceActionMutation } from '@/services/api/procurement.api'
 import { downloadApiFile, isApiFileError } from '@/utils/downloadFile'
 
 export type InvoiceAction = 'submit' | 'withdraw' | 'approve' | 'reject' | 'hold'
@@ -24,8 +24,9 @@ const DONE: Record<InvoiceAction, (ref: string) => string> = {
  */
 export function usePurchaseInvoiceActions() {
   const [mutate] = usePurchaseInvoiceActionMutation()
+  const [deleteInvoice] = useDeletePurchaseInvoiceMutation()
   const { success, failure, info } = useApiFeedback()
-  const [busy, setBusy] = useState<{ id: number; action: InvoiceAction } | null>(null)
+  const [busy, setBusy] = useState<{ id: number; action: InvoiceAction | 'delete' } | null>(null)
 
   const run = async (invoice: InvoiceRef, action: InvoiceAction, extra: { reason?: string; note?: string } = {}): Promise<boolean> => {
     setBusy({ id: invoice.id, action })
@@ -35,6 +36,21 @@ export function usePurchaseInvoiceActions() {
       return true
     } catch (error) {
       failure(error, `Could not ${action} ${invoice.invoiceRef}`)
+      return false
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  /** Deletes an unprocessed invoice; the server explains (toast) when payments or approval stand in the way. */
+  const remove = async (invoice: InvoiceRef): Promise<boolean> => {
+    setBusy({ id: invoice.id, action: 'delete' })
+    try {
+      await deleteInvoice(invoice.id).unwrap()
+      success(`${invoice.invoiceRef} deleted`)
+      return true
+    } catch (error) {
+      failure(error, `Could not delete ${invoice.invoiceRef}`)
       return false
     } finally {
       setBusy(null)
@@ -57,6 +73,7 @@ export function usePurchaseInvoiceActions() {
     approve: (invoice: InvoiceRef, note?: string) => run(invoice, 'approve', { note: note?.trim() || undefined }),
     reject: (invoice: InvoiceRef, reason: string) => run(invoice, 'reject', { reason }),
     hold: (invoice: InvoiceRef) => run(invoice, 'hold'),
+    remove,
     downloadPdf,
     busy,
   }

@@ -2,10 +2,11 @@
 
 import React, { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { ConfirmDialog } from '@/components/confirm-dialog/ConfirmDialog'
 import type { RowActionItem } from '@/components/row-actions-menu/RowActionsMenu'
 import { useApiFeedback } from '@/hooks/useApiFeedback'
 import { useAppAbility } from '@/hooks/useAppAbility'
-import type { ContainerItem } from '@/services/api/procurement.api'
+import { useDeleteContainerMutation, type ContainerItem } from '@/services/api/procurement.api'
 import { downloadApiFile } from '@/utils/downloadFile'
 import { isDeliveredStage } from '../shared/poMeta'
 import { PackagingListsModal } from './PackagingListsModal'
@@ -23,7 +24,21 @@ export function useContainerActions() {
   const ability = useAppAbility()
   const canWrite = ability.can('write', 'containers:containers')
   const canAssign = canWrite || ability.can('write', 'procurement:packaging-lists')
-  const { failure } = useApiFeedback()
+  const { failure, success } = useApiFeedback()
+  const [deleteContainer, deleteState] = useDeleteContainerMutation()
+  const [deleting, setDeleting] = useState<{ container: ContainerItem; onPage: boolean } | null>(null)
+  const confirmDelete = async () => {
+    if (!deleting) return
+    try {
+      await deleteContainer(deleting.container.id).unwrap()
+      success(`${deleting.container.containerNo} deleted`)
+      setDeleting(null)
+      // Its own page has nothing left to show
+      if (deleting.onPage) router.push(CONTAINER_ROUTES.list)
+    } catch (error) {
+      failure(error, `Could not delete ${deleting.container.containerNo}`)
+    }
+  }
 
   const [creating, setCreating] = useState(false)
   const [editing, setEditing] = useState<ContainerItem | null>(null)
@@ -59,6 +74,8 @@ export function useContainerActions() {
       ...(lists.length
         ? lists.map((list) => ({ key: `pdf-${list.id}`, label: lists.length > 1 ? `Download ${list.plNo} PDF` : 'Download packaging list PDF', onSelect: () => void downloadList(list) }))
         : [{ key: 'pdf', label: 'Download packaging list PDF', onSelect: () => undefined, disabled: true, disabledReason: 'No packaging list yet' }]),
+      // Only a booked container with nothing attached; the server refuses (and says why) otherwise
+      ...(canAssign && container.status === 'BOOKED' && lists.length === 0 ? [{ key: 'delete', label: 'Delete container', tone: 'danger' as const, onSelect: () => setDeleting({ container, onPage }) }] : []),
     ]
   }
 
@@ -66,6 +83,9 @@ export function useContainerActions() {
     <>
       <ContainerFormModal isOpen={creating || editing !== null} container={editing} onClose={() => (setCreating(false), setEditing(null))} />
       <PackagingListsModal container={changingList} onClose={() => setChangingList(null)} />
+      <ConfirmDialog isOpen={deleting !== null} title={`Delete ${deleting?.container.containerNo ?? 'container'}?`} confirmLabel="Delete container" tone="danger" busy={deleteState.isLoading} onConfirm={confirmDelete} onClose={() => setDeleting(null)}>
+        The booking is deleted for good. A container with packaging lists or payment requests, or one already on its way, cannot be deleted.
+      </ConfirmDialog>
     </>
   )
 

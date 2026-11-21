@@ -4,6 +4,7 @@ import {
   useRejectPaymentRequestMutation,
   useSubmitPaymentRequestMutation,
   useWithdrawPaymentRequestMutation,
+  useDeletePaymentRequestMutation,
 } from '@/services/api/finance.api'
 import { useFinanceFeedback } from '../shared/useFinanceFeedback'
 import { formatRequestNo } from '../shared/format'
@@ -15,6 +16,7 @@ export function useRequestActions() {
   const [rejectMutation, rejectState] = useRejectPaymentRequestMutation()
   const [withdrawMutation, withdrawState] = useWithdrawPaymentRequestMutation()
   const [submitMutation, submitState] = useSubmitPaymentRequestMutation()
+  const [deleteMutation, deleteState] = useDeletePaymentRequestMutation()
 
   const approve = useCallback(
     async (id: number, note?: string) => {
@@ -72,8 +74,25 @@ export function useRequestActions() {
     [submitMutation, success, failure]
   )
 
+  /** Deletes an unprocessed request; the server explains (toast) when it was already approved or paid. */
+  const remove = useCallback(
+    async (id: number) => {
+      try {
+        await deleteMutation(id).unwrap()
+        success(`${formatRequestNo(id)} deleted`)
+        return true
+      } catch (error) {
+        failure(error, `Could not delete ${formatRequestNo(id)}`)
+        return false
+      }
+    },
+    [deleteMutation, success, failure]
+  )
+
   return {
     approve,
+    remove,
+    deleting: deleteState.isLoading,
     reject,
     withdraw,
     resubmit,

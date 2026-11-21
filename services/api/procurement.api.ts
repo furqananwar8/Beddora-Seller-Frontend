@@ -1282,6 +1282,18 @@ export const procurementApi = baseApi.injectEndpoints({
       query: (id) => ({ url: `/procurement/purchase-orders/${id}`, method: 'DELETE' }),
       invalidatesTags: ['ProcurementPurchaseOrders'],
     }),
+    deletePurchaseInvoice: b.mutation<void, number>({
+      query: (id) => ({ url: `/procurement/purchase-invoices/${id}`, method: 'DELETE' }),
+      invalidatesTags: ['ProcurementPurchaseInvoices'],
+    }),
+    deleteContainer: b.mutation<void, number>({
+      query: (id) => ({ url: `/procurement/containers/${id}`, method: 'DELETE' }),
+      invalidatesTags: ['ProcurementContainers'],
+    }),
+    deletePriceAnalysis: b.mutation<void, number>({
+      query: (productId) => ({ url: `/procurement/price-analysis/${productId}`, method: 'DELETE' }),
+      invalidatesTags: ['ProcurementPriceAnalysis'],
+    }),
     setPurchaseOrderLocked: b.mutation<PurchaseOrderDetail, { id: number; locked: boolean }>({
       query: ({ id, locked }) => ({ url: `/procurement/purchase-orders/${id}/${locked ? 'lock' : 'unlock'}`, method: 'POST' }),
       transformResponse: unwrap,
@@ -1612,6 +1624,9 @@ export const {
   useRejectPurchaseOrderMutation,
   useSubmitPurchaseOrderMutation,
   useDeleteProcurementPurchaseOrderMutation,
+  useDeletePurchaseInvoiceMutation,
+  useDeleteContainerMutation,
+  useDeletePriceAnalysisMutation,
   useSetPurchaseOrderLockedMutation,
   useGetSupplierOptionsQuery,
   useGetPurchaseInvoicesQuery,

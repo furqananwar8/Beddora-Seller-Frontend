@@ -84,8 +84,8 @@ function actionsFor(row: PurchaseOrderListItem, actions: PoRowActions): RowActio
   if (draft) {
     items.push({ key: 'submit', label: row.rejectionReason ? 'Resubmit for approval' : 'Submit for approval', onSelect: () => actions.onSubmit(row) })
   }
-  // Any status: the server refuses (and says why) while a packaging list, invoice or follow-up PO is attached
-  items.push({ key: 'delete', label: 'Delete PO', tone: 'danger', onSelect: () => actions.onDelete(row) })
+  // Drafts only; the server also refuses (and says why) while a packaging list, invoice or follow-up PO is attached
+  if (draft) items.push({ key: 'delete', label: 'Delete PO', tone: 'danger', onSelect: () => actions.onDelete(row) })
   if (row.isOpen) items.push({ key: 'close', label: 'Close PO', tone: 'danger', onSelect: () => actions.onClose(row) })
   else {
     items.push({ key: 'reopen', label: 'Reopen PO', onSelect: () => actions.onReopen(row) })
