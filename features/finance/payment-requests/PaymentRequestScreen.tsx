@@ -10,6 +10,7 @@ import DateRangePicker, { DateRangePreset, DateRangeValue } from '@/components/d
 import { PaginationFooter } from '@/components/pagination-footer/PaginationFooter'
 import { Button } from '@/design-system/buttons'
 import { Select } from '@/design-system/inputs'
+import { ExportExcelButton } from '@/components/export-button/ExportExcelButton'
 import { Tabs } from '@/design-system/tabs'
 import {
   PaymentRequestListParams,
@@ -20,13 +21,11 @@ import {
   useGetPaymentRequestsQuery,
   useGetPaymentRequestSummaryQuery,
 } from '@/services/api/finance.api'
-import { useDebounce } from '@/utils/debounce'
 import { formatPoNo } from '@/features/procurement/shared/poMeta'
 import { cn } from '@/utils/cn'
 import { formatBatchNo, formatRequestNo } from '../shared/format'
 import { ScreenSearch } from '../shared/ScreenSearch'
 import { SelectShell } from '../shared/SelectShell'
-import { ApproversModal } from './ApproversModal'
 import { ExpenseTypesModal } from './ExpenseTypesModal'
 import { ConfirmDialog } from '@/components/confirm-dialog/ConfirmDialog'
 import { RejectDialog } from './RejectDialog'
@@ -116,12 +115,10 @@ export const PaymentRequestScreen: React.FC = () => {
   const { data: approverStatus } = useGetApproverStatusQuery()
   const isApprover = approverStatus?.isApprover ?? false
   const canManageExpenseTypes = approverStatus?.canManageExpenseTypes ?? false
-  const canManageApprovers = approverStatus?.canManageApprovers ?? false
   const canCreateRequests = approverStatus?.canCreateRequests ?? false
 
   // A link can start the list filtered, e.g. a container's page opens its container number here
   const [search, setSearch] = useState(() => searchParams.get('search') ?? '')
-  const debouncedSearch = useDebounce(search, 300)
   const [page, setPage] = useState(1)
   const [chosenTab, setChosenTab] = useState<TabId | null>(() => (tabParam && TAB_IDS.has(tabParam) ? tabParam : highlightId ? 'ALL' : null))
   const [costCenterId, setCostCenterId] = useState('')
@@ -136,18 +133,24 @@ export const PaymentRequestScreen: React.FC = () => {
   const [deleteId, setDeleteId] = useState<number | null>(null)
   const [busyId, setBusyId] = useState<number | null>(null)
   const [showTypes, setShowTypes] = useState(false)
-  const [showApprovers, setShowApprovers] = useState(false)
 
-  const tab: TabId = chosenTab ?? (isApprover && !purchaseOrderId ? 'PENDING_APPROVAL' : 'ALL')
+  const tab: TabId = chosenTab ?? 'ALL'
   const actions = useRequestActions()
   const { data: costCenters } = useGetLeafCostCentersQuery()
 
-  const dates = useMemo(() => rangeFor(dateRange), [dateRange])
+  // Search, expense, batch and date only reach the lists when Filter is pressed (the status tabs stay instant)
+  const [applied, setApplied] = useState({ search: search.trim(), costCenterId, batched, dateRange })
+  const dirty = search.trim() !== applied.search || costCenterId !== applied.costCenterId || batched !== applied.batched || dateRange !== applied.dateRange
+  const applyFilters = () => {
+    setApplied({ search: search.trim(), costCenterId, batched, dateRange })
+    setPage(1)
+  }
+  const dates = useMemo(() => rangeFor(applied.dateRange), [applied.dateRange])
   const filters = {
-    search: debouncedSearch,
-    costCenterId: costCenterId ? Number(costCenterId) : undefined,
+    search: applied.search,
+    costCenterId: applied.costCenterId ? Number(applied.costCenterId) : undefined,
     batchId: batchId ?? undefined,
-    batched: batched || undefined,
+    batched: applied.batched || undefined,
     // A PO's payments are shown whenever they were raised, so the date range does not apply
     ...(purchaseOrderId ? { purchaseOrderId } : dates),
   }
@@ -164,12 +167,12 @@ export const PaymentRequestScreen: React.FC = () => {
 
   const count = (value?: number) => (value === undefined ? '' : ` ${value}`)
   const tabs = [
+    { id: 'ALL', label: `ALL${count(summary?.all)}` },
     { id: 'PENDING_APPROVAL', label: `PENDING FOR APPROVAL${count(summary?.byStatus.PENDING_APPROVAL)}` },
     { id: 'APPROVED', label: `APPROVED${count(summary?.byStatus.APPROVED)}` },
     { id: 'PAID', label: `PAID${count(summary?.byPayment.PAID)}` },
     { id: 'UNPAID', label: `UNPAID${count(summary?.byPayment.UNPAID)}` },
     { id: 'REJECTED', label: `REJECTED${count(summary?.byStatus.REJECTED)}` },
-    { id: 'ALL', label: `ALL${count(summary?.all)}` },
     { id: 'DRAFT', label: `DRAFT${count(summary?.byStatus.DRAFT)}` },
   ]
 
@@ -191,10 +194,7 @@ export const PaymentRequestScreen: React.FC = () => {
       <ScreenSearch
         placeholder="Search requests..."
         value={search}
-        onChange={(value) => {
-          setSearch(value)
-          setPage(1)
-        }}
+        onChange={setSearch}
       />
 
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -223,14 +223,10 @@ export const PaymentRequestScreen: React.FC = () => {
           )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <ExportExcelButton report="payment-requests" filters={{ ...filters, ...tabFilters(tab) }} noun="payment requests export" />
           {canManageExpenseTypes && (
             <Button variant="secondary" size="sm" onClick={() => setShowTypes(true)}>
               Expense types
-            </Button>
-          )}
-          {canManageApprovers && (
-            <Button variant="secondary" size="sm" onClick={() => setShowApprovers(true)}>
-              Approvers
             </Button>
           )}
           {canCreateRequests && (
@@ -264,7 +260,6 @@ export const PaymentRequestScreen: React.FC = () => {
               value={costCenterId}
               onChange={(e) => {
                 setCostCenterId(e.target.value)
-                setPage(1)
               }}
               options={[{ value: '', label: 'All' }, ...(costCenters ?? []).map((option) => ({ value: String(option.id), label: option.path }))]}
             />
@@ -281,7 +276,6 @@ export const PaymentRequestScreen: React.FC = () => {
                 value={batched}
                 onChange={(e) => {
                   setBatched(e.target.value as '' | 'yes' | 'no')
-                  setPage(1)
                 }}
                 options={[
                   { value: '', label: 'All' },
@@ -307,22 +301,21 @@ export const PaymentRequestScreen: React.FC = () => {
                         disabled: !canApplyCustom,
                         onApply: () => {
                           setDateRange({ ...draftRange, presetId: 'custom' })
-                          setPage(1)
                         },
                       }
                     : undefined
                 }
                 onChange={(range) => {
                   setDraftRange(range)
-                  // Presets apply straight away; a custom range waits for Apply.
-                  if (range.presetId && range.presetId !== 'custom') {
-                    setDateRange(range)
-                    setPage(1)
-                  }
+                  // A preset is picked straight away; a custom range waits for its own Apply. Neither reaches the list until Filter.
+                  if (range.presetId && range.presetId !== 'custom') setDateRange(range)
                 }}
               />
             </div>
           </div>
+          <Button type="button" variant="primary" disabled={!dirty} onClick={applyFilters}>
+            Filter
+          </Button>
         </div>
       </div>
 
@@ -371,7 +364,6 @@ export const PaymentRequestScreen: React.FC = () => {
       <RejectDialog requestId={rejectId} submitting={actions.rejecting} onConfirm={actions.reject} onClose={() => setRejectId(null)} />
       <RequestDetailModal requestId={openId} backHref={backHref} onClose={() => setOpen(null)} />
       {canManageExpenseTypes && <ExpenseTypesModal isOpen={showTypes} onClose={() => setShowTypes(false)} />}
-      {canManageApprovers && <ApproversModal isOpen={showApprovers} onClose={() => setShowApprovers(false)} />}
     </Container>
   )
 }

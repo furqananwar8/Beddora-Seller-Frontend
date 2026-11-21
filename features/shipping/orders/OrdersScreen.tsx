@@ -6,6 +6,7 @@ import { ConfirmDialog } from '@/components/confirm-dialog/ConfirmDialog'
 import DateRangePicker, { type DateRangeValue } from '@/components/date-range-picker/DateRangePicker'
 import { FILL_PICKER, FilterBar, FilterItem, FunnelIcon } from '@/components/filter-bar/FilterBar'
 import { FilterMultiSelect, type FilterOption } from '@/components/filter-bar/FilterMultiSelect'
+import { ExportExcelButton } from '@/components/export-button/ExportExcelButton'
 import { useStagedFilters } from '@/components/filter-bar/useStagedFilters'
 import { FormField } from '@/components/form-field/FormField'
 import { useFitToViewport } from '@/hooks/useFitToViewport'
@@ -124,7 +125,22 @@ export const OrdersScreen: React.FC = () => {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-bold text-text-primary sm:text-2xl">Orders</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-xl font-bold text-text-primary sm:text-2xl">Orders</h1>
+        <ExportExcelButton
+          report="shipping-orders"
+          noun="orders export"
+          filters={{
+            search: applied.search.trim() || undefined,
+            channels: applied.channels,
+            countries: applied.countries,
+            states: applied.states,
+            origin: applied.origins.length === 1 ? applied.origins[0] : 'ALL',
+            from: day(applied.ordered.startDate),
+            to: day(applied.ordered.endDate),
+          }}
+        />
+      </div>
 
       <div className="rounded-lg border border-border bg-surface p-3 shadow-sm sm:p-4">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">

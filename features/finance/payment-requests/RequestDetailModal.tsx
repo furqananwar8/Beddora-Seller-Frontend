@@ -158,7 +158,7 @@ const DetailBody: React.FC<DetailBodyProps> = ({ detail, onClose }) => {
             )}
             {can.withdraw && (
               <Button size="sm" variant="outline" className="text-danger-600" isLoading={actions.busy} onClick={() => actions.withdraw(detail.id)}>
-                Resubmit
+                Convert to Draft
               </Button>
             )}
             {can.changeExpense && (
@@ -168,7 +168,7 @@ const DetailBody: React.FC<DetailBodyProps> = ({ detail, onClose }) => {
             )}
           </div>
           {detail.status === 'PENDING_APPROVAL' && !can.decide && (
-            <p className="mt-3 text-xs text-text-muted">Once submitted the request is locked. Resubmit returns it to Draft so you can edit it and send it again.</p>
+            <p className="mt-3 text-xs text-text-muted">Once submitted the request is locked. Convert to Draft unlocks it so you can edit it and send it again.</p>
           )}
         </section>
 

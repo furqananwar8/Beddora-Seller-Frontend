@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ConfirmDialog } from '@/components/confirm-dialog/ConfirmDialog'
 import { FILL_TOGGLE, FilterBar, FilterItem } from '@/components/filter-bar/FilterBar'
+import { ExportExcelButton } from '@/components/export-button/ExportExcelButton'
 import { useStagedFilters } from '@/components/filter-bar/useStagedFilters'
 import { FormField } from '@/components/form-field/FormField'
 import { Container } from '@/components/layout'
@@ -82,6 +83,13 @@ export const ProductsScreen: React.FC = () => {
     marketplace: applied.marketplaces.length > 0 && applied.marketplaces.length < ALL_MARKETPLACE_CODES.length ? applied.marketplaces : undefined,
   })
   const { data: summary } = useGetPoProductSummaryQuery()
+  const exportFilters = {
+    search: debouncedSearch || undefined,
+    categoryId: applied.category?.id,
+    color: applied.color ?? undefined,
+    tag: applied.tag,
+    marketplace: applied.marketplaces.length > 0 && applied.marketplaces.length < ALL_MARKETPLACE_CODES.length ? applied.marketplaces : undefined,
+  }
 
   const [managingCategories, setManagingCategories] = useState(false)
   const [archiving, setArchiving] = useState<PoProduct | null>(null)
@@ -127,17 +135,20 @@ export const ProductsScreen: React.FC = () => {
             </p>
           )}
         </div>
-        {canWrite && (
-          <div className="flex flex-wrap items-center gap-2">
-            <Button variant="secondary" size="sm" onClick={() => setManagingCategories(true)}>
-              Categories
-            </Button>
-            <ProductImportButton />
-            <Link href={`${BASE}/new`} className="ds-button ds-button-primary ds-button-sm">
-              + New product
-            </Link>
-          </div>
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          <ExportExcelButton report="procurement-products" filters={exportFilters} noun="products export" />
+          {canWrite && (
+            <>
+              <Button variant="secondary" size="sm" onClick={() => setManagingCategories(true)}>
+                Categories
+              </Button>
+              <ProductImportButton />
+              <Link href={`${BASE}/new`} className="ds-button ds-button-primary ds-button-sm">
+                + New product
+              </Link>
+            </>
+          )}
+        </div>
       </div>
 
       <div className="mb-4 rounded-lg border border-border bg-surface p-3 shadow-sm sm:p-4">

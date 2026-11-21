@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { ConfirmDialog } from '@/components/confirm-dialog/ConfirmDialog'
 import { FILL_TOGGLE, FilterBar, FilterItem } from '@/components/filter-bar/FilterBar'
+import { ExportExcelButton } from '@/components/export-button/ExportExcelButton'
 import { useStagedFilters } from '@/components/filter-bar/useStagedFilters'
 import { FormField } from '@/components/form-field/FormField'
 import { Container } from '@/components/layout'
@@ -137,11 +138,14 @@ export const PackagingListsScreen: React.FC = () => {
             </p>
           )}
         </div>
-        {canWrite && (
-          <Link href={newPackagingListHref(purchaseOrderId)} className="ds-button ds-button-primary ds-button-sm">
-            + New packaging list
-          </Link>
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          <ExportExcelButton report="packaging-lists" filters={{ search: debouncedSearch || undefined, purchaseOrderId, container: applied.container }} noun="packaging lists export" />
+          {canWrite && (
+            <Link href={newPackagingListHref(purchaseOrderId)} className="ds-button ds-button-primary ds-button-sm">
+              + New packaging list
+            </Link>
+          )}
+        </div>
       </div>
 
       <div className="mb-4 rounded-lg border border-border bg-surface p-3 shadow-sm sm:p-4">

@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { FILL_TOGGLE, FilterBar, FilterItem } from '@/components/filter-bar/FilterBar'
+import { ExportExcelButton } from '@/components/export-button/ExportExcelButton'
 import { useStagedFilters } from '@/components/filter-bar/useStagedFilters'
 import { FormField } from '@/components/form-field/FormField'
 import { Container } from '@/components/layout'
@@ -117,11 +118,14 @@ export const PriceAnalysesScreen: React.FC = () => {
           <h1 className="text-xl font-bold text-text-primary sm:text-2xl">Price analysis</h1>
           <p className="text-sm text-text-muted">{data ? `${data.totalRecords} ${data.totalRecords === 1 ? 'analysis' : 'analyses'} · ` : ''}supplier quotes ranked by price; one supplier approved per product</p>
         </div>
-        {canWrite && (
-          <Button type="button" size="sm" onClick={() => setCreating(true)}>
-            + New price analysis
-          </Button>
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          <ExportExcelButton report="price-analysis" filters={{ search: debouncedSearch || undefined, status: applied.status, categoryId: applied.category?.id }} noun="price analysis export" />
+          {canWrite && (
+            <Button type="button" size="sm" onClick={() => setCreating(true)}>
+              + New price analysis
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="mb-4 rounded-lg border border-border bg-surface p-3 shadow-sm sm:p-4">

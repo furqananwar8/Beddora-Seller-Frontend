@@ -920,8 +920,8 @@ export const financeApi = baseApi.injectEndpoints({
     }),
 
     /* payment process */
-    getPaymentDocuments: b.query<Page<PaymentDocumentListItem>, PageParams & { status?: DocStatus }>({
-      query: ({ search, ...params }) => ({ url: '/finance/payment-documents', params: { ...params, search: search || undefined } }),
+    getPaymentDocuments: b.query<Page<PaymentDocumentListItem>, PageParams & { statuses?: DocStatus[] }>({
+      query: ({ search, statuses, ...params }) => ({ url: '/finance/payment-documents', params: { ...params, search: search || undefined, statuses: statuses?.length ? statuses.join(',') : undefined } }),
       providesTags: ['FinanceProcess'],
     }),
     getPaymentDocumentSummary: b.query<PaymentDocumentSummary, { search?: string } | void>({

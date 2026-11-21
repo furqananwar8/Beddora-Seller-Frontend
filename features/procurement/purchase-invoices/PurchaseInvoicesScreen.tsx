@@ -6,6 +6,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { ConfirmDialog } from '@/components/confirm-dialog/ConfirmDialog'
 import { FilterBar, FilterItem } from '@/components/filter-bar/FilterBar'
 import { FilterMultiSelect } from '@/components/filter-bar/FilterMultiSelect'
+import { ExportExcelButton } from '@/components/export-button/ExportExcelButton'
 import { useStagedFilters } from '@/components/filter-bar/useStagedFilters'
 import { FormField } from '@/components/form-field/FormField'
 import { Container } from '@/components/layout'
@@ -130,11 +131,14 @@ export const PurchaseInvoicesScreen: React.FC = () => {
           </div>
           <p className="text-sm text-text-muted">Raised from an approved purchase order. PDFs are generated in the background.</p>
         </div>
-        {canCreate && (
-          <Button type="button" size="sm" onClick={() => setCreating(true)}>
-            + Create purchase invoice
-          </Button>
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          <ExportExcelButton report="purchase-invoices" filters={{ search: debouncedSearch || undefined, purchaseOrderId, statuses: applied.statuses.length ? applied.statuses.join(',') : undefined }} noun="purchase invoices export" />
+          {canCreate && (
+            <Button type="button" size="sm" onClick={() => setCreating(true)}>
+              + Create purchase invoice
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="mb-4 rounded-lg border border-border bg-surface p-3 shadow-sm sm:p-4">
