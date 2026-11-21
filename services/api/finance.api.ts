@@ -873,6 +873,10 @@ export const financeApi = baseApi.injectEndpoints({
       transformResponse: unwrap,
       invalidatesTags: ['FinanceRequests'],
     }),
+    deletePaymentRequest: b.mutation<void, number>({
+      query: (id) => ({ url: `/finance/payment-requests/${id}`, method: 'DELETE' }),
+      invalidatesTags: ['FinanceRequests'],
+    }),
     withdrawPaymentRequest: b.mutation<PaymentRequestDetail, number>({
       query: (id) => ({ url: `/finance/payment-requests/${id}/withdraw`, method: 'POST' }),
       transformResponse: unwrap,
@@ -1015,6 +1019,7 @@ export const {
   useRemoveRequestDocumentMutation,
   useSubmitPaymentRequestMutation,
   useWithdrawPaymentRequestMutation,
+  useDeletePaymentRequestMutation,
   useChangePaymentRequestExpensesMutation,
   useApprovePaymentRequestMutation,
   useRejectPaymentRequestMutation,

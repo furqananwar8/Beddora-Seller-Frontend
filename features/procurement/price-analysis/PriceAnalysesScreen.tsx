@@ -9,6 +9,9 @@ import { FormField } from '@/components/form-field/FormField'
 import { Container } from '@/components/layout'
 import { useFitToViewport } from '@/hooks/useFitToViewport'
 import { PaginationFooter } from '@/components/pagination-footer/PaginationFooter'
+import { ConfirmDialog } from '@/components/confirm-dialog/ConfirmDialog'
+import { useApiFeedback } from '@/hooks/useApiFeedback'
+import { useDeletePriceAnalysisMutation } from '@/services/api/procurement.api'
 import { RowActionsMenu } from '@/components/row-actions-menu/RowActionsMenu'
 import { SegmentedToggle } from '@/components/segmented-toggle/SegmentedToggle'
 import { StatusBadge, type StatusTone } from '@/components/status-badge/StatusBadge'
@@ -86,10 +89,25 @@ export const PriceAnalysesScreen: React.FC = () => {
   const rows = data?.data ?? []
   const [creating, setCreating] = useState(false)
   const [timeline, setTimeline] = useState<PriceAnalysisListItem | null>(null)
+  const [deleting, setDeleting] = useState<PriceAnalysisListItem | null>(null)
+  const [deleteAnalysis, deleteState] = useDeletePriceAnalysisMutation()
+  const feedback = useApiFeedback()
+  const confirmDelete = async () => {
+    if (!deleting) return
+    try {
+      await deleteAnalysis(deleting.product.id).unwrap()
+      feedback.success(`Price analysis for ${deleting.product.ref} deleted`)
+      setDeleting(null)
+    } catch (error) {
+      feedback.failure(error, 'Could not delete the price analysis')
+    }
+  }
 
   const actionsFor = (row: PriceAnalysisListItem) => [
     { key: 'open', label: canWrite ? 'Edit analysis' : 'View analysis', onSelect: () => router.push(priceAnalysisHref(row.product.id)) },
     { key: 'timeline', label: 'Timeline', onSelect: () => setTimeline(row) },
+    // Started and not yet approved; the server refuses an approved one
+    ...(canWrite && row.status === 'PENDING' ? [{ key: 'delete', label: 'Delete analysis', tone: 'danger' as const, onSelect: () => setDeleting(row) }] : []),
   ]
 
   return (
@@ -227,6 +245,9 @@ export const PriceAnalysesScreen: React.FC = () => {
         {data && <PaginationFooter page={data.page} pageSize={data.limit} totalItems={data.totalRecords} totalPages={data.totalPages} onPageChange={setPage} itemLabel="analyses" />}
       </div>
 
+      <ConfirmDialog isOpen={deleting !== null} title="Delete price analysis?" confirmLabel="Delete analysis" tone="danger" busy={deleteState.isLoading} onConfirm={confirmDelete} onClose={() => setDeleting(null)}>
+        The supplier quotes for <strong>{deleting?.product.ref}</strong> are deleted (they stay in its timeline). An approved analysis cannot be deleted.
+      </ConfirmDialog>
       <PriceHistoryModal productId={timeline?.product.id ?? null} productLabel={timeline ? `${timeline.product.ref} · ${productLabel(timeline.product)}` : ''} onClose={() => setTimeline(null)} />
       <NewAnalysisModal isOpen={creating} onClose={() => setCreating(false)} hrefFor={priceAnalysisHref} />
     </Container>

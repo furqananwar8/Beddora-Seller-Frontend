@@ -36,9 +36,11 @@ interface RequestsTableProps {
   onEdit: (id: number) => void
   onApprove: (id: number) => void
   onReject: (id: number) => void
+  /** Drafts and rejected requests only; shown when the viewer can edit the row. */
+  onDelete: (id: number) => void
 }
 
-export const RequestsTable: React.FC<RequestsTableProps> = ({ rows, isLoading, isError, canDecide, busyId, highlightId, onOpen, onEdit, onApprove, onReject }) => {
+export const RequestsTable: React.FC<RequestsTableProps> = ({ rows, isLoading, isError, canDecide, busyId, highlightId, onOpen, onEdit, onApprove, onReject, onDelete }) => {
   const [expandedId, setExpandedId] = useState<number | null>(null)
   const shown = rows.some((row) => row.id === highlightId)
   useEffect(() => {
@@ -156,6 +158,7 @@ export const RequestsTable: React.FC<RequestsTableProps> = ({ rows, isLoading, i
                       label={`Payment#${row.id}`}
                       items={[
                         ...(row.canEdit ? [{ key: 'edit', label: 'Edit', onSelect: () => onEdit(row.id) }] : []),
+                        ...(row.canEdit ? [{ key: 'delete', label: 'Delete', tone: 'danger' as const, onSelect: () => onDelete(row.id) }] : []),
                         { key: 'open', label: 'View details', onSelect: () => onOpen(row.id) },
                         ...(decidable
                           ? [

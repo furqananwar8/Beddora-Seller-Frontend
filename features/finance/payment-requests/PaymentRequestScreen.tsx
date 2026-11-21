@@ -23,11 +23,12 @@ import {
 import { useDebounce } from '@/utils/debounce'
 import { formatPoNo } from '@/features/procurement/shared/poMeta'
 import { cn } from '@/utils/cn'
-import { formatBatchNo } from '../shared/format'
+import { formatBatchNo, formatRequestNo } from '../shared/format'
 import { ScreenSearch } from '../shared/ScreenSearch'
 import { SelectShell } from '../shared/SelectShell'
 import { ApproversModal } from './ApproversModal'
 import { ExpenseTypesModal } from './ExpenseTypesModal'
+import { ConfirmDialog } from '@/components/confirm-dialog/ConfirmDialog'
 import { RejectDialog } from './RejectDialog'
 import { RequestDetailModal } from './RequestDetailModal'
 import { RequestsTable } from './RequestsTable'
@@ -132,6 +133,7 @@ export const PaymentRequestScreen: React.FC = () => {
   const draftIsCustom = !draftRange.presetId || draftRange.presetId === 'custom'
   const canApplyCustom = draftIsCustom && Boolean(draftRange.startDate && draftRange.endDate) && (draftRange.startDate !== dateRange.startDate || draftRange.endDate !== dateRange.endDate)
   const [rejectId, setRejectId] = useState<number | null>(null)
+  const [deleteId, setDeleteId] = useState<number | null>(null)
   const [busyId, setBusyId] = useState<number | null>(null)
   const [showTypes, setShowTypes] = useState(false)
   const [showApprovers, setShowApprovers] = useState(false)
@@ -337,6 +339,7 @@ export const PaymentRequestScreen: React.FC = () => {
             onEdit={(id) => router.push(`/dashboard/finance/payment-request/new?edit=${id}`)}
             onApprove={(id) => withBusy(id, () => actions.approve(id))}
             onReject={setRejectId}
+            onDelete={setDeleteId}
           />
         </div>
         {data && (
@@ -351,6 +354,19 @@ export const PaymentRequestScreen: React.FC = () => {
         )}
       </div>
 
+      <ConfirmDialog
+        isOpen={deleteId !== null}
+        title={`Delete ${deleteId ? formatRequestNo(deleteId) : 'request'}?`}
+        confirmLabel="Delete request"
+        tone="danger"
+        busy={actions.deleting}
+        onConfirm={async () => {
+          if (deleteId && (await actions.remove(deleteId))) setDeleteId(null)
+        }}
+        onClose={() => setDeleteId(null)}
+      >
+        The request is deleted for good, with its lines, documents and timeline. A request that was approved or paid cannot be deleted.
+      </ConfirmDialog>
       <RejectDialog requestId={rejectId} submitting={actions.rejecting} onConfirm={actions.reject} onClose={() => setRejectId(null)} />
       <RequestDetailModal requestId={openId} backHref={backHref} onClose={() => setOpen(null)} />
       {canManageExpenseTypes && <ExpenseTypesModal isOpen={showTypes} onClose={() => setShowTypes(false)} />}

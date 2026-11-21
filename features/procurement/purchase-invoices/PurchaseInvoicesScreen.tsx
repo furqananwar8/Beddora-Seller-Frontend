@@ -3,6 +3,7 @@
 import React, { useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { ConfirmDialog } from '@/components/confirm-dialog/ConfirmDialog'
 import { FilterBar, FilterItem } from '@/components/filter-bar/FilterBar'
 import { FilterMultiSelect } from '@/components/filter-bar/FilterMultiSelect'
 import { useStagedFilters } from '@/components/filter-bar/useStagedFilters'
@@ -66,6 +67,7 @@ export const PurchaseInvoicesScreen: React.FC = () => {
   const { data: marketplaces } = useGetPurchaseInvoiceDestinationsQuery()
   const actions = usePurchaseInvoiceActions()
   const [rejecting, setRejecting] = useState<PurchaseInvoiceListItem | null>(null)
+  const [deleting, setDeleting] = useState<PurchaseInvoiceListItem | null>(null)
   const [paymentsOf, setPaymentsOf] = useState<{ id: number; invoiceRef: string } | null>(null)
   // Same gate as the purchase order table: reading Finance > Payment Requests
   const ability = useAppAbility()
@@ -93,6 +95,8 @@ export const PurchaseInvoicesScreen: React.FC = () => {
     // Only an approved invoice can be paid; the request opens with the invoice picked as what it pays
     ...(canRequestPayments && (row.status === 'PAYMENT_PENDING' || row.status === 'PARTIALLY_PAID') ? [{ key: 'pay', label: 'Create payment request', onSelect: () => router.push(newPaymentRequestForInvoiceHref(row.id)) }] : []),
     ...(canViewPayments ? [{ key: 'payments', label: `View payment requests (${row.paymentRequestCount})`, onSelect: () => setPaymentsOf({ id: row.id, invoiceRef: row.invoiceRef }) }] : []),
+    // Drafts and rejected invoices only; the server refuses (and says why) while a payment request exists
+    ...(row.can.edit ? [{ key: 'delete', label: 'Delete invoice', tone: 'danger' as const, onSelect: () => setDeleting(row) }] : []),
     ...(row.can.edit ? [{ key: 'edit', label: 'Edit invoice', onSelect: () => router.push(`${PURCHASE_INVOICES_URL}/new?edit=${row.id}`) }] : []),
     ...(row.can.submit ? [{ key: 'submit', label: row.status === 'REJECTED' ? 'Resubmit for approval' : 'Submit for approval', onSelect: () => void actions.submit(row) }] : []),
     ...(row.can.withdraw ? [{ key: 'withdraw', label: 'Withdraw to draft', onSelect: () => void actions.withdraw(row) }] : []),
@@ -248,6 +252,20 @@ export const PurchaseInvoicesScreen: React.FC = () => {
       <NewPurchaseInvoiceModal isOpen={creating} onClose={() => setCreating(false)} />
       <PiPaymentRequestsModal purchaseInvoice={paymentsOf} onClose={() => setPaymentsOf(null)} />
       <PurchaseInvoiceDetailModal invoiceId={openId ?? null} onClose={() => showDetails(null)} />
+
+      <ConfirmDialog
+        isOpen={deleting !== null}
+        title={`Delete ${deleting?.invoiceRef ?? 'invoice'}?`}
+        confirmLabel="Delete invoice"
+        tone="danger"
+        busy={actions.busy?.action === 'delete'}
+        onConfirm={async () => {
+          if (deleting && (await actions.remove(deleting))) setDeleting(null)
+        }}
+        onClose={() => setDeleting(null)}
+      >
+        <strong>{deleting?.invoiceRef}</strong> is deleted for good, with its lines and timeline. An invoice with a payment request against it cannot be deleted.
+      </ConfirmDialog>
 
       <ReasonDialog
         isOpen={rejecting !== null}
