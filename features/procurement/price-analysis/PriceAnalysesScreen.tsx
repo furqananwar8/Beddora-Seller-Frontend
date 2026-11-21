@@ -22,7 +22,6 @@ import { formatCurrencyAmount } from '@/features/finance/shared/format'
 import { useAppAbility } from '@/hooks/useAppAbility'
 import { useGetPriceAnalysesQuery, type CategoryRef, type PriceAnalysisListItem, type PriceAnalysisStatus } from '@/services/api/procurement.api'
 import { cn } from '@/utils/cn'
-import { useDebounce } from '@/utils/debounce'
 import { formatCalendarDay } from '@/utils/format'
 import { CategorySelect } from '../shared/CategorySelect'
 import { productLabel } from '../shared/ProductPicker'
@@ -37,11 +36,12 @@ const COLUMNS = 8
 type StatusFilter = 'ALL' | PriceAnalysisStatus
 
 interface Filters extends Record<string, unknown> {
+  search: string
   status: StatusFilter
   category: CategoryRef | null
 }
 
-const DEFAULT_FILTERS: Filters = { status: 'ALL', category: null }
+const DEFAULT_FILTERS: Filters = { search: '', status: 'ALL', category: null }
 
 export const PA_STATUS_META: Record<PriceAnalysisStatus, { label: string; tone: StatusTone }> = {
   NONE: { label: 'NO QUOTES', tone: 'neutral' },
@@ -74,11 +74,10 @@ export const PriceAnalysesScreen: React.FC = () => {
     if (Number.isInteger(legacy) && legacy > 0) router.replace(priceAnalysisHref(legacy))
   }, [legacy, router])
 
-  const [search, setSearch] = useState('')
-  const debouncedSearch = useDebounce(search.trim(), 300)
   const [page, setPage] = useState(1)
   const filters = useStagedFilters(DEFAULT_FILTERS, () => setPage(1))
   const { applied, draft, setDraft, changed } = filters
+  const debouncedSearch = applied.search.trim()
   const { data, isLoading, isFetching, isError } = useGetPriceAnalysesQuery({
     page,
     limit: PAGE_SIZE,
@@ -97,9 +96,10 @@ export const PriceAnalysesScreen: React.FC = () => {
     try {
       await deleteAnalysis(deleting.product.id).unwrap()
       feedback.success(`Price analysis for ${deleting.product.ref} deleted`)
-      setDeleting(null)
     } catch (error) {
       feedback.failure(error, 'Could not delete the price analysis')
+    } finally {
+      setDeleting(null)
     }
   }
 
@@ -131,11 +131,8 @@ export const PriceAnalysesScreen: React.FC = () => {
               <input
                 id="pa-search"
                 type="search"
-                value={search}
-                onChange={(event) => {
-                  setSearch(event.target.value)
-                  setPage(1)
-                }}
+                value={draft.search}
+                onChange={(event) => setDraft('search', event.target.value)}
                 placeholder="Product, SKU, color or supplier"
                 className="ds-input ds-input-default rounded-lg"
               />

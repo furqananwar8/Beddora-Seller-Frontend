@@ -18,7 +18,6 @@ import { useApiFeedback } from '@/hooks/useApiFeedback'
 import { useAppAbility } from '@/hooks/useAppAbility'
 import { useDeletePackagingListMutation, useGetPackagingListsQuery, useGetPackagingListSummaryQuery, useRequestContainerMutation, type ContainerFilter, type PackagingListItem } from '@/services/api/procurement.api'
 import { cn } from '@/utils/cn'
-import { useDebounce } from '@/utils/debounce'
 import { downloadApiFile } from '@/utils/downloadFile'
 import { CONTAINER_ROUTES } from '../containers/routes'
 import { containerLabel, formatPoNo, newPackagingListHref, supplierNames } from '../shared/poMeta'
@@ -29,10 +28,11 @@ const CELL = 'text-center align-middle'
 const COLUMNS = 9
 
 interface Filters extends Record<string, unknown> {
+  search: string
   container: ContainerFilter
 }
 
-const DEFAULT_FILTERS: Filters = { container: 'ALL' }
+const DEFAULT_FILTERS: Filters = { search: '', container: 'ALL' }
 
 const CONTAINER_OPTIONS: Array<{ value: ContainerFilter; label: string }> = [
   { value: 'ALL', label: 'All' },
@@ -57,11 +57,10 @@ export const PackagingListsScreen: React.FC = () => {
   const poParam = Number(params.get('purchaseOrderId'))
   const purchaseOrderId = Number.isInteger(poParam) && poParam > 0 ? poParam : undefined
 
-  const [search, setSearch] = useState('')
-  const debouncedSearch = useDebounce(search.trim(), 300)
   const [page, setPage] = useState(1)
   const filters = useStagedFilters(DEFAULT_FILTERS, () => setPage(1))
   const { applied, draft, setDraft, changed } = filters
+  const debouncedSearch = applied.search.trim()
   const { data, isLoading, isFetching, isError } = useGetPackagingListsQuery({ page, limit: PAGE_SIZE, search: debouncedSearch, purchaseOrderId, container: applied.container })
   const { data: summary } = useGetPackagingListSummaryQuery()
 
@@ -152,11 +151,8 @@ export const PackagingListsScreen: React.FC = () => {
               <input
                 id="pl-search"
                 type="search"
-                value={search}
-                onChange={(event) => {
-                  setSearch(event.target.value)
-                  setPage(1)
-                }}
+                value={draft.search}
+                onChange={(event) => setDraft('search', event.target.value)}
                 placeholder="PL #, supplier, PO # or SKU"
                 className="ds-input ds-input-default rounded-lg"
               />

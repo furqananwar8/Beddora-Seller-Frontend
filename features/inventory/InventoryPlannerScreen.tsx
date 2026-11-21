@@ -7,7 +7,6 @@ import { addNotification } from '@/store/ui.slice'
 import { Container } from '@/components/layout'
 import { Button } from '@/design-system/buttons'
 import { Card, CardContent } from '@/design-system/cards'
-import { useDebounce } from '@/utils/debounce'
 import {
   useGetInventorySummaryQuery,
   useGetProductInventoryQuery,
@@ -77,10 +76,12 @@ export const InventoryPlannerScreen: React.FC<{ initialSearch?: string }> = ({ i
 
   // ---- Search ----
   const [searchTerm, setSearchTerm] = useState<string>(initialSearch)
-  const debouncedSearch = useDebounce(searchTerm, 300)
+  // The typed text only counts once Filter is pressed, together with the other filters
+  const [debouncedSearch, setAppliedSearch] = useState<string>(initialSearch.trim())
   /** Empties the box, and drops a ?search= the page was opened with so a refresh doesn't bring it back. */
   const clearSearch = () => {
     setSearchTerm('')
+    setAppliedSearch('')
     if (window.location.search.includes('search=')) router.replace(window.location.pathname)
   }
 
@@ -238,7 +239,8 @@ export const InventoryPlannerScreen: React.FC<{ initialSearch?: string }> = ({ i
   // ---- Apply filters ----
   const handleApplyFilters = useCallback(() => {
     setAppliedFilters({ ...pendingFilters })
-  }, [pendingFilters])
+    setAppliedSearch(searchTerm.trim())
+  }, [pendingFilters, searchTerm])
 
   /** Opens a new shipment on the Shipments tab (FBA unless WFS is asked for) with the channel SKUs bound to these internal SKUs picked. */
   const openShipmentCreation = (internalSkus: string[], channel: 'amazon_fba' | 'walmart_wfs' = 'amazon_fba') => {
@@ -368,6 +370,7 @@ export const InventoryPlannerScreen: React.FC<{ initialSearch?: string }> = ({ i
                   placeholder="Search"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleApplyFilters()}
                   className={`w-full pl-10 ${searchTerm ? 'pr-10' : 'pr-4'} py-2.5 text-sm bg-surface-primary border border-border-primary rounded-md text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary-200 focus:border-primary-600`}
                 />
                 {searchTerm && (

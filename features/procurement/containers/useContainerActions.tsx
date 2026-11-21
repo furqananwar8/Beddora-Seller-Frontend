@@ -32,11 +32,12 @@ export function useContainerActions() {
     try {
       await deleteContainer(deleting.container.id).unwrap()
       success(`${deleting.container.containerNo} deleted`)
-      setDeleting(null)
       // Its own page has nothing left to show
       if (deleting.onPage) router.push(CONTAINER_ROUTES.list)
     } catch (error) {
       failure(error, `Could not delete ${deleting.container.containerNo}`)
+    } finally {
+      setDeleting(null)
     }
   }
 

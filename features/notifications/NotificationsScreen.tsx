@@ -19,7 +19,6 @@ import {
   useMarkNotificationReadMutation,
 } from '@/services/api/notifications.api'
 import { cn } from '@/utils/cn'
-import { useDebounce } from '@/utils/debounce'
 import { ANY_DATE, dateBounds } from '@/utils/dateRangeFilter'
 import { notificationHref } from '@/utils/notificationLink'
 import type { DateRangeValue } from '@/components/date-range-picker/DateRangePicker'
@@ -27,20 +26,19 @@ import type { DateRangeValue } from '@/components/date-range-picker/DateRangePic
 const PAGE_SIZE = 20
 
 interface Filters {
+  search: string
   categories: string[]
   actorIds: string[]
   unreadOnly: boolean
   dateRange: DateRangeValue
 }
 
-const NO_FILTERS: Filters = { categories: [], actorIds: [], unreadOnly: false, dateRange: ANY_DATE }
+const NO_FILTERS: Filters = { search: '', categories: [], actorIds: [], unreadOnly: false, dateRange: ANY_DATE }
 
 /** Every notification the user has received, newest first, filterable by type, who triggered it, date and read state. */
 export const NotificationsScreen: React.FC = () => {
   const router = useRouter()
   const [page, setPage] = useState(1)
-  const [search, setSearch] = useState('')
-  const debouncedSearch = useDebounce(search.trim(), 300)
   const [pending, setPending] = useState<Filters>(NO_FILTERS)
   const [applied, setApplied] = useState<Filters>(NO_FILTERS)
 
@@ -50,7 +48,7 @@ export const NotificationsScreen: React.FC = () => {
   const { data, isLoading, isFetching, isError } = useGetNotificationsQuery({
     page,
     limit: PAGE_SIZE,
-    search: debouncedSearch || undefined,
+    search: applied.search.trim() || undefined,
     categories: applied.categories,
     actorIds: applied.actorIds,
     unreadOnly: applied.unreadOnly,
@@ -66,7 +64,6 @@ export const NotificationsScreen: React.FC = () => {
   const reset = useCallback(() => {
     setPending(NO_FILTERS)
     setApplied(NO_FILTERS)
-    setSearch('')
     setPage(1)
   }, [])
 
@@ -97,11 +94,8 @@ export const NotificationsScreen: React.FC = () => {
             <span className="ds-input-label">Search</span>
             <input
               type="search"
-              value={search}
-              onChange={(event) => {
-                setSearch(event.target.value)
-                setPage(1)
-              }}
+              value={pending.search}
+              onChange={(event) => setPending((prev) => ({ ...prev, search: event.target.value }))}
               placeholder="Title or message"
               className="ds-input ds-input-default rounded-lg"
               aria-label="Search notifications"

@@ -30,7 +30,6 @@ import {
   type PurchaseOrderListItem,
 } from '@/services/api/procurement.api'
 import { cn } from '@/utils/cn'
-import { useDebounce } from '@/utils/debounce'
 import { DESTINATION_LABEL, PAYMENT_META, PO_STATUS_META, newPaymentRequestHref, newPurchaseInvoiceHref } from '../shared/poMeta'
 import { PoPackagingListsModal } from '../shared/PoPackagingLists'
 import { PoPaymentRequestsModal } from '../shared/PoPaymentRequests'
@@ -46,6 +45,7 @@ type AlertFilter = Exclude<EtdAlertLevel, 'NONE'>
 type OpenFilter = 'ALL' | 'OPEN' | 'CLOSED'
 
 interface Filters extends Record<string, unknown> {
+  search: string
   colors: string[]
   destinations: PoDestination[]
   statuses: PoStatus[]
@@ -56,6 +56,7 @@ interface Filters extends Record<string, unknown> {
 }
 
 const DEFAULT_FILTERS: Filters = {
+  search: '',
   colors: [],
   destinations: [],
   statuses: [],
@@ -102,11 +103,10 @@ export const PurchaseOrdersScreen: React.FC = () => {
   const [deleting, setDeleting] = useState<PurchaseOrderListItem | null>(null)
   const { success, failure } = useApiFeedback()
 
-  const [search, setSearch] = useState('')
-  const debouncedSearch = useDebounce(search.trim(), 300)
   const [page, setPage] = useState(1)
   const filters = useStagedFilters(DEFAULT_FILTERS, () => setPage(1))
   const { applied, draft, setDraft, changed } = filters
+  const debouncedSearch = applied.search.trim()
 
   const { data, isLoading, isFetching, isError } = useGetProcurementPurchaseOrdersQuery({
     page,
@@ -193,11 +193,8 @@ export const PurchaseOrdersScreen: React.FC = () => {
               <input
                 id="po-search"
                 type="search"
-                value={search}
-                onChange={(event) => {
-                  setSearch(event.target.value)
-                  setPage(1)
-                }}
+                value={draft.search}
+                onChange={(event) => setDraft('search', event.target.value)}
                 placeholder="PO #, sheet PO #, supplier, contact, product or SKU"
                 className="ds-input ds-input-default rounded-lg"
               />

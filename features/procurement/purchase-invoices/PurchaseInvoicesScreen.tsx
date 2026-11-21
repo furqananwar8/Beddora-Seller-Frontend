@@ -22,7 +22,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { formatCurrencyAmount } from '@/features/finance/shared/format'
 import { useGetPurchaseInvoiceDestinationsQuery, useGetPurchaseInvoicesQuery, useGetPurchaseInvoiceSummaryQuery, type PurchaseInvoiceListItem, type PurchaseInvoiceStatus } from '@/services/api/procurement.api'
 import { cn } from '@/utils/cn'
-import { useDebounce } from '@/utils/debounce'
 import { formatCalendarDay } from '@/utils/format'
 import { PDF_STATUS_META, PURCHASE_INVOICES_URL, isInvoiced, newPackagingListHref, newPaymentRequestForInvoiceHref, PURCHASE_INVOICE_STATUSES, PURCHASE_INVOICE_STATUS_META, PurchaseInvoiceStatusBadge, formatPoNo } from '../shared/poMeta'
 import { NewPurchaseInvoiceModal } from './NewPurchaseInvoiceModal'
@@ -35,10 +34,11 @@ const CELL = 'text-center align-middle'
 const COLUMNS = 14
 
 interface Filters extends Record<string, unknown> {
+  search: string
   statuses: PurchaseInvoiceStatus[]
 }
 
-const DEFAULT_FILTERS: Filters = { statuses: [] }
+const DEFAULT_FILTERS: Filters = { search: '', statuses: [] }
 
 const positiveParam = (value: string | null): number | undefined => {
   const parsed = Number(value)
@@ -57,11 +57,10 @@ export const PurchaseInvoicesScreen: React.FC = () => {
   const purchaseOrderId = positiveParam(params.get('purchaseOrderId'))
   const openId = positiveParam(params.get('open'))
 
-  const [search, setSearch] = useState('')
-  const debouncedSearch = useDebounce(search.trim(), 300)
   const [page, setPage] = useState(1)
   const filters = useStagedFilters(DEFAULT_FILTERS, () => setPage(1))
   const { applied, draft, setDraft, changed } = filters
+  const debouncedSearch = applied.search.trim()
   const { data, isLoading, isFetching, isError } = useGetPurchaseInvoicesQuery({ page, limit: PAGE_SIZE, search: debouncedSearch, purchaseOrderId, statuses: applied.statuses })
   const { data: summary } = useGetPurchaseInvoiceSummaryQuery({ search: debouncedSearch, purchaseOrderId })
   const { data: marketplaces } = useGetPurchaseInvoiceDestinationsQuery()
@@ -145,11 +144,8 @@ export const PurchaseInvoicesScreen: React.FC = () => {
               <input
                 id="pi-search"
                 type="search"
-                value={search}
-                onChange={(event) => {
-                  setSearch(event.target.value)
-                  setPage(1)
-                }}
+                value={draft.search}
+                onChange={(event) => setDraft('search', event.target.value)}
                 placeholder="INV #, invoice no, partner or PO #"
                 className="ds-input ds-input-default rounded-lg"
               />
@@ -260,7 +256,8 @@ export const PurchaseInvoicesScreen: React.FC = () => {
         tone="danger"
         busy={actions.busy?.action === 'delete'}
         onConfirm={async () => {
-          if (deleting && (await actions.remove(deleting))) setDeleting(null)
+          if (deleting) await actions.remove(deleting)
+          setDeleting(null)
         }}
         onClose={() => setDeleting(null)}
       >

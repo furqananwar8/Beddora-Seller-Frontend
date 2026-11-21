@@ -26,7 +26,6 @@ import {
   type ProductTag,
 } from '@/services/api/procurement.api'
 import { cn } from '@/utils/cn'
-import { useDebounce } from '@/utils/debounce'
 import { CategorySelect } from '../shared/CategorySelect'
 import { CategoriesModal } from './CategoriesModal'
 import { ProductImportButton } from './import/ProductImportButton'
@@ -45,6 +44,7 @@ const TAG_OPTIONS: Array<{ value: TagFilter; label: string }> = [
 ]
 
 interface Filters extends Record<string, unknown> {
+  search: string
   category: CategoryRef | null
   color: string | null
   tag: TagFilter
@@ -55,7 +55,7 @@ interface Filters extends Record<string, unknown> {
 const ALL_MARKETPLACE_CODES: string[] = MARKETPLACES.map((market) => market.value)
 const MARKETPLACE_OPTIONS = MARKETPLACES.map((market) => ({ id: market.value, name: market.label }))
 
-const DEFAULT_FILTERS: Filters = { category: null, color: null, tag: 'ALL', marketplaces: ALL_MARKETPLACE_CODES }
+const DEFAULT_FILTERS: Filters = { search: '', category: null, color: null, tag: 'ALL', marketplaces: ALL_MARKETPLACE_CODES }
 
 const ALL_COLORS = 'All colors'
 
@@ -66,11 +66,10 @@ export const ProductsScreen: React.FC = () => {
   const canWrite = ability.can('write', 'procurement:products')
   const { success, failure } = useApiFeedback()
 
-  const [search, setSearch] = useState('')
-  const debouncedSearch = useDebounce(search.trim(), 300)
   const [page, setPage] = useState(1)
   const filters = useStagedFilters(DEFAULT_FILTERS, () => setPage(1))
-  const { applied } = filters
+  const { applied, draft, setDraft } = filters
+  const debouncedSearch = applied.search.trim()
 
   const { data, isLoading, isFetching, isError } = useGetPoProductsQuery({
     page,
@@ -148,11 +147,8 @@ export const ProductsScreen: React.FC = () => {
               <input
                 id="products-search"
                 type="search"
-                value={search}
-                onChange={(event) => {
-                  setSearch(event.target.value)
-                  setPage(1)
-                }}
+                value={draft.search}
+                onChange={(event) => setDraft('search', event.target.value)}
                 placeholder="Name, variant name or SKU"
                 className="ds-input ds-input-default rounded-lg"
               />

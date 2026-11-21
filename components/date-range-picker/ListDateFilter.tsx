@@ -17,7 +17,6 @@ export const ListDateFilter: React.FC<ListDateFilterProps> = ({ value, onApply }
 
   return (
     <div className="w-full min-w-0 sm:w-56">
-      <span className="ds-input-label">Date</span>
       <div className="w-full [&>div]:block [&>div]:w-full [&>div>button]:h-10 [&>div>button]:w-full [&>div>button]:py-0 [&>div>button>span]:flex-1 [&>div>button>span]:text-left">
         <DateRangePicker
           presets={LIST_DATE_PRESETS}

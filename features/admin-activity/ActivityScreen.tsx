@@ -13,19 +13,19 @@ import { Spinner } from '@/design-system/loaders'
 import { Modal } from '@/design-system/modals'
 import { ActivityEntry, useGetActivityEntryQuery, useGetActivityFiltersQuery, useGetActivityQuery } from '@/services/api/activity.api'
 import { cn } from '@/utils/cn'
-import { useDebounce } from '@/utils/debounce'
 import { ANY_DATE, dateBounds } from '@/utils/dateRangeFilter'
 
 const PAGE_SIZE = 50
 
 interface Filters {
+  search: string
   userIds: string[]
   screens: string[]
   actions: string[]
   dateRange: DateRangeValue
 }
 
-const NO_FILTERS: Filters = { userIds: [], screens: [], actions: [], dateRange: ANY_DATE }
+const NO_FILTERS: Filters = { search: '', userIds: [], screens: [], actions: [], dateRange: ANY_DATE }
 
 const dayLabel = (date: Date) => (isToday(date) ? 'Today' : isYesterday(date) ? 'Yesterday' : format(date, 'EEEE')) + ` · ${format(date, 'd MMM yyyy')}`
 
@@ -47,8 +47,6 @@ const ACTION_VARIANT: Record<string, 'success' | 'error' | 'primary' | 'secondar
 /** Admin timeline: every successful create/update/delete, grouped by day, newest first. Click an entry for its details. */
 export const ActivityScreen: React.FC = () => {
   const [page, setPage] = useState(1)
-  const [search, setSearch] = useState('')
-  const debouncedSearch = useDebounce(search.trim(), 300)
   const [pending, setPending] = useState<Filters>(NO_FILTERS)
   const [applied, setApplied] = useState<Filters>(NO_FILTERS)
   const [openId, setOpenId] = useState<number | null>(null)
@@ -58,7 +56,7 @@ export const ActivityScreen: React.FC = () => {
   const { data, isLoading, isFetching, isError, error } = useGetActivityQuery({
     page,
     limit: PAGE_SIZE,
-    search: debouncedSearch || undefined,
+    search: applied.search.trim() || undefined,
     userIds: applied.userIds,
     screens: applied.screens,
     actions: applied.actions,
@@ -72,7 +70,6 @@ export const ActivityScreen: React.FC = () => {
   const reset = useCallback(() => {
     setPending(NO_FILTERS)
     setApplied(NO_FILTERS)
-    setSearch('')
     setPage(1)
   }, [])
 
@@ -93,11 +90,8 @@ export const ActivityScreen: React.FC = () => {
             <span className="ds-input-label">Search</span>
             <input
               type="search"
-              value={search}
-              onChange={(event) => {
-                setSearch(event.target.value)
-                setPage(1)
-              }}
+              value={pending.search}
+              onChange={(event) => setPending((prev) => ({ ...prev, search: event.target.value }))}
               placeholder="Action, record or path"
               className="ds-input ds-input-default rounded-lg"
               aria-label="Search activity"
@@ -193,14 +187,7 @@ const ActivityDetailModal: React.FC<{ id: number | null; onClose: () => void }> 
               {entry.entityId ? ` #${entry.entityId}` : ''}
             </Field>
           )}
-          <Field label="Request">
-            <code className="text-xs">
-              {entry.method} {entry.path}
-            </code>{' '}
-            <span className="text-text-muted">→ {entry.statusCode}</span>
-          </Field>
           {entry.metadata?.changedFields && entry.metadata.changedFields.length > 0 && <Field label="Fields sent">{entry.metadata.changedFields.join(', ')}</Field>}
-          {entry.ip && <Field label="IP address">{entry.ip}</Field>}
         </dl>
       )}
     </Modal>

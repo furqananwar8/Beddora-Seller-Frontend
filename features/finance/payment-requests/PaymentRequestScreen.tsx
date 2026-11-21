@@ -123,7 +123,7 @@ export const PaymentRequestScreen: React.FC = () => {
   const [search, setSearch] = useState(() => searchParams.get('search') ?? '')
   const debouncedSearch = useDebounce(search, 300)
   const [page, setPage] = useState(1)
-  const [chosenTab, setChosenTab] = useState<TabId | null>(() => (tabParam && TAB_IDS.has(tabParam) ? tabParam : null))
+  const [chosenTab, setChosenTab] = useState<TabId | null>(() => (tabParam && TAB_IDS.has(tabParam) ? tabParam : highlightId ? 'ALL' : null))
   const [costCenterId, setCostCenterId] = useState('')
   const [batched, setBatched] = useState<'' | 'yes' | 'no'>('')
   // `dateRange` is what the lists use; `draftRange` is what the picker shows while a custom range is being chosen.
@@ -361,7 +361,8 @@ export const PaymentRequestScreen: React.FC = () => {
         tone="danger"
         busy={actions.deleting}
         onConfirm={async () => {
-          if (deleteId && (await actions.remove(deleteId))) setDeleteId(null)
+          if (deleteId) await actions.remove(deleteId)
+          setDeleteId(null)
         }}
         onClose={() => setDeleteId(null)}
       >
