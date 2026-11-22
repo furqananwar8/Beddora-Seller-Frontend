@@ -37,13 +37,13 @@ export interface WarehouseEntry {
   session: string | null
   /** The scan session's id, for opening its details. */
   sessionId: number | null
-  /** The container the record is, when it is one, for opening it. */
-  containerId: number | null
+  /** The record behind the entry (container, shipment or order), for opening it. */
+  record: { type: 'container' | 'shipment' | 'order'; id: string } | null
   by: string | null
   note: string | null
 }
 
-export type WarehouseEntryKind = 'damaged' | 'return'
+export type WarehouseEntryKind = 'units' | 'damaged' | 'return'
 
 export interface WarehouseInventoryParams {
   /** YYYY-MM-DD; today when left out. */

@@ -40,7 +40,7 @@ interface WarehouseInventoryTableProps {
   isError: boolean
   /** Opens a SKU's sample history (the Samples column's count). */
   onOpenSamples?: (product: WarehouseInventoryRow['product']) => void
-  /** Opens the entries behind a SKU's Return or Damaged count. */
+  /** Opens the entries behind a SKU's Units (Our Warehouse), Return or Damaged count. */
   onOpenEntries?: (product: WarehouseInventoryRow['product'], kind: WarehouseEntryKind) => void
 }
 
@@ -113,8 +113,8 @@ export const WarehouseInventoryTable: React.FC<WarehouseInventoryTableProps> = (
                         <button type="button" className="font-semibold text-primary-600 hover:underline" onClick={() => onOpenSamples(row.product)}>
                           {row.samples.toLocaleString()}
                         </button>
-                      ) : onOpenEntries && (column.source === 'returns' || column.source === 'damaged') && (column.value(row) ?? 0) > 0 ? (
-                        <button type="button" className="font-semibold text-primary-600 hover:underline" onClick={() => onOpenEntries(row.product, column.source === 'returns' ? 'return' : 'damaged')}>
+                      ) : onOpenEntries && (column.source === 'own' || column.source === 'returns' || column.source === 'damaged') && (column.value(row) ?? 0) > 0 ? (
+                        <button type="button" className="font-semibold text-primary-600 hover:underline" onClick={() => onOpenEntries(row.product, column.source === 'own' ? 'units' : column.source === 'returns' ? 'return' : 'damaged')}>
                           {figure(column, row)}
                         </button>
                       ) : (

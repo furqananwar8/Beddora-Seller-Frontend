@@ -149,15 +149,17 @@ export const ShipmentsScreen: React.FC = () => {
   const scopeChannel = inScope.length === 1 ? SHIPMENT_CHANNELS[inScope[0].id] : null
 
   // ---- Filters ----
+  // `?search=SHP-0042` opens the list already narrowed to that shipment, e.g. from a link in the damaged or returned history
+  const urlSearch = searchParams.get('search') ?? ''
   const [filters, setFilters] = useState<{ search: string; status: StatusFilter; marketplace: 'all' | Marketplace }>({
-    search: '',
+    search: urlSearch,
     status: 'all',
     marketplace: 'all',
   })
   const { search, status: statusFilter, marketplace: marketplaceFilter } = filters
   const setFilter = (next: Partial<typeof filters>) => setFilters((prev) => ({ ...prev, ...next }))
   // Search and marketplace only narrow the list once Filter is pressed (the status chips stay instant, like tabs)
-  const [applied, setApplied] = useState<{ search: string; marketplace: 'all' | Marketplace }>({ search: '', marketplace: 'all' })
+  const [applied, setApplied] = useState<{ search: string; marketplace: 'all' | Marketplace }>({ search: urlSearch.trim(), marketplace: 'all' })
   const applyFilters = () => setApplied({ search: search.trim(), marketplace: marketplaceFilter })
   const debouncedSearch = applied.search
 

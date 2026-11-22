@@ -5,7 +5,8 @@ import { Modal } from '@/design-system/modals'
 import { Spinner } from '@/design-system/loaders'
 import { NewTabLink } from '@/components/new-tab-link/NewTabLink'
 import { CONTAINER_ROUTES } from '@/features/procurement/containers/routes'
-import { useGetWarehouseEntriesQuery, type WarehouseEntryKind } from '@/services/api/warehouseInventory.api'
+import { orderSearchHref } from '@/features/shipping/shippingMeta'
+import { useGetWarehouseEntriesQuery, type WarehouseEntry, type WarehouseEntryKind } from '@/services/api/warehouseInventory.api'
 
 interface WarehouseEntriesModalProps {
   /** The SKU and which count was clicked; null keeps the modal closed. */
@@ -13,19 +14,25 @@ interface WarehouseEntriesModalProps {
   onClose: () => void
 }
 
+/** Where each kind of record opens: the container, the shipment in the Shipments list, the order in Shipping Orders. */
+const recordHref = (record: NonNullable<WarehouseEntry['record']>) =>
+  record.type === 'container' ? CONTAINER_ROUTES.detail(record.id) : record.type === 'order' ? orderSearchHref(record.id) : `/dashboard/inventory/shipments?search=${encodeURIComponent(`SHP-${record.id.padStart(4, '0')}`)}`
+
 const WHEN = (iso: string) => new Date(iso).toLocaleString([], { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })
 
 /** Every time damaged units (or returns) were added for a SKU: when, how many, the screen (flow), record, direction and the scan session (opens its details in a new tab). */
 export const WarehouseEntriesModal: React.FC<WarehouseEntriesModalProps> = ({ target, onClose }) => {
   const { data = [], isLoading, isError } = useGetWarehouseEntriesQuery({ productId: target?.product.id ?? 0, kind: target?.kind ?? 'damaged' }, { skip: !target })
-  const label = target?.kind === 'return' ? 'Returns' : 'Damaged'
+  const kind = target?.kind ?? 'damaged'
+  const label = kind === 'units' ? 'Units' : kind === 'return' ? 'Returns' : 'Damaged'
+  const what = kind === 'units' ? 'in our warehouse' : kind === 'return' ? 'as returns' : 'as damaged'
   const units = data.reduce((sum, entry) => sum + entry.units, 0)
 
   return (
     <Modal isOpen={target !== null} onClose={onClose} title={target ? `${label} · ${target.product.sku}` : label} size="2xl">
       {target && (
         <p className="mb-3 text-sm text-text-muted">
-          {target.product.name} · {units.toLocaleString('en-CA')} {units === 1 ? 'unit' : 'units'} added as {target.kind === 'return' ? 'returns' : 'damaged'}, newest first.
+          {target.product.name} · {units.toLocaleString('en-CA')} {units === 1 ? 'unit' : 'units'} {kind === 'units' ? 'net' : 'added'} {what}, newest first.
         </p>
       )}
       {isLoading ? (
@@ -35,7 +42,7 @@ export const WarehouseEntriesModal: React.FC<WarehouseEntriesModalProps> = ({ ta
       ) : isError ? (
         <p className="py-6 text-center text-danger-600">Could not load the entries.</p>
       ) : data.length === 0 ? (
-        <p className="py-6 text-center text-text-muted">Nothing was scanned in as {target?.kind === 'return' ? 'a return' : 'damaged'} for this SKU.</p>
+        <p className="py-6 text-center text-text-muted">{kind === 'units' ? 'No units have moved in or out of the warehouse for this SKU.' : `Nothing was scanned in ${kind === 'return' ? 'as a return' : 'as damaged'} for this SKU.`}</p>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-border">
           <table className="min-w-full text-sm">
@@ -52,11 +59,14 @@ export const WarehouseEntriesModal: React.FC<WarehouseEntriesModalProps> = ({ ta
               {data.map((entry) => (
                 <tr key={entry.id} className="border-t border-border text-center">
                   <td className="whitespace-nowrap px-3 py-2">{WHEN(entry.at)}</td>
-                  <td className="px-3 py-2 font-semibold tabular-nums">{entry.units.toLocaleString('en-CA')}</td>
+                  <td className={`px-3 py-2 font-semibold tabular-nums ${entry.units < 0 ? 'text-danger-600' : ''}`}>
+                    {kind === 'units' && entry.units > 0 ? '+' : ''}
+                    {entry.units.toLocaleString('en-CA')}
+                  </td>
                   <td className="min-w-[10rem] whitespace-normal break-words px-3 py-2">{entry.screen}</td>
                   <td className="whitespace-nowrap px-3 py-2 font-mono text-xs">
-                    {entry.ref && entry.containerId !== null ? (
-                      <NewTabLink href={CONTAINER_ROUTES.detail(entry.containerId)} title="Open this container in a new tab">
+                    {entry.ref && entry.record ? (
+                      <NewTabLink href={recordHref(entry.record)} title={`Open this ${entry.record.type} in a new tab`}>
                         {entry.ref}
                       </NewTabLink>
                     ) : (
