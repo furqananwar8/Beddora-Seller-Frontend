@@ -3,6 +3,8 @@
 import React from 'react'
 import { Modal } from '@/design-system/modals'
 import { Spinner } from '@/design-system/loaders'
+import { NewTabLink } from '@/components/new-tab-link/NewTabLink'
+import { CONTAINER_ROUTES } from '@/features/procurement/containers/routes'
 import { useGetWarehouseEntriesQuery, type WarehouseEntryKind } from '@/services/api/warehouseInventory.api'
 
 interface WarehouseEntriesModalProps {
@@ -51,20 +53,22 @@ export const WarehouseEntriesModal: React.FC<WarehouseEntriesModalProps> = ({ ta
                 <tr key={entry.id} className="border-t border-border text-center">
                   <td className="whitespace-nowrap px-3 py-2">{WHEN(entry.at)}</td>
                   <td className="px-3 py-2 font-semibold tabular-nums">{entry.units.toLocaleString('en-CA')}</td>
-                  <td className="whitespace-nowrap px-3 py-2">{entry.screen}</td>
-                  <td className="whitespace-nowrap px-3 py-2 font-mono text-xs">{entry.ref ?? '—'}</td>
-                  <td className="whitespace-nowrap px-3 py-2">{entry.direction === 'IN' ? 'Inventory in' : entry.direction === 'OUT' ? 'Inventory out' : '—'}</td>
+                  <td className="min-w-[10rem] whitespace-normal break-words px-3 py-2">{entry.screen}</td>
+                  <td className="whitespace-nowrap px-3 py-2 font-mono text-xs">
+                    {entry.ref && entry.containerId !== null ? (
+                      <NewTabLink href={CONTAINER_ROUTES.detail(entry.containerId)} title="Open this container in a new tab">
+                        {entry.ref}
+                      </NewTabLink>
+                    ) : (
+                      entry.ref ?? '—'
+                    )}
+                  </td>
+                  <td className="whitespace-nowrap px-3 py-2">{entry.direction === 'IN' ? 'Inventory In' : entry.direction === 'OUT' ? 'Inventory Out' : '—'}</td>
                   <td className="whitespace-nowrap px-3 py-2">
                     {entry.sessionId !== null && entry.session ? (
-                      <a
-                        href={`/dashboard/barcode/session/${entry.sessionId}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        title="Open this scan session in a new tab"
-                        className="font-mono text-xs font-semibold text-primary-600 underline-offset-2 hover:underline"
-                      >
+                      <NewTabLink href={`/dashboard/barcode/session/${entry.sessionId}`} title="Open this scan session in a new tab" className="font-mono text-xs font-semibold">
                         {entry.session}
-                      </a>
+                      </NewTabLink>
                     ) : (
                       '—'
                     )}

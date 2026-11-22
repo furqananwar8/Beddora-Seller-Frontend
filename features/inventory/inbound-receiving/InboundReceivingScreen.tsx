@@ -8,6 +8,8 @@ import { PaginationFooter } from '@/components/pagination-footer/PaginationFoote
 import { RowActionsMenu } from '@/components/row-actions-menu/RowActionsMenu'
 import { SegmentedToggle } from '@/components/segmented-toggle/SegmentedToggle'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableStatusRow } from '@/design-system/tables'
+import { NewTabLink } from '@/components/new-tab-link/NewTabLink'
+import { CONTAINER_ROUTES } from '@/features/procurement/containers/routes'
 import { columnHeading } from './columnHeading'
 import { useScanItems } from '@/features/barcode/session/useScanItems'
 import { useAppAbility } from '@/hooks/useAppAbility'
@@ -45,8 +47,20 @@ function ScannedUnits({ row, value, extra, tone }: { row: ReceivingListItem; val
 }
 const COLUMNS = 9
 
-const Numbers: React.FC<{ values: string[] }> = ({ values }) =>
-  values.length ? <span className="whitespace-nowrap font-mono text-xs">{values.join(', ')}</span> : <span className="text-text-muted">—</span>
+/** PO or packaging list numbers, each a link that opens that record in a new tab. */
+const Numbers: React.FC<{ links: Array<{ no: string; id: number }>; href: (id: number) => string }> = ({ links, href }) =>
+  links.length ? (
+    <span className="whitespace-nowrap font-mono text-xs">
+      {links.map((link, index) => (
+        <React.Fragment key={link.id}>
+          {index > 0 && ', '}
+          <NewTabLink href={href(link.id)}>{link.no}</NewTabLink>
+        </React.Fragment>
+      ))}
+    </span>
+  ) : (
+    <span className="text-text-muted">—</span>
+  )
 
 /**
  * Inbound Receiving: containers delivered at the warehouse wait here to be counted. "Update" opens the receiving
@@ -135,14 +149,16 @@ export const InboundReceivingScreen: React.FC = () => {
                     return (
                       <TableRow key={row.id}>
                         <TableCell className={CELL}>
-                          <div className="font-semibold text-text-primary">{row.containerNumber ?? row.containerNo}</div>
+                          <NewTabLink href={CONTAINER_ROUTES.detail(row.id)} className="font-semibold">
+                            {row.containerNumber ?? row.containerNo}
+                          </NewTabLink>
                           {row.containerNumber && <div className="text-xs text-text-muted">{row.containerNo}</div>}
                         </TableCell>
                         <TableCell className={CELL}>
-                          <Numbers values={row.poNos} />
+                          <Numbers links={row.poLinks} href={(id) => `/dashboard/procurement/purchase-orders/${id}`} />
                         </TableCell>
                         <TableCell className={CELL}>
-                          <Numbers values={row.plNos} />
+                          <Numbers links={row.plLinks} href={(id) => `/dashboard/procurement/packaging-lists/${id}`} />
                         </TableCell>
                         <TableCell className={cn(CELL, 'tabular-nums')}>
                           <div>{qty(row.totals.expectedUnits)}</div>

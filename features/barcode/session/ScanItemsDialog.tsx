@@ -37,14 +37,16 @@ export function ScanItemsDialog({ target, onClose }: Props) {
 
   const { register, watch, setValue, handleSubmit } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { direction: 'OUT' },
+    // A container only comes in
+    defaultValues: { direction: target.scenario === 'CONTAINER' ? 'IN' : 'OUT' },
   })
+  const directions = target.scenario === 'CONTAINER' ? DIRECTIONS.filter((d) => d === 'IN') : DIRECTIONS
   const direction = watch('direction')
   const [confirmingClose, setConfirmingClose] = useState(false)
   const [closeRecord, { isLoading: closing }] = useCloseScanRecordMutation()
 
   // Start on the first open direction, so the common case is one click
-  const firstOpen = useMemo(() => (info ? DIRECTIONS.find((d) => !info.availability[d]) : undefined), [info])
+  const firstOpen = useMemo(() => (info ? directions.find((d) => !info.availability[d]) : undefined), [info, directions])
   useEffect(() => {
     if (firstOpen) setValue('direction', firstOpen)
   }, [firstOpen, setValue])
@@ -94,8 +96,8 @@ export function ScanItemsDialog({ target, onClose }: Props) {
           )}
 
           <fieldset className="space-y-2">
-            <legend className="mb-1 text-sm font-medium text-text-primary">Is this inventory in or out?</legend>
-            {DIRECTIONS.map((value) => {
+            <legend className="mb-1 text-sm font-medium text-text-primary">{target.scenario === 'CONTAINER' ? 'Inventory direction' : 'Is this inventory in or out?'}</legend>
+            {directions.map((value) => {
               const reason = info.availability[value]
               return (
                 <label

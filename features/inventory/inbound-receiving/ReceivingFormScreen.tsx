@@ -16,6 +16,7 @@ import { useConfirmReceivingMutation, useGetReceivingQuery, type ReceivingDetail
 import { applyServerIssues } from '@/utils/apiErrors'
 import { cn } from '@/utils/cn'
 import { formatCalendarDay } from '@/utils/format'
+import { NewTabLink } from '@/components/new-tab-link/NewTabLink'
 import { columnHeading } from './columnHeading'
 import { actualOf, defaultsFor, receivingSchema, toUnits, type ReceivingFormValues } from './receivingForm'
 import { ReceivingPdfModal } from './ReceivingPdfModal'
@@ -144,8 +145,8 @@ const ReceivingForm: React.FC<{ detail: ReceivingDetail }> = ({ detail }) => {
           )}
           {detail.scanned.started && !received && (
             <span>
-              Scanned so far: {qty(detail.scanned.goodUnits)} good, {qty(detail.scanned.damagedUnits)} damaged, {qty(detail.scanned.shortUnits)} short of {qty(detail.scanned.expectedUnits)} units
-              {detail.scanned.overUnits > 0 ? `, ${qty(detail.scanned.overUnits)} over` : ''} · scanning {detail.scanned.closed ? 'closed' : 'still open'}. The figures below start from the scan; change any of them before signing.
+              Scanned so far: {qty(detail.scanned.goodUnits + detail.scanned.damagedUnits)} of {qty(detail.scanned.expectedUnits)} units, {qty(detail.scanned.shortUnits)} not scanned
+              {detail.scanned.overUnits > 0 ? `, ${qty(detail.scanned.overUnits)} over` : ''} · scanning {detail.scanned.closed ? 'closed' : 'still open'}. The figures below start from the scan: enter the damaged units, and adjust any figure, before signing. Inventory is updated when you confirm.
             </span>
           )}
         </div>
@@ -175,7 +176,9 @@ const ReceivingForm: React.FC<{ detail: ReceivingDetail }> = ({ detail }) => {
                     <TableRow key={field.id}>
                       <TableCell className={CELL}>{index + 1}</TableCell>
                       <TableCell className={CELL}>
-                        <div className="font-semibold text-text-primary">{line.sku}</div>
+                        <NewTabLink href={`/dashboard/inventory/warehouse-inventory?search=${encodeURIComponent(line.sku)}`} title="Open this SKU in Warehouse Inventory in a new tab" className="font-semibold">
+                          {line.sku}
+                        </NewTabLink>
                         <div className="text-xs text-text-muted">{line.name}</div>
                       </TableCell>
                       <TableCell className={cn(CELL, 'tabular-nums')}>
@@ -189,13 +192,17 @@ const ReceivingForm: React.FC<{ detail: ReceivingDetail }> = ({ detail }) => {
                         const error = errors?.[key]?.message
                         return (
                           <TableCell key={key} className={CELL}>
-                            <input
-                              {...register(`lines.${index}.${key}`, { onChange: () => void form.trigger(`lines.${index}.shortage`) })}
-                              inputMode="numeric"
-                              aria-label={`${line.sku} ${key}`}
-                              readOnly={readOnly}
-                              className={cellInput(error)}
-                            />
+                            {readOnly ? (
+                              // Already received (or view only): the final numbers as plain text, not fields
+                              <span className="tabular-nums text-text-primary">{qty(Number(live?.[key]) || 0)}</span>
+                            ) : (
+                              <input
+                                {...register(`lines.${index}.${key}`, { onChange: () => void form.trigger(`lines.${index}.shortage`) })}
+                                inputMode="numeric"
+                                aria-label={`${line.sku} ${key}`}
+                                className={cellInput(error)}
+                              />
+                            )}
                             {error && key === 'shortage' && <p className="mx-auto mt-1 max-w-[12rem] text-xs text-danger-600">{error}</p>}
                           </TableCell>
                         )
@@ -255,7 +262,7 @@ const ReceivingForm: React.FC<{ detail: ReceivingDetail }> = ({ detail }) => {
           Record <strong>{qty(totals.good)}</strong> good, <strong>{qty(totals.damaged)}</strong> damaged and <strong>{qty(totals.shortage)}</strong> short units for {detail.containerNumber ?? detail.containerNo}?
         </p>
         <p className="mt-2">
-          The container becomes <strong>Goods Received</strong>, its shortage is shown on the container, and {qty(totals.damaged)} damaged units are added to Warehouse Inventory. This cannot be undone.
+          The container becomes <strong>Goods Received</strong>, its shortage is shown on the container, {qty(totals.good)} good units are added to inventory and {qty(totals.damaged)} damaged units to Warehouse Inventory as damaged. This cannot be undone.
         </p>
       </ConfirmDialog>
 

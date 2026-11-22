@@ -162,8 +162,9 @@ export function ScanSessionModal({ sessionId, onClose }: Props) {
         await discard(sessionId).unwrap()
         feedback.success('Session closed. Nothing was scanned, so inventory is unchanged')
       } else {
-        await endSession({ id: sessionId, confirmed: true, closeScanning, ...(session.lines.some((l) => l.scanned > 0) ? { conditions: split } : {}) }).unwrap()
-        const updated = isReturn ? (isReceipt(session.scenario) ? 'Received units added to inventory' : 'Returned units added to inventory') : 'Inventory updated'
+        const countOnly = session.appliesOn === 'RECEIPT'
+        await endSession({ id: sessionId, confirmed: true, closeScanning, ...(!countOnly && session.lines.some((l) => l.scanned > 0) ? { conditions: split } : {}) }).unwrap()
+        const updated = countOnly ? 'Scan counts saved for the receipt. Inventory is updated when the receipt is signed' : isReturn ? (isReceipt(session.scenario) ? 'Received units added to inventory' : 'Returned units added to inventory') : 'Inventory updated'
         feedback.success(closeScanning ? `${updated}. Scanning is closed for this record` : `${updated}. You can scan this record again later`)
       }
       setConfirming(false)
@@ -352,7 +353,11 @@ export function ScanSessionModal({ sessionId, onClose }: Props) {
               <div className="mb-2 text-xs font-semibold text-secondary-600">Scanner</div>
               {open ? (
                 <>
-                  <p className="mb-3 text-xs text-text-muted">Scan with the handheld scanner. When you finish you will say how many units were damaged; {isReturn ? 'the rest are added as sellable' : 'the rest go out'}.</p>
+                  <p className="mb-3 text-xs text-text-muted">
+                    {session.appliesOn === 'RECEIPT'
+                      ? 'Scan with the handheld scanner. The counts are kept for the receipt, where the received and damaged units are confirmed and signed.'
+                      : `Scan with the handheld scanner. When you finish you will say how many units were damaged; ${isReturn ? 'the rest are added as sellable' : 'the rest go out'}.`}
+                  </p>
                   {/* Invisible on purpose: it only has to hold focus so the scanner's keystrokes land in it, with no cursor to confuse anyone */}
                   <input
                     ref={inputRef}
@@ -394,7 +399,7 @@ export function ScanSessionModal({ sessionId, onClose }: Props) {
             </dl>
 
             <div className="rounded-lg border border-border bg-secondary-50 p-4 text-sm leading-relaxed text-secondary-600">
-              Scans are saved as you go. <b className="text-text-primary">Inventory changes only when you {session.appliesOn === 'CLOSE' ? 'close scanning' : 'end the session'}</b>: {matchedUnits} unit{matchedUnits === 1 ? '' : 's'} {isReturn ? 'in' : 'out'} for the matched SKUs. Not matched UPCs are kept on the session.
+              Scans are saved as you go. <b className="text-text-primary">Inventory changes only when {session.appliesOn === 'RECEIPT' ? 'the receipt is signed in Inbound Receiving' : session.appliesOn === 'CLOSE' ? 'you close scanning' : 'you end the session'}</b>: {matchedUnits} unit{matchedUnits === 1 ? '' : 's'} {session.appliesOn === 'RECEIPT' ? 'counted' : isReturn ? 'in' : 'out'} for the matched SKUs. Not matched UPCs are kept on the session.
             </div>
           </div>
         </div>
@@ -439,6 +444,7 @@ function EndChoice({ session, open, busy, onBack, onEnd, onPause }: { session: S
   const settles = session.scenario === 'FBA_WFS' && session.direction === 'OUT'
   // Shipments and orders move stock once, when scanning is closed; receiving moves it as each session ends
   const onClose = session.appliesOn === 'CLOSE'
+  const countOnly = session.appliesOn === 'RECEIPT'
   const verb = session.direction === 'IN' ? 'updated with' : 'reduced by'
   return (
     <Modal isOpen={open} onClose={onBack} title={onClose ? 'Save for later or close scanning?' : 'How do you want to end this session?'} size="md">
@@ -446,7 +452,7 @@ function EndChoice({ session, open, busy, onBack, onEnd, onPause }: { session: S
         {session.ref} · {channelName(session.channel)}
       </p>
       <p className="mb-4 text-sm text-text-secondary">
-        {onClose ? `Inventory is ${verb} what you scanned only when scanning is closed.` : `Inventory is ${verb} what you scanned either way.`}
+        {countOnly ? 'Inventory does not change here: the scanned counts are kept for the receipt, and inventory is updated when the receipt is signed.' : onClose ? `Inventory is ${verb} what you scanned only when scanning is closed.` : `Inventory is ${verb} what you scanned either way.`}
         {missing > 0 ? ` ${missing} expected unit${missing === 1 ? ' is' : 's are'} still not scanned.` : ''}
       </p>
       <div className="space-y-3">
@@ -482,6 +488,7 @@ function EndConfirm({ session, open, busy, matchedUnits, split, onSplit, receipt
   const unscanned = session.lines.reduce((sum, l) => sum + Math.max(0, l.expected - l.scanned), 0)
   const unscannedSkus = session.lines.filter((l) => l.scanned === 0).length
   const nothing = session.scanned === 0
+  const countOnly = session.appliesOn === 'RECEIPT'
   const matchedSkus = session.lines.filter((l) => l.scanned > 0)
   // Units that go into inventory per product: receiving counts every scan, the rest stop at what the record holds
   const counted = (l: Line) => (receipt && isIn ? l.scanned : Math.min(l.scanned, l.expected))
@@ -495,7 +502,7 @@ function EndConfirm({ session, open, busy, matchedUnits, split, onSplit, receipt
   const otherLabel = (c: ReturnCondition) => conditionName(session.scenario, c, c === 'DAMAGED' ? 'Damaged' : 'Normal return')
 
   return (
-    <Modal isOpen={open} onClose={onKeep} title="Review the count and damaged units" size="md">
+    <Modal isOpen={open} onClose={onKeep} title={countOnly ? 'Review the count' : 'Review the count and damaged units'} size="md">
       <p className="-mt-2 mb-3 text-sm text-text-muted">
         Session {sessionCode(session.id)} · {session.ref} · {channelName(session.channel)}
       </p>
@@ -507,7 +514,9 @@ function EndConfirm({ session, open, busy, matchedUnits, split, onSplit, receipt
             <span className="mt-1.5 h-2 w-2 flex-none rounded-full bg-success-600" />
             <div>
               <b>
-                {matchedUnits} unit{matchedUnits === 1 ? '' : 's'} will be {isIn ? 'added to' : 'taken out of'} inventory{session.appliesOn === 'CLOSE' ? ' when scanning is closed' : ''}
+                {countOnly
+                  ? `${matchedUnits} unit${matchedUnits === 1 ? '' : 's'} counted for this receiving`
+                  : `${matchedUnits} unit${matchedUnits === 1 ? '' : 's'} will be ${isIn ? 'added to' : 'taken out of'} inventory${session.appliesOn === 'CLOSE' ? ' when scanning is closed' : ''}`}
               </b>
               <div className="mt-0.5 text-text-muted">
                 Matched across {matchedSkus.length} SKU{matchedSkus.length === 1 ? '' : 's'}: {matchedSkus.map((l) => `${l.sku} ${l.scanned}`).join(', ')}.
@@ -533,14 +542,14 @@ function EndConfirm({ session, open, busy, matchedUnits, split, onSplit, receipt
                   {unscanned} expected unit{unscanned === 1 ? ' was' : 's were'} not scanned
                 </b>
                 <div className="mt-0.5 text-text-muted">
-                  {unscannedSkus > 0 ? `${unscannedSkus} SKU${unscannedSkus === 1 ? ' has' : 's have'} nothing scanned yet. ` : ''}Inventory is only adjusted for what was scanned.
+                  {unscannedSkus > 0 ? `${unscannedSkus} SKU${unscannedSkus === 1 ? ' has' : 's have'} nothing scanned yet. ` : ''}{countOnly ? 'The receipt starts from what was scanned.' : 'Inventory is only adjusted for what was scanned.'}
                 </div>
               </div>
             </li>
           )}
         </ul>
       )}
-      {!nothing && (
+      {!nothing && !countOnly && (
         <div className="mt-4">
           <div className="mb-2 text-sm font-bold">How many of each were {receipt ? 'good and damaged' : isIn ? 'sellable and damaged' : 'good and damaged'}?</div>
           <div className="overflow-hidden rounded-lg border border-border text-sm">
@@ -584,7 +593,7 @@ function EndConfirm({ session, open, busy, matchedUnits, split, onSplit, receipt
           {invalid && <p className="mt-2 text-xs text-danger-600">A product has more damaged or returned units than were counted.</p>}
         </div>
       )}
-      <p className="mt-3 rounded-md border border-border bg-secondary-50 p-2.5 text-xs text-secondary-600">Nothing changes yet. Next you choose whether to keep scanning open or close it. The same review shows if you close the window with the ×.</p>
+      <p className="mt-3 rounded-md border border-border bg-secondary-50 p-2.5 text-xs text-secondary-600">{countOnly ? 'Inventory does not change from scanning. The damaged units are entered when the receipt is confirmed and signed in Inbound Receiving. ' : 'Nothing changes yet. '}Next you choose whether to keep scanning open or close it. The same review shows if you close the window with the ×.</p>
       <div className="mt-5 flex justify-end gap-3">
         <Button variant="outline" onClick={onKeep} disabled={busy}>
           Keep scanning

@@ -40,6 +40,9 @@ export interface ReceivingIdentity {
   containerNumber: string | null
   poNos: string[]
   plNos: string[]
+  /** The same numbers with their record ids, to link to each. */
+  poLinks: Array<{ no: string; id: number }>
+  plLinks: Array<{ no: string; id: number }>
 }
 
 export interface ReceivingListItem extends ReceivingIdentity {

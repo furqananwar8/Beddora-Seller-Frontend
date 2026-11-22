@@ -37,6 +37,8 @@ export interface WarehouseEntry {
   session: string | null
   /** The scan session's id, for opening its details. */
   sessionId: number | null
+  /** The container the record is, when it is one, for opening it. */
+  containerId: number | null
   by: string | null
   note: string | null
 }

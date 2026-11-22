@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useMemo, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { FILL_TOGGLE, FilterBar, FilterItem } from '@/components/filter-bar/FilterBar'
 import { useStagedFilters } from '@/components/filter-bar/useStagedFilters'
 import { FormField } from '@/components/form-field/FormField'
@@ -24,7 +25,9 @@ const PAGE_SIZE = 25
  * in containers on their way, and the whole pipeline at its COGS landed cost. Filters apply with the button.
  */
 export const WarehouseInventoryScreen: React.FC = () => {
-  const defaults = useMemo(defaultFilters, [])
+  // `?search=SKU` opens the screen already filtered, e.g. from a SKU link on Inbound Receiving
+  const urlSearch = useSearchParams().get('search') ?? ''
+  const defaults = useMemo(() => ({ ...defaultFilters(), search: urlSearch }), [urlSearch])
   const [page, setPage] = useState(1)
   /** The SKU whose sample history is open. */
   const [samplesOf, setSamplesOf] = useState<WarehouseInventoryRow['product'] | null>(null)

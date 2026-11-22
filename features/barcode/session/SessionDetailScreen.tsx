@@ -31,6 +31,7 @@ export function SessionDetailScreen({ sessionId }: { sessionId: number }) {
 
   const direction = DIRECTION_META[session.direction]
   const receipt = isReceipt(session.scenario)
+  const countOnly = session.appliesOn === 'RECEIPT'
   const matchedRows = session.applied.filter((row) => row.scanned > 0)
   const resumable = session.status === 'IN_PROGRESS' && session.mine
 
@@ -62,7 +63,7 @@ export function SessionDetailScreen({ sessionId }: { sessionId: number }) {
             ['Started', when(session.startedAt)],
             ['Ended', when(session.endedAt)],
             ['Started by', session.startedBy.name ?? '-'],
-            ['Inventory updated', session.status === 'COMPLETED' ? `${when(session.endedAt)} · ${session.unitsApplied} unit${session.unitsApplied === 1 ? '' : 's'} ${session.direction === 'IN' ? 'in' : 'out'}` : 'Not yet'],
+            [countOnly ? 'Counted for the receipt' : 'Inventory updated', countOnly ? (session.status === 'COMPLETED' ? `${when(session.endedAt)} · ${session.matched} unit${session.matched === 1 ? '' : 's'} counted (inventory updates when the receipt is signed)` : 'Not yet') : session.status === 'COMPLETED' ? `${when(session.endedAt)} · ${session.unitsApplied} unit${session.unitsApplied === 1 ? '' : 's'} ${session.direction === 'IN' ? 'in' : 'out'}` : 'Not yet'],
           ].map(([label, value]) => (
             <div key={label}>
               <div className="text-xs text-text-muted">{label}</div>
@@ -78,7 +79,7 @@ export function SessionDetailScreen({ sessionId }: { sessionId: number }) {
           ['UPCs scanned', session.scanned, ''],
           [`Matched (${matchedRows.length} SKU${matchedRows.length === 1 ? '' : 's'})`, session.matched, 'text-success-700'],
           [`Not matched (${session.unmatched.length} UPC${session.unmatched.length === 1 ? '' : 's'})`, session.notMatched, session.notMatched > 0 ? 'text-warning-700' : ''],
-          ['Units adjusted in inventory', session.unitsApplied, ''],
+          [countOnly ? 'Units counted for the receipt' : 'Units adjusted in inventory', countOnly ? session.matched : session.unitsApplied, ''],
         ].map(([label, value, tone]) => (
           <Card key={String(label)}>
             <CardContent className="p-4">
@@ -91,7 +92,7 @@ export function SessionDetailScreen({ sessionId }: { sessionId: number }) {
 
       <Card>
         <CardContent className="p-0">
-          <div className="border-b border-border px-4 py-3 text-sm font-bold">Matched SKUs · inventory adjusted</div>
+          <div className="border-b border-border px-4 py-3 text-sm font-bold">Matched SKUs · {countOnly ? 'counted for the receipt' : 'inventory adjusted'}</div>
           <table className="w-full text-sm">
             <thead className="bg-secondary-100 text-xs text-secondary-600">
               <tr>
@@ -99,7 +100,7 @@ export function SessionDetailScreen({ sessionId }: { sessionId: number }) {
                 <th className="px-4 py-2.5 font-semibold text-center align-middle">UPC</th>
                 <th className="px-4 py-2.5 text-center font-semibold align-middle">Expected</th>
                 <th className="px-4 py-2.5 text-center font-semibold align-middle">Scanned</th>
-                <th className="px-4 py-2.5 text-center font-semibold align-middle">Inventory change</th>
+                <th className="px-4 py-2.5 text-center font-semibold align-middle">{countOnly ? 'Counted' : 'Inventory change'}</th>
               </tr>
             </thead>
             <tbody>
@@ -117,7 +118,11 @@ export function SessionDetailScreen({ sessionId }: { sessionId: number }) {
                   <td className="px-4 py-2.5 text-center align-middle">{row.expected}</td>
                   <td className="px-4 py-2.5 text-center align-middle">{row.scanned}</td>
                   <td className="px-4 py-2.5 text-center align-middle">
-                    {session.status === 'COMPLETED' ? (
+                    {countOnly ? (
+                      <Badge variant="secondary" size="sm">
+                        {row.scanned} counted
+                      </Badge>
+                    ) : session.status === 'COMPLETED' ? (
                       <Badge variant={session.direction === 'IN' ? 'success' : 'secondary'} size="sm">
                         {session.direction === 'IN' ? '+' : '-'}
                         {row.applied} {session.direction === 'IN' ? 'in' : 'out'}

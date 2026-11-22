@@ -185,7 +185,7 @@ export interface ScanSession extends ScanSessionSummary {
   /** Scans still waiting to be matched. */
   pending: number
   /** 'CLOSE': inventory moves only when scanning is closed (shipments, orders); 'END': when each session ends (receiving). */
-  appliesOn: 'END' | 'CLOSE'
+  appliesOn: 'END' | 'CLOSE' | 'RECEIPT'
 }
 
 /* ─────────────── Manual returns ─────────────── */
