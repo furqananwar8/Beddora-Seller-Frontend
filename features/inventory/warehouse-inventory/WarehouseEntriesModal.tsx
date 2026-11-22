@@ -13,14 +13,14 @@ interface WarehouseEntriesModalProps {
 
 const WHEN = (iso: string) => new Date(iso).toLocaleString([], { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })
 
-/** Every time damaged units (or returns) were added for a SKU: when, how many, and the screen and scan session they came from. */
+/** Every time damaged units (or returns) were added for a SKU: when, how many, the screen (flow), record, direction and the scan session (opens its details in a new tab). */
 export const WarehouseEntriesModal: React.FC<WarehouseEntriesModalProps> = ({ target, onClose }) => {
   const { data = [], isLoading, isError } = useGetWarehouseEntriesQuery({ productId: target?.product.id ?? 0, kind: target?.kind ?? 'damaged' }, { skip: !target })
   const label = target?.kind === 'return' ? 'Returns' : 'Damaged'
   const units = data.reduce((sum, entry) => sum + entry.units, 0)
 
   return (
-    <Modal isOpen={target !== null} onClose={onClose} title={target ? `${label} · ${target.product.sku}` : label} size="lg">
+    <Modal isOpen={target !== null} onClose={onClose} title={target ? `${label} · ${target.product.sku}` : label} size="2xl">
       {target && (
         <p className="mb-3 text-sm text-text-muted">
           {target.product.name} · {units.toLocaleString('en-CA')} {units === 1 ? 'unit' : 'units'} added as {target.kind === 'return' ? 'returns' : 'damaged'}, newest first.
@@ -54,7 +54,21 @@ export const WarehouseEntriesModal: React.FC<WarehouseEntriesModalProps> = ({ ta
                   <td className="whitespace-nowrap px-3 py-2">{entry.screen}</td>
                   <td className="whitespace-nowrap px-3 py-2 font-mono text-xs">{entry.ref ?? '—'}</td>
                   <td className="whitespace-nowrap px-3 py-2">{entry.direction === 'IN' ? 'Inventory in' : entry.direction === 'OUT' ? 'Inventory out' : '—'}</td>
-                  <td className="whitespace-nowrap px-3 py-2">{entry.session ?? '—'}</td>
+                  <td className="whitespace-nowrap px-3 py-2">
+                    {entry.sessionId !== null && entry.session ? (
+                      <a
+                        href={`/dashboard/barcode/session/${entry.sessionId}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title="Open this scan session in a new tab"
+                        className="font-mono text-xs font-semibold text-primary-600 underline-offset-2 hover:underline"
+                      >
+                        {entry.session}
+                      </a>
+                    ) : (
+                      '—'
+                    )}
+                  </td>
                   <td className="whitespace-nowrap px-3 py-2">{entry.by ?? '—'}</td>
                 </tr>
               ))}

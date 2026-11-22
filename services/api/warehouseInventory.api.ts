@@ -28,13 +28,15 @@ export interface WarehouseInventoryReport extends Page<WarehouseInventoryRow> {
 
 /** One time damaged or returned units were added for a SKU, and the screen they were scanned on. */
 export interface WarehouseEntry {
-  id: number
+  id: string
   at: string
   units: number
   screen: string
   ref: string | null
   direction: 'IN' | 'OUT' | null
   session: string | null
+  /** The scan session's id, for opening its details. */
+  sessionId: number | null
   by: string | null
   note: string | null
 }

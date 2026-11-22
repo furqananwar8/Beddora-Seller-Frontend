@@ -8,6 +8,7 @@ import { PaginationFooter } from '@/components/pagination-footer/PaginationFoote
 import { RowActionsMenu } from '@/components/row-actions-menu/RowActionsMenu'
 import { SegmentedToggle } from '@/components/segmented-toggle/SegmentedToggle'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableStatusRow } from '@/design-system/tables'
+import { columnHeading } from './columnHeading'
 import { useScanItems } from '@/features/barcode/session/useScanItems'
 import { useAppAbility } from '@/hooks/useAppAbility'
 import { useGetReceivingListQuery, type ReceivingListItem, type ReceivingStatus } from '@/services/api/inboundReceiving.api'
@@ -114,7 +115,7 @@ export const InboundReceivingScreen: React.FC = () => {
                 <TableRow>
                   {['Container', 'PO #', 'PL #', 'Expected (units)', 'Received (units)', 'Short (units)', 'Damaged (units)', 'Status', 'Actions'].map((title) => (
                     <TableHead key={title} className="whitespace-nowrap text-center">
-                      {title}
+                      {columnHeading(title)}
                     </TableHead>
                   ))}
                 </TableRow>

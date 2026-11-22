@@ -1,7 +1,6 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Controller, useFieldArray, useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -17,6 +16,7 @@ import { useConfirmReceivingMutation, useGetReceivingQuery, type ReceivingDetail
 import { applyServerIssues } from '@/utils/apiErrors'
 import { cn } from '@/utils/cn'
 import { formatCalendarDay } from '@/utils/format'
+import { columnHeading } from './columnHeading'
 import { actualOf, defaultsFor, receivingSchema, toUnits, type ReceivingFormValues } from './receivingForm'
 import { ReceivingPdfModal } from './ReceivingPdfModal'
 import { RECEIVING_ROUTES } from './routes'
@@ -44,10 +44,10 @@ export const ReceivingFormScreen: React.FC<{ containerId: number }> = ({ contain
   return (
     <Container size="full" className="py-4 sm:py-8">
       <div className="mb-4 px-1">
-        <Link href={RECEIVING_ROUTES.list} className="text-sm text-primary-600 underline-offset-2 hover:underline">
-          ← Inbound Receiving
-        </Link>
-        <h1 className="mt-1 text-xl font-bold text-text-primary sm:text-2xl">Receive container</h1>
+        <Button type="button" size="sm" variant="outline" onClick={() => router.push(RECEIVING_ROUTES.list)}>
+          Back
+        </Button>
+        <h1 className="mt-3 text-xl font-bold text-text-primary sm:text-2xl">Receive container</h1>
       </div>
       {isLoading ? (
         <p className="text-sm text-text-muted">Loading…</p>
@@ -158,7 +158,7 @@ const ReceivingForm: React.FC<{ detail: ReceivingDetail }> = ({ detail }) => {
               <TableRow>
                 {['S#', 'SKU', 'Expected (units)', 'Good condition (units)', 'Damaged (units)', 'Shortage (units)', 'Actual received (units)'].map((title) => (
                   <TableHead key={title} className="whitespace-nowrap text-center">
-                    {title}
+                    {columnHeading(title)}
                   </TableHead>
                 ))}
               </TableRow>
