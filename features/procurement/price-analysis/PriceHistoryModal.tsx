@@ -18,9 +18,11 @@ const TYPE_LABEL: Record<PriceAnalysisRevision['type'], { label: string; tone: '
 }
 
 /** How a supplier's price moved against the previous snapshot: a new supplier, a price change, or no change. */
-function changeOf(revision: PriceAnalysisRevision, previous: PriceAnalysisRevision | undefined, supplierId: number, price: number) {
+const sameQuote = (a: { supplierId: number; packagingOption?: string }, b: { supplierId: number; packagingOption?: string }) => a.supplierId === b.supplierId && (a.packagingOption ?? '') === (b.packagingOption ?? '')
+
+function changeOf(revision: PriceAnalysisRevision, previous: PriceAnalysisRevision | undefined, current: { supplierId: number; packagingOption?: string }, price: number) {
   if (!previous) return null
-  const before = previous.quotes.find((quote) => quote.supplierId === supplierId)
+  const before = previous.quotes.find((quote) => sameQuote(quote, current))
   if (!before) return { text: 'new', tone: 'text-sky-700' }
   if (before.unitPrice === price) return null
   const diff = price - before.unitPrice
@@ -29,7 +31,7 @@ function changeOf(revision: PriceAnalysisRevision, previous: PriceAnalysisRevisi
 
 const Revision: React.FC<{ revision: PriceAnalysisRevision; previous?: PriceAnalysisRevision }> = ({ revision, previous }) => {
   const meta = TYPE_LABEL[revision.type]
-  const dropped = previous ? previous.quotes.filter((quote) => !revision.quotes.some((item) => item.supplierId === quote.supplierId)) : []
+  const dropped = previous ? previous.quotes.filter((quote) => !revision.quotes.some((item) => sameQuote(item, quote))) : []
   return (
     <li className="rounded-lg border border-border p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -42,11 +44,12 @@ const Revision: React.FC<{ revision: PriceAnalysisRevision; previous?: PriceAnal
       {revision.quotes.length > 0 && (
         <ul className="mt-2 divide-y divide-border/60 text-sm">
           {revision.quotes.map((quote) => {
-            const change = changeOf(revision, previous, quote.supplierId, quote.unitPrice)
+            const change = changeOf(revision, previous, quote, quote.unitPrice)
             return (
-              <li key={quote.supplierId} className="flex flex-wrap items-baseline justify-between gap-2 py-1">
+              <li key={`${quote.supplierId}|${quote.packagingOption ?? ''}`} className="flex flex-wrap items-baseline justify-between gap-2 py-1">
                 <span className="min-w-0 break-words text-text-primary">
                   {quote.supplierName}
+                  {quote.packagingOption && <span className="text-text-muted"> ({quote.packagingOption})</span>}
                   {quote.contactName && <span className="text-text-muted"> · {quote.contactName}</span>}
                   <span className="text-text-muted"> · Sample: {sampleLabel(quote.sample)}</span>
                 </span>
@@ -59,7 +62,7 @@ const Revision: React.FC<{ revision: PriceAnalysisRevision; previous?: PriceAnal
           })}
         </ul>
       )}
-      {dropped.length > 0 && <p className="mt-2 text-xs text-text-muted">Removed: {dropped.map((quote) => quote.supplierName).join(', ')}</p>}
+      {dropped.length > 0 && <p className="mt-2 text-xs text-text-muted">Removed: {dropped.map((quote) => (quote.packagingOption ? `${quote.supplierName} (${quote.packagingOption})` : quote.supplierName)).join(', ')}</p>}
       {revision.material && <p className="mt-1 text-xs text-text-muted">Material: {revision.material}</p>}
     </li>
   )
