@@ -2,7 +2,8 @@ import React from 'react'
 import { formatCurrencyAmount } from '@/features/finance/shared/format'
 import { toProperName } from '@/utils/format'
 import type { ContainerCostDetail, CostTotals, SkuCostRow } from '@/services/api/procurement.api'
-import type { CostColumn } from './costColumns'
+import type { CostColumn } from './costColumns'
+import { BrandCell } from '../../shared/platformMeta'
 import { mergeOriginals, OriginalAmount } from './OriginalAmount'
 
 /** A SKU of the container with the supplier of the PO it came on. */
@@ -26,6 +27,7 @@ export const landedCostColumns = (currency: string): CostColumn<LandedCostRow>[]
   return [
     // `wrap`: a long SKU breaks at its hyphens when the column is narrow, never cut off with an ellipsis
     { key: 'sku', header: 'SKU', align: 'center', wrap: true, cell: (row) => <span className="font-mono font-semibold text-text-primary">{row.sku}</span>, footer: () => 'Total' },
+    { key: 'brand', header: 'Brand', align: 'center', cell: (row) => <BrandCell platforms={row.platform ? [row.platform] : []} /> },
     { key: 'supplier', header: 'Supplier', align: 'center', wrap: true, cell: (row) => row.supplier },
     { key: 'units', header: 'Units', align: 'center', cell: (row) => qty(row.units), footer: (totals) => qty(totals.units) },
     { key: 'cartons', header: 'Cartons', align: 'center', cell: (row) => qty(row.cartons) },
