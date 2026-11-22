@@ -703,6 +703,11 @@ export const financeApi = baseApi.injectEndpoints({
       transformResponse: unwrap,
       invalidatesTags: ['FinanceBankProfiles'],
     }),
+    addPartnerDocuments: b.mutation<FinanceDocument[], { id: number; body: FormData }>({
+      query: ({ id, body }) => ({ url: `/finance/partners/${id}/documents`, method: 'POST', body }),
+      transformResponse: unwrap,
+      invalidatesTags: ['FinancePartners'],
+    }),
     addBankProfileDocuments: b.mutation<FinanceDocument[], { id: number; body: FormData }>({
       query: ({ id, body }) => ({ url: `/finance/bank-profiles/${id}/documents`, method: 'POST', body }),
       transformResponse: unwrap,
@@ -978,6 +983,7 @@ export const {
   useGetPartnerQuery,
   useLazyCheckPartnerNameQuery,
   useCreatePartnerMutation,
+  useAddPartnerDocumentsMutation,
   useUpdatePartnerMutation,
   useDeletePartnerMutation,
   useDeletePartnersMutation,

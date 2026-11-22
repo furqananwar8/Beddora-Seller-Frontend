@@ -14,6 +14,7 @@ import { Input, Select, Textarea } from '@/design-system/inputs'
 import { Spinner } from '@/design-system/loaders'
 import { DocumentChips } from '@/features/finance/shared/DocumentChips'
 import { FormField } from '@/features/finance/shared/FormField'
+import { scrollToFirstFieldError } from '@/components/form-field/FormField'
 import { FormSection as Section } from '@/features/finance/shared/FormSection'
 import { SelectShell } from '@/features/finance/shared/SelectShell'
 import { toDateInputValue } from '@/features/finance/shared/format'
@@ -81,7 +82,11 @@ export const PurchaseInvoiceFormScreen: React.FC = () => {
   const router = useRouter()
   const searchParams = useSearchParams()
   const editId = positiveParam(searchParams.get('edit'))
-  const { success, failure } = useApiFeedback()
+  const { success, failure, error: errorToast } = useApiFeedback()
+  const onInvalid = () => {
+    errorToast('Fill in all required fields')
+    scrollToFirstFieldError()
+  }
 
   const [savedId, setSavedId] = useState<number | null>(null)
   const invoiceId = editId ?? savedId
@@ -264,7 +269,7 @@ export const PurchaseInvoiceFormScreen: React.FC = () => {
 
   return (
     <Container size="full" className="py-4 sm:py-8">
-      <form noValidate onSubmit={handleSubmit((values) => persist(values, true))} className="mx-auto max-w-4xl space-y-4">
+      <form noValidate onSubmit={handleSubmit((values) => persist(values, true), onInvalid)} className="mx-auto max-w-4xl space-y-4">
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-xl font-bold text-text-primary sm:text-2xl">Invoice</h1>
           <StatusBadge label={detail ? `${statusMeta.label} · ${detail.invoiceRef}` : 'DRAFT · INV# ASSIGNED ON SAVE'} tone={statusMeta.tone} />
@@ -349,7 +354,7 @@ export const PurchaseInvoiceFormScreen: React.FC = () => {
           <Link href={PURCHASE_INVOICES_URL} className="mr-auto px-2 text-sm font-medium text-text-secondary hover:underline sm:mr-2">
             Cancel
           </Link>
-          <Button type="button" variant="outline" disabled={busy} isLoading={saving === 'draft'} onClick={handleSubmit((values) => persist(values, false))}>
+          <Button type="button" variant="outline" disabled={busy} isLoading={saving === 'draft'} onClick={handleSubmit((values) => persist(values, false), onInvalid)}>
             Save draft
           </Button>
           <Button type="submit" disabled={busy} isLoading={saving === 'submit'}>

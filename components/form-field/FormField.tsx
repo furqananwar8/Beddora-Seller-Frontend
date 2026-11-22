@@ -22,7 +22,7 @@ export const FormField: React.FC<FormFieldProps> = ({ label, htmlFor, required, 
       <LabelNote suffix={required && <span className="text-danger-600"> *</span>}>{label}</LabelNote>
     </label>
     {children}
-    {error ? <p className="mt-1 text-xs text-danger-600">{error}</p> : hint ? <p className="mt-1 text-xs text-text-muted">{hint}</p> : null}
+    {error ? <p data-field-error className="mt-1 text-xs text-danger-600">{error}</p> : hint ? <p className="mt-1 text-xs text-text-muted">{hint}</p> : null}
   </div>
 )
 
@@ -30,3 +30,14 @@ export const fieldClass = (error?: string) => cn('ds-input', error ? 'ds-input-e
 
 /** Class for a native <select> that sits inside <SelectShell>. */
 export const selectClass = (error?: string) => cn(fieldClass(error), 'appearance-none pr-9')
+
+/** After a failed submit: bring the first field with a validation message into view and focus its control. */
+export function scrollToFirstFieldError() {
+  requestAnimationFrame(() => {
+    const message = document.querySelector<HTMLElement>('[data-field-error]')
+    if (!message) return
+    const field = message.parentElement
+    field?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    field?.querySelector<HTMLElement>('input, select, textarea, button')?.focus({ preventScroll: true })
+  })
+}

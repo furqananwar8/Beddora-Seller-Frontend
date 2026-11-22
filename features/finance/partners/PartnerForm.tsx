@@ -5,8 +5,13 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Button } from '@/design-system/buttons'
+import { FileDropzone } from '@/components/file-dropzone/FileDropzone'
+import { scrollToFirstFieldError } from '@/components/form-field/FormField'
+import { FormSection } from '../shared/FormSection'
+import { filesFormData } from '../payment-requests/schema'
 import {
   useAddPaymentMethodMutation,
+  useAddPartnerDocumentsMutation,
   useCreatePartnerMutation,
   useGetPartnersQuery,
   useLazyCheckPartnerNameQuery,
@@ -53,9 +58,11 @@ export const PartnerForm: React.FC<PartnerFormProps> = ({ partner }) => {
   const [removingId, setRemovingId] = useState<number | null>(null)
   const [similarNames, setSimilarNames] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
+  const [files, setFiles] = useState<File[]>([])
 
   const [createPartner] = useCreatePartnerMutation()
   const [updatePartner] = useUpdatePartnerMutation()
+  const [addDocuments] = useAddPartnerDocumentsMutation()
   const [addMethod] = useAddPaymentMethodMutation()
   const [removeMethod] = useRemovePaymentMethodMutation()
   const [checkName] = useLazyCheckPartnerNameQuery()
@@ -145,6 +152,13 @@ export const PartnerForm: React.FC<PartnerFormProps> = ({ partner }) => {
 
       // One request: the partner and its payment methods are saved together or not at all
       const created = await createPartner(buildPartnerCreateBody(values, staged)).unwrap()
+      if (files.length) {
+        try {
+          await addDocuments({ id: created.id, body: filesFormData(files) }).unwrap()
+        } catch (error) {
+          failure(error, 'Partner created, but the documents could not be uploaded. Add them from the partner profile')
+        }
+      }
       success('Partner created')
       router.push(returnTo ? withQueryParam(returnTo, 'partnerId', String(created.id)) : LIST)
     } catch (error) {
@@ -153,7 +167,7 @@ export const PartnerForm: React.FC<PartnerFormProps> = ({ partner }) => {
     } finally {
       setSaving(false)
     }
-  })
+  }, scrollToFirstFieldError)
 
   return (
     <div className="mx-auto w-full max-w-4xl px-3 py-4 sm:px-6 sm:py-8">
@@ -186,6 +200,12 @@ export const PartnerForm: React.FC<PartnerFormProps> = ({ partner }) => {
           onRemoveSaved={removeSaved}
           onRemoveStaged={(key) => setStaged((current) => current.filter((item) => item.key !== key))}
         />
+
+        {!editing && (
+          <FormSection title="Documents">
+            <FileDropzone multiple files={files} onChange={setFiles} disabled={saving} />
+          </FormSection>
+        )}
 
         <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <Button

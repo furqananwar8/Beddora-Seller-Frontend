@@ -1,6 +1,7 @@
 import React from 'react'
 import { formatCurrencyAmount, formatMoney } from '@/features/finance/shared/format'
 import type { ContainerExpense, CostTotals, SkuCostRow } from '@/services/api/procurement.api'
+import { BrandCell } from '../../shared/platformMeta'
 import { OriginalAmount } from './OriginalAmount'
 
 /**
@@ -36,6 +37,7 @@ const PACKING_COLUMNS: CostColumn[] = [
     ),
     footer: () => <span className="font-semibold">PO total</span>,
   },
+  { key: 'brand', header: 'Brand', align: 'left', cell: (row) => <BrandCell platforms={row.platform ? [row.platform] : []} /> },
   { key: 'color', header: 'Color', align: 'left', cell: (row) => row.color ?? '—' },
   { key: 'units', header: 'Units', source: 'PL', cell: (row) => qty(row.units), footer: (totals) => qty(totals.units) },
   { key: 'cartons', header: 'Cartons', source: 'PL', cell: (row) => qty(row.cartons) },

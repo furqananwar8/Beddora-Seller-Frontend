@@ -727,6 +727,7 @@ export interface ContainerLine {
   sku: string
   name: string
   color: string | null
+  platform: ProductPlatform
   sizeName: string | null
   /** Ordered on the PO, for "ordered vs. in this container". */
   ordered: number
@@ -914,6 +915,8 @@ export interface SkuCostRow {
   sku: string
   name: string
   color: string | null
+  /** Brand: Ecommerce is Beddora, Retail is Northern Linen. */
+  platform: ProductPlatform
   units: number
   cartons: number
   carton: { lengthCm: number | null; widthCm: number | null; heightCm: number | null }
