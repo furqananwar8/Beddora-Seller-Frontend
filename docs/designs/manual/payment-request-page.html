@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>User manual sample page: payment request</title>
+<style>
+  @page { size: A4 landscape; margin: 0; }
+  :root { --ink:#111827; --muted:#6b7280; --line:#e5e7eb; --badge:#c2410c; --peach:#fff7ed; --peach-line:#fdba74; --tag-bg:#fef3c7; --tag:#b45309; }
+  * { box-sizing:border-box; }
+  html,body { margin:0; }
+  body { font:12px/1.35 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; color:var(--ink); }
+  .page { width:297mm; height:210mm; background:#f8f9fb; padding:9mm 11mm 0; position:relative; overflow:hidden; }
+  .eyebrow { font:600 10px/1 ui-monospace,Consolas,monospace; letter-spacing:.18em; color:var(--muted); text-transform:uppercase; }
+  h1 { font-size:25px; margin:2mm 0 0; letter-spacing:-.01em; }
+  .legend { position:absolute; top:8mm; right:11mm; background:#fff; border:1px solid var(--line); border-radius:10px; padding:2.5mm 4mm; font-size:11.5px; }
+  .legend div { display:flex; align-items:center; gap:8px; margin:1mm 0; }
+  .legend i { display:inline-block; width:18px; border-top:2px solid var(--badge); }
+  .main { display:grid; grid-template-columns:133mm 1fr; gap:7mm; margin-top:6mm; }
+  .screen { background:#fff; border:1px solid var(--line); border-radius:12px; padding:5mm 7.5mm; }
+  /* crop of the real screenshot: x 500-1710, y 110-1650 of the 1882x1960 capture, at .0974 mm per unit */
+  .crop { position:relative; width:117.9mm; height:150mm; overflow:hidden; }
+  .crop img { position:absolute; width:183.3mm; left:-48.7mm; top:-10.7mm; }
+  .b { position:absolute; width:5.6mm; height:5.6mm; margin:-2.8mm 0 0 -2.8mm; border-radius:50%; background:var(--badge); color:#fff; font-weight:700; font-size:10.5px; display:flex; align-items:center; justify-content:center; box-shadow:0 0 0 1.2mm #ffedd5; }
+  .cards { display:flex; flex-direction:column; gap:2.4mm; }
+  .card { background:var(--peach); border:1px solid var(--peach-line); border-radius:9px; padding:2.2mm 3.6mm 2.4mm; }
+  .card h3 { margin:0; font-size:13px; display:flex; align-items:center; gap:8px; }
+  .card h3 b { width:5.2mm; height:5.2mm; border-radius:50%; background:var(--badge); color:#fff; font-size:10px; display:flex; align-items:center; justify-content:center; flex:none; }
+  .tag { display:inline-block; margin:1.2mm 0 0 calc(5.2mm + 8px); background:var(--tag-bg); color:var(--tag); font:10.5px/1 ui-monospace,Consolas,monospace; padding:1.2mm 2mm; border-radius:4px; text-transform:uppercase; }
+  .card p { margin:1.2mm 0 0; color:#374151; font-size:11.5px; }
+  .foot { position:absolute; left:11mm; bottom:5mm; display:flex; gap:10px; align-items:center; font:10.5px ui-monospace,Consolas,monospace; color:var(--muted); }
+  .ph { background:#dcfce7; color:#166534; padding:1mm 3mm; border-radius:6px; font-family:system-ui,sans-serif; font-weight:600; }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="eyebrow">Finance · Payment Request</div>
+  <h1>Payment Request — raise a request</h1>
+  <div class="legend">
+    <div><span class="b" style="position:static;margin:0;width:5mm;height:5mm;box-shadow:none">1</span> Option on screen</div>
+    <div><i></i> Command / function</div>
+  </div>
+
+  <div class="main">
+    <div class="screen">
+      <div class="crop">
+        <img src="img/pr-form-invoice.png" alt="Payment Request Creation screen">
+        <div class="b" style="left:16.8mm;top:16.7mm">1</div>
+        <div class="b" style="left:24mm;top:37.5mm">2</div>
+        <div class="b" style="left:21.5mm;top:47.9mm">3</div>
+        <div class="b" style="left:19mm;top:83.6mm">4</div>
+        <div class="b" style="left:25mm;top:95.8mm">5</div>
+        <div class="b" style="left:31mm;top:125.3mm">6</div>
+        <div class="b" style="left:60.5mm;top:145.7mm">7</div>
+      </div>
+    </div>
+    <div class="cards">
+      <div class="card"><h3><b>1</b>Partner</h3><span class="tag">Select → who gets paid</span><p>Pick this first. Invoice No stays locked until a partner is chosen.</p></div>
+      <div class="card"><h3><b>2</b>Paying against</h3><span class="tag">Choose → what you pay</span><p>Invoice, Purchase order, Sample or Shipment. The fields below change with your choice.</p></div>
+      <div class="card"><h3><b>3</b>Invoice No &amp; date</h3><span class="tag">Type → both required</span><p>Container # and Destination are optional.</p></div>
+      <div class="card"><h3><b>4</b>Amount</h3><span class="tag">Enter → currency, amount, expense</span><p>All three are required. GST defaults to “Not applicable”.</p></div>
+      <div class="card"><h3><b>5</b>Add amount</h3><span class="tag">Click → split the payment</span><p>Splits one payment across up to 20 expenses. Total updates below.</p></div>
+      <div class="card"><h3><b>6</b>Upload documents</h3><span class="tag">Drop → PDF, JPG, PNG</span><p>Up to 10 MB each. Several files allowed.</p></div>
+      <div class="card"><h3><b>7</b>Save draft / Process For Approval</h3><span class="tag">Click → keep or send</span><p>Draft keeps your work to finish later. Process For Approval sends it to approvers.</p></div>
+    </div>
+  </div>
+  <div class="foot"><span class="ph">Draft v1</span><span>Backend 71b6429 · Frontend 9695084</span></div>
+</div>
+</body>
+</html>

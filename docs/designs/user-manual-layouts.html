@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>User manual layout options</title>
+<style>
+  @page { size: A4 landscape; margin: 12mm; }
+  :root { --text:#1f2937; --muted:#6b7280; --faint:#9ca3af; --border:#e5e7eb; --soft:#f9fafb; --primary:#2563eb; --blue-bg:#eff6ff;
+          --warn-bg:#fffbeb; --warn:#b45309; --ok-bg:#ecfdf5; --ok:#047857; --bad-bg:#fef2f2; --bad:#dc2626; }
+  * { box-sizing:border-box; }
+  body { margin:0; font:13px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; color:var(--text); }
+  .page { page-break-after:always; }
+  .page:last-child { page-break-after:auto; }
+  .tag { font-size:11px; color:var(--faint); text-transform:uppercase; letter-spacing:.06em; }
+  h1 { font-size:20px; margin:2px 0 4px; }
+  .why { color:var(--muted); margin:0 0 12px; }
+  .pill { display:inline-block; padding:1px 9px; border-radius:99px; font-size:11px; }
+  .warn { background:var(--warn-bg); color:var(--warn); } .ok { background:var(--ok-bg); color:var(--ok); }
+  .bad { background:var(--bad-bg); color:var(--bad); } .neu { background:#f3f4f6; color:var(--muted); }
+  .frame { border:1px solid var(--border); border-radius:10px; overflow:hidden; }
+  .fhead { display:flex; justify-content:space-between; align-items:center; padding:10px 16px; border-bottom:1px solid var(--border); }
+  .crumb { font-size:11px; color:var(--faint); }
+  .body { display:grid; grid-template-columns:2.3fr 1fr; gap:18px; padding:16px; }
+  .scr { position:relative; border:1px solid #d1d5db; border-radius:8px; background:var(--soft); font-size:12px; }
+  .bar { display:flex; gap:8px; padding:10px; align-items:center; }
+  .in { flex:1; border:1px solid #d1d5db; border-radius:6px; padding:6px 10px; color:var(--faint); background:#fff; }
+  .sel { border:1px solid #d1d5db; border-radius:6px; padding:6px 10px; background:#fff; }
+  .btn { background:#111827; color:#fff; border-radius:6px; padding:6px 12px; }
+  .r { display:grid; grid-template-columns:1fr 1.4fr 1fr 1fr; padding:9px 12px; border-top:1px solid var(--border); background:#fff; }
+  .r.h { color:var(--faint); background:var(--soft); }
+  .n { position:absolute; width:22px; height:22px; border-radius:50%; background:var(--bad); color:#fff; font-size:12px; font-weight:600; display:flex; align-items:center; justify-content:center; }
+  .ptr { display:flex; gap:10px; margin:0 0 12px; font-size:13px; }
+  .ptr b { flex:none; width:22px; height:22px; border-radius:50%; background:var(--bad); color:#fff; font-size:12px; display:flex; align-items:center; justify-content:center; }
+  .tip { margin-top:16px; background:var(--warn-bg); color:var(--warn); border-radius:8px; padding:9px 12px; font-size:12px; }
+  .flow { display:flex; align-items:stretch; gap:10px; margin:12px 0; }
+  .step { flex:1; } .arrow { align-self:center; color:var(--faint); font-size:22px; }
+  .thumb { height:130px; border:1px solid #d1d5db; border-radius:8px; background:var(--soft); padding:12px; display:flex; flex-direction:column; justify-content:center; gap:8px; font-size:12px; }
+  .cap { margin-top:8px; font-size:13px; } .cap b { display:inline-block; width:22px; height:22px; text-align:center; border-radius:50%; background:var(--primary); color:#fff; font-size:12px; line-height:22px; margin-right:6px; }
+  .shell { display:grid; grid-template-columns:170px 1fr; border:1px solid var(--border); border-radius:10px; overflow:hidden; }
+  .nav { border-right:1px solid var(--border); padding:14px; line-height:2.1; font-size:13px; background:var(--soft); }
+  .nav small { color:var(--faint); display:block; margin-top:8px; }
+  .hs { position:relative; padding:18px; }
+  .ring { position:relative; display:inline-block; }
+  .ring:after { content:""; position:absolute; inset:-5px; border:2px solid var(--bad); border-radius:9px; }
+  .tt { position:absolute; background:#111827; color:#fff; border-radius:8px; padding:8px 12px; font-size:12px; max-width:190px; }
+  .note { font-size:11px; color:var(--muted); border-left:3px solid var(--primary); padding:2px 0 2px 8px; margin-top:12px; }
+</style>
+</head>
+<body>
+
+<div class="page">
+  <div class="tag">Option 1 of 3 · recommended</div>
+  <h1>Annotated screen page</h1>
+  <p class="why">One screen per page. The real UI fills most of the page; numbered badges point at the key areas, and the list on the right says what each one does in a few words.</p>
+  <div class="frame">
+    <div class="fhead"><div><div class="crumb">Procurement › Purchase orders</div><div style="font-size:17px;font-weight:600">Purchase orders</div></div><span class="pill neu">Page 4 · Buyer</span></div>
+    <div class="body">
+      <div class="scr">
+        <div class="bar"><div class="in">Search PO, supplier</div><div class="sel">Status ▾</div><div class="btn">+ New PO</div></div>
+        <div class="r h"><span>PO no.</span><span>Supplier</span><span>Total</span><span>Status</span></div>
+        <div class="r"><span>SP-00071</span><span>Hangzhou Ltd</span><span>$12,400</span><span><span class="pill warn">Pending L2</span></span></div>
+        <div class="r"><span>SP-00070</span><span>Ningbo Co</span><span>$8,150</span><span><span class="pill ok">Approved</span></span></div>
+        <div class="r"><span>SP-00069</span><span>Shenzhen Inc</span><span>$3,900</span><span><span class="pill bad">Rejected</span></span></div>
+        <div class="n" style="left:22%;top:-11px">1</div>
+        <div class="n" style="right:-11px;top:8px">2</div>
+        <div class="n" style="right:-11px;top:104px">3</div>
+        <div class="n" style="left:-11px;top:82px">4</div>
+      </div>
+      <div>
+        <div class="ptr"><b>1</b><span>Search by PO number or supplier</span></div>
+        <div class="ptr"><b>2</b><span>Start a new order</span></div>
+        <div class="ptr"><b>3</b><span>Colour shows the approval stage</span></div>
+        <div class="ptr"><b>4</b><span>Click a row to open it</span></div>
+        <div class="tip">Rejected POs must be edited, then resubmitted.</div>
+      </div>
+    </div>
+  </div>
+  <div class="note">Sample layout with placeholder data. In the real manual the left panel is a screenshot from the live app.</div>
+</div>
+
+<div class="page">
+  <div class="tag">Option 2 of 3</div>
+  <h1>Task flow strip</h1>
+  <p class="why">Organised by what the user wants to do. Cropped UI frames in sequence, one short caption each. Best for multi-step processes such as approvals and payments.</p>
+  <div class="frame" style="padding:16px">
+    <div style="font-size:16px;font-weight:600">Raise a PO and get it approved</div>
+    <div class="flow">
+      <div class="step"><div class="thumb" style="align-items:center"><span class="btn">+ New PO</span></div><div class="cap"><b>1</b>Click New PO</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="thumb"><div class="in" style="flex:none">Supplier</div><div class="in" style="flex:none">Add SKUs</div></div><div class="cap"><b>2</b>Fill in the details</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="thumb" style="flex-direction:row;align-items:center;justify-content:space-between"><span class="pill ok">L1 ✓</span><span class="pill warn">L2</span><span class="pill neu">L3</span></div><div class="cap"><b>3</b>Approvers sign off</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="thumb" style="align-items:center"><span class="pill ok" style="font-size:13px">Approved</span></div><div class="cap"><b>4</b>Ready to pay</div></div>
+    </div>
+    <div class="tip" style="margin-top:6px">If a step is rejected, the PO returns to you with the reason.</div>
+  </div>
+  <div class="note">Other flow candidates: payment request, container receiving, price analysis.</div>
+</div>
+
+<div class="page">
+  <div class="tag">Option 3 of 3 · later phase</div>
+  <h1>In-app help with hotspots</h1>
+  <p class="why">Lives in the Help Center. Pick a role, see the screen with a highlighted control and a tooltip, then step through with Next.</p>
+  <div class="shell">
+    <div class="nav">
+      <small>I am a…</small><b style="color:var(--primary)">Buyer</b><br>Finance<br>Admin
+      <small>Guides</small>Purchase orders<br>Payments<br>Containers
+    </div>
+    <div class="hs" style="height:330px">
+      <div class="scr" style="padding:12px">
+        <div style="display:flex;gap:8px"><span class="sel">Status ▾</span><span class="ring"><span class="btn">+ New PO</span></span></div>
+        <div class="r" style="margin-top:12px"><span>SP-00071</span><span>Hangzhou Ltd</span><span>$12,400</span><span class="pill warn">Pending L2</span></div>
+        <div class="r"><span>SP-00070</span><span>Ningbo Co</span><span>$8,150</span><span class="pill ok">Approved</span></div>
+      </div>
+      <div class="tt" style="left:250px;top:100px">Start a new order here</div>
+      <div style="position:absolute;left:18px;right:18px;bottom:16px;display:flex;justify-content:space-between;align-items:center"><span style="color:var(--muted)">Step 1 of 4</span><span class="sel">Next ›</span></div>
+    </div>
+  </div>
+  <div class="note">Needs build effort and upkeep with each release, so it comes after Option 1 or 2 is settled.</div>
+</div>
+
+</body>
+</html>
