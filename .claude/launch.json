@@ -1,0 +1,122 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "fbeddora",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
+      "port": 5100
+    },
+    {
+      "name": "fbeddora-5101",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--",
+        "-p",
+        "5101"
+      ],
+      "port": 5101
+    },
+    {
+      "name": "bbeddora-api",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "D:/projects/bbeddora",
+        "run",
+        "dev"
+      ],
+      "port": 3001
+    },
+    {
+      "name": "shipping-test-api",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "D:/projects/bbeddora-shipping/.local-test/start-api.js"
+      ],
+      "port": 3101
+    },
+    {
+      "name": "shipping-test-web",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "C:/Users/DEV/AppData/Local/Temp/claude/D--projects-fbeddora/c34d12e2-b4fe-42cc-bedc-7450c6f047bd/scratchpad/local-test/web-server.js"
+      ],
+      "port": 3100
+    },
+    {
+      "name": "shipping-api",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "D:/projects/bbeddora-shipping",
+        "run",
+        "dev"
+      ],
+      "port": 3001
+    },
+    {
+      "name": "shipping-web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "D:/projects/fbeddora-shipping",
+        "run",
+        "dev"
+      ],
+      "port": 5100
+    },
+    {
+      "name": "bbeddora-api-local",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "D:/projects/bbeddora",
+        "exec",
+        "--",
+        "tsx",
+        "--tsconfig",
+        "D:/projects/bbeddora/tsconfig.json",
+        "C:/Users/DEV/AppData/Local/Temp/claude/b696ad8ec10ac469/490ab9b8-b142-4993-b3d4-a1c7f2317ff9/scratchpad/local-api.ts"
+      ],
+      "port": 3001,
+      "env": {
+        "REDIS_ENABLED": "false"
+      }
+    },
+    {
+      "name": "bbeddora-api-tiktok",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "D:/projects/bbeddora",
+        "run",
+        "dev"
+      ],
+      "port": 3002,
+      "env": {
+        "PORT": "3002"
+      }
+    },
+    {
+      "name": "bbeddora-api-no-email",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "D:/projects/bbeddora",
+        "run",
+        "dev"
+      ],
+      "port": 3001,
+      "env": {
+        "SMTP_HOST": "127.0.0.1",
+        "SMTP_PORT": "1"
+      }
+    }
+  ]
+}
