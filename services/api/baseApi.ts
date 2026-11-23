@@ -1,4 +1,4 @@
-import { createApi, fetchBaseQuery, type FetchArgs, type FetchBaseQueryError } from '@reduxjs/toolkit/query/react'
+import { createApi, fetchBaseQuery, retry, type FetchArgs, type FetchBaseQueryError } from '@reduxjs/toolkit/query/react'
 import type { BaseQueryFn } from '@reduxjs/toolkit/query'
 import { clearCredentials } from '@/store/auth.slice'
 
@@ -135,9 +135,23 @@ const baseQueryWithSessionExpiry: BaseQueryFn<string | FetchArgs, unknown, Fetch
   return result
 }
 
+const isRead = (args: string | FetchArgs) => typeof args === 'string' || !args.method || args.method.toUpperCase() === 'GET'
+const isTransient = (error: FetchBaseQueryError) =>
+  error.status === 'FETCH_ERROR' || error.status === 'TIMEOUT_ERROR' || (typeof error.status === 'number' && (error.status >= 500 || error.status === 429 || error.status === 408))
+
+/** A read that fails for a passing reason (network blip, gateway timeout, throttle) is retried with backoff; writes and real errors (4xx) are never repeated. */
+const baseQueryWithRetry = retry(
+  async (args, api, extraOptions) => {
+    const result = await baseQueryWithSessionExpiry(args, api, extraOptions)
+    if (result.error && !(isRead(args) && isTransient(result.error))) retry.fail(result.error)
+    return result
+  },
+  { maxRetries: 2 }
+) as BaseQueryFn<string | FetchArgs, unknown, FetchBaseQueryError>
+
 export const baseApi = createApi({
   reducerPath: 'api',
-  baseQuery: baseQueryWithSessionExpiry,
+  baseQuery: baseQueryWithRetry,
   tagTypes,
   // Default cache time: 60 seconds (can be overridden per endpoint)
   // This ensures data is reused across navigations instead of refetching too often
