@@ -73,6 +73,9 @@ const ReceivingForm: React.FC<{ detail: ReceivingDetail }> = ({ detail }) => {
   const [confirmReceiving, { isLoading: saving }] = useConfirmReceivingMutation()
   const received = detail.status === 'GOODS_RECEIVED'
   const readOnly = received || !canWrite
+  // Scanning can run in several rounds: per SKU, what is expected, what all rounds scanned so far and what is left to scan
+  const showScan = detail.scanned.started && !received
+  const columns = ['S#', 'SKU', 'Expected (units)', ...(showScan ? ['Scanned so far (units)', 'Left to scan (units)'] : []), 'Good condition (units)', 'Damaged (units)', 'Shortage (units)', 'Actual received (units)']
   const [confirming, setConfirming] = useState(false)
   const [printing, setPrinting] = useState(false)
 
@@ -143,9 +146,9 @@ const ReceivingForm: React.FC<{ detail: ReceivingDetail }> = ({ detail }) => {
               Received by {detail.receipt.receivedBy} on {formatCalendarDay(detail.receipt.receivedAt)}
             </span>
           )}
-          {detail.scanned.started && !received && (
+          {showScan && (
             <span>
-              Scanned so far: {qty(detail.scanned.goodUnits + detail.scanned.damagedUnits)} of {qty(detail.scanned.expectedUnits)} units, {qty(detail.scanned.shortUnits)} not scanned
+              Scanned so far: {qty(detail.scanned.goodUnits + detail.scanned.damagedUnits)} of {qty(detail.scanned.expectedUnits)} units, {qty(detail.scanned.shortUnits)} left to scan
               {detail.scanned.overUnits > 0 ? `, ${qty(detail.scanned.overUnits)} over` : ''} · scanning {detail.scanned.closed ? 'closed' : 'still open'}. The figures below start from the scan: enter the damaged units, and adjust any figure, before signing. Inventory is updated when you confirm.
             </span>
           )}
@@ -157,7 +160,7 @@ const ReceivingForm: React.FC<{ detail: ReceivingDetail }> = ({ detail }) => {
           <Table className="min-w-full" wrapperClassName="overflow-visible">
             <TableHeader className="bg-surface">
               <TableRow>
-                {['S#', 'SKU', 'Expected (units)', 'Good condition (units)', 'Damaged (units)', 'Shortage (units)', 'Actual received (units)'].map((title) => (
+                {columns.map((title) => (
                   <TableHead key={title} className="whitespace-nowrap text-center">
                     {columnHeading(title)}
                   </TableHead>
@@ -166,7 +169,7 @@ const ReceivingForm: React.FC<{ detail: ReceivingDetail }> = ({ detail }) => {
             </TableHeader>
             <TableBody>
               {fields.length === 0 ? (
-                <TableStatusRow colSpan={7}>This container has no packed products.</TableStatusRow>
+                <TableStatusRow colSpan={columns.length}>This container has no packed products.</TableStatusRow>
               ) : (
                 fields.map((field, index) => {
                   const line = detail.lines[index]
@@ -187,6 +190,15 @@ const ReceivingForm: React.FC<{ detail: ReceivingDetail }> = ({ detail }) => {
                           {qty(line.expectedCartons)} ctn × {qty(line.unitsPerCarton)}
                         </div>
                       </TableCell>
+                      {showScan && (
+                        <>
+                          <TableCell className={cn(CELL, 'tabular-nums')}>
+                            <div>{qty(line.scanned.goodUnits + line.scanned.damagedUnits)}</div>
+                            {line.scanned.overUnits > 0 && <div className="text-xs font-semibold text-warning-700">+{qty(line.scanned.overUnits)} over</div>}
+                          </TableCell>
+                          <TableCell className={cn(CELL, 'tabular-nums', line.scanned.shortUnits > 0 ? 'font-semibold text-danger-600' : 'text-text-muted')}>{qty(line.scanned.shortUnits)}</TableCell>
+                        </>
+                      )}
                       {(['good', 'damaged', 'shortage'] as const).map((key) => {
                         // The row's "must add up" message sits on its last cell
                         const error = errors?.[key]?.message
@@ -198,17 +210,17 @@ const ReceivingForm: React.FC<{ detail: ReceivingDetail }> = ({ detail }) => {
                             ) : (
                               <input
                                 {...register(`lines.${index}.${key}`, {
-                                onChange: () => {
-                                  // Damaged or short units come out of the row's other cells so it never exceeds the expected units; good itself is typed freely
-                                  if (key !== 'good') {
-                                    const next = rebalanced(form.getValues(`lines.${index}`), key)
-                                    for (const cell of ['good', 'damaged', 'shortage'] as const) {
-                                      if (next?.[cell] !== undefined) form.setValue(`lines.${index}.${cell}`, next[cell])
+                                  onChange: () => {
+                                    // Damaged or short units come out of the row's other cells so it never exceeds the expected units; good itself is typed freely
+                                    if (key !== 'good') {
+                                      const next = rebalanced(form.getValues(`lines.${index}`), key)
+                                      for (const cell of ['good', 'damaged', 'shortage'] as const) {
+                                        if (next?.[cell] !== undefined) form.setValue(`lines.${index}.${cell}`, next[cell])
+                                      }
                                     }
-                                  }
-                                  void form.trigger(`lines.${index}.shortage`)
-                                },
-                              })}
+                                    void form.trigger(`lines.${index}.shortage`)
+                                  },
+                                })}
                                 inputMode="numeric"
                                 aria-label={`${line.sku} ${key}`}
                                 className={cellInput(error)}
@@ -229,6 +241,12 @@ const ReceivingForm: React.FC<{ detail: ReceivingDetail }> = ({ detail }) => {
                     Total
                   </TableCell>
                   <TableCell className={cn(CELL, 'tabular-nums')}>{qty(totals.expected)}</TableCell>
+                  {showScan && (
+                    <>
+                      <TableCell className={cn(CELL, 'tabular-nums')}>{qty(detail.scanned.goodUnits + detail.scanned.damagedUnits)}</TableCell>
+                      <TableCell className={cn(CELL, 'tabular-nums', detail.scanned.shortUnits > 0 && 'text-danger-600')}>{qty(detail.scanned.shortUnits)}</TableCell>
+                    </>
+                  )}
                   <TableCell className={cn(CELL, 'tabular-nums')}>{qty(totals.good)}</TableCell>
                   <TableCell className={cn(CELL, 'tabular-nums')}>{qty(totals.damaged)}</TableCell>
                   <TableCell className={cn(CELL, 'tabular-nums', totals.shortage > 0 && 'text-danger-600')}>{qty(totals.shortage)}</TableCell>
