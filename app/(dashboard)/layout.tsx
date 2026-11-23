@@ -12,6 +12,8 @@ import { useAppAbility } from '@/hooks/useAppAbility'
 import { AiAssistant } from '@/components/ai-assistant'
 import { BarcodeScannerProvider } from '@/features/barcode/BarcodeScannerProvider'
 import { MANUAL_SHIPMENT_FLOW } from '@/features/shipping/shippingFlags'
+import { SYSTEM_EMAIL_ROUTE, SYSTEM_MENU_LABEL } from '@/features/system/email/routes'
+import { useGetEmailAccessQuery } from '@/services/api/systemEmail.api'
 
 /** Routes whose content is shorter than the screen, so the layout sizes them below the header (`.ds-content-fit`). */
 const FIT_BELOW_HEADER_ROUTES = [
@@ -31,7 +33,12 @@ export interface NavItem {
   children?: Omit<NavItem, 'icon'>[]
   badge?: string
   disabled?: boolean
+  /** Decided by the server, not by a permission: when set it replaces the permission check (System > Email). */
+  allow?: boolean
 }
+
+/** Whether an item shows: the server's say when it has one, otherwise the user's permission. */
+type NavEntry = { allow?: boolean; action: string; subject: string }
 
 export default function DashboardLayout({
   children,
@@ -43,6 +50,9 @@ export default function DashboardLayout({
   const user = useAppSelector((state) => state.auth.user)
   const [logout] = useLogoutMutation()
   const ability = useAppAbility()
+  // A few accounts only, picked by the server (not a permission, so it is not in the Users permission dialog)
+  const { data: emailAccess } = useGetEmailAccessQuery()
+  const canOpenEmail = Boolean(emailAccess?.allowed)
 
   const rawNavSections = useMemo(
     () => [
@@ -360,6 +370,15 @@ export default function DashboardLayout({
             ],
           },
           {
+            label: SYSTEM_MENU_LABEL,
+            subject: 'system',
+            action: 'read',
+            allow: canOpenEmail,
+            href: SYSTEM_EMAIL_ROUTE,
+            icon: NavIcons.bell,
+            children: [{ label: 'Email', subject: 'system:email', action: 'read', allow: canOpenEmail, href: SYSTEM_EMAIL_ROUTE }],
+          },
+          {
             label: 'Settings',
             subject: 'settings',
             action: 'read',
@@ -419,11 +438,12 @@ export default function DashboardLayout({
         ],
       },
     ],
-    []
+    [canOpenEmail]
   )
 
   // Filter sidebar using EACH item's own action + subject
   const navSections = useMemo(() => {
+    const canSee = (entry: NavEntry) => entry.allow ?? ability.can(entry.action, entry.subject)
     return rawNavSections
       .map((section) => ({
         ...section,
@@ -432,13 +452,10 @@ export default function DashboardLayout({
             // Kept in the list but left out of the sidebar for now; the routes still exist
             if (item.hidden) return null
 
-            const visibleChildren =
-              item.children?.filter((child) =>
-                ability.can(child.action, child.subject)
-              ) ?? []
+            const visibleChildren = item.children?.filter((child) => canSee(child)) ?? []
 
             // Show parent if user has the parent's required action OR has visible children
-            const canSeeParent = ability.can(item.action, item.subject)
+            const canSeeParent = canSee(item)
             if (!canSeeParent && visibleChildren.length === 0) {
               return null
             }

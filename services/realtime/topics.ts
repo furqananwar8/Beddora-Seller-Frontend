@@ -28,6 +28,8 @@ export const REALTIME_TOPICS: Record<string, TagType[]> = {
   'procurement.packaging-list': ['ProcurementPackagingLists', 'ProcurementPurchaseOrders', 'ProcurementContainers'],
   'procurement.container': ['ProcurementContainers', 'ProcurementPackagingLists', 'ProcurementPurchaseOrders'],
   'procurement.price-analysis': ['ProcurementPriceAnalysis'],
+  /** Email sent / failed / queued: only the four accounts that may open System > Email receive it. `useEmailLive` patches the cache itself instead of refetching. */
+  'system.email': [],
 }
 
 export interface RealtimeMessage<T = Record<string, unknown>> {
