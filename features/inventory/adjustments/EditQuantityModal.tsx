@@ -4,7 +4,7 @@ import { Button } from '@/design-system/buttons'
 import { Input } from '@/design-system/inputs'
 import { AdjustmentRow } from '@/services/api/inventoryAdjustments.api'
 import { cn } from '@/utils/cn'
-import { BUCKET_ROWS } from './buckets'
+import { ADJUSTMENT_ROWS, balanceOf } from './buckets'
 import { previewAdjustment } from './adjustmentMath'
 
 const n = (value: number) => value.toLocaleString()
@@ -53,13 +53,13 @@ const Form: React.FC<FormProps> = ({ row, saving, error, onSave, onClose }) => {
           </tr>
         </thead>
         <tbody>
-          {BUCKET_ROWS.map(({ bucket, label }) => {
-            const changed = after[bucket] !== row.balances[bucket]
+          {ADJUSTMENT_ROWS.map(({ bucket, label }) => {
+            const changed = balanceOf(after, bucket) !== balanceOf(row.balances, bucket)
             return (
               <tr key={bucket}>
                 <td className="px-3 py-1 text-text-muted">{label}</td>
-                <td className="px-3 py-1 text-right font-medium">{n(row.balances[bucket])}</td>
-                <td className={cn('px-3 py-1 text-right font-medium', changed && tone)}>{n(after[bucket])}</td>
+                <td className="px-3 py-1 text-right font-medium">{n(balanceOf(row.balances, bucket))}</td>
+                <td className={cn('px-3 py-1 text-right font-medium', changed && tone)}>{n(balanceOf(after, bucket))}</td>
               </tr>
             )
           })}
@@ -82,7 +82,7 @@ const Form: React.FC<FormProps> = ({ row, saving, error, onSave, onClose }) => {
         helperText={
           row.minimum > 0
             ? `${n(row.minimum)} units are on FBA shipments that haven't shipped yet, so they can't be removed here.`
-            : 'Increases arrive as unallocated stock. Decreases come out of unallocated first, then FBM, FBA and buffer.'
+            : 'Increases arrive as unallocated stock. Decreases come out of unallocated first, then FBM, FBA, WFS and buffer.'
         }
       />
 
