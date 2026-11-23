@@ -12,6 +12,8 @@ interface WarehouseEntriesModalProps {
   /** The SKU and which count was clicked; null keeps the modal closed. */
   target: { product: { id: number; sku: string; name: string }; kind: WarehouseEntryKind } | null
   onClose: () => void
+  /** Shows the other history (a damaged return is listed in both). */
+  onSwitch?: (kind: WarehouseEntryKind) => void
 }
 
 /** Where each kind of record opens: the container, the shipment in the Shipments list, the order in Shipping Orders. */
@@ -21,7 +23,7 @@ const recordHref = (record: NonNullable<WarehouseEntry['record']>) =>
 const WHEN = (iso: string) => new Date(iso).toLocaleString([], { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })
 
 /** Every time damaged units (or returns) were added for a SKU: when, how many, the screen (flow), record, direction and the scan session (opens its details in a new tab). */
-export const WarehouseEntriesModal: React.FC<WarehouseEntriesModalProps> = ({ target, onClose }) => {
+export const WarehouseEntriesModal: React.FC<WarehouseEntriesModalProps> = ({ target, onClose, onSwitch }) => {
   const { data = [], isLoading, isError } = useGetWarehouseEntriesQuery({ productId: target?.product.id ?? 0, kind: target?.kind ?? 'damaged' }, { skip: !target })
   const kind = target?.kind ?? 'damaged'
   const label = kind === 'units' ? 'Units' : kind === 'return' ? 'Returns' : 'Damaged'
@@ -48,7 +50,7 @@ export const WarehouseEntriesModal: React.FC<WarehouseEntriesModalProps> = ({ ta
           <table className="min-w-full text-sm">
             <thead className="bg-secondary-50 text-xs uppercase tracking-wide text-text-muted">
               <tr>
-                {['Added', 'Units', 'Screen', 'Record', 'Direction', 'Session', 'By'].map((heading) => (
+                {['Added', 'Units', 'Screen', 'Record', 'Direction', 'Session', 'Linked', 'By'].map((heading) => (
                   <th key={heading} className="whitespace-nowrap px-3 py-2 text-center font-semibold">
                     {heading}
                   </th>
@@ -79,6 +81,20 @@ export const WarehouseEntriesModal: React.FC<WarehouseEntriesModalProps> = ({ ta
                       <NewTabLink href={`/dashboard/barcode/session/${entry.sessionId}`} title="Open this scan session in a new tab" className="font-mono text-xs font-semibold">
                         {entry.session}
                       </NewTabLink>
+                    ) : (
+                      '—'
+                    )}
+                  </td>
+                  <td className="whitespace-nowrap px-3 py-2">
+                    {entry.linked ? (
+                      <button
+                        type="button"
+                        onClick={() => onSwitch?.(entry.linked === 'return' ? 'return' : 'damaged')}
+                        title={entry.linked === 'return' ? 'This damaged unit came back as a return. Show the return entry' : 'This return came back damaged. Show its damaged entry'}
+                        className="rounded-full bg-warning-100 px-2 py-0.5 text-xs font-semibold text-warning-700 hover:underline"
+                      >
+                        {entry.linked === 'return' ? 'From return' : 'Also damaged'}
+                      </button>
                     ) : (
                       '—'
                     )}

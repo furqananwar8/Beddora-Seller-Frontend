@@ -37,6 +37,8 @@ export interface WarehouseEntry {
   session: string | null
   /** The scan session's id, for opening its details. */
   sessionId: number | null
+  /** A damaged return is in both histories: which other history lists the same unit. */
+  linked: 'return' | 'damaged' | null
   /** The record behind the entry (container, shipment or order), for opening it. */
   record: { type: 'container' | 'shipment' | 'order'; id: string } | null
   by: string | null

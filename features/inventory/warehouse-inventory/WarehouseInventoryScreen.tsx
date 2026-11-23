@@ -93,7 +93,7 @@ export const WarehouseInventoryScreen: React.FC = () => {
           <PaginationFooter page={data.page} pageSize={data.limit} totalItems={data.totalRecords} totalPages={data.totalPages} onPageChange={setPage} itemLabel="SKUs" />
         )}
       </div>
-      <WarehouseEntriesModal target={entriesOf} onClose={() => setEntriesOf(null)} />
+      <WarehouseEntriesModal target={entriesOf} onClose={() => setEntriesOf(null)} onSwitch={(kind) => setEntriesOf((current) => (current ? { ...current, kind } : current))} />
       <SampleHistoryModal product={samplesOf} onClose={() => setSamplesOf(null)} />
     </Container>
   )
