@@ -18,6 +18,7 @@ import {
   useUpdateBoxDimensionsMutation,
 } from '@/services/api/inventoryAdjustments.api'
 import { apiErrorMessage } from '../shipments/useShipments'
+import { ADJUSTMENT_ROWS, balanceOf } from './buckets'
 import { EditDimensionsModal } from './EditDimensionsModal'
 import { EditQuantityModal } from './EditQuantityModal'
 import { AdjustmentAction, RowActions } from './RowActions'
@@ -108,9 +109,11 @@ export const AdjustmentsScreen: React.FC = () => {
             <TableRow>
               <TableHead className={cn(HEAD, "min-w-[320px]")}>Product</TableHead>
               <TableHead className={HEAD}>On hand</TableHead>
-              <TableHead className={HEAD}>Unallocated</TableHead>
-              <TableHead className={HEAD}>FBM</TableHead>
-              <TableHead className={HEAD}>Amazon allocated</TableHead>
+              {ADJUSTMENT_ROWS.map(({ bucket, short }) => (
+                <TableHead key={bucket} className={HEAD}>
+                  {short}
+                </TableHead>
+              ))}
               <TableHead className={cn(HEAD, "min-w-[260px]")}>Box dimensions</TableHead>
               <TableHead className={cn(HEAD, "w-16")}>Action</TableHead>
             </TableRow>
@@ -118,7 +121,7 @@ export const AdjustmentsScreen: React.FC = () => {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={7}>
+                <TableCell colSpan={4 + ADJUSTMENT_ROWS.length}>
                   <div className="flex justify-center py-12">
                     <Spinner />
                   </div>
@@ -126,7 +129,7 @@ export const AdjustmentsScreen: React.FC = () => {
               </TableRow>
             ) : isError || rows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7}>
+                <TableCell colSpan={4 + ADJUSTMENT_ROWS.length}>
                   <div className={isError ? 'py-12 text-center font-medium text-danger-600' : 'py-12 text-center text-text-muted'}>
                     {isError ? 'Could not load inventory.' : 'No SKUs found.'}
                   </div>
@@ -140,9 +143,11 @@ export const AdjustmentsScreen: React.FC = () => {
                     <div className="font-mono text-xs text-text-muted">{row.sku}</div>
                   </TableCell>
                   <TableCell className={cn(CELL, "font-medium")}>{n(row.onHand)}</TableCell>
-                  <TableCell className={CELL}>{n(row.balances.UNALLOCATED)}</TableCell>
-                  <TableCell className={CELL}>{n(row.balances.FBM)}</TableCell>
-                  <TableCell className={CELL}>{n(row.balances.FBA_RESERVED)}</TableCell>
+                  {ADJUSTMENT_ROWS.map(({ bucket }) => (
+                    <TableCell key={bucket} className={CELL}>
+                      {n(balanceOf(row.balances, bucket))}
+                    </TableCell>
+                  ))}
                   <TableCell className={cn(CELL, "text-sm text-text-muted")}>{formatBox(row.boxDimensions)}</TableCell>
                   <TableCell className={CELL}>
                     <RowActions label={row.sku} onSelect={(action) => open(row, action)} />

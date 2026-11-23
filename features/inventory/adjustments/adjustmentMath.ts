@@ -5,7 +5,7 @@ import { BucketBalances } from '@/services/api/inventoryPlanner.api'
  * Instant feedback while typing. Mirrors the backend's adjustment-planner (same
  * order of reductions); the backend stays the source of truth when saving.
  */
-const REDUCTION_ORDER: StockBucket[] = ['UNALLOCATED', 'FBM', 'FBA_POOL', 'BUFFER']
+const REDUCTION_ORDER: StockBucket[] = ['UNALLOCATED', 'FBM', 'FBA_POOL', 'WFS_POOL', 'BUFFER']
 const INCREASE_BUCKET: StockBucket = 'UNALLOCATED'
 
 export const totalOf = (balances: BucketBalances): number => Object.values(balances).reduce((sum, qty) => sum + qty, 0)
