@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>System › Email: design</title>
+<style>
+  @page { size: A4 landscape; margin: 10mm; }
+  :root { --ink:#111827; --muted:#6b7280; --faint:#9ca3af; --line:#e5e7eb; --bg:#f8f9fb; --blue:#2563eb;
+          --ok-bg:#ecfdf5; --ok:#047857; --warn-bg:#fffbeb; --warn:#b45309; --bad-bg:#fef2f2; --bad:#dc2626; }
+  * { box-sizing:border-box; }
+  body { margin:0; font:12px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; color:var(--ink); }
+  .page { page-break-after:always; width:277mm; height:190mm; position:relative; overflow:hidden; }
+  .page:last-child { page-break-after:auto; }
+  .tag { font:600 9.5px/1 ui-monospace,Consolas,monospace; letter-spacing:.14em; color:var(--faint); text-transform:uppercase; }
+  h1 { font-size:19px; margin:3px 0 2px; } .sub { color:var(--muted); margin:0 0 8px; }
+  .app { display:grid; grid-template-columns:46mm 1fr; border:1px solid var(--line); border-radius:10px; overflow:hidden; background:var(--bg); height:160mm; }
+  .side { background:#fff; border-right:1px solid var(--line); padding:8px; font-size:11px; color:#4b5563; }
+  .side .logo { font-weight:800; font-size:15px; color:#3b1d63; margin:0 4px 8px; }
+  .side .grp { display:flex; justify-content:space-between; padding:6px 8px; border-radius:6px; }
+  .side .sub-i { padding:4px 8px 4px 20px; } .side .on { background:#111827; color:#fff; }
+  .side .cur { background:#eef0f4; color:#111827; font-weight:600; border-radius:6px; }
+  .new { font-size:8.5px; background:#fef3c7; color:var(--warn); border-radius:4px; padding:1px 5px; margin-left:6px; font-weight:700; }
+  .main { padding:8px 12px; overflow:hidden; position:relative; }
+  .top { display:flex; justify-content:flex-end; gap:8px; font-size:10px; color:var(--muted); margin-bottom:4px; }
+  .head { display:flex; justify-content:space-between; align-items:flex-start; }
+  .head h2 { margin:0; font-size:17px; display:flex; align-items:center; gap:8px; } .head p { margin:1px 0 0; color:var(--muted); font-size:11px; }
+  .live { font-size:9.5px; font-weight:700; color:var(--ok); background:var(--ok-bg); border-radius:99px; padding:2px 8px; letter-spacing:.04em; }
+  .live:before { content:"●"; margin-right:4px; font-size:8px; }
+  .btn { display:inline-block; border:1px solid #d1d5db; background:#fff; border-radius:6px; padding:5px 10px; font-size:11px; }
+  .btn.p { background:#111827; color:#fff; border-color:#111827; }
+  .kpis { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin:8px 0; }
+  .kpi { background:#fff; border:1px solid var(--line); border-radius:8px; padding:7px 10px; }
+  .kpi b { display:block; font-size:18px; } .kpi span { color:var(--muted); font-size:10.5px; }
+  .kpi.bad b { color:var(--bad); } .kpi.warn b { color:var(--warn); }
+  .tabs { display:inline-flex; background:#eef0f4; border-radius:6px; padding:2px; font-size:10px; font-weight:600; letter-spacing:.03em; margin-right:8px; }
+  .tabs span { padding:4px 9px; border-radius:5px; color:#4b5563; text-transform:uppercase; } .tabs .a { background:#111827; color:#fff; }
+  .bar { display:flex; align-items:center; gap:8px; margin:6px 0; }
+  .in { border:1px solid #d1d5db; background:#fff; border-radius:6px; padding:5px 9px; color:var(--faint); font-size:11px; }
+  table { width:100%; border-collapse:collapse; background:#fff; border:1px solid var(--line); border-radius:8px; overflow:hidden; font-size:10.5px; }
+  th { text-align:left; font-size:9px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); background:#fafafa; padding:6px 8px; border-bottom:1px solid var(--line); }
+  td { padding:6px 8px; border-top:1px solid var(--line); vertical-align:middle; }
+  .pill { display:inline-block; padding:1px 8px; border-radius:99px; font-size:9.5px; font-weight:600; }
+  .ok { background:var(--ok-bg); color:var(--ok); } .warn { background:var(--warn-bg); color:var(--warn); } .bad { background:var(--bad-bg); color:var(--bad); }
+  .err { color:var(--bad); max-width:40mm; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:block; }
+  .menu { position:absolute; background:#fff; border:1px solid var(--line); border-radius:8px; box-shadow:0 6px 18px rgba(0,0,0,.12); font-size:11px; width:40mm; z-index:3; }
+  .menu div { padding:6px 10px; } .menu div + div { border-top:1px solid var(--line); } .menu .hi { background:#f1f5f9; font-weight:600; }
+  .toast { position:absolute; right:10px; top:26px; z-index:4; background:#ecfdf5; border:1px solid #6ee7b7; color:#065f46; border-radius:8px; padding:8px 12px; font-size:11px; box-shadow:0 6px 18px rgba(0,0,0,.12); width:62mm; }
+  .toast b { display:block; }
+  tr.flash td { background:#ecfdf5; box-shadow:inset 0 0 0 0 transparent; }
+  .dlg { background:#fff; border:1px solid var(--line); border-radius:12px; box-shadow:0 12px 32px rgba(0,0,0,.14); }
+  .dlg h3 { margin:0; padding:10px 14px; border-bottom:1px solid var(--line); font-size:13px; display:flex; justify-content:space-between; }
+  .dlg .body { padding:10px 14px; } .dlg .foot { padding:9px 14px; border-top:1px solid var(--line); display:flex; justify-content:flex-end; gap:8px; }
+  .kv { display:grid; grid-template-columns:30mm 1fr; gap:3px 8px; font-size:11px; } .kv span { color:var(--muted); }
+  .note { border-left:3px solid var(--blue); padding:3px 0 3px 8px; color:var(--muted); font-size:10.5px; margin-top:6px; }
+  .cols { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .card { border:1px solid var(--line); border-radius:10px; padding:9px 12px; background:#fff; }
+  .card h4 { margin:0 0 5px; font-size:12px; } .card li { margin:2px 0; } ul { margin:0; padding-left:16px; }
+  .tick { color:var(--ok); font-weight:700; }
+  .cb { display:inline-block; width:12px; height:12px; border:1.5px solid #9ca3af; border-radius:3px; vertical-align:middle; background:#fff; }
+  .cb.on { background:#111827; border-color:#111827; position:relative; } .cb.on:after { content:"✓"; color:#fff; font-size:9px; position:absolute; left:1.5px; top:-2px; }
+  .cb.part { background:#111827; border-color:#111827; position:relative; } .cb.part:after { content:"–"; color:#fff; font-size:11px; position:absolute; left:2px; top:-4px; }
+  tr.sel td { background:#f1f5f9; }
+  .bulk { display:flex; align-items:center; gap:10px; background:#111827; color:#fff; border-radius:8px; padding:6px 10px; margin:6px 0; font-size:11px; }
+  .bulk .btn { background:#fff; color:#111827; border-color:#fff; } .bulk .lnk { color:#93c5fd; text-decoration:underline; }
+  .tl { border-left:2px solid var(--line); margin:6px 0 0 6px; padding-left:12px; }
+  .tl .it { position:relative; margin-bottom:9px; font-size:11px; } .tl .it:before { content:""; position:absolute; left:-18px; top:3px; width:9px; height:9px; border-radius:50%; background:#9ca3af; }
+  .tl .it.ok:before { background:var(--ok); } .tl .it.bad:before { background:var(--bad); }
+  .tl .it small { display:block; color:var(--muted); }
+  .flow { display:flex; align-items:center; gap:6px; margin:6px 0 4px; font-size:10.5px; }
+  .flow span { border:1px solid var(--line); background:#f9fafb; border-radius:6px; padding:4px 7px; } .flow i { color:var(--faint); font-style:normal; }
+</style>
+</head>
+<body>
+
+<!-- PAGE 1 -->
+<div class="page">
+  <div class="tag">Design proposal · 1 of 3</div>
+  <h1>System › Email: every email, its status, how often it was sent</h1>
+  <p class="sub">A new sidebar group with one screen for now. The screen updates itself: when an email is sent or fails, the row changes, the counts move and a toast appears, with no refresh.</p>
+  <div class="app">
+    <div class="side">
+      <div class="logo">beddora</div>
+      <div class="grp"><span>Inventory Management</span><span>⌄</span></div>
+      <div class="grp"><span>Finance</span><span>⌄</span></div>
+      <div class="grp"><span>Procurement</span><span>⌄</span></div>
+      <div class="grp"><span>Shipping</span><span>⌄</span></div>
+      <div class="grp on"><span>System <span class="new">NEW</span></span><span>⌃</span></div>
+      <div class="sub-i cur">Email</div>
+      <div class="grp"><span>Settings</span><span>⌄</span></div>
+    </div>
+    <div class="main">
+      <div class="top"><span>Mon, Nov 23, 9:49 AM PST</span><span>🔔</span><span class="btn p" style="padding:2px 8px">Logout</span></div>
+      <div class="toast"><b>Email sent</b>Container KOCU4359567 delivered, to ops.three@company.com</div>
+      <div class="head">
+        <div><h2>Email <span class="live">LIVE</span></h2><p>Emails the system sent, is sending, or failed to send. Open an email to see every time it was sent.</p></div>
+        <div style="display:flex;gap:6px"><span class="btn">Export Excel</span></div>
+      </div>
+      <div class="kpis">
+        <div class="kpi"><b>149</b><span>Sent in the last 24 hours</span></div>
+        <div class="kpi warn"><b>2</b><span>Queued, sending now</span></div>
+        <div class="kpi bad"><b>12</b><span>Failed, needs a resend</span></div>
+        <div class="kpi warn"><b>57</b><span>Not yet emailed (old and new data)</span></div>
+      </div>
+      <div class="bar">
+        <span class="tabs"><span class="a">All 163</span><span>Failed 12</span><span>Queued 2</span><span>Sent 149</span><span>Not yet emailed 57</span></span>
+        <span class="in" style="width:48mm">Search recipient or subject…</span><span class="in">Event type ▾</span><span class="in">This month ▾</span>
+      </div>
+      <div class="bulk"><b>3 selected</b><span class="btn">Resend selected</span><span class="lnk">Select all 12 failed</span><span class="lnk">Clear</span><span style="margin-left:auto;opacity:.75">Resend sends the email again, even if it was sent before</span></div>
+      <table>
+        <tr><th style="width:14px"><span class="cb part"></span></th><th>Recipient</th><th>Subject</th><th>Event</th><th>Status</th><th>Sent</th><th>Last error</th><th>Created</th><th>Actions</th></tr>
+        <tr class="sel"><td><span class="cb on"></span></td><td>buyer.one@company.com</td><td>PO-1128 was approved</td><td>PO approved</td><td><span class="pill bad">FAILED</span></td><td>0×</td><td><span class="err">Connection timeout (SMTP)</span></td><td>23 Nov 08:02</td><td>⋮</td></tr>
+        <tr class="sel"><td><span class="cb on"></span></td><td>finance.two@company.com</td><td>Payment PR#10085 approved</td><td>Payment approved</td><td><span class="pill bad">FAILED</span></td><td>0×</td><td><span class="err">550 Mailbox unavailable</span></td><td>23 Nov 08:11</td><td>⋮</td></tr>
+        <tr class="flash"><td><span class="cb"></span></td><td>ops.three@company.com</td><td>Container KOCU4359567 delivered</td><td>Container delivered</td><td><span class="pill ok">SENT</span></td><td>1× · just now</td><td><span class="err">-</span></td><td>23 Nov 09:40</td><td>⋮</td></tr>
+        <tr class="sel"><td><span class="cb on"></span></td><td>buyer.one@company.com</td><td>Price analysis approved</td><td>Price analysis</td><td><span class="pill ok">SENT</span></td><td>2× · 23 Nov 10:05</td><td><span class="err">-</span></td><td>23 Nov 09:12</td><td>⋮</td></tr>
+        <tr><td><span class="cb"></span></td><td>approver.four@company.com</td><td>PO-1131 was rejected</td><td>PO rejected</td><td><span class="pill ok">SENT</span></td><td>1× · 22 Nov 17:30</td><td><span class="err">-</span></td><td>22 Nov 17:30</td><td>⋮</td></tr>
+      </table>
+      <div class="menu" style="right:6mm; top:86mm"><div class="hi">Delivery history</div><div>Resend</div><div>Copy recipient</div></div>
+      <div class="note">The green row just changed from Queued to Sent on its own: the counts moved (Queued 3 → 2, Sent 148 → 149) and the toast appeared. “Sent” shows how many times it was delivered; Actions › Delivery history lists every try.</div>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE 2 -->
+<div class="page">
+  <div class="tag">Design proposal · 2 of 3</div>
+  <h1>Delivery history, and emailing data that already existed</h1>
+  <p class="sub">Left: Actions › Delivery history, every try with its time and result. Right: the “Not yet emailed” tab, for records that were imported or already there before email was switched on.</p>
+  <div class="cols" style="grid-template-columns:.85fr 1.4fr">
+    <div class="dlg">
+      <h3><span>Delivery history · Price analysis approved</span><span>✕</span></h3>
+      <div class="body">
+        <div class="kv">
+          <span>To</span><div>buyer.one@company.com</div>
+          <span>Status</span><div><span class="pill ok">SENT</span> &nbsp;sent 2 times</div>
+          <span>First sent</span><div>23 Nov 09:12 PST</div>
+          <span>Last sent</span><div>23 Nov 10:05 PST</div>
+        </div>
+        <div style="margin:9px 0 2px;font-weight:600">Every try</div>
+        <div class="tl">
+          <div class="it ok"><b>Sent</b> · 23 Nov 10:05<small>Resent by Fahad</small></div>
+          <div class="it ok"><b>Sent</b> · 23 Nov 09:12<small>Automatic</small></div>
+          <div class="it bad"><b>Failed</b> · 23 Nov 09:11<small>Automatic · Connection timeout (SMTP)</small></div>
+        </div>
+        <div class="note">The history is kept on the email itself, so a resend adds a line instead of replacing the old one. If this window is open when a new try happens, the line appears by itself.</div>
+      </div>
+      <div class="foot"><span class="btn">Close</span><span class="btn p">Resend email</span></div>
+    </div>
+
+    <div>
+      <div class="bar" style="margin-top:0"><span class="tabs"><span>All</span><span>Failed 12</span><span>Queued 2</span><span>Sent 149</span><span class="a">Not yet emailed 57</span></span><span class="in">Records from 01 Sep 2026 ▾</span></div>
+      <table>
+        <tr><th style="width:14px"><span class="cb part"></span></th><th>Event</th><th>Records</th><th>Already emailed</th><th>Not yet</th><th>Emails to send</th></tr>
+        <tr class="sel"><td><span class="cb on"></span></td><td>PO approved</td><td>40</td><td>31</td><td>9</td><td>27</td></tr>
+        <tr class="sel"><td><span class="cb on"></span></td><td>Container delivered to warehouse</td><td>18</td><td>10</td><td>8</td><td>16</td></tr>
+        <tr><td><span class="cb"></span></td><td>Payment request approved</td><td>25</td><td>20</td><td>5</td><td>10</td></tr>
+        <tr><td><span class="cb"></span></td><td>Price analysis approved</td><td>12</td><td>9</td><td>3</td><td>6</td></tr>
+        <tr><td><span class="cb"></span></td><td>Container ETA and PO ETD reminders</td><td>14</td><td>0</td><td>14</td><td>28</td></tr>
+      </table>
+      <div class="bulk" style="margin-top:6px"><b>2 selected · 43 emails</b><span class="btn">Preview</span><span class="btn">Send selected</span><span class="lnk">Clear</span><span style="margin-left:auto;opacity:.75">Sample numbers: real counts come from the database</span></div>
+      <div class="dlg" style="margin-top:6px">
+        <h3><span>Send 43 emails for 17 existing records?</span><span>✕</span></h3>
+        <div class="body">
+          <ul>
+            <li>Each person gets the same email the event sends today, built from the record as it is now.</li>
+            <li><b>Email only.</b> No bell notifications are created for old records.</li>
+            <li>People who already have an email for a record are skipped, so a second click never duplicates.</li>
+            <li>They join the queue and go out 2 at a time. Each appears in the list as it is sent, with its history, and the counts count down live.</li>
+          </ul>
+        </div>
+        <div class="foot"><span class="btn">Cancel</span><span class="btn p">Send 43 emails</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE 3 -->
+<div class="page">
+  <div class="tag">Design proposal · 3 of 3</div>
+  <h1>How it works, live updates, and what changes in the system</h1>
+  <p class="sub">Most of it reuses what exists: every email is already a stored row with a status, each event already builds its own email, and the app already has an SSE channel.</p>
+  <div class="cols">
+    <div class="card">
+      <h4>What already exists <span class="tick">✓</span></h4>
+      <ul>
+        <li>Every email stored as a row: QUEUED / SENT / FAILED, tries, last error, created and sent time.</li>
+        <li>Queue with automatic retries (8 tries, about 20 minutes), sending 2 at a time.</li>
+        <li>A duplicate guard per person and record, so nothing is sent twice by accident.</li>
+        <li>Each event (PO approved, container delivered, …) builds its email from just a record id.</li>
+        <li>The SSE hub and topic registry used by Finance and Procurement screens.</li>
+      </ul>
+      <h4 style="margin-top:8px">What is new</h4>
+      <ul>
+        <li><b>Screen</b> System › Email: list, tabs, search, selection and bulk actions.</li>
+        <li><b>Delivery history</b> a new table, one line per try (time, sent or failed, error, automatic or resent by whom). Today only a counter is kept, with no timestamps, so history starts from this release.</li>
+        <li><b>Resend</b> one or many, any status, adding to the history. Sent emails ask for a confirmation first.</li>
+        <li><b>Existing data</b> pick events and a date range, preview, send. Same emails, email only, duplicates skipped.</li>
+        <li><b>Access</b> Furqan, Fahad, Radhika and Salman only, kept out of the permission dialog. Everyone else: no menu item, 403 on the API and on the live channel.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4>Live updates (SSE)</h4>
+      <div class="flow"><span>Worker sends or fails</span><i>→</i><span>Saved with history</span><i>→</i><span>Event on topic <code>system.email</code></span><i>→</i><span>Screen updates</span></div>
+      <ul>
+        <li><b>Events:</b> queued, sent, failed, resent. Each carries the email id, new status, times sent, last time and last error.</li>
+        <li><b>On the screen:</b> the row is patched in place (no reload), the tab and box counts move, the row flashes briefly, and a toast says what happened: “Email sent · PO-1128, to buyer.one@company.com” or “Email failed · … · Connection timeout”.</li>
+        <li><b>Bulk:</b> many events in a short burst become one summary toast, e.g. “12 emails sent, 2 failed”, so 43 emails don't throw 43 toasts.</li>
+        <li><b>Filters respected:</b> a row only appears or leaves the list if it matches the current tab and filters; the counts always update.</li>
+        <li><b>If the connection drops:</b> the screen shows “reconnecting” and reloads once when it is back, so nothing is missed. The “Live” tag turns grey while offline.</li>
+        <li><b>Open history window:</b> a new try adds its line by itself.</li>
+        <li><b>Who receives it:</b> only the four allowed accounts, checked when they subscribe.</li>
+      </ul>
+      <h4 style="margin-top:8px">Limits to know</h4>
+      <ul>
+        <li>Old records are emailed from their <b>current</b> state and the event's current wording.</li>
+        <li>Recipients come from today's Notifications settings for that event; the person who originally acted is not excluded.</li>
+        <li>History before this release can't be recovered. Bulk actions are capped at 200 rows per click.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="card" style="margin-top:10px">
+    <h4>Please confirm</h4>
+    <ul>
+      <li><b>1. Resending an email that was already sent:</b> allowed, with a confirmation, and the history shows each send. OK?</li>
+      <li><b>2. Old records:</b> email only (no bell notifications). OK?</li>
+      <li><b>3. Which events:</b> PO approved and rejected, container delivered, payment request approved, price analysis approved, shipment confirmed, shipping booked, plus the ETA and ETD reminders. Add or remove any?</li>
+      <li><b>4. Menu name:</b> “System” is a placeholder for the new sidebar group. What should it be called?</li>
+    </ul>
+  </div>
+</div>
+
+</body>
+</html>

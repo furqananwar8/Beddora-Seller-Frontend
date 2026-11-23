@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>User manual sample: payment request</title>
+<style>
+  @page { size: A4 landscape; margin: 11mm; }
+  :root { --text:#1f2937; --muted:#6b7280; --faint:#9ca3af; --border:#e5e7eb; --soft:#f9fafb; --primary:#2563eb; --blue-bg:#eff6ff;
+          --warn-bg:#fffbeb; --warn:#b45309; --ok-bg:#ecfdf5; --ok:#047857; --bad-bg:#fef2f2; --bad:#dc2626; }
+  * { box-sizing:border-box; }
+  body { margin:0; font:12.5px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; color:var(--text); }
+  .page { page-break-after:always; }
+  .page:last-child { page-break-after:auto; }
+  .tag { font-size:10.5px; color:var(--faint); text-transform:uppercase; letter-spacing:.06em; }
+  h1 { font-size:20px; margin:2px 0 2px; } .sub { color:var(--muted); margin:0 0 10px; }
+  .pill { display:inline-block; padding:1px 9px; border-radius:99px; font-size:11px; }
+  .warn { background:var(--warn-bg); color:var(--warn); } .ok { background:var(--ok-bg); color:var(--ok); }
+  .bad { background:var(--bad-bg); color:var(--bad); } .neu { background:#f3f4f6; color:var(--muted); } .blue { background:var(--blue-bg); color:var(--primary); }
+  .scr { position:relative; border:1px solid #d1d5db; border-radius:8px; background:#fff; font-size:11.5px; }
+  .in { border:1px solid #d1d5db; border-radius:6px; padding:5px 9px; background:#fff; color:var(--faint); }
+  .in.v { color:var(--text); } .lab { font-size:11px; font-weight:600; margin-bottom:3px; } .req { color:var(--bad); }
+  .btn { display:inline-block; border-radius:6px; padding:6px 12px; border:1px solid #d1d5db; background:#fff; }
+  .btn.p { background:#111827; color:#fff; border-color:#111827; }
+  .sec { border-top:1px solid var(--border); padding:9px 12px; } .sec h4 { margin:0 0 6px; font-size:12px; }
+  .g { display:grid; gap:8px; } .g3 { grid-template-columns:repeat(3,1fr); } .g2 { grid-template-columns:1fr 1fr; }
+  .n { position:absolute; width:21px; height:21px; border-radius:50%; background:var(--bad); color:#fff; font-size:11.5px; font-weight:700; display:flex; align-items:center; justify-content:center; z-index:2; }
+  .ptr { display:flex; gap:9px; margin:0 0 9px; } .ptr b { flex:none; width:21px; height:21px; border-radius:50%; background:var(--bad); color:#fff; font-size:11.5px; display:flex; align-items:center; justify-content:center; }
+  .ptr span small { display:block; color:var(--muted); font-size:11px; }
+  .layout { display:grid; grid-template-columns:2.35fr 1fr; gap:16px; }
+  .tip { background:var(--warn-bg); color:var(--warn); border-radius:8px; padding:8px 11px; font-size:11.5px; margin-top:10px; }
+  .flow { display:flex; gap:8px; align-items:stretch; } .step { flex:1; } .arrow { align-self:center; color:var(--faint); font-size:20px; }
+  .thumb { height:118px; border:1px solid #d1d5db; border-radius:8px; background:var(--soft); padding:10px; display:flex; flex-direction:column; justify-content:center; gap:6px; font-size:11px; }
+  .cap { margin-top:7px; font-weight:600; } .cap b { display:inline-block; width:21px; height:21px; text-align:center; border-radius:50%; background:var(--primary); color:#fff; font-size:11.5px; line-height:21px; margin-right:6px; }
+  .cap span { display:block; font-weight:400; color:var(--muted); font-size:11px; margin-left:27px; }
+  .ring { position:relative; display:inline-block; } .ring:after { content:""; position:absolute; inset:-5px; border:2px solid var(--bad); border-radius:9px; }
+  .zoom { border:2px solid var(--primary); border-radius:10px; padding:12px; background:#fff; position:relative; }
+  .zt { position:absolute; top:-10px; left:12px; background:var(--primary); color:#fff; font-size:10.5px; padding:1px 8px; border-radius:6px; }
+  .tt { background:#111827; color:#fff; border-radius:8px; padding:7px 10px; font-size:11px; }
+  .err { color:var(--bad); font-size:10.5px; margin-top:2px; }
+  .stp { display:flex; align-items:center; gap:6px; } .dot { width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:11px; color:#fff; background:#d1d5db; }
+  .dot.d { background:var(--ok); } .dot.c { background:#f59e0b; } .ln { flex:1; height:2px; background:var(--border); }
+  .foot { margin-top:9px; font-size:10.5px; color:var(--muted); border-left:3px solid var(--primary); padding-left:8px; }
+</style>
+</head>
+<body>
+
+<div class="page">
+  <div class="tag">User manual sample · Finance › Payment request</div>
+  <h1>Raise a payment request</h1>
+  <p class="sub">Pay a supplier against a purchase order, invoice, shipment or sample, and send it for approval. About 3 minutes.</p>
+
+  <div class="flow">
+    <div class="step"><div class="thumb" style="align-items:center"><span class="btn p">+ New request</span></div><div class="cap"><b>1</b>Open<span>Finance › Payment request</span></div></div>
+    <div class="arrow">→</div>
+    <div class="step"><div class="thumb"><div class="in v">Hangzhou Ltd ▾</div><div class="in v">Purchase order ▾</div></div><div class="cap"><b>2</b>Pick who and what<span>Partner, then what you pay against</span></div></div>
+    <div class="arrow">→</div>
+    <div class="step"><div class="thumb"><div class="in v">Freight · GST 5%</div><div class="in v">$ 12,400.00</div></div><div class="cap"><b>3</b>Add the amount<span>Expense, GST, amount or %</span></div></div>
+    <div class="arrow">→</div>
+    <div class="step"><div class="thumb" style="align-items:center"><div class="in v" style="border-style:dashed">Drop invoice.pdf</div></div><div class="cap"><b>4</b>Attach documents<span>Invoice or proof</span></div></div>
+    <div class="arrow">→</div>
+    <div class="step"><div class="thumb" style="align-items:center"><span class="btn p">Submit for approval</span></div><div class="cap"><b>5</b>Submit<span>Or Save draft to finish later</span></div></div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:18px">
+    <div class="zoom"><span class="zt">Before you start</span>
+      <div class="ptr"><b style="background:var(--primary)">✓</b><span>The partner exists<small>Add one under Finance › Partner profile</small></span></div>
+      <div class="ptr"><b style="background:var(--primary)">✓</b><span>The purchase order is approved<small>Only approved POs with an amount left are offered</small></span></div>
+      <div class="ptr" style="margin:0"><b style="background:var(--primary)">✓</b><span>You have the invoice file<small>PDF or image</small></span></div>
+    </div>
+    <div class="zoom"><span class="zt">What happens next</span>
+      <div class="stp" style="margin:8px 0 6px"><div class="dot d">✓</div><div class="ln"></div><div class="dot c">2</div><div class="ln"></div><div class="dot">3</div><div class="ln"></div><div class="dot">$</div></div>
+      <div style="display:flex;justify-content:space-between;font-size:10.5px;color:var(--muted)"><span>Submitted</span><span>Approver 1</span><span>Approver 2</span><span>Paid</span></div>
+      <div class="tip" style="margin-top:12px">Rejected requests show the reason on the request.</div>
+    </div>
+  </div>
+  <div class="foot">Format used: task flow strip (this page) → annotated screen (next page) → zoom-ins (last page). Sample layout with placeholder data.</div>
+</div>
+
+<div class="page">
+  <div class="tag">Step 2–5 · the screen</div>
+  <h1>New payment request</h1>
+  <p class="sub">Finance › Payment request › New</p>
+  <div class="layout">
+    <div class="scr">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 12px"><b style="font-size:14px">New payment request</b><span class="pill neu">DRAFT</span></div>
+      <div class="sec"><h4>Partner <span style="font-weight:400;color:var(--faint)">who is being paid</span></h4>
+        <div class="lab">Partner <span class="req">*</span></div><div class="in v" style="width:55%">Hangzhou Ltd ▾</div></div>
+      <div class="sec"><h4>Purchase order &amp; shipment</h4>
+        <div class="g g3">
+          <div><div class="lab">Paying against</div><div class="in v">Purchase order ▾</div></div>
+          <div style="grid-column:span 2"><div class="lab">Purchase order <span class="req">*</span></div><div class="in v">SP-00071 · $12,400 left ▾</div></div>
+          <div><div class="lab">Date <span class="req">*</span></div><div class="in v">2026-11-23</div></div>
+          <div><div class="lab">Container #</div><div class="in">Optional</div></div>
+          <div><div class="lab">Payment terms</div><div class="in v">Net 30</div></div>
+        </div></div>
+      <div class="sec"><h4>Amounts</h4>
+        <div class="g g3" style="grid-template-columns:1.4fr 1fr 1fr 1fr">
+          <div><div class="lab">Expense <span class="req">*</span></div><div class="in v">Goods ▾</div></div>
+          <div><div class="lab">GST %</div><div class="in v">5% ▾</div></div>
+          <div><div class="lab">Percent of PO</div><div class="in v">50 %</div></div>
+          <div><div class="lab">Amount</div><div class="in v">$ 6,200.00</div></div>
+        </div></div>
+      <div class="sec"><h4>Upload documents</h4><div class="in" style="border-style:dashed;text-align:center">Drop files here or browse</div></div>
+      <div class="sec" style="display:flex;justify-content:flex-end;gap:8px"><span class="btn">Save draft</span><span class="btn p">Submit for approval</span></div>
+      <div class="n" style="left:12px;top:56px">1</div>
+      <div class="n" style="left:12px;top:132px">2</div>
+      <div class="n" style="right:12px;top:170px">3</div>
+      <div class="n" style="left:12px;top:244px">4</div>
+      <div class="n" style="left:12px;top:312px">5</div>
+      <div class="n" style="right:6px;bottom:6px">6</div>
+    </div>
+    <div>
+      <div class="ptr"><b>1</b><span>Choose the partner<small>The supplier you pay</small></span></div>
+      <div class="ptr"><b>2</b><span>Pick what you pay against<small>PO, invoice, shipment or sample</small></span></div>
+      <div class="ptr"><b>3</b><span>Pick the exact PO<small>Shows what is still unpaid</small></span></div>
+      <div class="ptr"><b>4</b><span>Enter the amount<small>Type a $ amount or a % of the PO</small></span></div>
+      <div class="ptr"><b>5</b><span>Attach the invoice<small>Drag a file in</small></span></div>
+      <div class="ptr"><b>6</b><span>Save draft or Submit<small>Save and finish later</small></span></div>
+      <div class="tip">Paying more than is left on the PO shows a warning. Check the amount before submitting.</div>
+    </div>
+  </div>
+  <div class="foot">Red badges = where to look. Text on the right = what to do. In the final manual the left panel is a real screenshot.</div>
+</div>
+
+<div class="page">
+  <div class="tag">Zoom-ins · the tricky parts</div>
+  <h1>Common questions, shown on the screen</h1>
+  <p class="sub">Small close-ups with a tooltip. Only the parts people get wrong.</p>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px">
+    <div class="zoom"><span class="zt">Paying against</span>
+      <div class="g g2" style="margin-top:4px">
+        <div class="in v ring" style="margin:5px">Purchase order ▾</div><div class="in v" style="margin:5px">SP-00071 ▾</div></div>
+      <div class="tt" style="margin-top:12px">Only approved POs of this supplier with an amount left are listed.</div>
+      <div class="ptr" style="margin:12px 0 0"><b style="background:var(--primary)">i</b><span>Not in the list?<small>The PO may be unapproved, fully paid, or for another supplier.</small></span></div>
+    </div>
+    <div class="zoom"><span class="zt">Amount or percent</span>
+      <div class="g g2" style="margin-top:4px">
+        <div><div class="lab">Percent of PO</div><div class="in v ring" style="margin:5px">50 %</div></div>
+        <div><div class="lab">Amount</div><div class="in v" style="margin:5px">$ 6,200.00</div></div></div>
+      <div class="tt" style="margin-top:12px">Type a percent and the amount fills in. Or the other way round.</div>
+      <div class="ptr" style="margin:12px 0 0"><b style="background:var(--primary)">i</b><span>Percent over 100?<small>You will see "A percentage cannot be more than 100%".</small></span></div>
+    </div>
+    <div class="zoom"><span class="zt">If a field turns red</span>
+      <div class="lab" style="margin-top:4px">Invoice date <span class="req">*</span></div><div class="in" style="border-color:var(--bad)">Pick a date</div>
+      <div class="err">Invoice date is required</div>
+      <div class="ptr" style="margin:12px 0 0"><b style="background:var(--primary)">i</b><span>Fix the red field, then submit again<small>Required fields are marked with *</small></span></div>
+    </div>
+    <div class="zoom"><span class="zt">After you submit</span>
+      <div style="margin-top:6px"><span class="pill warn">Pending approval</span> &nbsp; <span class="pill ok">Approved</span> &nbsp; <span class="pill bad">Rejected</span></div>
+      <div class="tt" style="margin-top:12px">Open the request to see which approver it is waiting on.</div>
+      <div class="ptr" style="margin:12px 0 0"><b style="background:var(--primary)">i</b><span>Need to change it?<small>Edit rules are confirmed with the team before this goes live.</small></span></div>
+    </div>
+  </div>
+  <div class="foot">Wording above is based on the real form labels and messages; the screens are placeholders until we capture them from the app.</div>
+</div>
+
+</body>
+</html>
