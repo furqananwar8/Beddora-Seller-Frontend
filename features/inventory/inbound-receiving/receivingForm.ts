@@ -27,6 +27,32 @@ export type ReceivingFormValues = z.infer<typeof receivingSchema>
 
 export const toUnits = (value: string): number => (value === '' ? 0 : Number(value))
 
+type Row = Pick<ReceivingFormValues['lines'][number], 'expected' | 'damaged' | 'shortage'>
+
+/**
+ * The cells a row needs once damaged or shortage is typed, so good + damaged + shortage always equals the expected units
+ * and the receiver does not retype them. Good is whatever is left. The typed cell is capped at what the row can hold, and
+ * the other of damaged/shortage gives way only when there is no room left for it (damaged units arrived, so they are not
+ * short). Only the cells that change are returned; null while a cell holds something that is not a whole number yet.
+ */
+export function rebalanced(line: Row, edited: 'damaged' | 'shortage'): Partial<Record<'good' | 'damaged' | 'shortage', string>> | null {
+  if (!/^\d*$/.test(line.damaged) || !/^\d*$/.test(line.shortage)) return null
+  let damaged = toUnits(line.damaged)
+  let shortage = toUnits(line.shortage)
+  if (edited === 'damaged') {
+    damaged = Math.min(damaged, line.expected)
+    shortage = Math.min(shortage, line.expected - damaged)
+  } else {
+    shortage = Math.min(shortage, line.expected)
+    damaged = Math.min(damaged, line.expected - shortage)
+  }
+  return {
+    good: String(line.expected - damaged - shortage),
+    ...(damaged !== toUnits(line.damaged) && { damaged: String(damaged) }),
+    ...(shortage !== toUnits(line.shortage) && { shortage: String(shortage) }),
+  }
+}
+
 /** Good + damaged: what physically arrived. */
 export const actualOf = (line: Pick<ReceivingFormValues['lines'][number], 'good' | 'damaged'>): number => toUnits(line.good) + toUnits(line.damaged)
 

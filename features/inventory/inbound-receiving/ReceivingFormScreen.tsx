@@ -18,7 +18,7 @@ import { cn } from '@/utils/cn'
 import { formatCalendarDay } from '@/utils/format'
 import { NewTabLink } from '@/components/new-tab-link/NewTabLink'
 import { columnHeading } from './columnHeading'
-import { actualOf, defaultsFor, receivingSchema, toUnits, type ReceivingFormValues } from './receivingForm'
+import { actualOf, defaultsFor, rebalanced, receivingSchema, toUnits, type ReceivingFormValues } from './receivingForm'
 import { ReceivingPdfModal } from './ReceivingPdfModal'
 import { RECEIVING_ROUTES } from './routes'
 
@@ -197,7 +197,18 @@ const ReceivingForm: React.FC<{ detail: ReceivingDetail }> = ({ detail }) => {
                               <span className="tabular-nums text-text-primary">{qty(Number(live?.[key]) || 0)}</span>
                             ) : (
                               <input
-                                {...register(`lines.${index}.${key}`, { onChange: () => void form.trigger(`lines.${index}.shortage`) })}
+                                {...register(`lines.${index}.${key}`, {
+                                onChange: () => {
+                                  // Damaged or short units come out of the row's other cells so it never exceeds the expected units; good itself is typed freely
+                                  if (key !== 'good') {
+                                    const next = rebalanced(form.getValues(`lines.${index}`), key)
+                                    for (const cell of ['good', 'damaged', 'shortage'] as const) {
+                                      if (next?.[cell] !== undefined) form.setValue(`lines.${index}.${cell}`, next[cell])
+                                    }
+                                  }
+                                  void form.trigger(`lines.${index}.shortage`)
+                                },
+                              })}
                                 inputMode="numeric"
                                 aria-label={`${line.sku} ${key}`}
                                 className={cellInput(error)}
