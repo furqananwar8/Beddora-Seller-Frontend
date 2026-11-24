@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Inventory Management</title>
+<link rel="stylesheet" href="css/manual.css">
+<style>.card{padding:1.6mm 3mm 1.8mm}.cards{gap:2mm}.card p{font-size:10.5px}.tag{font-size:9.5px}.panel p{margin:1.5mm 0}</style>
+</head>
+<body>
+<section class="page" id="inventory-management-overview">
+<div class="eyebrow"><a href="index.html">Index</a> · Inventory Management · Overview</div>
+<h1>Inventory Management: stock from warehouse to channel</h1>
+<p class="sub">Receive containers, count stock, plan and send it to Amazon FBA or Walmart WFS, and keep every SKU mapped.</p>
+<div class="panel"><div class="flow">
+<div class="step"><b>1 · Inbound Receiving</b>A container delivered to the warehouse is counted by scanning, signed and confirmed. Good units join Our Warehouse stock.</div>
+<div class="step"><b>2 · Warehouse Inventory</b>Stock per SKU in Canada, returns, damaged, 3PL, at the platforms and in transit.</div>
+<div class="step"><b>3 · Planner</b>Decide what to send, using sales velocity and days of stock left.</div>
+<div class="step"><b>4 · Shipments</b>Split reserved stock into FBA or WFS inbound shipments and track them to receipt; scan units out.</div>
+<div class="step"><b>5 · Checks</b>Stock Adjustment after a count, SKU Mapping, Inventory Aging, Seller Central.</div></div>
+<p class="sub" style="margin-top:3mm">Every scan session started from Shipments or Inbound Receiving is recorded under Scanning &gt; Sessions.</p></div>
+<div class="panel"><table class="st"><tr><th>Menu screen</th><th>Use it to</th></tr>
+<tr><td>Planner · Shipments</td><td>Plan stock and send it to FBA or WFS.</td></tr>
+<tr><td>Adjustments · Stock Adjustment</td><td>Correct on-hand quantities and box dimensions · correct a warehouse count for today or a past day.</td></tr>
+<tr><td>SKU Mapping</td><td>Bind channel listings to internal SKUs.</td></tr>
+<tr><td>Warehouse Inventory · Samples</td><td>Stock per SKU everywhere · samples suppliers send (they never change stock).</td></tr>
+<tr><td>Inbound Receiving · Inventory Aging · Seller Central</td><td>Receive containers · age of units at Amazon · shipments created on the channels.</td></tr></table></div>
+<div class="foot"><span class="ph">Draft v1</span><span>Backend 7470760 · Frontend c4d46ec</span></div>
+</section>
+<section class="page" id="planner">
+<div class="eyebrow"><a href="index.html">Index</a> · Inventory Management · Planner</div>
+<h1>Planner: what to send and order</h1>
+<p class="sub">Summary tiles by stock position, then every product with its sales velocity and days of stock left.</p>
+<div class="legend"><div><span class="b" style="position:static;margin:0;width:5mm;height:5mm;box-shadow:none">1</span> Option on screen</div><div><i></i> Command / function</div></div>
+<div class="main"><div class="screen"><div class="crop"><img src="img/inventory-management/im-planner.png" alt="Planner"><div class="b" style="left:89.6%;top:3.3%">1</div><div class="b" style="left:5.2%;top:13.4%">2</div><div class="b" style="left:63.5%;top:13.4%">3</div><div class="b" style="left:88.7%;top:13.4%">4</div><div class="b" style="left:94.3%;top:13.4%">5</div><div class="b" style="left:10.7%;top:29%">6</div><div class="b" style="left:11.3%;top:84.1%">7</div><div class="b" style="left:87.4%;top:91.5%">8</div></div></div><div class="cards">
+<div class="card"><h3><b>1</b>Multi-Channel Sync Active</h3><span class="tag">Read → channel data is syncing</span><p></p></div>
+<div class="card"><h3><b>2</b>Search</h3><span class="tag">Type → product, SKU</span><p></p></div>
+<div class="card"><h3><b>3</b>Fulfillment, Marketplace</h3><span class="tag">Choose → e.g. FBA, All Marketplaces</span><p></p></div>
+<div class="card"><h3><b>4</b>Filter</h3><span class="tag">Click → applies the choices</span><p></p></div>
+<div class="card"><h3><b>5</b>More menu</h3><span class="tag">Click → more actions</span><p>Opens the extra actions menu.</p></div>
+<div class="card"><h3><b>6</b>Summary tiles</h3><span class="tag">Read → Action required, Total, FBA + FBM, Prep stock + AWD, Ordered</span><p>Each shows units, cost of goods, potential sales and potential profit.</p></div>
+<div class="card"><h3><b>7</b>Product inventory</h3><span class="tag">Read → quantities, velocity, days left, recommended qty</span><p>Columns sort. Includes PDS (FBA), days of FBA stock left and days until the next FBA order.</p></div>
+<div class="card"><h3><b>8</b>Status</h3><span class="tag">Read → ACTIVE and others</span><p>Tick rows to act on several products.</p></div></div></div>
+<div class="foot"><span class="ph">Draft v1</span><span>Backend 7470760 · Frontend c4d46ec</span></div>
+</section>
+<section class="page" id="shipments-list">
+<div class="eyebrow"><a href="index.html">Index</a> · Inventory Management · Shipments</div>
+<h1>Shipments: list and filters</h1>
+<p class="sub">Split reserved stock into Amazon FBA or Walmart WFS inbound shipments and track them to receipt.</p>
+<div class="legend"><div><span class="b" style="position:static;margin:0;width:5mm;height:5mm;box-shadow:none">1</span> Option on screen</div><div><i></i> Command / function</div></div>
+<div class="main"><div class="screen"><div class="crop"><img src="img/inventory-management/im-ship-list.png" alt="Shipments list"><div class="b" style="left:89.6%;top:6.5%">1</div><div class="b" style="left:5.2%;top:16.1%">2</div><div class="b" style="left:20%;top:29.5%">3</div><div class="b" style="left:13%;top:43.2%">4</div><div class="b" style="left:5.2%;top:60.6%">5</div><div class="b" style="left:72%;top:60.6%">6</div><div class="b" style="left:67%;top:76.5%">7</div><div class="b" style="left:89.5%;top:84.4%">8</div></div></div><div class="cards">
+<div class="card"><h3><b>1</b>New shipment</h3><span class="tag">Click → new shipment; arrow → choose FBA or WFS</span><p>Quantities come from the SKU's reserved pool for that channel.</p></div>
+<div class="card"><h3><b>2</b>Sandbox banner</h3><span class="tag">Read → Walmart steps go to the sandbox</span><p>Shipments and stock are real; Walmart answers with sample data.</p></div>
+<div class="card"><h3><b>3</b>Channel tabs</h3><span class="tag">Click → All channels, Amazon FBA, Walmart WFS</span><p>Counts show on each tab.</p></div>
+<div class="card"><h3><b>4</b>Tiles</h3><span class="tag">Read → unassigned reserve, in progress, shipped, receiving</span><p>Unassigned reserve is reserved stock not yet in a shipment.</p></div>
+<div class="card"><h3><b>5</b>Status tabs</h3><span class="tag">Click → All, In progress, Shipped, Receiving, Closed, Cancelled</span><p>See the status sheet.</p></div>
+<div class="card"><h3><b>6</b>Search, Marketplace, Filter</h3><span class="tag">Type / choose → then Filter</span><p></p></div>
+<div class="card"><h3><b>7</b>Progress</h3><span class="tag">Read → step reached, e.g. 7/8, and the next action</span><p>Next: Mark as shipped.</p></div>
+<div class="card"><h3><b>8</b>Status, row arrow</h3><span class="tag">Click arrow → opens the shipment</span><p>"From Amazon" marks plans created on Amazon.</p></div></div></div>
+<div class="foot"><span class="ph">Draft v1</span><span>Backend 7470760 · Frontend c4d46ec</span></div>
+</section>
+<section class="page" id="shipments-open">
+<div class="eyebrow"><a href="index.html">Index</a> · Inventory Management · Shipments</div>
+<h1>Shipments: an open shipment</h1>
+<p class="sub">Click a row's arrow to see its steps, details, products and label downloads.</p>
+<div class="legend"><div><span class="b" style="position:static;margin:0;width:5mm;height:5mm;box-shadow:none">1</span> Option on screen</div><div><i></i> Command / function</div></div>
+<div class="main"><div class="screen"><div class="crop"><img src="img/inventory-management/im-ship-open.png" alt="Open shipment"><div class="b" style="left:66.4%;top:22.6%">1</div><div class="b" style="left:30.1%;top:32.9%">2</div><div class="b" style="left:61.3%;top:32.9%">3</div><div class="b" style="left:18.6%;top:45.5%">4</div><div class="b" style="left:18.6%;top:72%">5</div><div class="b" style="left:16.8%;top:93.5%">6</div><div class="b" style="left:91.2%;top:93.5%">7</div></div></div><div class="cards">
+<div class="card"><h3><b>1</b>Progress and next action</h3><span class="tag">Read → "Next: Mark as shipped"</span><p>The main button in the row does the next step.</p></div>
+<div class="card"><h3><b>2</b>Steps done</h3><span class="tag">Read → ticks for finished steps</span><p>FBA: Items, Inbound plan, Packing, Warehouse, Delivery window, Carrier, Labels, Shipped.</p></div>
+<div class="card"><h3><b>3</b>Current step</h3><span class="tag">Read → numbered, highlighted</span><p>WFS has fewer steps: Items, Inbound order, Cartons, Carrier, Labels, Shipped.</p></div>
+<div class="card"><h3><b>4</b>Details</h3><span class="tag">Read → ID, plan, destination, window, carrier, boxes, units</span><p></p></div>
+<div class="card"><h3><b>5</b>Products</h3><span class="tag">Read → SKUs and units</span><p>Quantities are locked once box contents are sent; cancel and re-plan to change them.</p></div>
+<div class="card"><h3><b>6</b>Label downloads</h3><span class="tag">Choose size → Box labels, FNSKU unit labels</span><p>Pallet labels appear for freight legs.</p></div>
+<div class="card"><h3><b>7</b>Cancel shipment</h3><span class="tag">Click → cancels it</span><p></p></div></div></div>
+<div class="foot"><span class="ph">Draft v1</span><span>Backend 7470760 · Frontend c4d46ec</span></div>
+</section>
+<section class="page" id="shipments-statuses">
+<div class="eyebrow"><a href="index.html">Index</a> · Inventory Management · Statuses</div>
+<h1>Shipment statuses and steps</h1>
+<p class="sub">The partner status says where the shipment is; our own status says whether units were scanned out.</p>
+<div class="panel"><table class="st"><tr><th>Field</th><th>Status</th><th>Meaning and next step</th></tr>
+<tr><td rowspan="4">Status</td><td><span class="pill">In progress</span></td><td>Being prepared. Follow the next action shown on the row.</td></tr>
+<tr><td><span class="pill">Shipped</span></td><td>Marked as shipped; on the way to Amazon or Walmart.</td></tr>
+<tr><td><span class="pill">Receiving</span> · <span class="pill">Closed</span></td><td>The channel is receiving it · fully received and closed.</td></tr>
+<tr><td><span class="pill">Cancelled</span></td><td>Cancelled; it keeps the step it stopped at.</td></tr>
+<tr><td rowspan="2">Our status</td><td><span class="pill">Booked</span></td><td>Confirmed with the partner. Scan the units out when they leave the warehouse.</td></tr>
+<tr><td><span class="pill">Scanned &amp; shipped</span></td><td>Every booked unit was scanned out of the warehouse.</td></tr>
+<tr><td rowspan="2">Next action (FBA)</td><td>Send to Amazon → Enter box contents → Choose placement</td><td>Draft stays internal until sent. Then pack boxes, then pick one of Amazon's placement options.</td></tr>
+<tr><td>Choose delivery window → Enter carrier → Generate labels → Mark as shipped</td><td>Request the window, enter your carrier, make box, pallet and FNSKU labels, then mark shipped once the truck has left.</td></tr>
+<tr><td>Next action (WFS)</td><td>Send to Walmart → Enter cartons → Enter carrier → Generate labels → Mark as shipped</td><td>Walmart splits the order into shipments; each gets cartons and a carrier.</td></tr></table></div>
+<div class="foot"><span class="ph">Draft v1</span><span>Backend 7470760 · Frontend c4d46ec</span></div>
+</section>
+<section class="page" id="warehouse-inventory">
+<div class="eyebrow"><a href="index.html">Index</a> · Inventory Management · Warehouse Inventory</div>
+<h1>Warehouse Inventory: stock everywhere</h1>
+<p class="sub">Stock per SKU at Amazon, in our warehouses and in containers on their way, with the pipeline at its landed cost.</p>
+<div class="legend"><div><span class="b" style="position:static;margin:0;width:5mm;height:5mm;box-shadow:none">1</span> Option on screen</div><div><i></i> Command / function</div></div>
+<div class="main"><div class="screen"><div class="crop"><img src="img/inventory-management/im-wi.png" alt="Warehouse Inventory"><div class="b" style="left:3.5%;top:35.3%">1</div><div class="b" style="left:41.5%;top:35.3%">2</div><div class="b" style="left:75.4%;top:35.3%">3</div><div class="b" style="left:92%;top:45.5%">4</div><div class="b" style="left:57%;top:59.4%">5</div><div class="b" style="left:75%;top:66.3%">6</div><div class="b" style="left:47.9%;top:74.9%">7</div></div>
+<div class="crop" style="margin-top:3mm"><img src="img/inventory-management/im-wi-units.png" alt="Units history"><div class="b" style="left:23.4%;top:81%">8</div><div class="b" style="left:63.3%;top:81%">9</div></div></div><div class="cards">
+<div class="card"><h3><b>1</b>Search</h3><span class="tag">Type → SKU, channel SKU, UPC, product name</span><p></p></div>
+<div class="card"><h3><b>2</b>As of</h3><span class="tag">Pick → a day within the last 3 months</span><p>Counts stock on that day.</p></div>
+<div class="card"><h3><b>3</b>Stock</h3><span class="tag">Click → All, In Stock, Out Of Stock</span><p></p></div>
+<div class="card"><h3><b>4</b>Apply filters</h3><span class="tag">Click → refresh</span><p></p></div>
+<div class="card"><h3><b>5</b>Our Warehouse</h3><span class="tag">Read → Canada, Return, Damaged</span><p>A damaged return is counted in Return and in Damaged but once in the total.</p></div>
+<div class="card"><h3><b>6</b>3PL and Platform</h3><span class="tag">Read → 3PL USA, platform Canada and USA</span><p>Right of these: Total available units, In transit and Samples.</p></div>
+<div class="card"><h3><b>7</b>A count</h3><span class="tag">Click → the units history</span><p>Opens the movements behind the number.</p></div>
+<div class="card"><h3><b>8</b>History entry</h3><span class="tag">Read → date, units, screen, record</span><p>The record links to its shipment, container or order.</p></div>
+<div class="card"><h3><b>9</b>Direction, Session, By</h3><span class="tag">Read → in or out, scan session, who</span><p>Linked shows a matching entry, for example a return and its damage.</p></div></div></div>
+<div class="foot"><span class="ph">Draft v1</span><span>Backend 7470760 · Frontend c4d46ec</span></div>
+</section>
+<section class="page" id="adjustments">
+<div class="eyebrow"><a href="index.html">Index</a> · Inventory Management · Adjustments</div>
+<h1>Adjustments: on-hand and box dimensions</h1>
+<p class="sub">Correct on-hand quantities and box dimensions for each SKU.</p>
+<div class="legend"><div><span class="b" style="position:static;margin:0;width:5mm;height:5mm;box-shadow:none">1</span> Option on screen</div><div><i></i> Command / function</div></div>
+<div class="main"><div class="screen"><div class="crop"><img src="img/inventory-management/im-adj.png" alt="Adjustments"><div class="b" style="left:20.9%;top:17%">1</div><div class="b" style="left:32.3%;top:27.2%">2</div><div class="b" style="left:50%;top:27.2%">3</div><div class="b" style="left:75%;top:27.2%">4</div><div class="b" style="left:94%;top:27.2%">5</div></div></div><div class="cards">
+<div class="card"><h3><b>1</b>Search</h3><span class="tag">Type → SKU or product</span><p></p></div>
+<div class="card"><h3><b>2</b>On hand</h3><span class="tag">Read → units we hold for the SKU</span><p></p></div>
+<div class="card"><h3><b>3</b>Unallocated, FBM, FBA</h3><span class="tag">Read → on-hand split by pool</span><p></p></div>
+<div class="card"><h3><b>4</b>Allocated columns</h3><span class="tag">Read → Amazon allocated, WFS, Walmart allocated</span><p>Safety buffer and Damaged follow.</p></div>
+<div class="card"><h3><b>5</b>Damaged, Box dimensions, Action</h3><span class="tag">Scroll right → box size ("Not set") and the row action</span><p>Use Action to correct the figures.</p></div></div></div>
+<div class="foot"><span class="ph">Draft v1</span><span>Backend 7470760 · Frontend c4d46ec</span></div>
+</section>
+<section class="page" id="stock-adjustment">
+<div class="eyebrow"><a href="index.html">Index</a> · Inventory Management · Stock Adjustment</div>
+<h1>Stock Adjustment: correct a warehouse count</h1>
+<p class="sub">After a physical count, for today or a past day. Orders since that day stay deducted.</p>
+<div class="legend"><div><span class="b" style="position:static;margin:0;width:5mm;height:5mm;box-shadow:none">1</span> Option on screen</div><div><i></i> Command / function</div></div>
+<div class="main"><div class="screen"><div class="crop"><img src="img/inventory-management/im-stock.png" alt="Stock Adjustment"><div class="b" style="left:21.4%;top:26.8%">1</div><div class="b" style="left:49.8%;top:26.8%">2</div><div class="b" style="left:92%;top:34.5%">3</div><div class="b" style="left:39.6%;top:45%">4</div><div class="b" style="left:56.3%;top:45%">5</div><div class="b" style="left:71.6%;top:45%">6</div><div class="b" style="left:84.4%;top:45%">7</div><div class="b" style="left:93.6%;top:51.6%">8</div></div></div><div class="cards">
+<div class="card"><h3><b>1</b>Search</h3><span class="tag">Type → SKU or product name</span><p></p></div>
+<div class="card"><h3><b>2</b>Count date</h3><span class="tag">Pick → today or up to 3 months back</span><p></p></div>
+<div class="card"><h3><b>3</b>Apply filters</h3><span class="tag">Click → loads the count for that day</span><p></p></div>
+<div class="card"><h3><b>4</b>Stock on the day</h3><span class="tag">Read → system stock on the count date</span><p></p></div>
+<div class="card"><h3><b>5</b>Shipped / sold since</h3><span class="tag">Read → units out after that day</span><p></p></div>
+<div class="card"><h3><b>6</b>Received since</h3><span class="tag">Read → units in after that day</span><p></p></div>
+<div class="card"><h3><b>7</b>On hand now</h3><span class="tag">Read → current warehouse stock</span><p></p></div>
+<div class="card"><h3><b>8</b>Row menu</h3><span class="tag">Click → enter the counted quantity</span><p>The correction is applied to that day; later orders stay deducted.</p></div></div></div>
+<div class="foot"><span class="ph">Draft v1</span><span>Backend 7470760 · Frontend c4d46ec</span></div>
+</section>
+<section class="page" id="sku-mapping">
+<div class="eyebrow"><a href="index.html">Index</a> · Inventory Management · SKU Mapping</div>
+<h1>SKU Mapping: bind channel listings to our SKUs</h1>
+<p class="sub">Each channel SKU is bound to internal SKUs with a quantity per unit sold.</p>
+<div class="legend"><div><span class="b" style="position:static;margin:0;width:5mm;height:5mm;box-shadow:none">1</span> Option on screen</div><div><i></i> Command / function</div></div>
+<div class="main"><div class="screen"><div class="crop"><img src="img/inventory-management/im-map.png" alt="SKU Mapping"><div class="b" style="left:21.4%;top:20.2%">1</div><div class="b" style="left:50.4%;top:20.2%">2</div><div class="b" style="left:92%;top:28.1%">3</div><div class="b" style="left:33%;top:43.2%">4</div><div class="b" style="left:18.3%;top:57.4%">5</div><div class="b" style="left:55.7%;top:57.4%">6</div><div class="b" style="left:91.7%;top:65.2%">7</div><div class="b" style="left:7%;top:86.3%">8</div></div></div><div class="cards">
+<div class="card"><h3><b>1</b>Search</h3><span class="tag">Type → SKU, ASIN or product</span><p></p></div>
+<div class="card"><h3><b>2</b>Channel, Marketplace, Fulfillment</h3><span class="tag">Choose → then Apply filters</span><p></p></div>
+<div class="card"><h3><b>3</b>Apply filters / Reset</h3><span class="tag">Click → refresh / clear</span><p></p></div>
+<div class="card"><h3><b>4</b>Tiles</h3><span class="tag">Read → Channel SKUs, Mapped, Unmapped, New (last 7 days)</span><p>Unmapped is shown in red.</p></div>
+<div class="card"><h3><b>5</b>Channel SKUs on graph</h3><span class="tag">Choose → up to 30 channel SKUs</span><p>Shown as chips below; × removes one.</p></div>
+<div class="card"><h3><b>6</b>Add internal SKUs</h3><span class="tag">Select → our SKUs to bind to</span><p>Select a channel SKU to start binding.</p></div>
+<div class="card"><h3><b>7</b>Export Excel / Show timeline</h3><span class="tag">Click → download / history of mappings</span><p></p></div>
+<div class="card"><h3><b>8</b>Amazon SKU → Internal SKU</h3><span class="tag">Bind → quantity per unit sold</span><p>Save changes or Discard; the footer says "All changes saved" when done.</p></div></div></div>
+<div class="foot"><span class="ph">Draft v1</span><span>Backend 7470760 · Frontend c4d46ec</span></div>
+</section>
+<section class="page" id="samples">
+<div class="eyebrow"><a href="index.html">Index</a> · Inventory Management · Samples</div>
+<h1>Samples: what suppliers send</h1>
+<p class="sub">Made on a purchase order or here. They never change stock.</p>
+<div class="legend"><div><span class="b" style="position:static;margin:0;width:5mm;height:5mm;box-shadow:none">1</span> Option on screen</div><div><i></i> Command / function</div></div>
+<div class="main"><div class="screen"><div class="crop"><img src="img/inventory-management/im-samples.png" alt="Samples"><div class="b" style="left:92%;top:3.6%">1</div><div class="b" style="left:21.4%;top:29.5%">2</div><div class="b" style="left:49.8%;top:29.5%">3</div><div class="b" style="left:68.9%;top:29.5%">4</div><div class="b" style="left:87.8%;top:29.5%">5</div><div class="b" style="left:37.4%;top:49.7%">6</div></div></div><div class="cards">
+<div class="card"><h3><b>1</b>Create sample</h3><span class="tag">Click → form: free or paid sample</span><p>A paid sample is paid through Finance &gt; Payment Request (Sample tab).</p></div>
+<div class="card"><h3><b>2</b>Search</h3><span class="tag">Type → SKU, product, PO number, supplier</span><p></p></div>
+<div class="card"><h3><b>3</b>Supplier</h3><span class="tag">Choose → one supplier</span><p></p></div>
+<div class="card"><h3><b>4</b>Type</h3><span class="tag">Choose → Free and chargeable, Free, Chargeable</span><p></p></div>
+<div class="card"><h3><b>5</b>Payment</h3><span class="tag">Choose → Any status, Free, Unpaid, Payment requested, Paid</span><p>Apply filters to refresh.</p></div>
+<div class="card"><h3><b>6</b>Table</h3><span class="tag">Read → SKU, supplier, POs, units, status, to pay, documents</span><p>To pay totals the unpaid samples by currency. Samples made on a PO can be paid with the PO.</p></div></div></div>
+<div class="foot"><span class="ph">Draft v1</span><span>Backend 7470760 · Frontend c4d46ec</span></div>
+</section>
+<section class="page" id="inbound-receiving-list">
+<div class="eyebrow"><a href="index.html">Index</a> · Inventory Management · Inbound Receiving</div>
+<h1>Inbound Receiving: containers to receive</h1>
+<p class="sub">Containers delivered at the warehouse: count what arrived, sign and confirm.</p>
+<div class="legend"><div><span class="b" style="position:static;margin:0;width:5mm;height:5mm;box-shadow:none">1</span> Option on screen</div><div><i></i> Command / function</div></div>
+<div class="main"><div class="screen"><div class="crop"><img src="img/inventory-management/im-recv-list.png" alt="Inbound Receiving list"><div class="b" style="left:20%;top:22.5%">1</div><div class="b" style="left:48.7%;top:22.4%">2</div><div class="b" style="left:46.7%;top:37%">3</div><div class="b" style="left:79.4%;top:48.7%">4</div><div class="b" style="left:93.3%;top:48.7%">5</div><div class="b" style="left:81%;top:62.9%">6</div></div></div><div class="cards">
+<div class="card"><h3><b>1</b>Search</h3><span class="tag">Type → container, CID, PO or PL number</span><p></p></div>
+<div class="card"><h3><b>2</b>All, To receive, Received</h3><span class="tag">Click → filter by receipt</span><p>To receive: DELIVERED TO WAREHOUSE. Received: GOODS RECEIVED.</p></div>
+<div class="card"><h3><b>3</b>Units columns</h3><span class="tag">Read → Expected, Received, Short, Damaged</span><p>Short shows in red. Expected also shows cartons.</p></div>
+<div class="card"><h3><b>4</b>Status</h3><span class="tag">Read → status, date, scanning open or closed</span><p>"Scanning closed" once the receipt is confirmed.</p></div>
+<div class="card"><h3><b>5</b>Actions menu</h3><span class="tag">Click → View receiving, Scan items, Download PDF</span><p></p></div>
+<div class="card"><h3><b>6</b>Scan items</h3><span class="tag">Click → scanning session for the container</span><p>Scanning only counts units; recorded under Scanning &gt; Sessions.</p></div></div></div>
+<div class="foot"><span class="ph">Draft v1</span><span>Backend 7470760 · Frontend c4d46ec</span></div>
+</section>
+<section class="page" id="inbound-receiving-receive">
+<div class="eyebrow"><a href="index.html">Index</a> · Inventory Management · Inbound Receiving</div>
+<h1>Receive a container: count, sign and confirm</h1>
+<p class="sub">Figures start from the scan; adjust them before signing. Stock updates only when you confirm.</p>
+<div class="legend"><div><span class="b" style="position:static;margin:0;width:5mm;height:5mm;box-shadow:none">1</span> Option on screen</div><div><i></i> Command / function</div></div>
+<div class="main"><div class="screen"><div class="crop"><img src="img/inventory-management/im-receive.png" alt="Receive container"><div class="b" style="left:4.8%;top:18.2%">1</div><div class="b" style="left:9.8%;top:23.3%">2</div><div class="b" style="left:36.5%;top:36.4%">3</div><div class="b" style="left:59.8%;top:44.3%">4</div><div class="b" style="left:71.2%;top:44.3%">5</div><div class="b" style="left:93%;top:44.3%">6</div><div class="b" style="left:4.8%;top:65.8%">7</div><div class="b" style="left:94%;top:98%">8</div></div></div><div class="cards">
+<div class="card"><h3><b>1</b>Container, PO, PL</h3><span class="tag">Read → what is being received</span><p></p></div>
+<div class="card"><h3><b>2</b>Status and scan note</h3><span class="tag">Read → scanned so far, left to scan</span><p>Scanning is still open until you confirm.</p></div>
+<div class="card"><h3><b>3</b>Scanned so far / Left to scan</h3><span class="tag">Read → from the scan</span><p>Left to scan shows in red.</p></div>
+<div class="card"><h3><b>4</b>Good condition</h3><span class="tag">Edit → units in good shape</span><p></p></div>
+<div class="card"><h3><b>5</b>Damaged</h3><span class="tag">Type → damaged units</span><p>Damaged units are recorded under Damaged.</p></div>
+<div class="card"><h3><b>6</b>Shortage, Actual received</h3><span class="tag">Edit shortage → actual is calculated</span><p>Total row sums every SKU.</p></div>
+<div class="card"><h3><b>7</b>Signature</h3><span class="tag">Sign → required; Reset clears it</span><p></p></div>
+<div class="card"><h3><b>8</b>Confirm receipt</h3><span class="tag">Click → signs off and applies the units once</span><p>The container becomes GOODS RECEIVED. Cancel leaves; Download PDF saves the receipt.</p></div></div></div>
+<div class="foot"><span class="ph">Draft v1</span><span>Backend 7470760 · Frontend c4d46ec</span></div>
+</section>
+<section class="page" id="inbound-receiving-done">
+<div class="eyebrow"><a href="index.html">Index</a> · Inventory Management · Inbound Receiving</div>
+<h1>A confirmed receipt</h1>
+<p class="sub">After confirming, the receipt is read-only with the signature on file.</p>
+<div class="legend"><div><span class="b" style="position:static;margin:0;width:5mm;height:5mm;box-shadow:none">1</span> Option on screen</div><div><i></i> Command / function</div></div>
+<div class="main"><div class="screen"><div class="crop"><img src="img/inventory-management/im-recv-done.png" alt="Confirmed receipt"><div class="b" style="left:5.2%;top:22%">1</div><div class="b" style="left:9.6%;top:29%">2</div><div class="b" style="left:37.4%;top:39.3%">3</div><div class="b" style="left:12%;top:64.4%">4</div><div class="b" style="left:5.8%;top:68.9%">5</div><div class="b" style="left:90.4%;top:96.4%">6</div></div></div><div class="cards">
+<div class="card"><h3><b>1</b>Container, PO, PL</h3><span class="tag">Read → the receipt's references</span><p></p></div>
+<div class="card"><h3><b>2</b>Received by</h3><span class="tag">Read → GOODS RECEIVED, who and when</span><p></p></div>
+<div class="card"><h3><b>3</b>Columns</h3><span class="tag">Read → Expected, Good, Damaged, Shortage, Actual</span><p>Per SKU, with cartons.</p></div>
+<div class="card"><h3><b>4</b>Total row</h3><span class="tag">Read → totals; shortage in red</span><p></p></div>
+<div class="card"><h3><b>5</b>Signature</h3><span class="tag">Read → the receiver's signature</span><p></p></div>
+<div class="card"><h3><b>6</b>Back / Download PDF</h3><span class="tag">Click → return / save the receipt</span><p></p></div></div></div>
+<div class="foot"><span class="ph">Draft v1</span><span>Backend 7470760 · Frontend c4d46ec</span></div>
+</section>
+<section class="page" id="inventory-aging">
+<div class="eyebrow"><a href="index.html">Index</a> · Inventory Management · Inventory Aging</div>
+<h1>Inventory Aging: how long units sit at Amazon</h1>
+<p class="sub">From Amazon's Inventory Age report, refreshed once a day. Stock over 180 days old is shown in red.</p>
+<div class="legend"><div><span class="b" style="position:static;margin:0;width:5mm;height:5mm;box-shadow:none">1</span> Option on screen</div><div><i></i> Command / function</div></div>
+<div class="main"><div class="screen"><div class="crop"><img src="img/inventory-management/im-aging.png" alt="Inventory Aging"><div class="b" style="left:6.7%;top:14%">1</div><div class="b" style="left:21.4%;top:34.5%">2</div><div class="b" style="left:59.4%;top:34.5%">3</div><div class="b" style="left:21.5%;top:46.1%">4</div><div class="b" style="left:92%;top:53.9%">5</div><div class="b" style="left:84.3%;top:64.4%">6</div><div class="b" style="left:40%;top:69.6%">7</div></div></div><div class="cards">
+<div class="card"><h3><b>1</b>Export Excel</h3><span class="tag">Click → downloads the table</span><p></p></div>
+<div class="card"><h3><b>2</b>Search</h3><span class="tag">Type → seller SKU, ASIN, FNSKU, product</span><p></p></div>
+<div class="card"><h3><b>3</b>Marketplace</h3><span class="tag">Choose → one country or all</span><p></p></div>
+<div class="card"><h3><b>4</b>Age</h3><span class="tag">Click → All, Over 180 days, Over 365 days</span><p></p></div>
+<div class="card"><h3><b>5</b>Apply filters / Reset</h3><span class="tag">Click → refresh / clear</span><p></p></div>
+<div class="card"><h3><b>6</b>Inventory age</h3><span class="tag">Read → buckets 0–90, 91–180, 181–270, 271–365, 365+ days</span><p>Units per age band.</p></div>
+<div class="card"><h3><b>7</b>Available, Reserved</h3><span class="tag">Read → sort by clicking the arrows</span><p>The report date is shown under the title.</p></div></div></div>
+<div class="foot"><span class="ph">Draft v1</span><span>Backend 7470760 · Frontend c4d46ec</span></div>
+</section>
+<section class="page" id="seller-central">
+<div class="eyebrow"><a href="index.html">Index</a> · Inventory Management · Seller Central</div>
+<h1>Seller Central: platform shipments</h1>
+<p class="sub">Shipments created on Amazon (Seller Central) and Walmart (Seller Center). Sync, then open any shipment for details.</p>
+<div class="legend"><div><span class="b" style="position:static;margin:0;width:5mm;height:5mm;box-shadow:none">1</span> Option on screen</div><div><i></i> Command / function</div></div>
+<div class="main"><div class="screen"><div class="crop"><img src="img/inventory-management/im-sc.png" alt="Seller Central shipments"><div class="b" style="left:56.6%;top:5.5%">1</div><div class="b" style="left:78.5%;top:5.5%">2</div><div class="b" style="left:95%;top:5.5%">3</div><div class="b" style="left:5.2%;top:19%">4</div><div class="b" style="left:11.3%;top:28.3%">5</div><div class="b" style="left:20.9%;top:37%">6</div><div class="b" style="left:30.4%;top:45.1%">7</div><div class="b" style="left:40.9%;top:51.5%">8</div></div></div><div class="cards">
+<div class="card"><h3><b>1</b>All Platforms</h3><span class="tag">Choose → Amazon, Walmart or both</span><p></p></div>
+<div class="card"><h3><b>2</b>Date range</h3><span class="tag">Pick → days to sync, e.g. Last 30 days</span><p></p></div>
+<div class="card"><h3><b>3</b>Sync</h3><span class="tag">Click → pulls shipments for those days</span><p>The line under it shows the last sync: new and updated.</p></div>
+<div class="card"><h3><b>4</b>Sandbox banner</h3><span class="tag">Read → only sample Walmart shipments</span><p>Appears while Walmart is set to its sandbox.</p></div>
+<div class="card"><h3><b>5</b>Amazon FBA / Walmart WFS</h3><span class="tag">Click → switch platform</span><p></p></div>
+<div class="card"><h3><b>6</b>Search, Status</h3><span class="tag">Type / choose → plan, FBA shipment ID, FC, SKU, ASIN</span><p></p></div>
+<div class="card"><h3><b>7</b>Columns</h3><span class="tag">Read → plan, marketplace, status, shipments, units, SKUs, destinations</span><p>Open a row for its details.</p></div>
+<div class="card"><h3><b>8</b>Status</h3><span class="tag">Read → the platform's plan status</span><p>Paged 20 at a time.</p></div></div></div>
+<div class="foot"><span class="ph">Draft v1</span><span>Backend 7470760 · Frontend c4d46ec</span></div>
+</section>
+<section class="page" id="inventory-statuses">
+<div class="eyebrow"><a href="index.html">Index</a> · Inventory Management · Statuses</div>
+<h1>Sample, receiving and aging statuses</h1>
+<p class="sub">The remaining states used in this module.</p>
+<div class="panel"><table class="st"><tr><th>Screen</th><th>Status</th><th>Meaning</th></tr>
+<tr><td rowspan="5">Samples</td><td><span class="pill">Free</span></td><td>No charge; nothing to pay.</td></tr>
+<tr><td><span class="pill">Unpaid</span></td><td>Chargeable and not yet in a payment request.</td></tr>
+<tr><td><span class="pill">Payment requested</span></td><td>A payment request exists in Finance.</td></tr>
+<tr><td><span class="pill">Paid</span></td><td>Paid.</td></tr>
+<tr><td><span class="pill">Paid with PO</span></td><td>Made on a purchase order and paid together with it.</td></tr>
+<tr><td rowspan="2">Inbound Receiving</td><td><span class="pill">DELIVERED TO WAREHOUSE</span></td><td>To receive: scan, count, sign and confirm.</td></tr>
+<tr><td><span class="pill">GOODS RECEIVED</span></td><td>Receipt confirmed; scanning closed; read-only.</td></tr>
+<tr><td>Planner</td><td><span class="pill">ACTIVE</span></td><td>Product is active.</td></tr>
+<tr><td>Inventory Aging</td><td><span class="pill">Over 180 days</span></td><td>Shown in red: stock older than 180 days; the filters also offer over 365 days.</td></tr></table></div>
+<div class="foot"><span class="ph">Draft v1</span><span>Backend 7470760 · Frontend c4d46ec</span></div>
+</section>
+</body>
+</html>

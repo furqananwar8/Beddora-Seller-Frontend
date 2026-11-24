@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Scanning Sessions</title>
+<link rel="stylesheet" href="css/manual.css">
+<style>.card{padding:1.6mm 3mm 1.8mm}.cards{gap:2mm}.card p{font-size:10.5px}.tag{font-size:9.5px}.panel p{margin:1.5mm 0}</style>
+</head>
+<body>
+<section class="page" id="scanning-overview">
+<div class="eyebrow"><a href="index.html">Index</a> · Scanning Sessions · Overview</div>
+<h1>Scanning Sessions: every scan, on record</h1>
+<p class="sub">Product UPCs are scanned in three places. Each scan session is recorded here with what matched and how inventory changed.</p>
+<div class="panel"><div class="flow">
+<div class="step"><b>1 · Shipping &gt; Orders</b>Row menu &gt; Scan items: scan the product UPCs of a customer order.</div>
+<div class="step"><b>2 · Inventory Management &gt; Shipments</b>Scan units out of the warehouse for an FBA or WFS shipment.</div>
+<div class="step"><b>3 · Inbound Receiving</b>Scan the units of a container delivered to the warehouse.</div>
+<div class="step"><b>4 · Scanning &gt; Sessions</b>Every session appears here: source, channel, who, scanned, matched, not matched, units adjusted.</div>
+<div class="step"><b>5 · Fix and rescan</b>A UPC that matches nothing is not adjusted: add the UPC to the product, then scan again in a new session.</div></div>
+<p class="sub" style="margin-top:3mm">Scanning itself happens in each screen's Scan items window. This module is where you review it.</p></div>
+<div class="panel"><table class="st"><tr><th>Scanning menu screen</th><th>Use it to</th></tr>
+<tr><td>Scan Sessions</td><td>List, filter and open every scanning session.</td></tr>
+<tr><td>Scanned Codes</td><td>See every code scanned, newest first, and how to set up the handheld scanner.</td></tr>
+<tr><td>Manual Returns</td><td>Returns entered by hand because the returned product matched nothing by UPC; their units are added back to inventory when saved.</td></tr></table></div>
+<div class="foot"><span class="ph">Draft v1</span><span>Backend 7470760 · Frontend c4d46ec</span></div>
+</section>
+<section class="page" id="scanning-sessions-list">
+<div class="eyebrow"><a href="index.html">Index</a> · Scanning Sessions · Scan Sessions</div>
+<h1>Scan Sessions: totals and filters</h1>
+<p class="sub">Every session started from Shipments, Shipping orders or Inbound receiving.</p>
+<div class="legend"><div><span class="b" style="position:static;margin:0;width:5mm;height:5mm;box-shadow:none">1</span> Option on screen</div><div><i></i> Command / function</div></div>
+<div class="main"><div class="screen"><div class="crop"><img src="img/scanning/sc-list.png" alt="Scan Sessions"><div class="b" style="left:11.3%;top:20.8%">1</div><div class="b" style="left:11.3%;top:42.3%">2</div><div class="b" style="left:30.9%;top:42.3%">3</div><div class="b" style="left:50%;top:42.3%">4</div><div class="b" style="left:69.1%;top:42.3%">5</div><div class="b" style="left:88.3%;top:42.3%">6</div><div class="b" style="left:11.3%;top:54.6%">7</div><div class="b" style="left:92%;top:54.9%">8</div></div></div><div class="cards">
+<div class="card"><h3><b>1</b>Totals</h3><span class="tag">Read → sessions (7 days), UPCs matched, not matched, units adjusted</span><p>Units adjusted splits into out and in. Not matched: fix the product UPC, then scan again.</p></div>
+<div class="card"><h3><b>2</b>Search</h3><span class="tag">Type → session ID, shipment, order, container</span><p></p></div>
+<div class="card"><h3><b>3</b>Source</h3><span class="tag">Choose → Shipment, Shipping order, Inbound receiving</span><p></p></div>
+<div class="card"><h3><b>4</b>Channel</h3><span class="tag">Choose → Amazon FBA, Walmart WFS, Amazon FBM, Walmart, Temu, Inbound</span><p></p></div>
+<div class="card"><h3><b>5</b>Status</h3><span class="tag">Choose → In progress, Completed, Completed with unmatched, Discarded</span><p></p></div>
+<div class="card"><h3><b>6</b>Inventory direction</h3><span class="tag">Choose → In and out, Out, In</span><p></p></div>
+<div class="card"><h3><b>7</b>From, To</h3><span class="tag">Pick → date range; Started by → who</span><p></p></div>
+<div class="card"><h3><b>8</b>Apply filters / Reset</h3><span class="tag">Click → refresh / clear</span><p></p></div></div></div>
+<div class="foot"><span class="ph">Draft v1</span><span>Backend 7470760 · Frontend c4d46ec</span></div>
+</section>
+<section class="page" id="scanning-sessions-rows">
+<div class="eyebrow"><a href="index.html">Index</a> · Scanning Sessions · Scan Sessions</div>
+<h1>Scan Sessions: the table</h1>
+<p class="sub">One row per session, S-numbered.</p>
+<div class="legend"><div><span class="b" style="position:static;margin:0;width:5mm;height:5mm;box-shadow:none">1</span> Option on screen</div><div><i></i> Command / function</div></div>
+<div class="main"><div class="screen"><div class="crop"><img src="img/scanning/sc-rows.png" alt="Scan session rows"><div class="b" style="left:11%;top:6.3%">1</div><div class="b" style="left:11%;top:49.3%">2</div><div class="b" style="left:59%;top:31.9%">3</div><div class="b" style="left:78.9%;top:31.9%">4</div><div class="b" style="left:86.7%;top:39.4%">5</div><div class="b" style="left:94%;top:95.9%">6</div></div></div><div class="cards">
+<div class="card"><h3><b>1</b>Source: Order</h3><span class="tag">Read → the customer order scanned</span><p>Started from Shipping &gt; Orders.</p></div>
+<div class="card"><h3><b>2</b>Source: Receiving</h3><span class="tag">Read → CID# and container number</span><p>Started from Inbound Receiving; channel shows Inbound. Shipment rows show the SHP number.</p></div>
+<div class="card"><h3><b>3</b>Scanned, Matched, Not matched</h3><span class="tag">Read → UPCs scanned and how many matched a product</span><p></p></div>
+<div class="card"><h3><b>4</b>Units adjusted</h3><span class="tag">Read → units added or removed in inventory</span><p></p></div>
+<div class="card"><h3><b>5</b>Direction</h3><span class="tag">Read → IN adds units, OUT removes them</span><p></p></div>
+<div class="card"><h3><b>6</b>Status and row menu</h3><span class="tag">Click ⋮ → View</span><p>Statuses are on the status sheet.</p></div></div></div>
+<div class="foot"><span class="ph">Draft v1</span><span>Backend 7470760 · Frontend c4d46ec</span></div>
+</section>
+<section class="page" id="scanning-session-detail">
+<div class="eyebrow"><a href="index.html">Index</a> · Scanning Sessions · Scan Sessions</div>
+<h1>Session detail</h1>
+<p class="sub">What one session scanned, what matched, and what changed in inventory.</p>
+<div class="legend"><div><span class="b" style="position:static;margin:0;width:5mm;height:5mm;box-shadow:none">1</span> Option on screen</div><div><i></i> Command / function</div></div>
+<div class="main"><div class="screen"><div class="crop"><img src="img/scanning/sc-detail.png" alt="Session detail"><div class="b" style="left:18.3%;top:5.9%">1</div><div class="b" style="left:37.4%;top:18.8%">2</div><div class="b" style="left:13%;top:40.2%">3</div><div class="b" style="left:20%;top:69.3%">4</div><div class="b" style="left:85.2%;top:69.3%">5</div><div class="b" style="left:28.7%;top:87.5%">6</div></div></div><div class="cards">
+<div class="card"><h3><b>1</b>Title and status</h3><span class="tag">Read → session, source record, Completed, Inventory in/out</span><p></p></div>
+<div class="card"><h3><b>2</b>Summary</h3><span class="tag">Read → source, channel, started, ended, started by, inventory updated</span><p>Inventory updated shows when and how many units.</p></div>
+<div class="card"><h3><b>3</b>Tiles</h3><span class="tag">Read → UPCs scanned, matched (SKUs), not matched, units adjusted</span><p></p></div>
+<div class="card"><h3><b>4</b>Matched SKUs</h3><span class="tag">Read → SKU, UPC, expected, scanned</span><p>Inventory adjusted for these.</p></div>
+<div class="card"><h3><b>5</b>Inventory change</h3><span class="tag">Read → +3 in, for example</span><p></p></div>
+<div class="card"><h3><b>6</b>Not matched</h3><span class="tag">Read → UPC, reason, product, times scanned, first and last scanned</span><p>Not adjusted. Add the UPC to the product, then scan again in a new session.</p></div></div></div>
+<div class="foot"><span class="ph">Draft v1</span><span>Backend 7470760 · Frontend c4d46ec</span></div>
+</section>
+<section class="page" id="manual-returns">
+<div class="eyebrow"><a href="index.html">Index</a> · Scanning Sessions · Manual Returns</div>
+<h1>Manual Returns</h1>
+<p class="sub">Returns entered by hand because the returned product matched nothing by UPC. Their units were added back to inventory when saved.</p>
+<div class="legend"><div><span class="b" style="position:static;margin:0;width:5mm;height:5mm;box-shadow:none">1</span> Option on screen</div><div><i></i> Command / function</div></div>
+<div class="main"><div class="screen"><div class="crop"><img src="img/scanning/sc-mr.png" alt="Manual Returns"><div class="b" style="left:17.4%;top:42%">1</div><div class="b" style="left:92.7%;top:41.7%">2</div><div class="b" style="left:49.9%;top:75%">3</div></div><div class="crop" style="margin-top:3mm;width:70mm"><img src="img/scanning/sc-mr-form.png" alt="Manual return form"><div class="b" style="left:27.5%;top:21%">4</div><div class="b" style="left:26%;top:32.6%">5</div><div class="b" style="left:49.1%;top:44.5%">6</div><div class="b" style="left:49.1%;top:65.5%">7</div><div class="b" style="left:49.1%;top:80.3%">8</div><div class="b" style="left:12%;top:96.7%">9</div></div></div><div class="cards"><div class="card"><h3><b>1</b>Search</h3><span class="tag">Type → SKU, order, product or remarks</span><p></p></div><div class="card"><h3><b>2</b>+ Manual return</h3><span class="tag">Click → opens the form</span><p>Use it when a returned item matches nothing by UPC.</p></div><div class="card"><h3><b>3</b>List</h3><span class="tag">Read → every manual return</span><p>Empty until the first is saved.</p></div><div class="card"><h3><b>4</b>Channel return (FBA) / Order return (FBM)</h3><span class="tag">Click → which kind of return</span><p>FBA picks a channel and marketplace; FBM returns an order.</p></div><div class="card"><h3><b>5</b>Channel, Marketplace</h3><span class="tag">Choose → e.g. Walmart, Canada</span><p></p></div><div class="card"><h3><b>6</b>Product</h3><span class="tag">Search by SKU → the channel's listings mapped to our products</span><p>If none show, map them in Inventory Management &gt; SKU Mapping first.</p></div><div class="card"><h3><b>7</b>Units returned, damaged, sellable</h3><span class="tag">Type → units and how many were damaged</span><p>Sellable is what is left; those units go back into inventory when you save.</p></div><div class="card"><h3><b>8</b>Remarks, Extra details</h3><span class="tag">Type → optional note and name/value pairs</span><p>For example an RMA number, carrier or condition notes.</p></div></div></div>
+<div class="foot"><span class="ph">Draft v1</span><span>Backend 7470760 · Frontend c4d46ec</span></div>
+</section>
+<section class="page" id="scanned-codes">
+<div class="eyebrow"><a href="index.html">Index</a> · Scanning Sessions · Scanned Codes</div>
+<h1>Scanned Codes and scanner setup</h1>
+<p class="sub">Every code scanned shows up here, newest first.</p>
+<div class="legend"><div><span class="b" style="position:static;margin:0;width:5mm;height:5mm;box-shadow:none">1</span> Option on screen</div><div><i></i> Command / function</div></div>
+<div class="main"><div class="screen"><div class="crop"><img src="img/scanning/sc-codes.png" alt="Scanned Codes"><div class="b" style="left:85%;top:6.1%">1</div><div class="b" style="left:11.3%;top:20.5%">2</div><div class="b" style="left:49.9%;top:29.8%">3</div><div class="b" style="left:11.3%;top:40.7%">4</div><div class="b" style="left:63.5%;top:40.7%">5</div></div></div><div class="cards">
+<div class="card"><h3><b>1</b>Search scanned code</h3><span class="tag">Type → find a code</span><p></p></div>
+<div class="card"><h3><b>2</b>Scanner status</h3><span class="tag">Read → "Handheld scanner: connected"</span><p>If it says disconnected, tap Connect scanner.</p></div>
+<div class="card"><h3><b>3</b>Scan field</h3><span class="tag">Press the trigger → the code is captured here</span><p>It clears at once; the full result shows under Latest scan and is saved for everyone.</p></div>
+<div class="card"><h3><b>4</b>How to scan</h3><span class="tag">Follow → open this page on the scanner, scan, check</span><p>If it shows "Not saved", check the device is online and scan again.</p></div>
+<div class="card"><h3><b>5</b>One-time scanner setup</h3><span class="tag">Follow → DataWedge profile "Beddora" on the Zebra TC57</span><p>Associate Chrome, enable barcode input and keystroke output with ENTER.</p></div></div></div>
+<div class="foot"><span class="ph">Draft v1</span><span>Backend 7470760 · Frontend c4d46ec</span></div>
+</section>
+<section class="page" id="scanning-statuses">
+<div class="eyebrow"><a href="index.html">Index</a> · Scanning Sessions · Statuses</div>
+<h1>Scanning statuses</h1>
+<p class="sub">Session status and direction as shown in the list.</p>
+<div class="panel"><table class="st"><tr><th>Field</th><th>Value</th><th>Meaning</th></tr>
+<tr><td rowspan="4">Status</td><td><span class="pill">In progress</span></td><td>Scanning is still open; the session has no end time.</td></tr>
+<tr><td><span class="pill">Completed</span></td><td>Finished and every scanned UPC matched a product.</td></tr>
+<tr><td><span class="pill">Completed with unmatched</span></td><td>Finished, but some UPCs matched nothing; those were not adjusted. Fix the UPC and scan again.</td></tr>
+<tr><td><span class="pill">Discarded</span></td><td>The session was dropped.</td></tr>
+<tr><td rowspan="2">Direction</td><td><span class="pill">IN</span></td><td>Units are added to inventory (receiving, returns).</td></tr>
+<tr><td><span class="pill">OUT</span></td><td>Units leave inventory (shipments leaving the warehouse).</td></tr>
+<tr><td>Source</td><td><span class="pill">Shipment</span> <span class="pill">Order</span> <span class="pill">Receiving</span></td><td>Inventory Management &gt; Shipments · Shipping &gt; Orders · Inbound Receiving.</td></tr></table></div>
+<div class="foot"><span class="ph">Draft v1</span><span>Backend 7470760 · Frontend c4d46ec</span></div>
+</section>
+</body>
+</html>

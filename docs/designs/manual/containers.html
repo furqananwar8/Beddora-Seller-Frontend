@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Containers</title>
+<link rel="stylesheet" href="css/manual.css">
+<style>.card{padding:1.6mm 3mm 1.8mm}.cards{gap:2mm}.card p{font-size:10.5px}.tag{font-size:9.5px}.panel p{margin:1.5mm 0}</style>
+</head>
+<body>
+<section class="page" id="containers-overview">
+<div class="eyebrow"><a href="index.html">Index</a> · Containers · Overview</div>
+<h1>Containers: ship, track and cost what is packed</h1>
+<p class="sub">A container carries one packaging list. It is tracked from booking to goods received, and its landed cost is worked out per SKU.</p>
+<div class="panel"><div class="flow">
+<div class="step"><b>1 · Packaging List</b>Created against an approved PO in Procurement. Units, cartons, CBM and weight are counted there.</div>
+<div class="step"><b>2 · New container</b>Pick the PO; the list is attached and the container starts as BOOKED.</div>
+<div class="step"><b>3 · Shipping</b>Update ETD, ETA, bill of lading and status as it moves: on board, at port, customs, delivery.</div>
+<div class="step"><b>4 · Receiving</b>Mark it delivered to the warehouse on arrival; confirming the receipt in Inbound Receiving sets GOODS RECEIVED.</div>
+<div class="step"><b>5 · Cost</b>Expenses are added; Cost Analysis and SKU Landed Cost show the landed cost per unit.</div></div>
+<p class="sub" style="margin-top:3mm">Payment requests that carry the container number show on the container, so costs from Finance line up with it.</p></div>
+<div class="panel"><table class="st"><tr><th>Containers menu screen</th><th>Use it to</th></tr>
+<tr><td>Containers</td><td>List, filter, create and open containers; update shipping dates and status.</td></tr>
+<tr><td>Cost Analysis</td><td>Per container: goods (FOB), expenses and landed total, with the SKU breakdown.</td></tr>
+<tr><td>SKU Landed Cost</td><td>Per SKU: landed cost in CAD and USD, plus shipment cost and warehouse overhead.</td></tr></table></div>
+<div class="foot"><span class="ph">Draft v1</span><span>Backend 7470760 · Frontend c4d46ec</span></div>
+</section>
+<section class="page" id="containers-list">
+<div class="eyebrow"><a href="index.html">Index</a> · Containers · Containers</div>
+<h1>Containers: list and filters</h1>
+<p class="sub">One row per container with its packing counts. Open a row to see its SKUs.</p>
+<div class="legend"><div><span class="b" style="position:static;margin:0;width:5mm;height:5mm;box-shadow:none">1</span> Option on screen</div><div><i></i> Command / function</div></div>
+<div class="main"><div class="screen"><div class="crop"><img src="img/containers/c-list.png" alt="Containers list"><div class="b" style="left:81.1%;top:6%">1</div><div class="b" style="left:92.4%;top:6%">2</div><div class="b" style="left:3.5%;top:23.3%">3</div><div class="b" style="left:41.5%;top:23.3%">4</div><div class="b" style="left:60.4%;top:23.3%">5</div><div class="b" style="left:3.7%;top:55.4%">6</div><div class="b" style="left:13%;top:52.7%">7</div><div class="b" style="left:49.6%;top:55.4%">8</div></div></div><div class="cards">
+<div class="card"><h3><b>1</b>Export Excel</h3><span class="tag">Click → downloads the list</span><p></p></div>
+<div class="card"><h3><b>2</b>New container</h3><span class="tag">Click → opens the container form</span><p>Next sheets.</p></div>
+<div class="card"><h3><b>3</b>Search</h3><span class="tag">Type → container #, CID, BOL, PL #, PO #, SKU</span><p></p></div>
+<div class="card"><h3><b>4</b>Status</h3><span class="tag">Choose → any container status</span><p>See the status sheet.</p></div>
+<div class="card"><h3><b>5</b>Country, Brand</h3><span class="tag">Choose → then Apply filters</span><p>Reset clears all filters.</p></div>
+<div class="card"><h3><b>6</b>Expand arrow</h3><span class="tag">Click → shows the container's SKUs</span><p>Units, cartons, CBM and FOB per SKU, with a Full cost analysis link.</p></div>
+<div class="card"><h3><b>7</b>Container</h3><span class="tag">Click number → opens the container</span><p>Shows the shipping-line number, our CID# and SKU and unit counts.</p></div>
+<div class="card"><h3><b>8</b>Cartons (Received / Short)</h3><span class="tag">Read → cartons received, cartons short</span><p>The short count shows in red.</p></div></div></div>
+<div class="foot"><span class="ph">Draft v1</span><span>Backend 7470760 · Frontend c4d46ec</span></div>
+</section>
+<section class="page" id="containers-columns">
+<div class="eyebrow"><a href="index.html">Index</a> · Containers · Containers</div>
+<h1>Containers: dates, status, costs and row menu</h1>
+<p class="sub">Scroll the list to the right for the remaining columns and the actions menu.</p>
+<div class="legend"><div><span class="b" style="position:static;margin:0;width:5mm;height:5mm;box-shadow:none">1</span> Option on screen</div><div><i></i> Command / function</div></div>
+<div class="main"><div class="screen"><div class="crop"><img src="img/containers/c-cols1.png" alt="Container dates and status"><div class="b" style="left:12.2%;top:20%">1</div><div class="b" style="left:47.4%;top:20%">2</div><div class="b" style="left:60.1%;top:68%">3</div></div>
+<div class="crop" style="margin-top:3mm"><img src="img/containers/c-cols2.png" alt="Container costs and row menu"><div class="b" style="left:25.6%;top:7.8%">4</div><div class="b" style="left:84.6%;top:7.8%">5</div><div class="b" style="left:94.2%;top:24.3%">6</div><div class="b" style="left:82.4%;top:40%">7</div><div class="b" style="left:84%;top:76%">8</div></div></div><div class="cards">
+<div class="card"><h3><b>1</b>ETD, ETA, Shipped on board</h3><span class="tag">Read → leave, arrive, loaded dates</span><p>ETD and ETA columns sort.</p></div>
+<div class="card"><h3><b>2</b>Transit days</h3><span class="tag">Read → days between leaving and arriving</span><p></p></div>
+<div class="card"><h3><b>3</b>Status</h3><span class="tag">Read → status with its date</span><p>GOODS RECEIVED, 22 Nov 2026.</p></div>
+<div class="card"><h3><b>4</b>Warehouse, Cubic feet, Broker, City</h3><span class="tag">Read → where it is going</span><p>Port, PL boxes, PL units and No. of SKUs sit between.</p></div>
+<div class="card"><h3><b>5</b>Total cost</h3><span class="tag">Read → goods plus expenses</span><p>Details on the Cost Analysis sheet.</p></div>
+<div class="card"><h3><b>6</b>Actions menu</h3><span class="tag">Click → view, edit, lists, PDF</span><p></p></div>
+<div class="card"><h3><b>7</b>View / Edit container</h3><span class="tag">Click → open / change the container</span><p>Edit is greyed out once delivered: delivered containers cannot change.</p></div>
+<div class="card"><h3><b>8</b>Packaging lists / Download PDF</h3><span class="tag">Click → manage lists / list PDF</span><p>Lists can be added or removed only while the container is booked.</p></div></div></div>
+<div class="foot"><span class="ph">Draft v1</span><span>Backend 7470760 · Frontend c4d46ec</span></div>
+</section>
+<section class="page" id="container-detail">
+<div class="eyebrow"><a href="index.html">Index</a> · Containers · Containers</div>
+<h1>Container: detail page</h1>
+<p class="sub">Everything about one container: dates, SKUs, purchase orders, payments, documents and its packaging list.</p>
+<div class="legend"><div><span class="b" style="position:static;margin:0;width:5mm;height:5mm;box-shadow:none">1</span> Option on screen</div><div><i></i> Command / function</div></div>
+<div class="main"><div class="screen"><div class="crop"><img src="img/containers/c-detail.png" alt="Container detail"><div class="b" style="left:16.5%;top:2.5%">1</div><div class="b" style="left:89.6%;top:2.5%">2</div><div class="b" style="left:37.4%;top:14.9%">3</div><div class="b" style="left:92.4%;top:25%">4</div><div class="b" style="left:10.4%;top:55.3%">5</div><div class="b" style="left:37.4%;top:56.6%">6</div><div class="b" style="left:69.1%;top:56.3%">7</div><div class="b" style="left:86.5%;top:55.3%">8</div></div></div><div class="cards">
+<div class="card"><h3><b>1</b>Number, status, destination</h3><span class="tag">Read → container, status, country</span><p>Below it: our CID# and "one packaging list per container".</p></div>
+<div class="card"><h3><b>2</b>All containers / Edit / menu</h3><span class="tag">Click → back / edit / more</span><p>Edit follows the status rules on the next sheets.</p></div>
+<div class="card"><h3><b>3</b>Summary strip</h3><span class="tag">Read → ETD, ETA, BOL, MBL, port, city, cost, weight</span><p></p></div>
+<div class="card"><h3><b>4</b>SKUs and Full cost analysis</h3><span class="tag">Click link → Cost Analysis for this container</span><p>Units, cartons, CBM, FOB and allocated expenses per SKU.</p></div>
+<div class="card"><h3><b>5</b>Purchase orders</h3><span class="tag">Read → POs, units here, payment status</span><p>Each PO shows UNPAID, PARTIALLY PAID or PAID.</p></div>
+<div class="card"><h3><b>6</b>Payment requests</h3><span class="tag">Click Open in Finance → requests with this number</span><p>Empty until a payment request uses the container number.</p></div>
+<div class="card"><h3><b>7</b>Documents</h3><span class="tag">Click Upload → add bill of lading, invoices, photos</span><p>Documents can still be added after delivery.</p></div>
+<div class="card"><h3><b>8</b>Packaging list</h3><span class="tag">Read → PL#, units, cartons, CBM, SKUs</span><p></p></div></div></div>
+<div class="foot"><span class="ph">Draft v1</span><span>Backend 7470760 · Frontend c4d46ec</span></div>
+</section>
+<section class="page" id="container-form">
+<div class="eyebrow"><a href="index.html">Index</a> · Containers · Containers</div>
+<h1>New container form</h1>
+<p class="sub">Create from the list with + New container. New containers start as BOOKED.</p>
+<div class="legend"><div><span class="b" style="position:static;margin:0;width:5mm;height:5mm;box-shadow:none">1</span> Option on screen</div><div><i></i> Command / function</div></div>
+<div class="main"><div class="screen"><div class="crop"><img src="img/containers/c-form.png" alt="New container form"><div class="b" style="left:3%;top:17.8%">1</div><div class="b" style="left:51%;top:17.8%">2</div><div class="b" style="left:3%;top:34.9%">3</div><div class="b" style="left:3%;top:46.9%">4</div><div class="b" style="left:3%;top:58.8%">5</div><div class="b" style="left:51%;top:58.8%">6</div><div class="b" style="left:3%;top:76%">7</div><div class="b" style="left:3%;top:91%">8</div></div></div><div class="cards">
+<div class="card"><h3><b>1</b>Container number</h3><span class="tag">Type → shipping line number, e.g. MSKU1234567</span><p>Payment requests with this number show on the container.</p></div>
+<div class="card"><h3><b>2</b>Status</h3><span class="tag">Read → BOOKED for a new container</span><p>Later, set the shipping status here.</p></div>
+<div class="card"><h3><b>3</b>Bill of lading, Master BOL</h3><span class="tag">Type → BOL # and master BOL #</span><p></p></div>
+<div class="card"><h3><b>4</b>ETD, ETA</h3><span class="tag">Pick → leave and arrival dates</span><p></p></div>
+<div class="card"><h3><b>5</b>Shipped on board</h3><span class="tag">Pick → day it was loaded on the vessel</span><p>Locked once the container is delivered.</p></div>
+<div class="card"><h3><b>6</b>Purchase order</h3><span class="tag">Select → required</span><p>Its destination sets the country of this container.</p></div>
+<div class="card"><h3><b>7</b>Destination country, city</h3><span class="tag">Read country; select city</span><p>Country comes from the PO and cannot be changed here.</p></div>
+<div class="card"><h3><b>8</b>Port of arrival, Warehouse</h3><span class="tag">Select → port and delivery warehouse</span><p>Cubic feet and further fields follow below.</p></div></div></div>
+<div class="foot"><span class="ph">Draft v1</span><span>Backend 7470760 · Frontend c4d46ec</span></div>
+</section>
+<section class="page" id="container-cost-analysis">
+<div class="eyebrow"><a href="index.html">Index</a> · Containers · Cost Analysis</div>
+<h1>Cost Analysis: landed cost per container</h1>
+<p class="sub">Invoice price and expenses, plus freight and trucking by CBM, duties and brokerage by value.</p>
+<div class="legend"><div><span class="b" style="position:static;margin:0;width:5mm;height:5mm;box-shadow:none">1</span> Option on screen</div><div><i></i> Command / function</div></div>
+<div class="main"><div class="screen"><div class="crop"><img src="img/containers/c-cost.png" alt="Cost Analysis"><div class="b" style="left:93.5%;top:6%">1</div><div class="b" style="left:3.5%;top:23.3%">2</div><div class="b" style="left:3.7%;top:54.9%">3</div><div class="b" style="left:39%;top:52%">4</div><div class="b" style="left:51.8%;top:45%">5</div><div class="b" style="left:67%;top:54.9%">6</div><div class="b" style="left:86.6%;top:54.9%">7</div></div></div><div class="cards">
+<div class="card"><h3><b>1</b>Export Excel</h3><span class="tag">Click → downloads the analysis</span><p></p></div>
+<div class="card"><h3><b>2</b>Search and filters</h3><span class="tag">Type / choose → container, status, country, brand</span><p>Press Apply filters.</p></div>
+<div class="card"><h3><b>3</b>Expand arrow</h3><span class="tag">Click → landed cost per SKU</span><p></p></div>
+<div class="card"><h3><b>4</b>Goods (FOB)</h3><span class="tag">Read → invoice price of the goods</span><p></p></div>
+<div class="card"><h3><b>5</b>Expenses</h3><span class="tag">Read → expenses added to the container</span><p></p></div>
+<div class="card"><h3><b>6</b>Landed total</h3><span class="tag">Read → goods plus expenses</span><p></p></div>
+<div class="card"><h3><b>7</b>Status</h3><span class="tag">Read → the container's status</span><p></p></div></div></div>
+<div class="foot"><span class="ph">Draft v1</span><span>Backend 7470760 · Frontend c4d46ec</span></div>
+</section>
+<section class="page" id="sku-landed-cost">
+<div class="eyebrow"><a href="index.html">Index</a> · Containers · SKU Landed Cost</div>
+<h1>SKU Landed Cost: cost per unit</h1>
+<p class="sub">Landed cost per unit from every container in transit or delivered, and the shipment cost to Amazon.</p>
+<div class="legend"><div><span class="b" style="position:static;margin:0;width:5mm;height:5mm;box-shadow:none">1</span> Option on screen</div><div><i></i> Command / function</div></div>
+<div class="main"><div class="screen"><div class="crop"><img src="img/containers/c-sku.png" alt="SKU Landed Cost"><div class="b" style="left:18.3%;top:14.1%">1</div><div class="b" style="left:64.7%;top:14.1%">2</div><div class="b" style="left:77.5%;top:14.1%">3</div><div class="b" style="left:90.5%;top:14.1%">4</div><div class="b" style="left:41.5%;top:33.8%">5</div><div class="b" style="left:40.8%;top:53.8%">6</div><div class="b" style="left:68.5%;top:52.6%">7</div><div class="b" style="left:85.8%;top:52.6%">8</div></div></div><div class="cards">
+<div class="card"><h3><b>1</b>Opex for the month</h3><span class="tag">Read → total opex and the rate per CBM</span><p>Shows the Canada and USA rates.</p></div>
+<div class="card"><h3><b>2</b>Warehouse overhead</h3><span class="tag">Click → warehouse overhead</span><p>Last month's default overhead is recorded automatically on the 1st.</p></div>
+<div class="card"><h3><b>3</b>Export Excel</h3><span class="tag">Click → downloads the table</span><p></p></div>
+<div class="card"><h3><b>4</b>Map expense columns</h3><span class="tag">Click → choose how expenses map to cost columns</span><p></p></div>
+<div class="card"><h3><b>5</b>Search and As of</h3><span class="tag">Type SKU, name or UPC; pick a date</span><p>Today is worked out live; earlier days come from that day's snapshot.</p></div>
+<div class="card"><h3><b>6</b>Landed cost (CAD / USA)</h3><span class="tag">Read → cost per unit by market</span><p>A dash means no container cost yet.</p></div>
+<div class="card"><h3><b>7</b>Shipment (WFS / FBA)</h3><span class="tag">Read → shipment cost to the channel</span><p></p></div>
+<div class="card"><h3><b>8</b>Warehouse overhead</h3><span class="tag">Read → overhead per unit, Canada and USA</span><p></p></div></div></div>
+<div class="foot"><span class="ph">Draft v1</span><span>Backend 7470760 · Frontend c4d46ec</span></div>
+</section>
+<section class="page" id="container-statuses">
+<div class="eyebrow"><a href="index.html">Index</a> · Containers · Statuses</div>
+<h1>Container statuses</h1>
+<p class="sub">In lifecycle order. Stages only move forward; inside shipping a container can move freely between its legs.</p>
+<div class="panel"><table class="st"><tr><th>Status</th><th>Stage</th><th>Meaning and what can change</th></tr>
+<tr><td><span class="pill">BOOKED</span></td><td>Booked</td><td>New container. Everything can be edited and packaging lists added or removed; it can move to any shipping status. It can be deleted while it has no list.</td></tr>
+<tr><td><span class="pill">IN TRANSIT</span> · <span class="pill">ON RAIL</span> · <span class="pill">ON BOARD</span></td><td>Shipping</td><td>It has left. Only the ETA, the shipped-on-board date and the status can change; packaging lists are locked.</td></tr>
+<tr><td><span class="pill">ARRIVAL AT PORT</span> · <span class="pill">CUSTOMS CLEARED</span> · <span class="pill">OUT FOR DELIVERY</span></td><td>Shipping</td><td>Same limits as above. From any shipping status the container can be marked DELIVERED TO WAREHOUSE.</td></tr>
+<tr><td><span class="pill">DELIVERED</span></td><td>Delivered</td><td>Older status; nothing sets it any more. It can only be moved on to DELIVERED TO WAREHOUSE.</td></tr>
+<tr><td><span class="pill">DELIVERED TO WAREHOUSE</span></td><td>At warehouse</td><td>Set on the container form when it arrives; the delivery date is stamped. Waiting in Inbound Receiving; nothing else can change, documents can still be added.</td></tr>
+<tr><td><span class="pill">GOODS RECEIVED</span></td><td>Received</td><td>Set only by confirming the receipt in Inbound Receiving. Final.</td></tr>
+<tr><td><span class="pill">NEEDS DETAILS</span></td><td>Badge</td><td>A placeholder container waiting for its number, bill of lading and dates.</td></tr></table></div>
+<div class="foot"><span class="ph">Draft v1</span><span>Backend 7470760 · Frontend c4d46ec</span></div>
+</section>
+</body>
+</html>

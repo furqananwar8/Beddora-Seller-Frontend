@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Procurement</title>
+<link rel="stylesheet" href="css/manual.css">
+<style>.card{padding:1.6mm 3mm 1.8mm}.cards{gap:2mm}.card p{font-size:10.5px}.tag{font-size:9.5px}.panel p{margin:1.5mm 0}</style>
+</head>
+<body>
+<section class="page" id="procurement-overview">
+<div class="eyebrow"><a href="index.html">Index</a> · Procurement · Overview</div>
+<h1>Procurement: choose a supplier, order, pack and invoice</h1>
+<p class="sub">From a price comparison to an approved Purchase Order, its packaging lists and its purchase invoice.</p>
+<div class="panel"><div class="flow">
+<div class="step"><b>1 · Price Analysis</b>Pick a product, enter several supplier rates, save. Approvers choose one supplier.</div>
+<div class="step"><b>2 · Purchase Order</b>Created for the chosen supplier, approved step by step (1st approver, then 2nd...).</div>
+<div class="step"><b>3 · Payment request</b>On approval, people on the Settings &gt; Approvals Notification tab are told to raise a payment request in Finance.</div>
+<div class="step"><b>4 · Packaging List</b>Created against an approved PO, then attached to a Container.</div>
+<div class="step"><b>5 · Purchase Invoice</b>Created against a PO and approved before it is paid.</div></div>
+<p class="sub" style="margin-top:3mm">Who approves each step is set in Settings &gt; Approvals (Price analysis Approve, PO Submit, Invoice Submit). A rejection goes back to the creator with a reason.</p></div>
+<div class="panel"><table class="st"><tr><th>Procurement menu screen</th><th>Use it to</th></tr>
+<tr><td>Products</td><td>Keep the products you buy; Price Analysis and Purchase Orders start from them.</td></tr>
+<tr><td>Price Analysis</td><td>Compare supplier rates for one product and get one supplier approved.</td></tr>
+<tr><td>Purchase Orders</td><td>Order from a supplier; follow it from draft to received.</td></tr>
+<tr><td>Packaging Lists</td><td>Record what is packed for a PO; assign it to a Container.</td></tr>
+<tr><td>Purchase Invoices</td><td>Record the supplier's invoice against a PO and send it for approval.</td></tr>
+<tr><td>Containers</td><td>Group packaging lists for shipping; covered in the Containers module.</td></tr></table></div>
+<div class="foot"><span class="ph">Draft v1</span><span>Backend 7470760 · Frontend c4d46ec</span></div>
+</section>
+<section class="page" id="price-analysis-list">
+<div class="eyebrow"><a href="index.html">Index</a> · Procurement · Price Analysis</div>
+<h1>Price Analysis: list and filters</h1>
+<p class="sub">One row per product: how many suppliers quoted, the lowest price, and where approval stands.</p>
+<div class="legend"><div><span class="b" style="position:static;margin:0;width:5mm;height:5mm;box-shadow:none">1</span> Option on screen</div><div><i></i> Command / function</div></div>
+<div class="main"><div class="screen"><div class="crop"><img src="img/procurement/pa-list.png" alt="Price Analysis list"><div class="b" style="left:2.2%;top:34.8%">1</div><div class="b" style="left:41.4%;top:34.8%">2</div><div class="b" style="left:72.5%;top:10%">3</div><div class="b" style="left:83.3%;top:10%">4</div><div class="b" style="left:87.8%;top:47.4%">5</div><div class="b" style="left:1.8%;top:81.7%">6</div></div></div><div class="cards">
+<div class="card"><h3><b>1</b>Search</h3><span class="tag">Type → product, SKU, colour or supplier</span><p>Narrows the list; press Apply filters.</p></div>
+<div class="card"><h3><b>2</b>Status tabs</h3><span class="tag">Click → All, Awaiting approval, Approved</span><p>Category is chosen next to it.</p></div>
+<div class="card"><h3><b>3</b>Export Excel</h3><span class="tag">Click → downloads the list</span><p>Uses the filters currently applied.</p></div>
+<div class="card"><h3><b>4</b>New price analysis</h3><span class="tag">Click → pick a product to compare</span><p>Starts a comparison for one product.</p></div>
+<div class="card"><h3><b>5</b>Apply filters / Reset</h3><span class="tag">Click → refresh list / clear filters</span><p>Status tabs and filters both wait for Apply.</p></div>
+<div class="card"><h3><b>6</b>Product row</h3><span class="tag">Click → opens the analysis</span><p>"Variant family" shows how many sizes or colours are approved (0 of 3). Status and lowest supplier show on the right.</p></div></div></div>
+<div class="foot"><span class="ph">Draft v1</span><span>Backend 7470760 · Frontend c4d46ec</span></div>
+</section>
+<section class="page" id="price-analysis-detail">
+<div class="eyebrow"><a href="index.html">Index</a> · Procurement · Price Analysis</div>
+<h1>Price Analysis: variants and approval</h1>
+<p class="sub">Open from the list. Products of one family (sizes, colours) are compared on one screen.</p>
+<div class="legend"><div><span class="b" style="position:static;margin:0;width:5mm;height:5mm;box-shadow:none">1</span> Option on screen</div><div><i></i> Command / function</div></div>
+<div class="main"><div class="screen"><div class="crop"><img src="img/procurement/pa-detail.png" alt="Price Analysis detail"><div class="b" style="left:85.9%;top:6.7%">1</div><div class="b" style="left:2.6%;top:14.5%">2</div><div class="b" style="left:4.3%;top:27.9%">3</div><div class="b" style="left:83%;top:23.1%">4</div><div class="b" style="left:10.7%;top:42.7%">5</div><div class="b" style="left:3.7%;top:63.1%">6</div></div></div><div class="cards">
+<div class="card"><h3><b>1</b>All price analyses</h3><span class="tag">Click → back to the list</span><p></p></div>
+<div class="card"><h3><b>2</b>Status banner</h3><span class="tag">Read → what is needed next</span><p>Awaiting approval: approve one supplier, or reject the ones that will not do.</p></div>
+<div class="card"><h3><b>3</b>Variant chips</h3><span class="tag">Click → switch to that variant</span><p>Green approved, amber awaiting approval, grey no quotes yet.</p></div>
+<div class="card"><h3><b>4</b>Variants approved</h3><span class="tag">Read → progress of the family</span><p>Each variant is approved on its own.</p></div>
+<div class="card"><h3><b>5</b>Approval steps</h3><span class="tag">Read → who has approved, who is waiting</span><p>Steps follow Settings &gt; Approvals. "Any one approves" means one approver is enough.</p></div>
+<div class="card"><h3><b>6</b>Product details</h3><span class="tag">Edit → prefilled from the product</span><p>Changing material or size here does not change the product.</p></div></div></div>
+<div class="foot"><span class="ph">Draft v1</span><span>Backend 7470760 · Frontend c4d46ec</span></div>
+</section>
+<section class="page" id="price-analysis-quotes">
+<div class="eyebrow"><a href="index.html">Index</a> · Procurement · Price Analysis</div>
+<h1>Price Analysis: landed cost and supplier quotes</h1>
+<p class="sub">Rank suppliers by FOB price or by the full landed cost per unit.</p>
+<div class="legend"><div><span class="b" style="position:static;margin:0;width:5mm;height:5mm;box-shadow:none">1</span> Option on screen</div><div><i></i> Command / function</div></div>
+<div class="main"><div class="screen"><div class="crop"><img src="img/procurement/pa-quotes.png" alt="Landed cost cards and supplier quotes"><div class="b" style="left:90.7%;top:5.5%">1</div><div class="b" style="left:5.2%;top:17.7%">2</div><div class="b" style="left:3.7%;top:66.7%">3</div><div class="b" style="left:87.8%;top:66.6%">4</div><div class="b" style="left:4.2%;top:74.5%">5</div><div class="b" style="left:84.3%;top:74.7%">6</div></div></div><div class="cards">
+<div class="card"><h3><b>1</b>FOB price / Landed cost</h3><span class="tag">Click → re-rank the top suppliers</span><p>Landed = FOB + freight (unit CBM × freight per CBM) + duty (FOB × duty %) + clearing.</p></div>
+<div class="card"><h3><b>2</b>Top supplier cards</h3><span class="tag">Read → price, packaging, gap to lowest</span><p>Shows FOB and the freight/duty added. Lowest first.</p></div>
+<div class="card"><h3><b>3</b>Add suppliers</h3><span class="tag">Select → one or more suppliers</span><p>Each gets a row in the table below.</p></div>
+<div class="card"><h3><b>4</b>USD / CAD</h3><span class="tag">Click → show prices in that currency</span><p></p></div>
+<div class="card"><h3><b>5</b>Ranked / Grouped by supplier</h3><span class="tag">Click → change the table layout</span><p>A supplier can quote several packagings of the same product.</p></div>
+<div class="card"><h3><b>6</b>Packaging filter</h3><span class="tag">Choose → one packaging or all</span><p></p></div></div></div>
+<div class="foot"><span class="ph">Draft v1</span><span>Backend 7470760 · Frontend c4d46ec</span></div>
+</section>
+<section class="page" id="price-analysis-table">
+<div class="eyebrow"><a href="index.html">Index</a> · Procurement · Price Analysis</div>
+<h1>Price Analysis: enter quotes and save</h1>
+<p class="sub">Type each supplier's offer, save, and follow the approval history.</p>
+<div class="legend"><div><span class="b" style="position:static;margin:0;width:5mm;height:5mm;box-shadow:none">1</span> Option on screen</div><div><i></i> Command / function</div></div>
+<div class="main"><div class="screen"><div class="crop"><img src="img/procurement/pa-table.png" alt="Supplier quote rows and history"><div class="b" style="left:22.4%;top:8.4%">1</div><div class="b" style="left:38.1%;top:8.4%">2</div><div class="b" style="left:50.4%;top:5.4%">3</div><div class="b" style="left:59.8%;top:8.4%">4</div><div class="b" style="left:70.3%;top:8.4%">5</div><div class="b" style="left:86.3%;top:7%">6</div><div class="b" style="left:87.8%;top:71.4%">7</div><div class="b" style="left:3.7%;top:80.4%">8</div></div></div><div class="cards">
+<div class="card"><h3><b>1</b>Supplier POC</h3><span class="tag">Type → point of contact</span><p></p></div>
+<div class="card"><h3><b>2</b>Packaging</h3><span class="tag">Type → e.g. Polybag, Color Box</span><p>The same supplier can have one row per packaging.</p></div>
+<div class="card"><h3><b>3</b>MOQ and lead time</h3><span class="tag">Type → minimum order, days</span><p></p></div>
+<div class="card"><h3><b>4</b>FOB / unit</h3><span class="tag">Type → the supplier's price</span><p></p></div>
+<div class="card"><h3><b>5</b>Unit CBM and Freight</h3><span class="tag">Type CBM → freight is calculated</span><p></p></div>
+<div class="card"><h3><b>6</b>Duty %</h3><span class="tag">Type → duty; amount shows below</span><p></p></div>
+<div class="card"><h3><b>7</b>Save analysis / Discard</h3><span class="tag">Click → send to approvers / drop edits</span><p>Approvers then approve one supplier or reject others with a reason.</p></div>
+<div class="card"><h3><b>8</b>Approval and rejection history</h3><span class="tag">Read → every approval and edit</span><p>Editing an approved analysis takes the approval back; it needs approving again.</p></div></div></div>
+<div class="foot"><span class="ph">Draft v1</span><span>Backend 7470760 · Frontend c4d46ec</span></div>
+</section>
+<section class="page" id="purchase-orders-list">
+<div class="eyebrow"><a href="index.html">Index</a> · Procurement · Purchase Orders</div>
+<h1>Purchase Orders: list and filters</h1>
+<p class="sub">Every PO with its supplier, dates, packing progress, status and payment.</p>
+<div class="legend"><div><span class="b" style="position:static;margin:0;width:5mm;height:5mm;box-shadow:none">1</span> Option on screen</div><div><i></i> Command / function</div></div>
+<div class="main"><div class="screen"><div class="crop"><img src="img/procurement/po-list.png" alt="Purchase Orders list"><div class="b" style="left:72.4%;top:5.5%">1</div><div class="b" style="left:82.6%;top:5.5%">2</div><div class="b" style="left:2.6%;top:26.2%">3</div><div class="b" style="left:41.5%;top:26.2%">4</div><div class="b" style="left:2.6%;top:38%">5</div><div class="b" style="left:60.7%;top:38%">6</div><div class="b" style="left:87.8%;top:45.9%">7</div><div class="b" style="left:1.6%;top:66.5%">8</div></div></div><div class="cards">
+<div class="card"><h3><b>1</b>Export Excel</h3><span class="tag">Click → downloads the filtered list</span><p></p></div>
+<div class="card"><h3><b>2</b>New purchase order</h3><span class="tag">Click → opens the PO form</span><p>Pick the supplier, destination, currency, ERD and products. Save as a draft, then submit.</p></div>
+<div class="card"><h3><b>3</b>Search</h3><span class="tag">Type → PO #, supplier, contact, product, SKU</span><p></p></div>
+<div class="card"><h3><b>4</b>Colour, Destination, Status</h3><span class="tag">Choose → then Apply filters</span><p></p></div>
+<div class="card"><h3><b>5</b>Payment status, ERD, ERD alert</h3><span class="tag">Choose → by payment, date range, urgency</span><p>ERD alert: overdue, 10 days or less, more than 10 days.</p></div>
+<div class="card"><h3><b>6</b>Open / Closed</h3><span class="tag">Click → All, Open or Closed</span><p></p></div>
+<div class="card"><h3><b>7</b>Apply filters / Reset</h3><span class="tag">Click → refresh list / clear</span><p></p></div>
+<div class="card"><h3><b>8</b>PO row</h3><span class="tag">Read → ERD with alert, ARD, production date</span><p>ERD is the expected ready date. ARD and Production date are set here once the PO is approved and in production.</p></div></div></div>
+<div class="foot"><span class="ph">Draft v1</span><span>Backend 7470760 · Frontend c4d46ec</span></div>
+</section>
+<section class="page" id="purchase-orders-actions">
+<div class="eyebrow"><a href="index.html">Index</a> · Procurement · Purchase Orders</div>
+<h1>Purchase Orders: status columns and row menu</h1>
+<p class="sub">Scroll the list to the right for packing, status, payment and the actions menu.</p>
+<div class="legend"><div><span class="b" style="position:static;margin:0;width:5mm;height:5mm;box-shadow:none">1</span> Option on screen</div><div><i></i> Command / function</div></div>
+<div class="main"><div class="screen"><div class="crop"><img src="img/procurement/po-actions.png" alt="PO status columns and row menu"><div class="b" style="left:41.8%;top:51.6%">1</div><div class="b" style="left:58.1%;top:51.6%">2</div><div class="b" style="left:69.2%;top:51.6%">3</div><div class="b" style="left:86.3%;top:70.6%">4</div><div class="b" style="left:86.7%;top:3.6%">5</div><div class="b" style="left:85.6%;top:21.2%">6</div><div class="b" style="left:85.6%;top:27.3%">7</div><div class="b" style="left:83.6%;top:39%">8</div></div></div><div class="cards">
+<div class="card"><h3><b>1</b>Packed</h3><span class="tag">Read → units packed / units ordered</span><p>PL is the number of packaging lists.</p></div>
+<div class="card"><h3><b>2</b>Status</h3><span class="tag">Read → where the PO is in its life</span><p>See the status sheet.</p></div>
+<div class="card"><h3><b>3</b>Payment</h3><span class="tag">Read → UNPAID, PARTIALLY PAID, PAID</span><p>Moves as payments are recorded in Finance. Payment requests shows how many exist.</p></div>
+<div class="card"><h3><b>4</b>Open / Close</h3><span class="tag">Read → OPEN or CLOSED</span><p>A closed PO cannot be edited.</p></div>
+<div class="card"><h3><b>5</b>Row menu</h3><span class="tag">Click → View, Download PDF, packaging lists</span><p>Also View payment requests (count).</p></div>
+<div class="card"><h3><b>6</b>Create purchase invoice</h3><span class="tag">Click → invoice for this PO</span><p>Next sheets.</p></div>
+<div class="card"><h3><b>7</b>Create payment request</h3><span class="tag">Click → opens Finance with this PO</span><p>Only approved, open POs with an amount left are offered there.</p></div>
+<div class="card"><h3><b>8</b>Unlock for editing / Close PO</h3><span class="tag">Click → approver reopens / close the PO</span><p>Approved POs are locked. Closing before everything ships marks it SHORT CLOSED.</p></div></div></div>
+<div class="foot"><span class="ph">Draft v1</span><span>Backend 7470760 · Frontend c4d46ec</span></div>
+</section>
+<section class="page" id="purchase-order-detail">
+<div class="eyebrow"><a href="index.html">Index</a> · Procurement · Purchase Orders</div>
+<h1>Purchase order: header, supplier and order details</h1>
+<p class="sub">Open with View purchase order. Fields are read-only once the PO is approved.</p>
+<div class="legend"><div><span class="b" style="position:static;margin:0;width:5mm;height:5mm;box-shadow:none">1</span> Option on screen</div><div><i></i> Command / function</div></div>
+<div class="main"><div class="screen"><div class="crop"><img src="img/procurement/po-detail-top.png" alt="Purchase order detail, top"><div class="b" style="left:12.6%;top:4.1%">1</div><div class="b" style="left:81.6%;top:4%">2</div><div class="b" style="left:90.7%;top:4%">3</div><div class="b" style="left:3.8%;top:21.9%">4</div><div class="b" style="left:11.4%;top:56.3%">5</div><div class="b" style="left:38.4%;top:56.3%">6</div><div class="b" style="left:81.4%;top:56.3%">7</div><div class="b" style="left:3.8%;top:85.3%">8</div></div></div><div class="cards">
+<div class="card"><h3><b>1</b>Status and payment</h3><span class="tag">Read → PO status, UNPAID / PAID</span><p></p></div>
+<div class="card"><h3><b>2</b>Download PDF</h3><span class="tag">Click → PO PDF with the company letterhead</span><p>Letterhead comes from Settings &gt; Company.</p></div>
+<div class="card"><h3><b>3</b>PO open</h3><span class="tag">Switch → open or close the PO</span><p></p></div>
+<div class="card"><h3><b>4</b>Supplier</h3><span class="tag">Select → required; contact fills in</span><p>Shared supplier list; "+ New supplier" adds one.</p></div>
+<div class="card"><h3><b>5</b>Destination</h3><span class="tag">Choose → USA or CANADA</span><p>Drives the container's city list later.</p></div>
+<div class="card"><h3><b>6</b>Currency</h3><span class="tag">Choose → CAD or USD</span><p></p></div>
+<div class="card"><h3><b>7</b>ERD</h3><span class="tag">Pick → expected ready date</span><p>Shows days left. Reminder emails start 10 days before and go daily if overdue.</p></div>
+<div class="card"><h3><b>8</b>Warehouse, Payment terms</h3><span class="tag">Optional → delivery address, up to 200 characters</span><p>Payment terms replace the supplier's term on the PDF.</p></div></div></div>
+<div class="foot"><span class="ph">Draft v1</span><span>Backend 7470760 · Frontend c4d46ec</span></div>
+</section>
+<section class="page" id="purchase-order-products">
+<div class="eyebrow"><a href="index.html">Index</a> · Procurement · Purchase Orders</div>
+<h1>Purchase order: products, lock and history</h1>
+<p class="sub">Units and rates per SKU, the lock after approval, and every step the PO went through.</p>
+<div class="legend"><div><span class="b" style="position:static;margin:0;width:5mm;height:5mm;box-shadow:none">1</span> Option on screen</div><div><i></i> Command / function</div></div>
+<div class="main"><div class="screen"><div class="crop"><img src="img/procurement/po-products.png" alt="PO products"><div class="b" style="left:5.9%;top:47.6%">1</div><div class="b" style="left:76.5%;top:47.6%">2</div><div class="b" style="left:89.5%;top:47.6%">3</div></div>
+<div class="crop" style="margin-top:3mm"><img src="img/procurement/po-history.png" alt="PO lock and history"><div class="b" style="left:90.2%;top:7.5%">4</div><div class="b" style="left:3.5%;top:23.4%">5</div><div class="b" style="left:5.7%;top:94.6%">6</div></div></div><div class="cards">
+<div class="card"><h3><b>1</b>SKU row</h3><span class="tag">Click arrow → expands the variation</span><p>Shows product, tag, colour, size and CBM.</p></div>
+<div class="card"><h3><b>2</b>Units ordered</h3><span class="tag">Type → quantity per SKU</span><p>The total shows below.</p></div>
+<div class="card"><h3><b>3</b>Unit rate</h3><span class="tag">Type → price per unit in the PO currency</span><p></p></div>
+<div class="card"><h3><b>4</b>Unlock for editing</h3><span class="tag">Click → approver reopens the PO</span><p>Saving locks it again. For leftover units, close the PO and use "Create PO from remaining".</p></div>
+<div class="card"><h3><b>5</b>History</h3><span class="tag">Read → created, approved, packed, shipped, received</span><p>Each line shows who and when.</p></div>
+<div class="card"><h3><b>6</b>Delete PO / Back</h3><span class="tag">Click → delete (red) / return to list</span><p>Deleting cannot be undone.</p></div></div></div>
+<div class="foot"><span class="ph">Draft v1</span><span>Backend 7470760 · Frontend c4d46ec</span></div>
+</section>
+<section class="page" id="purchase-invoices-list">
+<div class="eyebrow"><a href="index.html">Index</a> · Procurement · Purchase Invoices</div>
+<h1>Purchase Invoices: list and row menu</h1>
+<p class="sub">Invoices are raised from an approved purchase order. PDFs are generated in the background.</p>
+<div class="legend"><div><span class="b" style="position:static;margin:0;width:5mm;height:5mm;box-shadow:none">1</span> Option on screen</div><div><i></i> Command / function</div></div>
+<div class="main"><div class="screen"><div class="crop"><img src="img/procurement/pi-list.png" alt="Purchase Invoices list"><div class="b" style="left:71%;top:6.4%">1</div><div class="b" style="left:81.2%;top:6.4%">2</div><div class="b" style="left:3.5%;top:25.2%">3</div><div class="b" style="left:41.5%;top:25.2%">4</div><div class="b" style="left:2.7%;top:58%">5</div></div>
+<div class="crop" style="margin-top:3mm"><img src="img/procurement/pi-menu.png" alt="Status, PDF and row menu"><div class="b" style="left:54.2%;top:47.9%">6</div><div class="b" style="left:65.9%;top:47.9%">7</div><div class="b" style="left:95.3%;top:57.1%">8</div></div></div><div class="cards">
+<div class="card"><h3><b>1</b>Export Excel</h3><span class="tag">Click → downloads the list</span><p></p></div>
+<div class="card"><h3><b>2</b>Create purchase invoice</h3><span class="tag">Click → start from a purchase order</span><p>The form opens from a PO (PO row menu &gt; Create purchase invoice); it does not open on its own.</p></div>
+<div class="card"><h3><b>3</b>Search</h3><span class="tag">Type → INV #, invoice no, partner, PO #</span><p></p></div>
+<div class="card"><h3><b>4</b>Status</h3><span class="tag">Choose → then Apply filters</span><p>Reset clears the search and status.</p></div>
+<div class="card"><h3><b>5</b>Invoice row</h3><span class="tag">Read → INV#, supplier's invoice no, PO, partner, amount</span><p>INV# is assigned when the draft is saved. Payment requests counts requests raised for it.</p></div>
+<div class="card"><h3><b>6</b>Status</h3><span class="tag">Read → PAYMENT PENDING, PAID...</span><p>See the status sheet.</p></div>
+<div class="card"><h3><b>7</b>PDF</h3><span class="tag">Read → GENERATING, READY, FAILED</span><p>Download PDF works once it is READY.</p></div>
+<div class="card"><h3><b>8</b>Row menu</h3><span class="tag">Click → details, PDF, packaging list, payment request</span><p>Create packaging list and Create payment request start from this invoice's PO. View PO opens the order.</p></div></div></div>
+<div class="foot"><span class="ph">Draft v1</span><span>Backend 7470760 · Frontend c4d46ec</span></div>
+</section>
+<section class="page" id="purchase-invoice-form">
+<div class="eyebrow"><a href="index.html">Index</a> · Procurement · Purchase Invoices</div>
+<h1>New purchase invoice: partner, details and items</h1>
+<p class="sub">Opened from a PO. Enter what the supplier actually invoiced.</p>
+<div class="legend"><div><span class="b" style="position:static;margin:0;width:5mm;height:5mm;box-shadow:none">1</span> Option on screen</div><div><i></i> Command / function</div></div>
+<div class="main"><div class="screen"><div class="crop"><img src="img/procurement/pi-form-top.png" alt="Invoice form, top"><div class="b" style="left:11.7%;top:4.1%">1</div><div class="b" style="left:9.4%;top:31.4%">2</div><div class="b" style="left:3.9%;top:68.8%">3</div><div class="b" style="left:52.8%;top:68.8%">4</div><div class="b" style="left:3.9%;top:89.2%">5</div></div>
+<div class="crop" style="margin-top:3mm"><img src="img/procurement/pi-form-items.png" alt="Invoice items"><div class="b" style="left:88.3%;top:3.4%">6</div><div class="b" style="left:43%;top:45.9%">7</div><div class="b" style="left:82.8%;top:45.9%">8</div></div></div><div class="cards">
+<div class="card"><h3><b>1</b>Status and PO</h3><span class="tag">Read → DRAFT, INV# assigned on save</span><p>The PO number it belongs to is shown beside it.</p></div>
+<div class="card"><h3><b>2</b>Partner</h3><span class="tag">Read → the PO's supplier</span><p>Required. Taken from the purchase order.</p></div>
+<div class="card"><h3><b>3</b>Reference No and Invoice Date</h3><span class="tag">Type / pick → both required</span><p>Reference No is the supplier's own invoice number.</p></div>
+<div class="card"><h3><b>4</b>Destination and Currency</h3><span class="tag">Read → set by the purchase order</span><p></p></div>
+<div class="card"><h3><b>5</b>Remarks</h3><span class="tag">Type → optional note</span><p></p></div>
+<div class="card"><h3><b>6</b>View purchase order</h3><span class="tag">Click → opens the PO to compare</span><p>Items list the PO's SKUs.</p></div>
+<div class="card"><h3><b>7</b>Qty and Rate</h3><span class="tag">Type → what the supplier invoiced</span><p>Amount and the Total are calculated.</p></div>
+<div class="card"><h3><b>8</b>Expense</h3><span class="tag">Select → expense type per item</span><p></p></div></div></div>
+<div class="foot"><span class="ph">Draft v1</span><span>Backend 7470760 · Frontend c4d46ec</span></div>
+</section>
+<section class="page" id="purchase-invoice-submit">
+<div class="eyebrow"><a href="index.html">Index</a> · Procurement · Purchase Invoices</div>
+<h1>New purchase invoice: expenses, payments and submit</h1>
+<p class="sub">Extra costs, what has been paid, supporting documents, and sending for approval.</p>
+<div class="legend"><div><span class="b" style="position:static;margin:0;width:5mm;height:5mm;box-shadow:none">1</span> Option on screen</div><div><i></i> Command / function</div></div>
+<div class="main"><div class="screen"><div class="crop"><img src="img/procurement/pi-form-bottom.png" alt="Invoice expenses, payments and submit"><div class="b" style="left:6.1%;top:13.3%">1</div><div class="b" style="left:89%;top:30.2%">2</div><div class="b" style="left:80%;top:52.2%">3</div><div class="b" style="left:2.8%;top:70.6%">4</div><div class="b" style="left:73.7%;top:96%">5</div><div class="b" style="left:89.9%;top:96%">6</div></div></div><div class="cards">
+<div class="card"><h3><b>1</b>Additional expenses</h3><span class="tag">Click + Add → optional extra cost lines</span><p>Up to 20, each with an expense type.</p></div>
+<div class="card"><h3><b>2</b>Invoice total</h3><span class="tag">Read → items plus additional expenses</span><p></p></div>
+<div class="card"><h3><b>3</b>Payments</h3><span class="tag">Read → requested, paid, to be paid</span><p>Counts payments made against the PO. UNPAID until Finance records payments.</p></div>
+<div class="card"><h3><b>4</b>Upload documents</h3><span class="tag">Drag or browse → PDF, JPG, PNG, 10 MB each</span><p>Documents of the PO's payment requests are carried over.</p></div>
+<div class="card"><h3><b>5</b>Save draft</h3><span class="tag">Click → keeps it as DRAFT</span><p>Cancel leaves without saving.</p></div>
+<div class="card"><h3><b>6</b>Process For Approval</h3><span class="tag">Click → sends to approvers</span><p>Approvers come from Settings &gt; Approvals (Invoice Submit). A rejection returns it with a reason.</p></div></div></div>
+<div class="foot"><span class="ph">Draft v1</span><span>Backend 7470760 · Frontend c4d46ec</span></div>
+</section>
+<section class="page" id="packaging-lists-list">
+<div class="eyebrow"><a href="index.html">Index</a> · Procurement · Packaging Lists</div>
+<h1>Packaging Lists: list and row menu</h1>
+<p class="sub">What is packed for each PO, and whether it is already in a container.</p>
+<div class="legend"><div><span class="b" style="position:static;margin:0;width:5mm;height:5mm;box-shadow:none">1</span> Option on screen</div><div><i></i> Command / function</div></div>
+<div class="main"><div class="screen"><div class="crop"><img src="img/procurement/pl-list.png" alt="Packaging Lists list and row menu"><div class="b" style="left:74%;top:6%">1</div><div class="b" style="left:84.3%;top:6%">2</div><div class="b" style="left:3.5%;top:23.7%">3</div><div class="b" style="left:41.4%;top:23.7%">4</div><div class="b" style="left:87.8%;top:32.6%">5</div><div class="b" style="left:4.3%;top:51.4%">6</div><div class="b" style="left:64%;top:51.4%">7</div><div class="b" style="left:77.6%;top:58.8%">8</div></div></div><div class="cards">
+<div class="card"><h3><b>1</b>Export Excel</h3><span class="tag">Click → downloads the list</span><p></p></div>
+<div class="card"><h3><b>2</b>New packaging list</h3><span class="tag">Click → opens the form</span><p>Next sheet.</p></div>
+<div class="card"><h3><b>3</b>Search</h3><span class="tag">Type → PL #, supplier, PO # or SKU</span><p></p></div>
+<div class="card"><h3><b>4</b>Container</h3><span class="tag">Click → All, Assigned, Unassigned container</span><p>Assigned lists are already in a container. The header counts those without one.</p></div>
+<div class="card"><h3><b>5</b>Apply filters / Reset</h3><span class="tag">Click → refresh / clear</span><p></p></div>
+<div class="card"><h3><b>6</b>PL row</h3><span class="tag">Read → PL #, supplier(s), PO(s)</span><p>One list can cover several POs of the same destination.</p></div>
+<div class="card"><h3><b>7</b>Totals</h3><span class="tag">Read → SKUs, units, cartons, CBM, gross weight</span><p></p></div>
+<div class="card"><h3><b>8</b>Row menu</h3><span class="tag">Click → view, open container, PDF</span><p>Edit quantities and Delete list are greyed out once the list is in a container: its quantities are locked.</p></div></div></div>
+<div class="foot"><span class="ph">Draft v1</span><span>Backend 7470760 · Frontend c4d46ec</span></div>
+</section>
+<section class="page" id="packaging-list-new">
+<div class="eyebrow"><a href="index.html">Index</a> · Procurement · Packaging Lists</div>
+<h1>New packaging list</h1>
+<p class="sub">Pick the purchase order(s) first; their SKU lines load below.</p>
+<div class="legend"><div><span class="b" style="position:static;margin:0;width:5mm;height:5mm;box-shadow:none">1</span> Option on screen</div><div><i></i> Command / function</div></div>
+<div class="main"><div class="screen"><div class="crop"><img src="img/procurement/pl-form.png" alt="New packaging list"><div class="b" style="left:25%;top:4.5%">1</div><div class="b" style="left:13%;top:29.9%">2</div><div class="b" style="left:26.5%;top:46.9%">3</div><div class="b" style="left:7.4%;top:66.9%">4</div><div class="b" style="left:91.3%;top:95.7%">5</div></div></div><div class="cards">
+<div class="card"><h3><b>1</b>Status</h3><span class="tag">Read → DRAFT until saved</span><p></p></div>
+<div class="card"><h3><b>2</b>Destination</h3><span class="tag">Click → All, USA, CANADA</span><p>Narrows the PO choices.</p></div>
+<div class="card"><h3><b>3</b>Purchase order</h3><span class="tag">Select → required; one or several</span><p>POs must have no packaging list yet and ship to the same destination. Pending POs cannot be packed.</p></div>
+<div class="card"><h3><b>4</b>SKU lines</h3><span class="tag">Read → loads after you pick a PO</span><p>Enter the packed quantities per SKU.</p></div>
+<div class="card"><h3><b>5</b>Save packaging list / Cancel</h3><span class="tag">Click → saves the list / leaves</span><p>Attach the list to a container in the Containers module.</p></div></div></div>
+<div class="foot"><span class="ph">Draft v1</span><span>Backend 7470760 · Frontend c4d46ec</span></div>
+</section>
+<section class="page" id="procurement-statuses">
+<div class="eyebrow"><a href="index.html">Index</a> · Procurement · Statuses</div>
+<h1>Procurement statuses</h1>
+<p class="sub">What each status means on Price Analysis, Purchase Orders, Purchase Invoices and Packaging Lists.</p>
+<div class="panel"><table class="st"><tr><th>Record</th><th>Status</th><th>Meaning</th></tr>
+<tr><td rowspan="4">Price analysis</td><td><span class="pill">NO QUOTES</span></td><td>Created, no supplier rates entered yet.</td></tr>
+<tr><td><span class="pill">AWAITING APPROVAL</span></td><td>Rates saved and sent to approvers. A pending analysis can still be deleted.</td></tr>
+<tr><td><span class="pill">APPROVED</span></td><td>An approver accepted one supplier.</td></tr>
+<tr><td><span class="pill">REJECTED</span></td><td>Shown as a badge on a supplier, not as a list status.</td></tr>
+<tr><td rowspan="5">Purchase order</td><td><span class="pill">DRAFT</span> · <span class="pill">PENDING FOR APPROVAL</span></td><td>Being written · waiting for approvers in order.</td></tr>
+<tr><td><span class="pill">APPROVED</span></td><td>Approved and locked. Set the production date to move on; an approver can Unlock for editing (saving locks it again).</td></tr>
+<tr><td><span class="pill">IN PRODUCTION</span> · <span class="pill">PARTIALLY PACKED</span> · <span class="pill">FULLY PACKED</span></td><td>Production date set; the ARD can now be entered · packing started · all units packed.</td></tr>
+<tr><td><span class="pill">PARTIALLY SHIPPED</span> · <span class="pill">FULLY SHIPPED</span> · <span class="pill">RECEIVED</span> · <span class="pill">SHORT CLOSED</span></td><td>Some packing lists are in a container · every list is in a container · goods received at the warehouse · PO closed before every unit shipped.</td></tr>
+<tr><td colspan="2">Separate fields: payment (UNPAID / PARTIALLY PAID / PAID) and open or closed. READY_TO_SHIP is a legacy value.</td></tr>
+<tr><td rowspan="3">Purchase invoice</td><td><span class="pill">DRAFT</span> · <span class="pill">PENDING FOR APPROVAL</span> · <span class="pill">REJECTED</span></td><td>Being written · with approvers · sent back with a reason.</td></tr>
+<tr><td><span class="pill">PAYMENT PENDING</span> · <span class="pill">PARTIALLY PAID</span> · <span class="pill">PAID</span></td><td>Approved and unpaid · some paid · fully paid.</td></tr>
+<tr><td><span class="pill">GENERATING</span> · <span class="pill">READY</span> · <span class="pill">FAILED</span></td><td>PDF status: being built · ready to download · failed.</td></tr>
+<tr><td>Packaging list</td><td><span class="pill">Assigned</span> · <span class="pill">Unassigned</span></td><td>No status field; filtered by whether it is attached to a container. A PO can be packed once approved and open.</td></tr></table></div>
+<div class="foot"><span class="ph">Draft v1</span><span>Backend 7470760 · Frontend c4d46ec</span></div>
+</section>
+</body>
+</html>

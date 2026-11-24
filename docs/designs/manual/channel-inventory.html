@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Channel Inventory</title>
+<link rel="stylesheet" href="css/manual.css">
+<style>.card{padding:1.6mm 3mm 1.8mm}.cards{gap:2mm}.card p{font-size:10.5px}.tag{font-size:9.5px}.panel p{margin:1.5mm 0}</style>
+</head>
+<body>
+<section class="page" id="channel-inventory-overview">
+<div class="eyebrow"><a href="index.html">Index</a> · Channel Inventory · Overview</div>
+<h1>Channel Inventory: what each sales channel holds</h1>
+<p class="sub">Stock as the channels report it, and a week-by-week projection of how long it will last.</p>
+<div class="panel"><div class="flow">
+<div class="step"><b>1 · Our warehouse</b>Goods are received in Inbound Receiving and counted in Warehouse Inventory.</div>
+<div class="step"><b>2 · Shipments</b>Stock is sent to the channels on FBA or WFS shipments (Inventory Management &gt; Shipments).</div>
+<div class="step"><b>3 · Inventory</b>Shows what Amazon (and other channels) report: available, reserved, inbound, unsellable, on hand.</div>
+<div class="step"><b>4 · Channel INVP</b>Projects stock per SKU for 12 weeks against a 30-day clearance target, using the daily sale and containers in transit.</div></div>
+<p class="sub" style="margin-top:3mm">Use Inventory to see today's channel stock. Use Channel INVP to decide what to reorder or ship next.</p></div>
+<div class="panel"><table class="st"><tr><th>Channel Inventory menu screen</th><th>Use it to</th></tr>
+<tr><td>Inventory</td><td>Stock each sales channel reports, per marketplace and fulfillment type, with totals for SKUs, available, inbound and out of stock.</td></tr>
+<tr><td>Channel INVP</td><td>Live stock per SKU and its projection from today, week by week, against a 30-day clearance target.</td></tr></table></div>
+<div class="foot"><span class="ph">Draft v1</span><span>Backend 7470760 · Frontend c4d46ec</span></div>
+</section>
+<section class="page" id="channel-inventory-list">
+<div class="eyebrow"><a href="index.html">Index</a> · Channel Inventory · Inventory</div>
+<h1>Inventory: stock each channel reports</h1>
+<p class="sub">Pick a channel, marketplace and fulfillment type, then read the stock per SKU.</p>
+<div class="legend"><div><span class="b" style="position:static;margin:0;width:5mm;height:5mm;box-shadow:none">1</span> Option on screen</div><div><i></i> Command / function</div></div>
+<div class="main"><div class="screen"><div class="crop"><img src="img/channel-inventory/ci-inv.png" alt="Channel Inventory"><div class="b" style="left:5.2%;top:18.3%">1</div><div class="b" style="left:44.1%;top:18.3%">2</div><div class="b" style="left:59.1%;top:18.3%">3</div><div class="b" style="left:75.7%;top:18.3%">4</div><div class="b" style="left:90%;top:18.3%">5</div><div class="b" style="left:13%;top:34.2%">6</div><div class="b" style="left:50.7%;top:46.4%">7</div><div class="b" style="left:10.4%;top:52.8%">8</div></div></div><div class="cards">
+<div class="card"><h3><b>1</b>Search</h3><span class="tag">Type → SKU, ASIN or product</span><p></p></div>
+<div class="card"><h3><b>2</b>Channel</h3><span class="tag">Choose → Amazon or another channel</span><p></p></div>
+<div class="card"><h3><b>3</b>Marketplace</h3><span class="tag">Choose → All or one country</span><p></p></div>
+<div class="card"><h3><b>4</b>Fulfillment</h3><span class="tag">Choose → e.g. FBA</span><p></p></div>
+<div class="card"><h3><b>5</b>Apply Filters</h3><span class="tag">Click → refreshes the tiles and table</span><p>Nothing changes until you press it.</p></div>
+<div class="card"><h3><b>6</b>Totals</h3><span class="tag">Read → SKUs, Available, Inbound, Out of stock</span><p>For the filters applied.</p></div>
+<div class="card"><h3><b>7</b>Stock columns</h3><span class="tag">Read → Available, Reserved, Inbound, Unsellable, On hand</span><p>Available can be sold now; reserved is held for orders; inbound is on its way to the channel; unsellable is damaged or unfit.</p></div>
+<div class="card"><h3><b>8</b>Product row</h3><span class="tag">Read → flag, SKU, ASIN, fulfillment</span><p>The flag shows the marketplace. 20 SKUs a page; the footer shows the total.</p></div></div></div>
+<div class="foot"><span class="ph">Draft v1</span><span>Backend 7470760 · Frontend c4d46ec</span></div>
+</section>
+<section class="page" id="channel-invp">
+<div class="eyebrow"><a href="index.html">Index</a> · Channel Inventory · Channel INVP</div>
+<h1>Channel INVP: stock projection</h1>
+<p class="sub">Live stock per SKU and its projection from today, week by week, against a 30-day clearance target.</p>
+<div class="legend"><div><span class="b" style="position:static;margin:0;width:5mm;height:5mm;box-shadow:none">1</span> Option on screen</div><div><i></i> Command / function</div></div>
+<div class="main"><div class="screen"><div class="crop"><img src="img/channel-inventory/ci-invp.png" alt="Channel INVP"><div class="b" style="left:93.1%;top:4%">1</div><div class="b" style="left:21.6%;top:27.3%">2</div><div class="b" style="left:59.4%;top:27.3%">3</div><div class="b" style="left:12%;top:38.9%">4</div><div class="b" style="left:3.5%;top:70.6%">5</div><div class="b" style="left:35.7%;top:67.6%">6</div><div class="b" style="left:45.2%;top:58.3%">7</div><div class="b" style="left:45.2%;top:67.9%">8</div></div></div><div class="cards">
+<div class="card"><h3><b>1</b>Export Excel</h3><span class="tag">Click → downloads the projection</span><p></p></div>
+<div class="card"><h3><b>2</b>Channel</h3><span class="tag">Click → All, Amazon, Shopify, Walmart, Temu</span><p>Marketplace is chosen next to the search.</p></div>
+<div class="card"><h3><b>3</b>Search, Marketplace</h3><span class="tag">Type → internal or channel SKU, product name</span><p>Press Apply filters.</p></div>
+<div class="card"><h3><b>4</b>Growth %</h3><span class="tag">Type → one growth rate for every SKU</span><p>Empty uses each SKU's own month-on-month growth.</p></div>
+<div class="card"><h3><b>5</b>SKU block</h3><span class="tag">Read → warehouse, platform, shipping stock</span><p>Warehouse: available in our warehouse now. Platform: available at the channels picked. Shipping: on FBA or WFS shipments in transit.</p></div>
+<div class="card"><h3><b>6</b>Daily sales</h3><span class="tag">Read Daily sale; type Potential</span><p>Daily sale: units a day over the last 30 days. Potential can be typed over. Projected = Potential × (1 + growth).</p></div>
+<div class="card"><h3><b>7</b>Week columns</h3><span class="tag">Read → today, then 12 weeks ahead</span><p></p></div>
+<div class="card"><h3><b>8</b>Week cell</h3><span class="tag">Read → total inventory, in transit, days of cover</span><p>In transit: container units that set off that week. Days: how long the stock lasts at the daily sale (∞ if nothing sells).</p></div></div></div>
+<div class="foot"><span class="ph">Draft v1</span><span>Backend 7470760 · Frontend c4d46ec</span></div>
+</section>
+<section class="page" id="channel-invp-levels">
+<div class="eyebrow"><a href="index.html">Index</a> · Channel Inventory · Statuses</div>
+<h1>Channel INVP: cell colours</h1>
+<p class="sub">Each week's cell is coloured by how many days its stock lasts at the daily sale.</p>
+<div class="panel"><table class="st"><tr><th>Colour level</th><th>Rule</th><th>Typical action</th></tr>
+<tr><td><span class="pill">Stock finished</span></td><td>No stock left</td><td>Check inbound containers and shipments; reorder or ship.</td></tr>
+<tr><td><span class="pill">Stock near end</span></td><td>Up to 7 days</td><td>Ship or reorder now.</td></tr>
+<tr><td><span class="pill">Clears on target</span></td><td>8 to 20 days</td><td>Healthy: stock clears in time.</td></tr>
+<tr><td><span class="pill">Stock high, sales moderate</span></td><td>21 to 30 days</td><td>Hold off on more stock.</td></tr>
+<tr><td><span class="pill">Stock high, sales low</span></td><td>Over 30 days, or not selling</td><td>Too much stock for the sales; do not add more.</td></tr></table>
+<p class="sub" style="margin-top:3mm">The day limits (7, 20 and 30) come from the server and are shown in the legend under the table on the screen.</p></div>
+<div class="foot"><span class="ph">Draft v1</span><span>Backend 7470760 · Frontend c4d46ec</span></div>
+</section>
+</body>
+</html>

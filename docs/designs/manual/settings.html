@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Settings</title>
+<link rel="stylesheet" href="css/manual.css">
+<style>.card{padding:1.6mm 3mm 1.8mm}.cards{gap:2mm}.card p{font-size:10.5px}.tag{font-size:9.5px}.panel p{margin:1.5mm 0}</style>
+</head>
+<body>
+<section class="page" id="settings-overview">
+<div class="eyebrow"><a href="index.html">Index</a> · Settings · Overview</div>
+<h1>Settings: set up who approves, who is paid from where, and who can log in</h1>
+<p class="sub">Most of what other modules depend on is configured here once: approval rules, warehouses, GST rates, company letterhead and users.</p>
+<div class="panel"><table class="st"><tr><th>Settings screen</th><th>Use it to</th><th>Used by</th></tr>
+<tr><td>Approvals (admin only)</td><td>Set who approves Price Analysis, Purchase Orders, Purchase Invoices and Payment Requests, in what order, and who is notified.</td><td>Procurement, Finance</td></tr>
+<tr><td>Warehouses</td><td>Keep your own warehouse locations.</td><td>PO delivery address, ship-from on shipments</td></tr>
+<tr><td>Addresses</td><td>Ship-from addresses for FBA shipments.</td><td>Inventory Management &gt; Shipments, Shipping</td></tr>
+<tr><td>GST</td><td>The GST percentages payment requests can use.</td><td>Finance &gt; Payment Request</td></tr>
+<tr><td>Company</td><td>Company name, address and contact printed as the letterhead.</td><td>PO PDFs, order invoices</td></tr>
+<tr><td>General</td><td>Change your own password.</td><td>You</td></tr>
+<tr><td>Users</td><td>Invite people and choose which features they can use.</td><td>Everyone</td></tr></table></div>
+<p class="sub" style="margin:4mm 0 0">Which Settings screens a person sees depends on their feature access. Some, such as Approvals, are admin only.</p>
+<div class="foot"><span class="ph">Draft v1</span><span>Backend 7470760 · Frontend c4d46ec</span></div>
+</section>
+<section class="page" id="settings-approvals-rules">
+<div class="eyebrow"><a href="index.html">Index</a> · Settings · Approvals</div>
+<h1>Approvals: approval rules</h1>
+<p class="sub">Who approves what, in which order. One rule per action. Staff names are blurred.</p>
+<div class="legend"><div><span class="b" style="position:static;margin:0;width:5mm;height:5mm;box-shadow:none">1</span> Option on screen</div><div><i></i> Command / function</div></div>
+<div class="main"><div class="screen"><div class="crop"><img src="img/settings/st-ap-rules.png" alt="Approval rules"><div class="b" style="left:7.1%;top:14%">1</div><div class="b" style="left:9.8%;top:27.3%">2</div><div class="b" style="left:49.6%;top:43.8%">3</div><div class="b" style="left:63.4%;top:53.1%">4</div><div class="b" style="left:45.5%;top:69.6%">5</div><div class="b" style="left:28.8%;top:80.5%">6</div><div class="b" style="left:94.6%;top:93.1%">7</div><div class="b" style="left:9.8%;top:65.5%">8</div></div></div><div class="cards"><div class="card"><h3><b>1</b>Tabs</h3><span class="tag">Click → Approval rules, Departments, Notifications</span><p></p></div><div class="card"><h3><b>2</b>Rule list</h3><span class="tag">Click → pick a rule</span><p>Procurement: PO Submit, Invoice Submit, Price analysis Approve. Finance: Payment request Submit. A badge shows the number of steps.</p></div><div class="card"><h3><b>3</b>Move on when</h3><span class="tag">Choose → Any one approves, Everyone approves, One from each team</span><p>How a step finishes before the next one starts.</p></div><div class="card"><h3><b>4</b>People in the step</h3><span class="tag">Pick → named people, department heads, or by platform</span><p>Retail or Ecommerce. A step can hold several people; up to 10 steps.</p></div><div class="card"><h3><b>5</b>Final outcome</h3><span class="tag">Read → fixed by the action</span><p>For a PO: approved and locked.</p></div><div class="card"><h3><b>6</b>Add step</h3><span class="tag">Click → another step after this one</span><p>A rejection returns the record to its creator with the reason.</p></div><div class="card"><h3><b>7</b>Save rule / Discard</h3><span class="tag">Click → apply / drop edits</span><p>"All changes saved" shows when nothing is pending.</p></div><div class="card"><h3><b>8</b>"none" note</h3><span class="tag">Read → no steps means all holders of the page permission are notified</span><p>There are no amount conditions and no on/off switch.</p></div></div></div>
+<div class="foot"><span class="ph">Draft v1</span><span>Backend 7470760 · Frontend c4d46ec</span></div>
+</section>
+<section class="page" id="settings-approvals-departments">
+<div class="eyebrow"><a href="index.html">Index</a> · Settings · Approvals</div>
+<h1>Approvals: departments</h1>
+<p class="sub">The teams a rule can point at: name, heads, platform and members.</p>
+<div class="legend"><div><span class="b" style="position:static;margin:0;width:5mm;height:5mm;box-shadow:none">1</span> Option on screen</div><div><i></i> Command / function</div></div>
+<div class="main"><div class="screen"><div class="crop"><img src="img/settings/st-ap-dept.png" alt="Departments"><div class="b" style="left:92%;top:5%">1</div><div class="b" style="left:37.5%;top:23.8%">2</div><div class="b" style="left:13.4%;top:93.1%">3</div></div></div><div class="cards"><div class="card"><h3><b>1</b>New department</h3><span class="tag">Click → add a department</span><p>Give it a name, heads, a platform and members.</p></div><div class="card"><h3><b>2</b>Department list</h3><span class="tag">Read → departments appear on the left</span><p>Empty until the first one is added.</p></div><div class="card"><h3><b>3</b>Saves as you go</h3><span class="tag">Read → no Save button on this tab</span><p>A department used by a rule cannot be deleted; one without a head cannot be used in a rule.</p></div></div></div>
+<div class="foot"><span class="ph">Draft v1</span><span>Backend 7470760 · Frontend c4d46ec</span></div>
+</section>
+<section class="page" id="settings-approvals-notifications">
+<div class="eyebrow"><a href="index.html">Index</a> · Settings · Approvals</div>
+<h1>Approvals: notifications</h1>
+<p class="sub">Who is told when something happens, by bell and/or email.</p>
+<div class="legend"><div><span class="b" style="position:static;margin:0;width:5mm;height:5mm;box-shadow:none">1</span> Option on screen</div><div><i></i> Command / function</div></div>
+<div class="main"><div class="screen"><div class="crop"><img src="img/settings/st-ap-notif.png" alt="Notifications"><div class="b" style="left:9.8%;top:27.3%">1</div><div class="b" style="left:95.5%;top:25.5%">2</div><div class="b" style="left:29.5%;top:39%">3</div><div class="b" style="left:27.5%;top:47.3%">4</div><div class="b" style="left:36.6%;top:60.7%">5</div><div class="b" style="left:36.6%;top:75.5%">6</div><div class="b" style="left:95.7%;top:93.1%">7</div></div></div><div class="cards"><div class="card"><h3><b>1</b>Events</h3><span class="tag">Click → Payment request Approved; Container Delivered at warehouse, ETA reminder; FBA / WFS shipment Confirmed; Order Booked; Price analysis Approved; Purchase order Approved</span><p>Grouped by Finance, Containers, Shipping, Procurement.</p></div><div class="card"><h3><b>2</b>Active ON/OFF</h3><span class="tag">Read → whether the event notifies</span><p>Shown at the top right of the event.</p></div><div class="card"><h3><b>3</b>Tell these people</h3><span class="tag">Choose → who receives it</span><p>Add as many as needed.</p></div><div class="card"><h3><b>4</b>The creator</h3><span class="tag">Switch → include whoever made the record</span><p></p></div><div class="card"><h3><b>5</b>Everyone with access to</h3><span class="tag">Pick → screens</span><p>Everyone who can open those screens is told, e.g. Barcode &gt; Scans.</p></div><div class="card"><h3><b>6</b>Department heads / named people</h3><span class="tag">Pick → departments or people</span><p>Below it: how to tell them (bell, email), the schedule relative to ETA, and message templates.</p></div><div class="card"><h3><b>7</b>Save / Discard</h3><span class="tag">Click → apply / drop edits</span><p>The Purchase order Approved event is what tells people to raise a payment request.</p></div></div></div>
+<div class="foot"><span class="ph">Draft v1</span><span>Backend 7470760 · Frontend c4d46ec</span></div>
+</section>
+<section class="page" id="settings-warehouses">
+<div class="eyebrow"><a href="index.html">Index</a> · Settings · Warehouses</div>
+<h1>Warehouses and the Add warehouse form</h1>
+<p class="sub">Your own warehouse locations, with their address and location.</p>
+<div class="legend"><div><span class="b" style="position:static;margin:0;width:5mm;height:5mm;box-shadow:none">1</span> Option on screen</div><div><i></i> Command / function</div></div>
+<div class="main"><div class="screen"><div class="crop"><img src="img/settings/st-wh.png" alt="Warehouses"><div class="b" style="left:21.4%;top:38.3%">1</div><div class="b" style="left:49.8%;top:38.3%">2</div><div class="b" style="left:92%;top:49.4%">3</div><div class="b" style="left:89.9%;top:68.5%">4</div></div>
+<div class="crop" style="margin-top:3mm;width:80mm"><img src="img/settings/st-wh-form.png" alt="Add warehouse"><div class="b" style="left:3.7%;top:15%">5</div><div class="b" style="left:3.7%;top:42.9%">6</div><div class="b" style="left:46.9%;top:82.3%">7</div></div></div><div class="cards">
+<div class="card"><h3><b>1</b>Search</h3><span class="tag">Type → name, address, city or postal code</span><p></p></div>
+<div class="card"><h3><b>2</b>Country, State / province</h3><span class="tag">Choose → country first, then state</span><p></p></div>
+<div class="card"><h3><b>3</b>Apply filters / Reset</h3><span class="tag">Click → refresh / clear</span><p></p></div>
+<div class="card"><h3><b>4</b>Add warehouse</h3><span class="tag">Click → opens the form</span><p></p></div>
+<div class="card"><h3><b>5</b>Name and Address</h3><span class="tag">Type → both required</span><p></p></div>
+<div class="card"><h3><b>6</b>Country, province, city, postal code</h3><span class="tag">Pick country first → province and city unlock</span><p></p></div>
+<div class="card"><h3><b>7</b>Phone</h3><span class="tag">Type → optional</span><p>With a phone and a postal code, the warehouse is offered as the ship-from address on new shipments.</p></div></div></div>
+<div class="foot"><span class="ph">Draft v1</span><span>Backend 7470760 · Frontend c4d46ec</span></div>
+</section>
+<section class="page" id="settings-addresses-gst">
+<div class="eyebrow"><a href="index.html">Index</a> · Settings · Addresses and GST</div>
+<h1>Addresses and GST rates</h1>
+<p class="sub">Two short lists used elsewhere in the system.</p>
+<div class="legend"><div><span class="b" style="position:static;margin:0;width:5mm;height:5mm;box-shadow:none">1</span> Option on screen</div><div><i></i> Command / function</div></div>
+<div class="main"><div class="screen"><div class="crop"><img src="img/settings/st-addr.png" alt="Addresses"><div class="b" style="left:3.4%;top:43.9%">1</div><div class="b" style="left:91.6%;top:45.7%">2</div></div>
+<div class="crop" style="margin-top:3mm"><img src="img/settings/st-gst.png" alt="GST"><div class="b" style="left:3.5%;top:35%">3</div><div class="b" style="left:23.6%;top:35%">4</div><div class="b" style="left:42.3%;top:45.8%">5</div></div></div><div class="cards">
+<div class="card"><h3><b>1</b>Ship-from addresses</h3><span class="tag">Read → warehouses and suppliers FBA shipments leave from</span><p>Pick one when you create a shipment; addresses typed there are saved here.</p></div>
+<div class="card"><h3><b>2</b>Add address</h3><span class="tag">Click → opens the form</span><p></p></div>
+<div class="card"><h3><b>3</b>GST name</h3><span class="tag">Type → e.g. GST (required)</span><p>The GST percentages payment requests can use.</p></div>
+<div class="card"><h3><b>4</b>GST %</h3><span class="tag">Type → e.g. 5 (required)</span><p></p></div>
+<div class="card"><h3><b>5</b>Add rate</h3><span class="tag">Click → adds it to the list</span><p>A rate cannot be removed while a payment request uses it.</p></div></div></div>
+<div class="foot"><span class="ph">Draft v1</span><span>Backend 7470760 · Frontend c4d46ec</span></div>
+</section>
+<section class="page" id="settings-company-general">
+<div class="eyebrow"><a href="index.html">Index</a> · Settings · Company and General</div>
+<h1>Company letterhead and your password</h1>
+<p class="sub">Company details print on every PO PDF and order invoice.</p>
+<div class="legend"><div><span class="b" style="position:static;margin:0;width:5mm;height:5mm;box-shadow:none">1</span> Option on screen</div><div><i></i> Command / function</div></div>
+<div class="main"><div class="screen"><div class="crop" style="width:60mm;display:inline-block;vertical-align:top"><img src="img/settings/st-company.png" alt="Company"><div class="b" style="left:6.9%;top:18.2%">1</div><div class="b" style="left:6.9%;top:44.6%">2</div><div class="b" style="left:6.9%;top:68.5%">3</div><div class="b" style="left:6.9%;top:92.9%">4</div></div><div class="crop" style="width:55mm;display:inline-block;vertical-align:top;margin-left:2mm"><img src="img/settings/st-general.png" alt="General"><div class="b" style="left:11.6%;top:18.9%">5</div><div class="b" style="left:32.6%;top:18.9%">6</div><div class="b" style="left:5.3%;top:46.5%">7</div><div class="b" style="left:14%;top:90.2%">8</div></div></div><div class="cards">
+<div class="card"><h3><b>1</b>Company details</h3><span class="tag">Read → the letterhead</span><p>Changes apply to the next PDF you download.</p></div>
+<div class="card"><h3><b>2</b>Name, Address</h3><span class="tag">Type → one address line per row, as it prints</span><p></p></div>
+<div class="card"><h3><b>3</b>Email, Phone</h3><span class="tag">Type → contact; pick the country before the number</span><p></p></div>
+<div class="card"><h3><b>4</b>GST/HST number</h3><span class="tag">Type → printed on order tax invoices</span><p>Save or Discard changes at the bottom.</p></div>
+<div class="card"><h3><b>5</b>Security &amp; Password</h3><span class="tag">Click → change your password</span><p>Ensure your account uses a long, random password.</p></div>
+<div class="card"><h3><b>6</b>Profile Info</h3><span class="tag">Click → placeholder tab</span><p>Nothing to set there yet.</p></div>
+<div class="card"><h3><b>7</b>Current, New, Confirm</h3><span class="tag">Type → three password fields</span><p></p></div>
+<div class="card"><h3><b>8</b>Update Password</h3><span class="tag">Click → saves the new password</span><p></p></div></div></div>
+<div class="foot"><span class="ph">Draft v1</span><span>Backend 7470760 · Frontend c4d46ec</span></div>
+</section>
+<section class="page" id="settings-users">
+<div class="eyebrow"><a href="index.html">Index</a> · Settings · Users</div>
+<h1>Users: list and invite</h1>
+<p class="sub">Names and emails are blurred in this manual. Access is a feature-permission tree, not roles.</p>
+<div class="legend"><div><span class="b" style="position:static;margin:0;width:5mm;height:5mm;box-shadow:none">1</span> Option on screen</div><div><i></i> Command / function</div></div>
+<div class="main"><div class="screen"><div class="crop"><img src="img/settings/st-users.png" alt="Users"><div class="b" style="left:94.8%;top:4%">1</div><div class="b" style="left:20.3%;top:14.7%">2</div><div class="b" style="left:7.8%;top:25.5%">3</div><div class="b" style="left:70.6%;top:44.6%">4</div><div class="b" style="left:89.4%;top:44.8%">5</div></div>
+<div class="crop" style="margin-top:3mm;width:80mm"><img src="img/settings/st-user-form.png" alt="Add user"><div class="b" style="left:3.9%;top:22.4%">6</div><div class="b" style="left:45.9%;top:57.1%">7</div><div class="b" style="left:5.5%;top:72.4%">8</div></div></div><div class="cards">
+<div class="card"><h3><b>1</b>Add User</h3><span class="tag">Click → invite form</span><p></p></div>
+<div class="card"><h3><b>2</b>Search users</h3><span class="tag">Type → name or email</span><p></p></div>
+<div class="card"><h3><b>3</b>Active / Invited</h3><span class="tag">Click → switch list</span><p>Invited shows people who have not accepted yet.</p></div>
+<div class="card"><h3><b>4</b>Status</h3><span class="tag">Read → ACTIVE</span><p>Users are ACTIVE or INACTIVE; invites are PENDING, EXPIRED or REVOKED.</p></div>
+<div class="card"><h3><b>5</b>Actions menu</h3><span class="tag">Click → row actions</span><p>There is no deactivate action in the screen.</p></div>
+<div class="card"><h3><b>6</b>Email</h3><span class="tag">Type → the person's email</span><p>They receive an email with instructions to activate access.</p></div>
+<div class="card"><h3><b>7</b>Feature access</h3><span class="tag">Click → permission tree (starts at No access)</span><p>Tick the screens and actions the person may use.</p></div>
+<div class="card"><h3><b>8</b>Valid until</h3><span class="tag">Tick → set an expiry date</span><p>Apply sends the invite.</p></div></div></div>
+<div class="foot"><span class="ph">Draft v1</span><span>Backend 7470760 · Frontend c4d46ec</span></div>
+</section>
+</body>
+</html>

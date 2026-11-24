@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Shipping</title>
+<link rel="stylesheet" href="css/manual.css">
+<style>.card{padding:1.6mm 3mm 1.8mm}.cards{gap:2mm}.card p{font-size:10.5px}.tag{font-size:9.5px}.panel p{margin:1.5mm 0}</style>
+</head>
+<body>
+<section class="page" id="shipping-overview">
+<div class="eyebrow"><a href="index.html">Index</a> · Shipping · Overview</div>
+<h1>Shipping: book and track customer parcels</h1>
+<p class="sub">Orders from Amazon, Walmart and Temu, plus manual shipments, are rated, booked with a carrier provider and tracked.</p>
+<div class="panel"><div class="flow">
+<div class="step"><b>1 · Orders</b>Channel orders arrive automatically. A manual shipment is made with Create shipment.</div>
+<div class="step"><b>2 · Scan items</b>Scan the product UPCs of an order; the session is recorded under Scanning &gt; Sessions.</div>
+<div class="step"><b>3 · Get rates</b>Compare rates from the providers: Stallion Express, Shippo, UniUni, FedEx.</div>
+<div class="step"><b>4 · Book</b>Review and book. Fulfillment becomes Booked and the label and tracking number appear.</div>
+<div class="step"><b>5 · Track</b>Tracking status follows the carrier until Delivered.</div></div>
+<p class="sub" style="margin-top:3mm">Orders the seller already shipped with the channel's own carrier show as Shipped; only their status and tracking are displayed.</p></div>
+<div class="panel"><table class="st"><tr><th>Shipping menu screen</th><th>Use it to</th></tr>
+<tr><td>Orders</td><td>List and filter orders; get rates, download the invoice, get the label, scan items.</td></tr>
+<tr><td>Create shipment</td><td>Make a shipment that did not come from a channel: 4 steps, from address to booking. Drafts can be saved.</td></tr></table></div>
+<div class="foot"><span class="ph">Draft v1</span><span>Backend 7470760 · Frontend c4d46ec</span></div>
+</section>
+<section class="page" id="shipping-orders-list">
+<div class="eyebrow"><a href="index.html">Index</a> · Shipping · Orders</div>
+<h1>Orders: list and filters</h1>
+<p class="sub">Every channel and manual order with its fulfillment state.</p>
+<div class="legend"><div><span class="b" style="position:static;margin:0;width:5mm;height:5mm;box-shadow:none">1</span> Option on screen</div><div><i></i> Command / function</div></div>
+<div class="main"><div class="screen"><div class="crop"><img src="img/shipping/s-list.png" alt="Shipping orders list"><div class="b" style="left:93.5%;top:3.4%">1</div><div class="b" style="left:3.5%;top:22.9%">2</div><div class="b" style="left:41.5%;top:22.9%">3</div><div class="b" style="left:60.4%;top:22.9%">4</div><div class="b" style="left:3.5%;top:34.8%">5</div><div class="b" style="left:93.2%;top:42.7%">6</div><div class="b" style="left:14.3%;top:60%">7</div><div class="b" style="left:80.4%;top:60%">8</div></div></div><div class="cards">
+<div class="card"><h3><b>1</b>Export Excel</h3><span class="tag">Click → downloads the list</span><p></p></div>
+<div class="card"><h3><b>2</b>Search</h3><span class="tag">Type → order #, customer order #, SKU, tracking #</span><p></p></div>
+<div class="card"><h3><b>3</b>Origin</h3><span class="tag">Choose → manual, channel or both</span><p>Default is Manual and channel.</p></div>
+<div class="card"><h3><b>4</b>Channel, Marketplace</h3><span class="tag">Choose → e.g. Amazon, Canada</span><p></p></div>
+<div class="card"><h3><b>5</b>Fulfillment, Order date</h3><span class="tag">Choose → state and date range</span><p>States are on the status sheet.</p></div>
+<div class="card"><h3><b>6</b>Filter / Reset</h3><span class="tag">Click → apply / clear</span><p>Nothing filters until you press Filter.</p></div>
+<div class="card"><h3><b>7</b>Origin, Channel, Market</h3><span class="tag">Read → where the order came from</span><p>Channel badge (AZ for Amazon) and country flag.</p></div>
+<div class="card"><h3><b>8</b>Fulfillment</h3><span class="tag">Read → To Book, Booked, Shipped...</span><p>Paged 20 per page; the footer shows the total number of orders.</p></div></div></div>
+<div class="foot"><span class="ph">Draft v1</span><span>Backend 7470760 · Frontend c4d46ec</span></div>
+</section>
+<section class="page" id="shipping-orders-actions">
+<div class="eyebrow"><a href="index.html">Index</a> · Shipping · Orders</div>
+<h1>Orders: tracking columns and row menu</h1>
+<p class="sub">Scroll the list to the right for carrier, tracking, totals and the actions menu.</p>
+<div class="legend"><div><span class="b" style="position:static;margin:0;width:5mm;height:5mm;box-shadow:none">1</span> Option on screen</div><div><i></i> Command / function</div></div>
+<div class="main"><div class="screen"><div class="crop"><img src="img/shipping/s-right.png" alt="Orders right-hand columns"><div class="b" style="left:12%;top:34.1%">1</div><div class="b" style="left:22.9%;top:10%">2</div><div class="b" style="left:48%;top:34.1%">3</div><div class="b" style="left:78.7%;top:34.1%">4</div><div class="b" style="left:94%;top:34.1%">5</div></div><div class="crop" style="margin-top:3mm"><img src="img/shipping/s-menu.png" alt="Orders row menu"><div class="b" style="left:37%;top:25.8%">6</div><div class="b" style="left:37%;top:39.6%">7</div><div class="b" style="left:37%;top:74.2%">8</div></div></div><div class="cards">
+<div class="card"><h3><b>1</b>Fulfillment</h3><span class="tag">Read → To Book until a parcel is booked</span><p></p></div>
+<div class="card"><h3><b>2</b>Tracking status</h3><span class="tag">Read → carrier progress</span><p>Dash until the parcel has moved. See the status sheet.</p></div>
+<div class="card"><h3><b>3</b>Carrier, Tracking #, Carrier page</h3><span class="tag">Read → carrier, number, link</span><p>The copy icon copies the tracking number.</p></div>
+<div class="card"><h3><b>4</b>Net total, Tax, Total</h3><span class="tag">Read → order value in its currency</span><p>CAD for Canada, USD for the USA.</p></div>
+<div class="card"><h3><b>5</b>Actions menu</h3><span class="tag">Click → details, rates, invoice, label, scan</span><p></p></div>
+<div class="card"><h3><b>6</b>Get rates</h3><span class="tag">Click → opens Rates then Booking</span><p>Compares carriers for this order. Book from there.</p></div>
+<div class="card"><h3><b>7</b>Get details / Download invoice / Get label</h3><span class="tag">Click → view, invoice PDF, label</span><p>Get label is greyed out until a parcel is booked.</p></div>
+<div class="card"><h3><b>8</b>Scan items</h3><span class="tag">Click → starts a scanning session for the order</span><p>Scan each product UPC; the session is recorded under Scanning &gt; Sessions.</p></div></div></div>
+<div class="foot"><span class="ph">Draft v1</span><span>Backend 7470760 · Frontend c4d46ec</span></div>
+</section>
+<section class="page" id="shipping-create">
+<div class="eyebrow"><a href="index.html">Index</a> · Shipping · Create shipment</div>
+<h1>Create shipment: address info</h1>
+<p class="sub">Four steps for a shipment that did not come from a channel.</p>
+<div class="legend"><div><span class="b" style="position:static;margin:0;width:5mm;height:5mm;box-shadow:none">1</span> Option on screen</div><div><i></i> Command / function</div></div>
+<div class="main"><div class="screen"><div class="crop"><img src="img/shipping/s-create.png" alt="Create shipment"><div class="b" style="left:86%;top:4.3%">1</div><div class="b" style="left:37.4%;top:12.9%">2</div><div class="b" style="left:26.1%;top:34.9%">3</div><div class="b" style="left:20.6%;top:56.7%">4</div><div class="b" style="left:55.8%;top:56.7%">5</div><div class="b" style="left:55.8%;top:79.9%">6</div></div></div><div class="cards">
+<div class="card"><h3><b>1</b>Save draft / Discard</h3><span class="tag">Click → keep and resume later / abandon</span><p>Saved drafts show as Draft on the Orders list.</p></div>
+<div class="card"><h3><b>2</b>Steps</h3><span class="tag">Follow → Address, Shipment, Rates, Booking</span><p>Shipment info: product, carton, customs. Rates: compare and select. Booking: review and book.</p></div>
+<div class="card"><h3><b>3</b>Sales channel</h3><span class="tag">Select → platform and marketplace, both required</span><p>Where the order was sold.</p></div>
+<div class="card"><h3><b>4</b>Ship from</h3><span class="tag">Select → a saved address or warehouse</span><p>Managed in Settings &gt; Addresses and Settings &gt; Warehouses.</p></div>
+<div class="card"><h3><b>5</b>Ship to</h3><span class="tag">Type → name, address 1, phone required</span><p>Company, address 2 and email are optional.</p></div>
+<div class="card"><h3><b>6</b>Country, province, city, postal code</h3><span class="tag">Pick country first → province and city unlock</span><p></p></div></div></div>
+<div class="foot"><span class="ph">Draft v1</span><span>Backend 7470760 · Frontend c4d46ec</span></div>
+</section>
+<section class="page" id="shipping-statuses">
+<div class="eyebrow"><a href="index.html">Index</a> · Shipping · Statuses</div>
+<h1>Shipping statuses and terms</h1>
+<p class="sub">Fulfillment is the order's state with us; Tracking status is the parcel's state with the carrier.</p>
+<div class="panel"><table class="st"><tr><th>Field</th><th>Status</th><th>Meaning</th></tr>
+<tr><td rowspan="6">Fulfillment</td><td><span class="pill">Not Ready</span></td><td>The order cannot ship yet (for example payment still pending on the channel).</td></tr>
+<tr><td><span class="pill">To Book</span></td><td>Ready to ship: get rates and book a parcel with one of our providers.</td></tr>
+<tr><td><span class="pill">Booked</span></td><td>A parcel is booked with a provider; label and tracking exist.</td></tr>
+<tr><td><span class="pill">Shipped</span></td><td>Shipped on the channel with its own carrier; we only show status and tracking.</td></tr>
+<tr><td><span class="pill">Cancelled</span> · <span class="pill">Draft</span></td><td>Order cancelled on the channel · manual shipment saved but not booked.</td></tr>
+<tr><td rowspan="4">Tracking status</td><td><span class="pill">Booking</span> · <span class="pill">Failed</span> · <span class="pill">Label Created</span></td><td>Being booked · booking did not go through · label made, not yet scanned by the carrier.</td></tr>
+<tr><td><span class="pill">In Transit</span> · <span class="pill">Out For Delivery</span> · <span class="pill">Delivered</span></td><td>Moving · on the last leg · delivered to the customer.</td></tr>
+<tr><td><span class="pill">Exception</span> · <span class="pill">Carrier Lost</span> · <span class="pill">Returned</span></td><td>Carrier reported a problem · carrier lost the parcel · coming back to us.</td></tr>
+<tr><td><span class="pill">Void Pending</span> · <span class="pill">Voided</span></td><td>A cancel was requested and is in progress · the label is cancelled.</td></tr>
+<tr><td>Duties (Incoterm)</td><td><span class="pill">DDP</span> <span class="pill">DAP</span> <span class="pill">DDU</span></td><td>DDP: we pay, added to the rate · DAP: customer pays on delivery · DDU: customer pays duties.</td></tr>
+<tr><td>Handover</td><td><span class="pill">Drop-off</span> <span class="pill">Pickup</span></td><td>We take it to the carrier · the carrier collects it.</td></tr></table></div>
+<div class="foot"><span class="ph">Draft v1</span><span>Backend 7470760 · Frontend c4d46ec</span></div>
+</section>
+</body>
+</html>
