@@ -334,8 +334,7 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({
         <TableCell>
           <div className="flex flex-col items-start gap-1">
             <StatusBadge status={shipment.status} />
-            {/* Platform shipments hold no stock of ours, so there is nothing to scan out */}
-            {!shipment.readOnly && <WarehouseStatusBadge status={shipment.warehouseStatus} />}
+            <WarehouseStatusBadge status={shipment.warehouseStatus} />
           </div>
         </TableCell>
 
