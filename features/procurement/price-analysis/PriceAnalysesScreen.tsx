@@ -196,6 +196,11 @@ export const PriceAnalysesScreen: React.FC = () => {
                       </Link>
                       <p className="text-sm text-text-secondary">{productLabel(row.product)}</p>
                       {(row.product.color || row.product.sizeName) && <p className="text-xs text-text-muted">{[row.product.color, row.product.sizeName].filter(Boolean).join(' · ')}</p>}
+                      {row.family && (
+                        <p className="mt-0.5 inline-flex items-center gap-1.5 rounded-full bg-secondary-50 px-2 py-0.5 text-[11px] font-medium text-text-secondary" title={`${row.family.name}: ${row.family.approved} of ${row.family.variants} variants approved`}>
+                          Variant family · {row.family.approved} of {row.family.variants} approved
+                        </p>
+                      )}
                     </TableCell>
                     <TableCell className={CELL}>{row.product.category?.name ?? muted}</TableCell>
                     <TableCell className={cn(CELL, 'tabular-nums')}>{row.supplierCount || muted}</TableCell>
@@ -212,7 +217,10 @@ export const PriceAnalysesScreen: React.FC = () => {
                     <TableCell className={CELL}>
                       {row.approval && row.currency ? (
                         <div className="flex flex-col items-center">
-                          <span className="font-medium text-text-primary">{row.approval.supplier.name}</span>
+                          <span className="font-medium text-text-primary">
+                            {row.approval.supplier.name}
+                            {row.approval.packagingOption ? ` (${row.approval.packagingOption})` : ''}
+                          </span>
                           <span className="text-xs text-text-muted">
                             {formatCurrencyAmount(row.currency, row.approval.unitPrice)} · {row.approval.by.name ?? 'approver'} · {formatCalendarDay(row.approval.at)}
                           </span>

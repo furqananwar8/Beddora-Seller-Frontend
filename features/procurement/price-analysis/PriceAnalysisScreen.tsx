@@ -29,12 +29,15 @@ import { productLabel } from '../shared/ProductPicker'
 import { SupplierMultiSelect } from '../shared/SupplierSelect'
 import { ApprovalStepper } from '@/components/approval-stepper/ApprovalStepper'
 import { ApprovalHistory } from './ApprovalHistory'
+import { FamilyBar } from './FamilyBar'
+import { LandedCostCard } from './LandedCostCard'
 import { ProductDetails } from './ProductDetails'
-import { formFrom, rankRows, rowError, sameForm, toBody, type PriceAnalysisForm, type QuoteRow, type RowErrors } from './priceAnalysisForm'
+import { blankRow, duplicateKeys, formFrom, PACKAGING_SUGGESTIONS, quoteKey, quoteName, rankRows, rowError, rowKey, sameForm, toBody, type PriceAnalysisForm, type QuoteRow, type RankBasis, type RowErrors } from './priceAnalysisForm'
 import { QuotesTable } from './QuotesTable'
 import { TopSupplierCards } from './TopSupplierCards'
 
 export const PRICE_ANALYSIS_LIST = '/dashboard/procurement/price-analysis'
+const variantHref = (productId: number) => `${PRICE_ANALYSIS_LIST}/${productId}`
 
 const CURRENCIES: Array<{ value: PoCurrency; label: string }> = [
   { value: 'USD', label: 'USD' },
@@ -62,7 +65,11 @@ export const PriceAnalysisScreen: React.FC<{ productId: number }> = ({ productId
   const loadedFor = useRef<string | null>(null)
   const [form, setForm] = useState<PriceAnalysisForm>(EMPTY)
   const [baseline, setBaseline] = useState<PriceAnalysisForm>(EMPTY)
-  const [serverErrors, setServerErrors] = useState<Map<number, RowErrors>>(new Map())
+  const [serverErrors, setServerErrors] = useState<Map<string, RowErrors>>(new Map())
+  const [basis, setBasis] = useState<RankBasis>('LANDED')
+  const [view, setView] = useState<'RANKED' | 'GROUPED'>('RANKED')
+  /** Packaging shown in the table; empty = all packagings (so Polybag and Color Box are compared side by side). */
+  const [packagingFilter, setPackagingFilter] = useState('')
   const [formError, setFormError] = useState<string | null>(null)
   const [triedSave, setTriedSave] = useState(false)
   /** Set by a successful save so a Back button is offered; any further edit hides it again. */
@@ -101,37 +108,57 @@ export const PriceAnalysisScreen: React.FC<{ productId: number }> = ({ productId
   }, [data, productId])
 
   // Rows carry their saved rejection so the table can show it next to the typed values
+  const settings = data?.settings ?? { landedEnabled: false, freightPerCbm: null, defaultDutyPercent: null, clearingPerUnit: null, updatedAt: null }
+  const landedOn = settings.landedEnabled
+  const effectiveBasis: RankBasis = landedOn ? basis : 'FOB'
+  const packagings = useMemo(() => [...new Set(form.rows.map((row) => row.packagingOption.trim()).filter(Boolean))], [form.rows])
+  // A filter that no longer matches anything (its packaging was renamed or removed) shows everything again
+  const activeFilter = packagingFilter && packagings.includes(packagingFilter) ? packagingFilter : ''
+  const visibleRows = useMemo(() => (activeFilter ? form.rows.filter((row) => row.packagingOption.trim() === activeFilter) : form.rows), [form.rows, activeFilter])
   const ranked = useMemo(() => {
-    const rejections = new Map((data?.analysis?.quotes ?? []).map((quote) => [quote.supplier.id, quote.rejection]))
-    return rankRows(form.rows).map((row) => ({ ...row, rejection: rejections.get(row.supplier.id) ?? null }))
-  }, [form.rows, data])
+    const rejections = new Map((data?.analysis?.quotes ?? []).map((quote) => [quoteKey(quote.supplier.id, quote.packagingOption), quote.rejection]))
+    return rankRows(visibleRows, settings, effectiveBasis).map((row) => ({ ...row, rejection: rejections.get(rowKey(row)) ?? null }))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visibleRows, data, effectiveBasis, settings.landedEnabled, settings.freightPerCbm, settings.defaultDutyPercent, settings.clearingPerUnit])
   const errors = useMemo(() => {
-    const merged = new Map<number, RowErrors>()
+    const merged = new Map<string, RowErrors>()
+    const dupes = duplicateKeys(form.rows)
     for (const row of form.rows) {
       const own = rowError(row)
-      const server = serverErrors.get(row.supplier.id) ?? {}
-      if (Object.keys(own).length || Object.keys(server).length) merged.set(row.supplier.id, { ...server, ...own })
+      const server = serverErrors.get(row.uid) ?? {}
+      const duplicate: RowErrors = dupes.has(rowKey(row)) ? { packagingOption: row.packagingOption.trim() ? 'This supplier already has a quote for this packaging' : 'Give each quote of this supplier its own packaging' } : {}
+      if (Object.keys(own).length || Object.keys(server).length || Object.keys(duplicate).length) merged.set(row.uid, { ...server, ...duplicate, ...own })
     }
     return merged
   }, [form.rows, serverErrors])
 
   const setRows = (rows: QuoteRow[]) => setForm((current) => ({ ...current, rows }))
-  const changeRow = (supplierId: number, patch: Partial<QuoteRow>) => {
-    setForm((current) => ({ ...current, rows: current.rows.map((row) => (row.supplier.id === supplierId ? { ...row, ...patch } : row)) }))
+  const changeRow = (uid: string, patch: Partial<QuoteRow>) => {
+    setForm((current) => ({ ...current, rows: current.rows.map((row) => (row.uid === uid ? { ...row, ...patch } : row)) }))
     setServerErrors((current) => {
-      if (!current.has(supplierId)) return current
+      if (!current.has(uid)) return current
       const next = new Map(current)
-      next.delete(supplierId)
+      next.delete(uid)
       return next
     })
   }
-  /** Ticking adds a row (contact from the supplier); unticking removes it. */
+  /** Ticking adds a row (contact from the supplier); unticking removes all of that supplier's rows. */
   const pickSuppliers = (suppliers: SupplierRef[]) => {
     const kept = form.rows.filter((row) => suppliers.some((supplier) => supplier.id === row.supplier.id))
-    const added = suppliers
-      .filter((supplier) => !form.rows.some((row) => row.supplier.id === supplier.id))
-      .map((supplier) => ({ supplier: { id: supplier.id, name: supplier.name, contactName: supplier.contactName }, contactName: supplier.contactName ?? '', remarks: '', sample: 'NOT_PROVIDED' as const, unitPrice: '' }))
+    const added = suppliers.filter((supplier) => !form.rows.some((row) => row.supplier.id === supplier.id)).map((supplier) => blankRow(supplier))
     setRows([...kept, ...added])
+  }
+  /** Another quote from the same supplier (another packaging), right under its row. */
+  const addPackaging = (uid: string) => {
+    const index = form.rows.findIndex((row) => row.uid === uid)
+    if (index < 0) return
+    const source = form.rows[index]
+    const taken = new Set(form.rows.filter((row) => row.supplier.id === source.supplier.id).map((row) => row.packagingOption.trim().toLowerCase()))
+    const suggestion = PACKAGING_SUGGESTIONS.find((option) => !taken.has(option.toLowerCase())) ?? ''
+    // The first quote of a supplier without a packaging gets one too, so the two can be told apart
+    const next = [...form.rows]
+    next.splice(index + 1, 0, { ...blankRow(source.supplier, suggestion), contactName: source.contactName, unitCbm: source.unitCbm, sample: source.sample })
+    setRows(next)
   }
 
   const discard = () => {
@@ -142,7 +169,7 @@ export const PriceAnalysisScreen: React.FC<{ productId: number }> = ({ productId
     if (!data) return
     setTriedSave(true)
     setFormError(null)
-    if (form.rows.some((row) => Object.keys(rowError(row)).length > 0)) return
+    if (form.rows.some((row) => Object.keys(rowError(row)).length > 0) || duplicateKeys(form.rows).size > 0) return
     if (form.rows.length === 0 && !data.analysis) {
       setFormError('Add at least one supplier and its price.')
       return
@@ -153,13 +180,13 @@ export const PriceAnalysisScreen: React.FC<{ productId: number }> = ({ productId
       adopt(saved)
       setJustSaved(true)
       if (!saved.analysis) success('Analysis removed')
-      else success(hadApproval && !saved.analysis.approval ? 'Analysis saved · the approval was taken back and needs approving again' : `Analysis saved · ${saved.analysis.quotes.length} supplier${saved.analysis.quotes.length === 1 ? '' : 's'}`)
+      else success(hadApproval && !saved.analysis.approval ? 'Analysis saved · the approval was taken back and needs approving again' : `Analysis saved · ${saved.analysis.quotes.length} quote${saved.analysis.quotes.length === 1 ? '' : 's'}`)
     } catch (caught) {
-      const byRow = new Map<number, RowErrors>()
+      const byRow = new Map<string, RowErrors>()
       for (const issue of serverIssues(caught)) {
         const match = /^quotes\.(\d+)\.(\w+)$/.exec(issue.field)
         const row = match ? form.rows[Number(match[1])] : undefined
-        if (row) byRow.set(row.supplier.id, { ...byRow.get(row.supplier.id), [match![2]]: issue.message })
+        if (row) byRow.set(row.uid, { ...byRow.get(row.uid), [match![2]]: issue.message })
       }
       setServerErrors(byRow)
       if (byRow.size === 0) failure(caught, 'Could not save the analysis')
@@ -169,9 +196,9 @@ export const PriceAnalysisScreen: React.FC<{ productId: number }> = ({ productId
   const confirmApprove = async () => {
     if (!approving) return
     try {
-      const saved = await approve({ productId, supplierId: approving.supplier.id, ...(loadedAt ? { expectedUpdatedAt: loadedAt } : {}) }).unwrap()
+      const saved = await approve({ productId, supplierId: approving.supplier.id, packagingOption: approving.packagingOption.trim(), ...(loadedAt ? { expectedUpdatedAt: loadedAt } : {}) }).unwrap()
       adopt(saved)
-      success(`${approving.supplier.name} approved`)
+      success(`${quoteName(approving.supplier.name, approving.packagingOption)} approved`)
       setApproving(null)
     } catch (caught) {
       failure(caught, 'Could not approve the supplier')
@@ -181,9 +208,9 @@ export const PriceAnalysisScreen: React.FC<{ productId: number }> = ({ productId
   const confirmReject = async (reason: string) => {
     if (!rejecting) return false
     try {
-      const saved = await reject({ productId, supplierId: rejecting.supplier.id, reason, ...(loadedAt ? { expectedUpdatedAt: loadedAt } : {}) }).unwrap()
+      const saved = await reject({ productId, supplierId: rejecting.supplier.id, packagingOption: rejecting.packagingOption.trim(), reason, ...(loadedAt ? { expectedUpdatedAt: loadedAt } : {}) }).unwrap()
       adopt(saved)
-      success(`${rejecting.supplier.name} rejected`)
+      success(`${quoteName(rejecting.supplier.name, rejecting.packagingOption)} rejected`)
       setRejecting(null)
       return true
     } catch (caught) {
@@ -201,11 +228,42 @@ export const PriceAnalysisScreen: React.FC<{ productId: number }> = ({ productId
   // The supplier an earlier step of a waiting chain approved (it travels as that step's decision note, "supplier:<id>"): the next step confirms it
   const pick = data?.approval?.status === 'PENDING'
     ? data.approval.steps
-        .flatMap((step) => step.people.filter((person) => person.status === 'APPROVED').map((person) => ({ step: step.position, by: person.name, supplierId: Number(/^supplier:(\d+)$/.exec(person.note ?? '')?.[1]) })))
+        .flatMap((step) =>
+          step.people
+            .filter((person) => person.status === 'APPROVED')
+            .map((person) => {
+              const match = /^supplier:(\d+)(?:\|(.*))?$/.exec(person.note ?? '')
+              return { step: step.position, by: person.name, supplierId: Number(match?.[1]), packagingOption: match?.[2] ?? '' }
+            })
+        )
         .filter((item) => item.supplierId)
         .pop()
     : undefined
   const label = product ? `${product.ref} · ${productLabel(product)}` : ''
+  const tableFor = (rows: typeof ranked) => (
+    <QuotesTable
+      rows={rows}
+      errors={errors}
+      showErrors={triedSave}
+      currency={form.currency}
+      settings={settings}
+      onChange={changeRow}
+      onRemove={(uid) => setRows(form.rows.filter((row) => row.uid !== uid))}
+      onAddPackaging={addPackaging}
+      readOnly={readOnly}
+      approval={{
+        canApprove: data!.permissions.canApprove,
+        canReject: data!.permissions.canReject && !locked,
+        approved: approval ? { supplierId: approval.supplier.id, packagingOption: approval.packagingOption, by: approval.by.name, at: approval.at } : null,
+        picked: pick ?? null,
+        blockedReason: dirty ? 'Save or discard your changes first' : null,
+        savedKeys: new Set(data!.analysis?.quotes.map((quote) => quoteKey(quote.supplier.id, quote.packagingOption)) ?? []),
+        busyKey: approvingBusy && approving ? rowKey(approving) : null,
+        onApprove: (row) => setApproving(row),
+        onReject: (row) => setRejecting(row),
+      }}
+    />
+  )
 
   return (
     <Container size="full" className="py-4 sm:py-8">
@@ -233,7 +291,7 @@ export const PriceAnalysisScreen: React.FC<{ productId: number }> = ({ productId
             {approval ? (
               <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-success-500 bg-success-50 px-3 py-2 text-sm text-success-700">
                 <p>
-                  <strong>{approval.supplier.name}</strong> approved at {formatCurrencyAmount(data!.analysis!.currency, approval.unitPrice)} by {approval.by.name ?? 'an approver'} on {formatCalendarDay(approval.at)}. It is locked.
+                  <strong>{quoteName(approval.supplier.name, approval.packagingOption)}</strong> approved at {formatCurrencyAmount(data!.analysis!.currency, approval.unitPrice)} by {approval.by.name ?? 'an approver'} on {formatCalendarDay(approval.at)}. It is locked.
                 </p>
                 {data!.permissions.canApprove && (
                   <Button type="button" size="sm" variant="outline" onClick={() => setConfirmReopen(true)}>
@@ -246,6 +304,8 @@ export const PriceAnalysisScreen: React.FC<{ productId: number }> = ({ productId
                 Awaiting approval{data.permissions.canApprove ? ': approve one supplier below, or reject the ones that will not do.' : ' by an approver.'}
               </p>
             ) : null}
+
+            {data?.family && <FamilyBar family={data.family} currentId={productId} hrefFor={variantHref} dirty={dirty} />}
 
             {data?.analysis && data.approval && data.approval.status !== 'CANCELLED' && (
               <div className="rounded-lg border border-border bg-surface px-4 pb-3">
@@ -264,15 +324,32 @@ export const PriceAnalysisScreen: React.FC<{ productId: number }> = ({ productId
               </CardContent>
             </Card>
 
+            <LandedCostCard rootId={product.parentId ?? product.id} settings={settings} canWrite={canWrite} currency={form.currency} />
+
             <Card>
               <CardHeader>
-                <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <CardTitle>Top 5 suppliers by price</CardTitle>
-                  <span className="text-xs text-text-muted">Lowest price first · {form.currency} per unit</span>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <CardTitle>Top 5 suppliers by {effectiveBasis === 'LANDED' ? 'landed cost' : 'price'}</CardTitle>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <span className="text-xs text-text-muted">
+                      Lowest first · {form.currency} per unit{activeFilter ? ` · ${activeFilter} only` : ''}
+                    </span>
+                    {landedOn && (
+                      <SegmentedToggle<RankBasis>
+                        ariaLabel="Rank by"
+                        value={effectiveBasis}
+                        onChange={setBasis}
+                        options={[
+                          { value: 'FOB', label: 'FOB price' },
+                          { value: 'LANDED', label: 'Landed cost' },
+                        ]}
+                      />
+                    )}
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>
-                <TopSupplierCards rows={ranked} currency={form.currency} />
+                <TopSupplierCards rows={ranked} currency={form.currency} basis={effectiveBasis} />
               </CardContent>
             </Card>
 
@@ -289,25 +366,64 @@ export const PriceAnalysisScreen: React.FC<{ productId: number }> = ({ productId
                     <SegmentedToggle<PoCurrency> ariaLabel="Currency" value={form.currency} onChange={(currency) => setForm((current) => ({ ...current, currency }))} options={CURRENCIES} />
                   </div>
                 )}
-                <QuotesTable
-                  rows={ranked}
-                  errors={errors}
-                  showErrors={triedSave}
-                  onChange={changeRow}
-                  onRemove={(supplierId) => setRows(form.rows.filter((row) => row.supplier.id !== supplierId))}
-                  readOnly={readOnly}
-                  approval={{
-                    canApprove: data!.permissions.canApprove,
-                    canReject: data!.permissions.canReject && !locked,
-                    approved: approval ? { supplierId: approval.supplier.id, by: approval.by.name, at: approval.at } : null,
-                    picked: pick ?? null,
-                    blockedReason: dirty ? 'Save or discard your changes first' : null,
-                    savedSupplierIds: new Set(data!.analysis?.quotes.map((quote) => quote.supplier.id) ?? []),
-                    busySupplierId: approvingBusy ? (approving?.supplier.id ?? null) : null,
-                    onApprove: (supplierId) => setApproving(form.rows.find((row) => row.supplier.id === supplierId) ?? null),
-                    onReject: (supplierId) => setRejecting(form.rows.find((row) => row.supplier.id === supplierId) ?? null),
-                  }}
-                />
+                <datalist id="pa-packaging-options">
+                  {PACKAGING_SUGGESTIONS.map((option) => (
+                    <option key={option} value={option} />
+                  ))}
+                </datalist>
+                {form.rows.length > 0 && (
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <SegmentedToggle<'RANKED' | 'GROUPED'>
+                      ariaLabel="Quote view"
+                      value={view}
+                      onChange={setView}
+                      options={[
+                        { value: 'RANKED', label: 'Ranked' },
+                        { value: 'GROUPED', label: 'Grouped by supplier' },
+                      ]}
+                    />
+                    {packagings.length > 1 && (
+                      <label className="flex items-center gap-2 text-sm text-text-muted">
+                        Packaging
+                        <select value={activeFilter} onChange={(event) => setPackagingFilter(event.target.value)} className="ds-input ds-input-default h-9 rounded-lg py-0" aria-label="Filter by packaging">
+                          <option value="">All packaging</option>
+                          {packagings.map((option) => (
+                            <option key={option} value={option}>
+                              {option}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    )}
+                  </div>
+                )}
+                {view === 'RANKED' || ranked.length === 0 ? (
+                  tableFor(ranked)
+                ) : (
+                  <div className="flex flex-col gap-4">
+                    {[...new Map(ranked.map((row) => [row.supplier.id, row.supplier])).values()].map((supplier) => {
+                      const group = ranked.filter((row) => row.supplier.id === supplier.id)
+                      return (
+                        <div key={supplier.id} className="flex flex-col gap-2 rounded-lg border border-border bg-secondary-50/40 p-3">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <p className="text-sm font-semibold text-text-primary">
+                              {supplier.name}
+                              <span className="ml-2 text-xs font-normal text-text-muted">
+                                {group.length} quote{group.length === 1 ? '' : 's'} submitted
+                              </span>
+                            </p>
+                            {!readOnly && (
+                              <Button type="button" size="sm" variant="outline" onClick={() => addPackaging(group[group.length - 1].uid)}>
+                                + Add another packaging for {supplier.name}
+                              </Button>
+                            )}
+                          </div>
+                          {tableFor(group)}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
                 {formError && (
                   <p role="alert" className="rounded-lg border border-danger-200 bg-danger-50 px-3 py-2 text-sm text-danger-700">
                     {formError}
@@ -366,28 +482,28 @@ export const PriceAnalysisScreen: React.FC<{ productId: number }> = ({ productId
         }}
         onClose={() => setConfirmReopen(false)}
       >
-        <p>The approval of {approval?.supplier.name} is taken back and the approval chain starts again from its first step. The earlier approvals stay in the history.</p>
+        <p>The approval of {approval ? quoteName(approval.supplier.name, approval.packagingOption) : ''} is taken back and the approval chain starts again from its first step. The earlier approvals stay in the history.</p>
       </ConfirmDialog>
 
       <ConfirmDialog
         isOpen={approving !== null}
-        title={`Approve ${approving?.supplier.name ?? 'supplier'}`}
+        title={`Approve ${approving ? quoteName(approving.supplier.name, approving.packagingOption) : 'supplier'}`}
         confirmLabel="Approve"
         busy={approvingBusy}
         onConfirm={confirmApprove}
         onClose={() => setApproving(null)}
       >
         <p>
-          Approve {approving?.supplier.name} at {approving ? formatCurrencyAmount(form.currency, Number(approving.unitPrice)) : ''} for {label}? Only one supplier can be approved; the others stay blocked until the
-          analysis is edited.
+          Approve {approving ? quoteName(approving.supplier.name, approving.packagingOption) : ''} at {approving ? formatCurrencyAmount(form.currency, Number(approving.unitPrice)) : ''} for {label}? Only one quote can be approved for
+          this variant; the others stay blocked until the analysis is edited.
         </p>
         {approving?.remarks && <p className="mt-2 text-sm text-text-muted">Remarks: {approving.remarks}</p>}
       </ConfirmDialog>
 
       <ReasonDialog
         isOpen={rejecting !== null}
-        title={`Reject ${rejecting?.supplier.name ?? 'supplier'}`}
-        description={rejecting ? `${rejecting.supplier.name}'s quote of ${formatCurrencyAmount(form.currency, Number(rejecting.unitPrice))} for ${label} cannot be approved once rejected.${approval?.supplier.id === rejecting.supplier.id ? ' It is the approved quote, so the approval is taken back.' : ''} Editing the analysis sends it back for review.` : undefined}
+        title={`Reject ${rejecting ? quoteName(rejecting.supplier.name, rejecting.packagingOption) : 'supplier'}`}
+        description={rejecting ? `${quoteName(rejecting.supplier.name, rejecting.packagingOption)}'s quote of ${formatCurrencyAmount(form.currency, Number(rejecting.unitPrice))} for ${label} cannot be approved once rejected.${approval?.supplier.id === rejecting.supplier.id && approval.packagingOption === rejecting.packagingOption.trim() ? ' It is the approved quote, so the approval is taken back.' : ''} Editing the analysis sends it back for review.` : undefined}
         confirmLabel="Reject"
         placeholder="Why is this quote rejected?"
         maxLength={500}

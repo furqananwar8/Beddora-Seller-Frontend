@@ -994,6 +994,7 @@ export type PriceAnalysisProduct = Pick<
   PoProduct,
   | 'id'
   | 'pid'
+  | 'parentId'
   | 'sku'
   | 'ref'
   | 'name'
@@ -1021,7 +1022,15 @@ export interface PriceQuote {
   contactName: string | null
   remarks: string | null
   sample: QuoteSample
+  /** The FOB price per unit. */
   unitPrice: number
+  /** How the unit is packed for this quote; empty when the supplier gave one price. A supplier can quote several packagings. */
+  packagingOption: string
+  moq: number | null
+  leadTimeDays: number | null
+  unitCbm: number | null
+  /** Overrides the family's default duty for this quote. */
+  dutyPercent: number | null
   /** This is the one approved quote. */
   approved: boolean
   /** Turned down by an approver, with the reason; cleared when the analysis is edited. */
@@ -1039,7 +1048,7 @@ export interface PriceAnalysis {
   updatedBy: { id: number; name: string | null }
   quotes: PriceQuote[]
   /** The approved quote; null until an approver picks one, and again after an edit. */
-  approval: { supplier: { id: number; name: string }; unitPrice: number; remarks: string | null; by: { id: number; name: string | null }; at: string } | null
+  approval: { supplier: { id: number; name: string }; packagingOption: string; unitPrice: number; remarks: string | null; by: { id: number; name: string | null }; at: string } | null
 }
 
 /** One line of an analysis's approval history: an approval, or an edit that took it back. */
@@ -1060,13 +1069,47 @@ export interface PriceAnalysisRevision {
   type: 'CREATED' | 'UPDATED' | 'REMOVED'
   material: string | null
   currency: string
-  quotes: Array<{ supplierId: number; supplierName: string; contactName: string | null; remarks: string | null; sample?: QuoteSample; unitPrice: number }>
+  quotes: Array<{ supplierId: number; supplierName: string; packagingOption?: string; moq?: number | null; leadTimeDays?: number | null; unitCbm?: number | null; dutyPercent?: number | null; contactName: string | null; remarks: string | null; sample?: QuoteSample; unitPrice: number }>
   by: { id: number; name: string | null }
   at: string
 }
 
+/** Landed-cost inputs shared by a family's variants. Off: quotes are ranked by FOB only. */
+export interface PriceFamilySettings {
+  landedEnabled: boolean
+  freightPerCbm: number | null
+  defaultDutyPercent: number | null
+  clearingPerUnit: number | null
+  updatedAt: string | null
+}
+
+/** One variant of a family, for the variant chips. */
+export interface PriceFamilyVariant {
+  id: number
+  ref: string
+  name: string
+  variantName: string | null
+  color: string | null
+  sizeName: string | null
+  packaging: string | null
+  status: PriceAnalysisStatus
+  quoteCount: number
+  approved: { supplierName: string } | null
+}
+
+export interface PriceFamily {
+  root: { id: number; name: string; ref: string }
+  variants: PriceFamilyVariant[]
+  approvedCount: number
+  settings: PriceFamilySettings
+}
+
 export interface PriceAnalysisView {
   product: PriceAnalysisProduct
+  /** The family this product is a variant of; null for a product on its own. */
+  family: PriceFamily | null
+  /** The landed-cost inputs that apply to this product (its family's). */
+  settings: PriceFamilySettings
   analysis: PriceAnalysis | null
   /** Newest first. */
   history: PriceAnalysisEvent[]
@@ -1084,7 +1127,9 @@ export interface PriceAnalysisListItem {
   currency: PoCurrency | null
   supplierCount: number
   lowest: { supplier: string; unitPrice: number } | null
-  approval: { supplier: { id: number; name: string }; unitPrice: number; by: { id: number; name: string | null }; at: string } | null
+  /** The family this variant belongs to, with how many of its variants are approved; null for a product on its own. */
+  family: { rootId: number; name: string; variants: number; approved: number } | null
+  approval: { supplier: { id: number; name: string }; packagingOption: string; unitPrice: number; by: { id: number; name: string | null }; at: string } | null
   updatedAt: string | null
   updatedBy: { id: number; name: string | null } | null
 }
@@ -1097,7 +1142,7 @@ export interface PriceAnalysisListParams extends PageParams {
 export interface PriceAnalysisBody {
   material: string | null
   currency: PoCurrency
-  quotes: Array<{ supplierId: number; contactName: string | null; remarks: string | null; sample: QuoteSample; unitPrice: number }>
+  quotes: Array<{ supplierId: number; packagingOption: string; moq: number | null; leadTimeDays: number | null; unitCbm: number | null; dutyPercent: number | null; contactName: string | null; remarks: string | null; sample: QuoteSample; unitPrice: number }>
   /** When the analysis was loaded; `null` = there was none yet. */
   expectedUpdatedAt: string | null
 }
@@ -1562,7 +1607,7 @@ export const procurementApi = baseApi.injectEndpoints({
       query: ({ search, ...params }) => ({ url: '/procurement/price-analysis', params: { ...params, search: search || undefined } }),
       providesTags: ['ProcurementPriceAnalysis'],
     }),
-    approvePriceAnalysis: b.mutation<PriceAnalysisView, { productId: number; supplierId: number; expectedUpdatedAt?: string }>({
+    approvePriceAnalysis: b.mutation<PriceAnalysisView, { productId: number; supplierId: number; packagingOption?: string; expectedUpdatedAt?: string }>({
       query: ({ productId, ...body }) => ({ url: `/procurement/price-analysis/${productId}/approve`, method: 'POST', body }),
       transformResponse: unwrap,
       invalidatesTags: ['ProcurementPriceAnalysis'],
@@ -1573,7 +1618,7 @@ export const procurementApi = baseApi.injectEndpoints({
       transformResponse: unwrap,
       invalidatesTags: ['ProcurementPriceAnalysis'],
     }),
-    rejectPriceAnalysisQuote: b.mutation<PriceAnalysisView, { productId: number; supplierId: number; reason: string; expectedUpdatedAt?: string }>({
+    rejectPriceAnalysisQuote: b.mutation<PriceAnalysisView, { productId: number; supplierId: number; packagingOption?: string; reason: string; expectedUpdatedAt?: string }>({
       query: ({ productId, ...body }) => ({ url: `/procurement/price-analysis/${productId}/reject`, method: 'POST', body }),
       transformResponse: unwrap,
       invalidatesTags: ['ProcurementPriceAnalysis'],
@@ -1582,6 +1627,12 @@ export const procurementApi = baseApi.injectEndpoints({
       query: (productId) => `/procurement/price-analysis/${productId}`,
       transformResponse: unwrap,
       providesTags: ['ProcurementPriceAnalysis'],
+    }),
+    /** The landed-cost inputs shared by a family's variants. */
+    savePriceFamilySettings: b.mutation<PriceFamilySettings, { rootId: number; body: Omit<PriceFamilySettings, 'updatedAt'> }>({
+      query: ({ rootId, body }) => ({ url: `/procurement/price-analysis/family/${rootId}/settings`, method: 'PUT', body }),
+      transformResponse: unwrap,
+      invalidatesTags: ['ProcurementPriceAnalysis'],
     }),
     getPriceAnalysisRevisions: b.query<PriceAnalysisRevision[], number>({
       query: (productId) => `/procurement/price-analysis/${productId}/revisions`,
@@ -1705,5 +1756,6 @@ export const {
   useRejectPriceAnalysisQuoteMutation,
   useGetPriceAnalysisQuery,
   useGetPriceAnalysisRevisionsQuery,
+  useSavePriceFamilySettingsMutation,
   useSavePriceAnalysisMutation,
 } = procurementApi
