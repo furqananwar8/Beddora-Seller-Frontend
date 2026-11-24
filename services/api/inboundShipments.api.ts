@@ -122,7 +122,7 @@ export interface CreateShipmentArg extends CreateShipmentRequest {
  */
 export const inboundShipmentsApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
-    getShipments: builder.query<InboundShipment[], void>({
+    getInboundShipments: builder.query<InboundShipment[], void>({
       query: () => ({ url: '/inventory/shipments' }),
       providesTags: ['InboundShipments'],
     }),
@@ -164,7 +164,7 @@ export const inboundShipmentsApi = baseApi.injectEndpoints({
       invalidatesTags: ['InboundShipments', 'Inventory'],
     }),
 
-    cancelShipment: builder.mutation<InboundShipment, string>({
+    cancelInboundShipment: builder.mutation<InboundShipment, string>({
       query: (id) => ({ url: `/inventory/shipments/${id}/cancel`, method: 'POST' }),
       invalidatesTags: ['InboundShipments', 'Inventory'],
     }),
@@ -281,14 +281,14 @@ export const inboundShipmentsApi = baseApi.injectEndpoints({
 })
 
 export const {
-  useGetShipmentsQuery,
+  useGetInboundShipmentsQuery,
   useGetShipmentsConfigQuery,
   useGetShipmentPoolQuery,
   useGetShipmentPoolSummaryQuery,
   useGetShipmentCarriersQuery,
   useCreateShipmentMutation,
   useUpdateShipmentItemsMutation,
-  useCancelShipmentMutation,
+  useCancelInboundShipmentMutation,
   useDeleteShipmentMutation,
   useMarkShipmentShippedMutation,
   useUpdateShipmentShipFromMutation,

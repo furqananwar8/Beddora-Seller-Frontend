@@ -7,7 +7,7 @@ import {
   OptionKind,
   RewindResponse,
   RewindTarget,
-  useCancelShipmentMutation,
+  useCancelInboundShipmentMutation,
   useDeleteShipmentMutation,
   useConfirmShipmentOptionsMutation,
   useRewindShipmentMutation,
@@ -21,7 +21,7 @@ import {
   useGetShipmentPoolSummaryQuery,
   type PoolSummary,
   useGetShipmentsConfigQuery,
-  useGetShipmentsQuery,
+  useGetInboundShipmentsQuery,
   useMarkShipmentShippedMutation,
   useQuoteWfsCarrierMutation,
   useUpdateShipmentShipFromMutation,
@@ -172,7 +172,7 @@ const fbaOnly = (sandbox: boolean, labelFormats?: LabelFormatCatalog): ChannelCo
 export const useShipments = (): ShipmentsController => {
   // Poll while the server is still fetching label files, so their status appears on its own
   const [pollMs, setPollMs] = useState(0)
-  const { data: shipments = [], isLoading, isError, refetch } = useGetShipmentsQuery(undefined, {
+  const { data: shipments = [], isLoading, isError, refetch } = useGetInboundShipmentsQuery(undefined, {
     pollingInterval: pollMs,
     // Always ask the server when the screen opens or the tab is back in focus: a cached (or failed) list must not linger
     refetchOnMountOrArgChange: true,
@@ -213,7 +213,7 @@ export const useShipments = (): ShipmentsController => {
 
   const [create] = useCreateShipmentMutation()
   const [updateItems] = useUpdateShipmentItemsMutation()
-  const [cancel] = useCancelShipmentMutation()
+  const [cancel] = useCancelInboundShipmentMutation()
   const [remove] = useDeleteShipmentMutation()
   const [ship] = useMarkShipmentShippedMutation()
   const [shipRequirements] = useGetShipRequirementsMutation()
