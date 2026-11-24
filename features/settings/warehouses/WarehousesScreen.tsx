@@ -18,6 +18,7 @@ import { useDeleteWarehouseMutation, useGetWarehousesQuery, type Warehouse } fro
 import { cn } from '@/utils/cn'
 import { WarehouseFormModal } from './WarehouseFormModal'
 
+import { usePageSize } from '@/hooks/usePageSize'
 const PAGE_SIZE = 20
 
 /** Search is staged with the other boxes: nothing reloads until "Apply filters". One country, so its states can be listed. */
@@ -34,12 +35,13 @@ export const WarehousesScreen: React.FC = () => {
   const canEdit = useAppAbility().can('write', 'settings:warehouses')
   const { success, failure } = useApiFeedback()
   const [page, setPage] = useState(1)
+  const pageSize = usePageSize(PAGE_SIZE)
   const filters = useStagedFilters(DEFAULT_FILTERS, () => setPage(1))
   const { draft, setDraft, applied, changed } = filters
 
   const { data, isLoading, isFetching, isError } = useGetWarehousesQuery({
     page,
-    limit: PAGE_SIZE,
+    limit: pageSize,
     search: applied.search,
     countries: applied.country ? [applied.country] : undefined,
     provinces: applied.provinces,
@@ -191,7 +193,7 @@ export const WarehousesScreen: React.FC = () => {
           </div>
         )}
         {data && data.totalRecords > 0 && (
-          <PaginationFooter page={data.page} pageSize={data.limit} totalItems={data.totalRecords} totalPages={data.totalPages} onPageChange={setPage} itemLabel="warehouses" />
+          <PaginationFooter selectablePageSize page={data.page} pageSize={data.limit} totalItems={data.totalRecords} totalPages={data.totalPages} onPageChange={setPage} itemLabel="warehouses" />
         )}
       </div>
 

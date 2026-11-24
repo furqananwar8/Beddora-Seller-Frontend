@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useMemo, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Controller, useFieldArray, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -18,6 +18,8 @@ import {
   type PersonRef,
   type RuleAssignee,
 } from '@/services/api/approvals.api'
+import { Button } from '@/design-system/buttons'
+import { Modal } from '@/design-system/modals'
 import type { Slots } from './ApprovalsScreen'
 import { AddPicker, Btn, Chip, FooterBar, Loading, PaneTitle, RemoveBtn, Select, SideItem, SideTitle, Tag, TwoPane, type PickOption } from './ui'
 import { cn } from '@/utils/cn'
@@ -81,14 +83,22 @@ function chipText(assignee: RuleAssignee, { users, departments }: Lookups): Reac
   return 'By product platform'
 }
 
+/** What the open editor tells the tab, so moving to another rule can ask about unsaved changes first. */
+interface EditorGuard {
+  dirty: boolean
+  /** Saves the form; false when it is invalid or the save failed. */
+  save: () => Promise<boolean>
+}
+
 interface EditorProps {
+  guard: React.MutableRefObject<EditorGuard | null>
   rule: ApprovalRule
   lookups: Lookups
   readOnly: boolean
   slots: Slots
 }
 
-const RuleEditor: React.FC<EditorProps> = ({ rule, lookups, readOnly, slots }) => {
+const RuleEditor: React.FC<EditorProps> = ({ guard, rule, lookups, readOnly, slots }) => {
   const { success, failure } = useApiFeedback()
   const [save, { isLoading: saving }] = useSaveApprovalRuleMutation()
   const { control, handleSubmit, watch, setValue, reset, formState } = useForm<Values>({ resolver: zodResolver(schema), defaultValues: valuesOf(rule) })
@@ -100,16 +110,21 @@ const RuleEditor: React.FC<EditorProps> = ({ rule, lookups, readOnly, slots }) =
   const setAssignees = (index: number, next: RuleAssignee[]) => setValue(`steps.${index}.assignees`, next, { shouldDirty: true, shouldValidate: formState.isSubmitted })
   const addMany = (index: number, added: RuleAssignee[]) => setAssignees(index, [...steps[index].assignees, ...added.filter((assignee) => !steps[index].assignees.some((existing) => same(existing, assignee)))])
 
+  let saved = false
   const submit = handleSubmit(async (values) => {
     try {
       const body = { isActive: true, steps: values.steps.map(({ completion, assignees }) => ({ completion, assignees })) }
-      const saved = await save({ key: rule.key, body }).unwrap()
-      reset(valuesOf(saved))
+      const result = await save({ key: rule.key, body }).unwrap()
+      reset(valuesOf(result))
       success(`${rule.label}: rule saved`)
+      saved = true
     } catch (error) {
       failure(error, 'Could not save the rule')
     }
   })
+
+  guard.current = { dirty, save: async () => { saved = false; await submit(); return saved } }
+  useEffect(() => () => { guard.current = null }, [guard])
 
   /** Everything that can still join a step: people, departments (their heads) and, where it applies, the product platform. */
   const pickOptions = (index: number): Array<PickOption & { assignee: RuleAssignee }> => {
@@ -198,11 +213,11 @@ const RuleEditor: React.FC<EditorProps> = ({ rule, lookups, readOnly, slots }) =
 }
 
 /** Loads one action's rule; the editor mounts only once the rule is here, so its form starts from it. */
-const RuleLoader: React.FC<{ actionKey: string; lookups: Lookups; readOnly: boolean; slots: Slots }> = ({ actionKey, lookups, readOnly, slots }) => {
+const RuleLoader: React.FC<{ guard: React.MutableRefObject<EditorGuard | null>; actionKey: string; lookups: Lookups; readOnly: boolean; slots: Slots }> = ({ guard, actionKey, lookups, readOnly, slots }) => {
   const { data: rule, isLoading, isError } = useGetApprovalRuleQuery(actionKey)
   if (isLoading) return <Loading />
   if (isError || !rule) return <p className="text-sm text-red-600">Could not load this rule.</p>
-  return <RuleEditor key={`${rule.key}-${JSON.stringify(rule.steps)}`} rule={rule} lookups={lookups} readOnly={readOnly} slots={slots} />
+  return <RuleEditor guard={guard} key={`${rule.key}-${JSON.stringify(rule.steps)}`} rule={rule} lookups={lookups} readOnly={readOnly} slots={slots} />
 }
 
 /** Approval rules tab: the actions on the left, the chain of the selected one on the right. */
@@ -212,6 +227,9 @@ export const RulesTab: React.FC<{ slots: Slots }> = ({ slots }) => {
   const { data: users = [] } = useGetApprovalUsersQuery()
   const { data: departments = [] } = useGetDepartmentsQuery()
   const [selected, setSelected] = useState<string | null>(null)
+  const guard = useRef<EditorGuard | null>(null)
+  const [pending, setPending] = useState<string | null>(null)
+  const [savingPending, setSavingPending] = useState(false)
   const lookups = useMemo(() => ({ users, departments }), [users, departments])
 
   if (isLoading) return <Loading />
@@ -220,7 +238,18 @@ export const RulesTab: React.FC<{ slots: Slots }> = ({ slots }) => {
   const key = selected ?? first?.key
   const groups = [...new Set(actions.map((action) => action.group))].sort((x, y) => rank(GROUP_ORDER, x) - rank(GROUP_ORDER, y))
 
+  const stay = () => { if (!savingPending) setPending(null) }
+  const goPending = () => { setSelected(pending); setPending(null) }
+  const saveAndGo = async () => {
+    setSavingPending(true)
+    const ok = await guard.current?.save()
+    setSavingPending(false)
+    if (ok) goPending()
+    else setPending(null) // the editor shows what is wrong
+  }
+
   return (
+    <>
     <TwoPane
       width={250}
       side={
@@ -232,7 +261,7 @@ export const RulesTab: React.FC<{ slots: Slots }> = ({ slots }) => {
                 .filter((action) => action.group === group)
                 .sort((x, y) => rank(ACTION_ORDER, x.key) - rank(ACTION_ORDER, y.key))
                 .map((action) => (
-                  <SideItem key={action.key} active={key === action.key} disabled={!action.available} onClick={() => setSelected(action.key)}>
+                  <SideItem key={action.key} active={key === action.key} disabled={!action.available} onClick={() => (action.key === key ? undefined : guard.current?.dirty ? setPending(action.key) : setSelected(action.key))}>
                     <span className="min-w-0 flex-1">{action.label}</span>
                     {action.available ? <Tag tone={action.steps ? 'green' : 'slate'}>{action.steps ? `${action.steps} step${action.steps === 1 ? '' : 's'}` : 'none'}</Tag> : <Tag>soon</Tag>}
                   </SideItem>
@@ -243,7 +272,16 @@ export const RulesTab: React.FC<{ slots: Slots }> = ({ slots }) => {
         </>
       }
     >
-      {key ? <RuleLoader actionKey={key} lookups={lookups} readOnly={!canEdit} slots={slots} /> : <p className="text-sm text-slate-500">No approvable actions yet.</p>}
+      {key ? <RuleLoader guard={guard} actionKey={key} lookups={lookups} readOnly={!canEdit} slots={slots} /> : <p className="text-sm text-slate-500">No approvable actions yet.</p>}
     </TwoPane>
+    <Modal isOpen={pending !== null} onClose={stay} title="Unsaved changes" size="sm" closeOnEscape={!savingPending}>
+      <p className="text-sm text-text-secondary">This rule has changes that are not saved. Save them before moving to another rule?</p>
+      <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+        <Button type="button" variant="outline" onClick={stay} disabled={savingPending}>Stay</Button>
+        <Button type="button" variant="outline" onClick={goPending} disabled={savingPending}>Discard and continue</Button>
+        <Button type="button" variant="primary" onClick={() => void saveAndGo()} isLoading={savingPending}>Save and continue</Button>
+      </div>
+    </Modal>
+    </>
   )
 }
