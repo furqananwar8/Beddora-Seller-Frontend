@@ -9,6 +9,7 @@ import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { NavIcons } from '@/components/navigation/icons'
 import { setAmazonSession } from '@/store/amazon.slice'
 import { useAppAbility } from '@/hooks/useAppAbility'
+import { LIVE_REPORT_TABS, liveReportSubject } from '@/features/profit/channel-report/config/tabs'
 import { AiAssistant } from '@/components/ai-assistant'
 import { BarcodeScannerProvider } from '@/features/barcode/BarcodeScannerProvider'
 import { MANUAL_SHIPMENT_FLOW } from '@/features/shipping/shippingFlags'
@@ -53,6 +54,7 @@ export default function DashboardLayout({
   // A few accounts only, picked by the server (not a permission, so it is not in the Users permission dialog)
   const { data: emailAccess } = useGetEmailAccessQuery()
   const canOpenEmail = Boolean(emailAccess?.allowed)
+  const canOpenLiveReport = LIVE_REPORT_TABS.some((tab) => ability.can('read', liveReportSubject(tab.id)))
 
   const rawNavSections = useMemo(
     () => [
@@ -76,6 +78,8 @@ export default function DashboardLayout({
               {
                 label: 'Live Report',
                 subject: 'profit:channel-report',
+                // Each channel tab has its own permission: the screen opens for anyone who holds one of them
+                allow: canOpenLiveReport,
                 action: 'read',
                 href: '/dashboard/profit/channel-report',
               },
@@ -142,8 +146,7 @@ export default function DashboardLayout({
               },
               {
                 label: 'Shipments',
-                // Shares the Planner permission until the backend seeds 'inventory:shipments'.
-                subject: 'inventory:planner',
+                subject: 'inventory:shipments',
                 action: 'read',
                 href: '/dashboard/inventory/shipments',
               },
@@ -438,7 +441,7 @@ export default function DashboardLayout({
         ],
       },
     ],
-    [canOpenEmail]
+    [canOpenEmail, canOpenLiveReport]
   )
 
   // Filter sidebar using EACH item's own action + subject
@@ -599,6 +602,9 @@ export default function DashboardLayout({
   const isSettlementReport = pathname?.includes('/dashboard/profit/settlement-report')
   const isChannelReport = pathname?.includes('/dashboard/profit/channel-report')
   const showDashboardTabs = isProfitDashboard || isEbayDashboard
+  // Live Report: a tab per channel the user may open; the tab is kept in ?tab= like the dashboard's
+  const liveReportTabs = LIVE_REPORT_TABS.filter((tab) => ability.can('read', liveReportSubject(tab.id))).map((tab) => ({ ...tab, icon: null }))
+  const activeLiveReportTab = liveReportTabs.find((tab) => tab.id === activeDashboardTab)?.id ?? liveReportTabs[0]?.id
   // Short screens that should not scroll the whole document (see .ds-content-fit)
   const fitsBelowHeader = FIT_BELOW_HEADER_ROUTES.some((route) => pathname?.includes(route))
 
@@ -625,7 +631,7 @@ export default function DashboardLayout({
           }}
         />
         <div className="ds-main">
-          {showDashboardTabs && (
+          {(showDashboardTabs || isChannelReport) && (
             <Suspense fallback={null}>
               <DashboardTabSync onTabChange={setActiveDashboardTabState} />
             </Suspense>
@@ -640,9 +646,9 @@ export default function DashboardLayout({
             onMarketplaceChange={setMarketplaceValue}
             onPeriodChange={setPeriodValue}
             dashboardTitle={showDashboardTabs ? 'Dashboard' : isChannelReport ? 'Live Report' : undefined}
-            dashboardTabs={showDashboardTabs ? dashboardTabs.filter((tab) => !tab.hidden) : undefined}
-            activeDashboardTab={showDashboardTabs ? activeDashboardTab : undefined}
-            onDashboardTabChange={showDashboardTabs ? setActiveDashboardTab : undefined}
+            dashboardTabs={showDashboardTabs ? dashboardTabs.filter((tab) => !tab.hidden) : isChannelReport ? liveReportTabs : undefined}
+            activeDashboardTab={showDashboardTabs ? activeDashboardTab : isChannelReport ? activeLiveReportTab : undefined}
+            onDashboardTabChange={showDashboardTabs || isChannelReport ? setActiveDashboardTab : undefined}
           />
           <main className={fitsBelowHeader ? 'ds-content ds-content-fit' : 'ds-content'}>{children}</main>
           <AiAssistant />

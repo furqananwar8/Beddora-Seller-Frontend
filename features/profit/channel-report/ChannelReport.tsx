@@ -69,7 +69,8 @@ const isPending = (query: { isFetching: boolean; isUninitialized: boolean }, ski
 
 const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((item) => b.includes(item))
 
-export const ChannelReport: React.FC = () => {
+/** One channel's Live Report (a tab of the screen): every figure on it is for `channel` alone. */
+export const ChannelReport: React.FC<{ channel: ChannelId }> = ({ channel }) => {
   // ──────────────────────────────
   // Filters (draft until Apply Filters)
   // ──────────────────────────────
@@ -78,10 +79,7 @@ export const ChannelReport: React.FC = () => {
   const { data: connectionsData, isLoading: connectionsLoading } = useChannelConnections()
   const connections = connectionsData ?? []
   // Stable while loading, so the selections derived from it do not change on every render
-  const connectedChannels = useMemo(
-    () => connectionsData?.map((item) => item.channel) ?? NO_CHANNELS,
-    [connectionsData],
-  )
+  const connectedChannels = useMemo(() => [channel], [channel])
 
   // null until the user picks channels: every connected channel, as soon as the connections arrive
   const [draftSelection, setDraftChannels] = useState<ChannelId[] | null>(null)
@@ -306,17 +304,6 @@ export const ChannelReport: React.FC = () => {
           keepOpenPresetIds={period.keepOpenPresetIds}
           onDateRangeChange={period.onDateRangeChange}
           datePickerKey={period.datePickerKey}
-          extraFilters={
-            <div className="min-w-[160px] shrink-0">
-              <ChannelMultiSelect
-                channels={connectedChannels}
-                connections={connections}
-                value={draftChannels}
-                onChange={setDraftChannels}
-                minSelected={0}
-              />
-            </div>
-          }
           marketplaces={draftMarketplaces}
           onMarketplacesChange={setDraftMarketplaces}
           currency={draftCurrency}

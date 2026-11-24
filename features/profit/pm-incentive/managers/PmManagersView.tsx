@@ -27,6 +27,7 @@ import { ViewProductsDialog } from './ViewProductsDialog'
 
 const HEAD = 'text-center align-middle'
 const CELL = 'text-center align-middle'
+import { usePageSize } from '@/hooks/usePageSize'
 const PAGE_SIZE = 20
 
 type Assignment = 'any' | 'assigned' | 'unassigned'
@@ -49,12 +50,13 @@ export const PmManagersView: React.FC = () => {
   const canWrite = useAppAbility().can('write', 'profit:pm-incentive')
   const { success, failure } = useApiFeedback()
   const [page, setPage] = useState(1)
+  const pageSize = usePageSize(PAGE_SIZE)
   const filters = useStagedFilters(DEFAULT_FILTERS, () => setPage(1))
   const { applied, draft, setDraft, changed } = filters
   const search = applied.search.trim()
   const assignment = applied.assignment === 'any' ? undefined : applied.assignment
 
-  const { data, isLoading, isFetching, isError } = useGetProductManagersPageQuery({ page, limit: PAGE_SIZE, search, channels: applied.channels, assignment })
+  const { data, isLoading, isFetching, isError } = useGetProductManagersPageQuery({ page, limit: pageSize, search, channels: applied.channels, assignment })
   const managers = data?.data ?? []
   const { data: channels = [] } = useGetManagerChannelsQuery()
   const [remove, { isLoading: isRemoving }] = useDeleteProductManagerMutation()
@@ -204,7 +206,7 @@ export const PmManagersView: React.FC = () => {
           </Table>
         </div>
         {data && data.totalRecords > 0 && (
-          <PaginationFooter page={data.page} pageSize={data.limit} totalItems={data.totalRecords} totalPages={data.totalPages} onPageChange={setPage} itemLabel="managers" />
+          <PaginationFooter selectablePageSize page={data.page} pageSize={data.limit} totalItems={data.totalRecords} totalPages={data.totalPages} onPageChange={setPage} itemLabel="managers" />
         )}
       </div>
 
