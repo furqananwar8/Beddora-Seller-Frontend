@@ -395,6 +395,16 @@ export interface RemainingDraft {
   lines: Array<{ product: PoProduct; unitsOrdered: number; unitPrice: number | null }>
 }
 
+/** The line of the most recently created PO that had a product (any status), for the PO form's Last Purchase Price column. */
+export interface PoLastPurchase {
+  productId: number
+  unitPrice: number | null
+  currency: string
+  purchaseDate: string
+  purchaseOrderId: number
+  poNo: string
+}
+
 /** Supplier, product and SKU have no box of their own: the search covers them. */
 export interface PoFilterOptions {
   colors: string[]
@@ -1306,6 +1316,11 @@ export const procurementApi = baseApi.injectEndpoints({
       transformResponse: unwrap,
       providesTags: ['ProcurementPurchaseOrders'],
     }),
+    getPurchaseOrderLastPurchases: b.query<PoLastPurchase[], { productIds: number[]; excludeId?: number }>({
+      query: ({ productIds, excludeId }) => ({ url: '/procurement/purchase-orders/last-purchases', params: { productIds: productIds.join(','), ...(excludeId ? { excludeId } : {}) } }),
+      transformResponse: unwrap,
+      providesTags: ['ProcurementPurchaseOrders'],
+    }),
     getProcurementPurchaseOrder: b.query<PurchaseOrderDetail, number>({
       query: (id) => `/procurement/purchase-orders/${id}`,
       transformResponse: unwrap,
@@ -1697,6 +1712,7 @@ export const {
   useGetProcurementPurchaseOrdersQuery,
   useGetProcurementPurchaseOrderSummaryQuery,
   useGetPurchaseOrderFilterOptionsQuery,
+  useGetPurchaseOrderLastPurchasesQuery,
   useGetProcurementPurchaseOrderQuery,
   useGetPurchaseOrderRemainingQuery,
   useCreateProcurementPurchaseOrderMutation,

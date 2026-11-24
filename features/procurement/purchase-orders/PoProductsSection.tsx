@@ -5,9 +5,9 @@ import { UseFormReturn, useFieldArray, useWatch } from 'react-hook-form'
 import { NumericInput } from '@/components/form-field/NumericInput'
 import { fieldClass } from '@/components/form-field/FormField'
 import { Card, CardContent, CardHeader, CardTitle } from '@/design-system/cards/Card'
-import type { PoProduct } from '@/services/api/procurement.api'
+import { useGetPurchaseOrderLastPurchasesQuery, type PoProduct } from '@/services/api/procurement.api'
 import { cn } from '@/utils/cn'
-import { formatCurrency } from '@/utils/format'
+import { formatCurrency, formatDate } from '@/utils/format'
 import { MarketplaceTags } from '../shared/MarketplaceTags'
 import { ProductPicker, productLabel } from '../shared/ProductPicker'
 import { ExpandToggle, ProductSpecs, useExpandedRows } from '../shared/ProductSpecs'
@@ -20,6 +20,8 @@ interface PoProductsSectionProps {
   readOnly: boolean
   /** From-remaining POs may only carry the source PO's products. */
   fixedProducts: boolean
+  /** The PO being edited, so it is not counted as its own last purchase. */
+  purchaseOrderId?: number
 }
 
 const HEAD = 'px-3 py-2 text-center text-xs font-semibold uppercase tracking-wide text-text-muted'
@@ -30,7 +32,7 @@ const units = (value: number) => value.toLocaleString('en-CA')
 const cbmPerUnit = (product: PoProduct): number | null =>
   product.cbm ?? (product.lengthCm !== null && product.widthCm !== null && product.heightCm !== null ? cbmOf(product.lengthCm, product.widthCm, product.heightCm, 'CM') : null)
 
-export const PoProductsSection: React.FC<PoProductsSectionProps> = ({ form, readOnly, fixedProducts }) => {
+export const PoProductsSection: React.FC<PoProductsSectionProps> = ({ form, readOnly, fixedProducts, purchaseOrderId }) => {
   const {
     control,
     register,
@@ -40,7 +42,10 @@ export const PoProductsSection: React.FC<PoProductsSectionProps> = ({ form, read
   const lines = useWatch({ control, name: 'lines' }) ?? []
   const currency = useWatch({ control, name: 'currency' })
   const { isOpen, toggle } = useExpandedRows<number>()
-  const columns = readOnly ? 12 : 13
+  const columns = readOnly ? 14 : 15
+  const productIds = lines.map((line) => line.product.id)
+  const { data: lastPurchases } = useGetPurchaseOrderLastPurchasesQuery({ productIds, excludeId: purchaseOrderId }, { skip: productIds.length === 0 })
+  const lastOf = (productId: number) => lastPurchases?.find((entry) => entry.productId === productId)
 
   // Ticking a product in the picker adds a line; unticking it drops the line
   const syncPicked = (picked: PoProduct[]) => {
@@ -79,6 +84,8 @@ export const PoProductsSection: React.FC<PoProductsSectionProps> = ({ form, read
                   <th className={HEAD}>SKU</th>
                   {/* `!`: the global .ds-table-td rule forces cell padding with !important, so plain padding classes do nothing */}
                   <th className={cn(HEAD, 'min-w-[14rem] !pl-8')}>Product</th>
+                  <th className={HEAD}>Last Purchase Price</th>
+                  <th className={HEAD}>Purchase Date</th>
                   <th className={HEAD}>Tag</th>
                   <th className={HEAD}>Color</th>
                   <th className={HEAD}>L × W × H</th>
@@ -112,6 +119,10 @@ export const PoProductsSection: React.FC<PoProductsSectionProps> = ({ form, read
                           </span>
                         </td>
                         <td className={cn(CELL, '!pl-8')}>{productLabel(product)}</td>
+                        <td className={cn(CELL, 'whitespace-nowrap tabular-nums')} title={lastOf(product.id)?.poNo}>
+                          {lastOf(product.id)?.unitPrice != null ? formatCurrency(lastOf(product.id)!.unitPrice!, lastOf(product.id)!.currency) : '—'}
+                        </td>
+                        <td className={cn(CELL, 'whitespace-nowrap')}>{lastOf(product.id) ? formatDate(lastOf(product.id)!.purchaseDate) : '—'}</td>
                         <td className={CELL}>
                           <ProductTagBadge tag={product.tag} />
                         </td>
@@ -169,7 +180,7 @@ export const PoProductsSection: React.FC<PoProductsSectionProps> = ({ form, read
               </tbody>
               <tfoot>
                 <tr className="border-t border-border font-semibold">
-                  <td className={cn(CELL, 'text-left')} colSpan={7}>
+                  <td className={cn(CELL, 'text-left')} colSpan={9}>
                     Total · {products.count} {products.count === 1 ? 'product' : 'products'}
                   </td>
                   <td className={cn(CELL, 'tabular-nums')}>{units(products.ordered)}</td>

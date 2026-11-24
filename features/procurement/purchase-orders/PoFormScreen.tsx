@@ -213,7 +213,7 @@ export const PoFormScreen: React.FC<PoFormScreenProps> = ({ purchaseOrderId }) =
 
         <PoSupplierSection form={form} readOnly={readOnly} supplierLocked={Boolean(fromSource)} />
         <PoOrderDetailsSection form={form} readOnly={readOnly} />
-        <PoProductsSection form={form} readOnly={readOnly} fixedProducts={Boolean(fromSource)} />
+        <PoProductsSection form={form} readOnly={readOnly} fixedProducts={Boolean(fromSource)} purchaseOrderId={po?.id} />
         <PoSamplesSection form={form} readOnly={readOnly} purchaseOrderId={po?.id} />
 
         {po && isApprovedPo(po) && po.unlockedAt && (
