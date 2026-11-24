@@ -22,7 +22,7 @@ export function PaginationFooter({
   selectablePageSize = false,
 }: PaginationFooterProps) {
   const savePageSize = useSavePageSize();
-  if (totalPages <= 1 && !(selectablePageSize && totalItems > PAGE_SIZE_OPTIONS[0])) return null;
+  if (totalPages <= 1 && !(selectablePageSize && totalItems > 0)) return null;
 
   const startItem = (page - 1) * pageSize + 1;
   const endItem = Math.min(page * pageSize, totalItems);
