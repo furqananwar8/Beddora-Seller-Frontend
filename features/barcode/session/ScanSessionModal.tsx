@@ -129,6 +129,8 @@ export function ScanSessionModal({ sessionId, onClose }: Props) {
   useEffect(() => {
     const input = inputRef.current
     if (!input || !open || confirming) return
+    // preventScroll: the plain autofocus attribute scrolls the modal's frame down to this field on a small screen
+    input.focus({ preventScroll: true })
     const scanner = new ScanFieldSource(input)
     scanner.start((scan) => void onScan(scan.barcode))
     return () => scanner.stop()
@@ -208,9 +210,9 @@ export function ScanSessionModal({ sessionId, onClose }: Props) {
         isOpen
         onClose={requestClose}
         size="xl"
-        className="max-w-[1120px]"
+        className="max-w-[1120px] max-h-[90dvh]"
         header={
-          <div className="flex w-full items-start justify-between gap-4 border-b border-border px-6 py-5">
+          <div className="flex w-full flex-wrap items-start justify-between gap-x-4 gap-y-2 border-b border-border px-6 py-5">
             <div>
               <h2 className="text-xl font-bold text-text-primary">Scan items · {session.ref}</h2>
               <p className="mt-1 text-sm text-text-muted">
@@ -237,7 +239,7 @@ export function ScanSessionModal({ sessionId, onClose }: Props) {
               </div>
             )}
 
-            <div className="overflow-hidden rounded-lg border border-border">
+            <div className="overflow-x-auto rounded-lg border border-border">
               <table className="w-full text-sm">
                 <thead className="bg-secondary-100 text-xs text-secondary-600">
                   <tr>
@@ -283,8 +285,8 @@ export function ScanSessionModal({ sessionId, onClose }: Props) {
               </table>
             </div>
 
-            <div className="overflow-hidden rounded-lg border border-border">
-              <div className="flex items-center justify-between border-b border-border px-3 py-2.5 text-sm font-bold">
+            <div className="overflow-x-auto rounded-lg border border-border">
+              <div className="flex items-center justify-between gap-3 border-b border-border px-3 py-2.5 text-sm font-bold">
                 <span>
                   Not matched UPCs <span className="font-normal text-text-muted">· one row per UPC</span>
                 </span>
@@ -364,7 +366,6 @@ export function ScanSessionModal({ sessionId, onClose }: Props) {
                     aria-label="Scanner input"
                     inputMode="none"
                     autoComplete="off"
-                    autoFocus
                     tabIndex={-1}
                     // Keeps focus for the scanner, unless the user moved to another field (units, product search)
                     onBlur={(event) => {
@@ -372,7 +373,7 @@ export function ScanSessionModal({ sessionId, onClose }: Props) {
                       if (next instanceof HTMLInputElement || next instanceof HTMLTextAreaElement || next instanceof HTMLSelectElement) return
                       setTimeout(() => !confirming && !(document.activeElement instanceof HTMLInputElement) && inputRef.current?.focus({ preventScroll: true }), 0)
                     }}
-                    className="pointer-events-none absolute h-px w-px opacity-0"
+                    className="pointer-events-none fixed left-0 top-0 h-px w-px opacity-0"
                   />
                   <div className="flex items-center gap-2 text-sm font-semibold text-success-700">
                     <span className="h-2.5 w-2.5 rounded-full bg-success-600" />

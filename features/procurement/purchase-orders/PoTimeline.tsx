@@ -9,6 +9,7 @@ const LABEL: Record<string, string> = {
   UPDATED: 'Edited',
   RESUBMITTED: 'Sent for approval again after rejection',
   APPROVED: 'Approved and locked',
+  READY_TO_SHIP: 'Marked Ready to ship',
   PARTIALLY_PACKED: 'Partially packed',
   FULLY_PACKED: 'Fully packed',
   PARTIALLY_SHIPPED: 'Partially shipped',

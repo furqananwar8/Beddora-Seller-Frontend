@@ -15,6 +15,7 @@ import { useApiFeedback } from '@/hooks/useApiFeedback'
 import { useAppAbility } from '@/hooks/useAppAbility'
 import {
   useCreatePackagingListMutation,
+  useFinalizePackagingListMutation,
   useGetPackablePoLinesQuery,
   useGetPackablePurchaseOrdersQuery,
   useGetPackagingListQuery,
@@ -31,10 +32,11 @@ import { computeLine, EMPTY_LINE, lineKey, newLine, savedLine, toLineBody, type 
 import { PackingLinesTable } from './PackingLinesTable'
 
 const LIST = '/dashboard/procurement/packaging-lists'
-const invoiceHref = (purchaseOrderId: number) => `/dashboard/procurement/purchase-invoices/new?purchaseOrderId=${purchaseOrderId}`
+/** Tentative lists live on the first tab of the Packaging lists screen, final ones on the second. */
+const listHref = (kind: 'TENTATIVE' | 'FINAL') => (kind === 'TENTATIVE' ? `${LIST}?tab=tentative` : LIST)
 
 interface PackagingListFormScreenProps {
-  /** Existing list: shown read-only, or editable with `?edit=1` ("Edit quantities"). */
+  /** Existing list: shown read-only, editable with `?edit=1` ("Edit quantities"), or with `?convert=1` (a tentative list being converted to final). */
   packagingListId?: number
 }
 
@@ -43,7 +45,7 @@ export const PackagingListFormScreen: React.FC<PackagingListFormScreenProps> = (
   const params = useSearchParams()
   const ability = useAppAbility()
   const canWrite = ability.can('write', 'procurement:packaging-lists')
-  const { success, failure, error: notifyError } = useApiFeedback()
+  const { success, failure } = useApiFeedback()
 
   const isNew = packagingListId === undefined
   const fromPoParam = Number(params.get('purchaseOrderId'))
@@ -52,8 +54,12 @@ export const PackagingListFormScreen: React.FC<PackagingListFormScreenProps> = (
   const { data: existing, isLoading: loadingExisting, isError: existingError } = useGetPackagingListQuery(packagingListId ?? 0, { skip: isNew })
   // A list in a container has shipped: it stays read-only until it is taken out
   const container = existing?.container ?? null
-  const editing = !isNew && params.get('edit') === '1' && canWrite && !container
+  // Converting a tentative list to final: the units become editable "Final units", next to the drafted "Units"
+  const converting = !isNew && params.get('convert') === '1' && canWrite && !container && existing?.kind === 'TENTATIVE'
+  const editing = !isNew && (params.get('edit') === '1' || converting) && canWrite && !container
   const readOnly = !isNew && !editing
+  // Final units are what the supplier really shipped: they may exceed the order. Tentative units stay capped.
+  const allowOver = converting || existing?.kind === 'FINAL'
   const { data: fromPo } = useGetProcurementPurchaseOrderQuery(fromPoId ?? 0, { skip: !fromPoId })
 
   const [poIds, setPoIds] = useState<number[]>([])
@@ -107,31 +113,17 @@ export const PackagingListFormScreen: React.FC<PackagingListFormScreenProps> = (
   }, [groups, readOnly])
 
   const pickedGroups = useMemo(() => groups.filter((group) => poIds.includes(group.purchaseOrder.id)), [groups, poIds])
-  // SKU lines come from approved purchase invoices: a PO whose invoices (if any) carry no SKUs has nothing to pack until one is created
-  const uninvoiced = useMemo(() => pickedGroups.filter((group) => group.lines.length === 0), [pickedGroups])
-  const noInvoiceReason = (group: (typeof pickedGroups)[number]) =>
-    group.invoices.length === 0 ? `${group.purchaseOrder.poNo} has no approved purchase invoice` : `The approved purchase invoice(s) of ${group.purchaseOrder.poNo} carry no SKUs`
-  const warned = useRef<Set<number>>(new Set())
-  useEffect(() => {
-    if (readOnly) return
-    for (const group of uninvoiced) {
-      if (warned.current.has(group.purchaseOrder.id)) continue
-      warned.current.add(group.purchaseOrder.id)
-      notifyError(`${noInvoiceReason(group)}. Create a purchase invoice against it to pack its SKUs.`)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [uninvoiced, readOnly, notifyError])
   const shownGroups = useMemo(
     () => pickedGroups.map((group) => ({ ...group, lines: group.lines.filter((line) => !removed.has(lineKey(group.purchaseOrder.id, line.product.id))) })).filter((group) => group.lines.length > 0),
     [pickedGroups, removed]
   )
   const removedLines = pickedGroups.flatMap((group) => group.lines.filter((line) => removed.has(lineKey(group.purchaseOrder.id, line.product.id))).map((line) => ({ group, line })))
   const figures = shownGroups.flatMap((group) =>
-    group.lines.map((line) => ({ group, line, key: lineKey(group.purchaseOrder.id, line.product.id), ...computeLine(line, values.get(lineKey(group.purchaseOrder.id, line.product.id))) }))
+    group.lines.map((line) => ({ group, line, key: lineKey(group.purchaseOrder.id, line.product.id), ...computeLine(line, values.get(lineKey(group.purchaseOrder.id, line.product.id)), allowOver) }))
   )
   const hasLineErrors = figures.some((row) => Object.keys(row.errors).length > 0)
   const packedUnits = figures.reduce((sum, row) => sum + row.units, 0)
-  const overAllocated = figures.filter((row) => row.units > row.line.available)
+  const overAllocated = allowOver ? [] : figures.filter((row) => row.units > row.line.available)
 
   /** POs that will keep unallocated units after this list: they can be closed on save. */
   const leftovers = pickedGroups
@@ -158,6 +150,13 @@ export const PackagingListFormScreen: React.FC<PackagingListFormScreenProps> = (
 
   const [createPl] = useCreatePackagingListMutation()
   const [updatePl] = useUpdatePackagingListMutation()
+  const [finalizePl] = useFinalizePackagingListMutation()
+
+  /** The units as first drafted, for a list being converted or already final (a final list never converted has none). */
+  const draftedUnits = useMemo(() => {
+    if (!existing || (existing.kind === 'FINAL' && existing.lines.every((line) => line.tentativeUnits === null))) return undefined
+    return new Map(existing.lines.map((line) => [lineKey(line.purchaseOrderId, line.product.id), line.tentativeUnits ?? line.units]))
+  }, [existing])
 
   const save = async () => {
     setFormError(null)
@@ -173,9 +172,9 @@ export const PackagingListFormScreen: React.FC<PackagingListFormScreenProps> = (
     }
     setSaving(true)
     try {
-      const saved = existing ? await updatePl({ id: existing.id, body }).unwrap() : await createPl(body).unwrap()
-      success(existing ? `${saved.plNo} saved` : `${saved.plNo} created`)
-      router.push(LIST)
+      const saved = existing ? await (converting ? finalizePl({ id: existing.id, body }) : updatePl({ id: existing.id, body })).unwrap() : await createPl(body).unwrap()
+      success(converting ? `${saved.plNo} converted to final. It now shows on the Packaging list tab.` : existing ? `${saved.plNo} saved` : `${saved.plNo} created as a tentative list`)
+      router.push(listHref(saved.kind))
     } catch (error) {
       // Line problems from the server (e.g. someone packed the same units meanwhile) land on their rows
       const byLine = new Map<string, string>()
@@ -184,7 +183,7 @@ export const PackagingListFormScreen: React.FC<PackagingListFormScreenProps> = (
         if (match && lines[Number(match[1])]) byLine.set(lineKey(lines[Number(match[1])].purchaseOrderId, lines[Number(match[1])].productId), issue.message)
       }
       setServerErrors(byLine)
-      failure(error, 'Could not save the packaging list')
+      failure(error, converting ? 'Could not convert the packaging list' : 'Could not save the packaging list')
     } finally {
       setSaving(false)
     }
@@ -208,7 +207,8 @@ export const PackagingListFormScreen: React.FC<PackagingListFormScreenProps> = (
     )
   }
 
-  const title = existing ? existing.plNo : 'New packaging list'
+  const title = existing ? (converting ? `Convert ${existing.plNo} to final` : existing.plNo) : 'New tentative packaging list'
+  const backHref = listHref(existing?.kind ?? 'TENTATIVE')
   const destination = poOptions.find((po) => poIds.includes(po.id))?.destination ?? existing?.destination
 
   return (
@@ -216,8 +216,9 @@ export const PackagingListFormScreen: React.FC<PackagingListFormScreenProps> = (
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-4">
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="text-xl font-bold text-text-primary sm:text-2xl">{title}</h1>
-          {isNew && <StatusBadge label="DRAFT" tone="neutral" />}
-          {editing && <StatusBadge label="Editing quantities" tone="info" />}
+          {isNew && <StatusBadge label="TENTATIVE" tone="warning" />}
+          {existing && <StatusBadge label={existing.kind === 'TENTATIVE' ? 'TENTATIVE' : 'FINAL'} tone={existing.kind === 'TENTATIVE' ? 'warning' : 'success'} />}
+          {editing && <StatusBadge label={converting ? 'Confirming final units' : 'Editing quantities'} tone="info" />}
           {destination && <StatusBadge label={DESTINATION_LABEL[destination]} tone="neutral" />}
           {container && <StatusBadge label={`In ${containerLabel(container)}`} tone="info" />}
         </div>
@@ -247,7 +248,7 @@ export const PackagingListFormScreen: React.FC<PackagingListFormScreenProps> = (
               label="Purchase order(s)"
               htmlFor="pl-pos"
               required
-              hint={isNew ? 'One PO, or several POs (any suppliers) that have no packaging list yet and ship to the same destination. Pending POs cannot be packed.' : 'The POs of a saved list are fixed'}
+              hint={isNew ? 'POs marked Ready to ship only. One PO, or several POs (any suppliers) that have no packaging list yet and ship to the same destination.' : 'The POs of a saved list are fixed'}
             >
               {existing ? (
                 // A saved list's POs are fixed: shown as they are, with their suppliers
@@ -275,16 +276,6 @@ export const PackagingListFormScreen: React.FC<PackagingListFormScreenProps> = (
               </div>
             ) : (
               <>
-                {uninvoiced.map((group) => (
-                  <div key={group.purchaseOrder.id} role="alert" className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-warning-200 bg-warning-50 px-3 py-2 text-sm text-warning-800">
-                    <span>
-                      {noInvoiceReason(group)}, so none of its SKUs can be packed yet.
-                    </span>
-                    <Link href={invoiceHref(group.purchaseOrder.id)} className="font-medium underline-offset-2 hover:underline">
-                      Create purchase invoice
-                    </Link>
-                  </div>
-                ))}
                 {shownGroups.length > 0 ? (
                   <PackingLinesTable
                     groups={shownGroups}
@@ -292,11 +283,13 @@ export const PackagingListFormScreen: React.FC<PackagingListFormScreenProps> = (
                     onChange={changeLine}
                     serverErrors={serverErrors}
                     readOnly={readOnly}
-                    onRemove={(key) => setRemoved((current) => new Set(current).add(key))}
+                    onRemove={converting ? undefined : (key) => setRemoved((current) => new Set(current).add(key))}
+                    draftedUnits={draftedUnits}
+                    allowOverAllocation={allowOver}
                   />
-                ) : uninvoiced.length === 0 ? (
+                ) : (
                   <p className="py-6 text-center text-sm text-text-muted">Every SKU is removed from this list.</p>
-                ) : null}
+                )}
                 {!readOnly && removedLines.length > 0 && (
                   <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-secondary-50 px-3 py-2 text-sm text-text-secondary">
                     <span>
@@ -312,16 +305,7 @@ export const PackagingListFormScreen: React.FC<PackagingListFormScreenProps> = (
             {overAllocated.length > 0 && (
               <p role="alert" className="rounded-lg border border-danger-200 bg-danger-50 px-3 py-2 text-sm text-danger-700">
                 <strong>Over-allocation is blocked:</strong>{' '}
-                {overAllocated.map((row) => `${row.line.product.ref} has only ${row.line.available.toLocaleString('en-CA')} invoiced and available on ${row.group.purchaseOrder.poNo}`).join('; ')}. To pack more, create a new purchase invoice for the remaining quantity:{' '}
-                {[...new Map(overAllocated.map((row) => [row.group.purchaseOrder.id, row.group.purchaseOrder])).values()].map((po, index) => (
-                  <React.Fragment key={po.id}>
-                    {index > 0 && ', '}
-                    <Link href={invoiceHref(po.id)} className="font-medium underline underline-offset-2">
-                      {po.poNo}
-                    </Link>
-                  </React.Fragment>
-                ))}
-                .
+                {overAllocated.map((row) => `${row.line.product.ref} has only ${row.line.available.toLocaleString('en-CA')} units still unpacked on ${row.group.purchaseOrder.poNo}`).join('; ')}.
               </p>
             )}
           </CardContent>
@@ -367,7 +351,7 @@ export const PackagingListFormScreen: React.FC<PackagingListFormScreenProps> = (
         )}
 
         <FormActions>
-          <Button type="button" variant="outline" onClick={() => router.push(LIST)} disabled={saving}>
+          <Button type="button" variant="outline" onClick={() => router.push(backHref)} disabled={saving}>
             {readOnly ? 'Back' : 'Cancel'}
           </Button>
           {existing && (
@@ -380,13 +364,18 @@ export const PackagingListFormScreen: React.FC<PackagingListFormScreenProps> = (
             </Button>
           )}
           {readOnly && canWrite && existing && !container && (
-            <Button type="button" onClick={() => router.push(`${LIST}/${existing.id}?edit=1`)}>
+            <Button type="button" variant={existing.kind === 'TENTATIVE' ? 'outline' : 'primary'} onClick={() => router.push(`${LIST}/${existing.id}?edit=1`)}>
               Edit quantities
+            </Button>
+          )}
+          {readOnly && canWrite && existing?.kind === 'TENTATIVE' && !container && (
+            <Button type="button" onClick={() => router.push(`${LIST}/${existing.id}?convert=1`)}>
+              Convert to final
             </Button>
           )}
           {!readOnly && (
             <Button type="button" onClick={() => void save()} isLoading={saving} disabled={hasLineErrors || packedUnits === 0}>
-              Save packaging list
+              {converting ? 'Convert to final' : existing ? 'Save packaging list' : 'Save tentative packaging list'}
             </Button>
           )}
         </FormActions>

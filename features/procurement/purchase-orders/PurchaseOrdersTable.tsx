@@ -9,7 +9,7 @@ import { cn } from '@/utils/cn'
 import { formatCalendarDay, formatCurrency } from '@/utils/format'
 import { ArdCell } from './ArdCell'
 import { ProductionDateCell } from './ProductionDateCell'
-import { DESTINATION_LABEL, EtdBadge, OpenBadge, PaymentBadge, PoStatusBadge, canRequestPayment, isApprovedPo } from '../shared/poMeta'
+import { DESTINATION_LABEL, EtdBadge, OpenBadge, PaymentBadge, PoStatusBadge, canMarkReadyToShip, canRequestPayment, isApprovedPo } from '../shared/poMeta'
 
 const CELL = 'text-center align-middle'
 const COLUMNS = 17
@@ -40,6 +40,7 @@ export interface PoRowActions {
   onDelete: (row: PurchaseOrderListItem) => void
   onUnlock: (row: PurchaseOrderListItem) => void
   onLock: (row: PurchaseOrderListItem) => void
+  onReadyToShip: (row: PurchaseOrderListItem) => void
   onClose: (row: PurchaseOrderListItem) => void
   onReopen: (row: PurchaseOrderListItem) => void
   onFromRemaining: (row: PurchaseOrderListItem) => void
@@ -81,6 +82,7 @@ function actionsFor(row: PurchaseOrderListItem, actions: PoRowActions): RowActio
     })
   }
   if (!actions.canWrite) return items
+  if (canMarkReadyToShip(row)) items.push({ key: 'ready-to-ship', label: 'Ready To Ship', onSelect: () => actions.onReadyToShip(row) })
   if (draft) {
     items.push({ key: 'submit', label: row.rejectionReason ? 'Resubmit for approval' : 'Submit for approval', onSelect: () => actions.onSubmit(row) })
   }

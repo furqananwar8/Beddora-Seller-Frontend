@@ -248,11 +248,18 @@ export const PoFormScreen: React.FC<PoFormScreenProps> = ({ purchaseOrderId }) =
                 )}
               </p>
             </div>
-            {po.can.unlock && (
-              <Button type="button" size="sm" variant="outline" className="ml-auto shrink-0" isLoading={decisions.busy?.action === 'unlock'} onClick={() => void decisions.unlock(po)}>
-                Unlock for editing
-              </Button>
-            )}
+            <div className="ml-auto flex shrink-0 gap-2">
+              {po.can.markReadyToShip && (
+                <Button type="button" size="sm" isLoading={decisions.busy?.action === 'readyToShip'} onClick={() => void decisions.readyToShip(po)}>
+                  Ready To Ship
+                </Button>
+              )}
+              {po.can.unlock && (
+                <Button type="button" size="sm" variant="outline" isLoading={decisions.busy?.action === 'unlock'} onClick={() => void decisions.unlock(po)}>
+                  Unlock for editing
+                </Button>
+              )}
+            </div>
           </div>
         )}
 

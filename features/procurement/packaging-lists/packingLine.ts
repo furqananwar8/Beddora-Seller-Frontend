@@ -56,8 +56,8 @@ export function savedLine(line: PackagingLineDetail): LineValue {
   }
 }
 
-/** Live figures for one line: remaining after this list, CBM from the carton size, net weight (typed, else from the product), and what is wrong. */
-export function computeLine(line: PackableLine, value: LineValue | undefined) {
+/** Live figures for one line (`allowOver`: final units may exceed what is available): remaining after this list, CBM from the carton size, net weight (typed, else from the product), and what is wrong. */
+export function computeLine(line: PackableLine, value: LineValue | undefined, allowOver = false) {
   const units = value ? wholeNumber(value.units || '0') : 0
   const cartons = value ? wholeNumber(value.cartons || '0') : 0
   const typedNet = value?.net.trim() ? Number(value.net) : NaN
@@ -70,7 +70,7 @@ export function computeLine(line: PackableLine, value: LineValue | undefined) {
   const net = Number.isFinite(typedNet) && typedNet >= 0 ? typedNet : productNet
   const errors: { units?: string; cartons?: string; carton?: string; net?: string; gross?: string } = {}
   if (!Number.isFinite(units)) errors.units = 'Whole units only'
-  else if (units > line.available) errors.units = `Only ${line.available.toLocaleString('en-CA')} invoiced and available`
+  else if (!allowOver && units > line.available) errors.units = `Only ${line.available.toLocaleString('en-CA')} still unpacked on the PO`
   if (safeUnits > 0 && !(cartons >= 1)) errors.cartons = 'Required'
   if (safeUnits > 0 && !hasCarton) errors.carton = 'Enter L, W and H'
   if (value?.net.trim() && (!Number.isFinite(typedNet) || typedNet < 0)) errors.net = 'Not a weight'
@@ -80,7 +80,7 @@ export function computeLine(line: PackableLine, value: LineValue | undefined) {
     units: safeUnits,
     cartons: safeCartons,
     carton: { length: numberOrNull(l), width: numberOrNull(w), height: numberOrNull(h) },
-    remaining: line.available - safeUnits,
+    remaining: Math.max(0, line.available - safeUnits),
     // Cartons x the carton's volume; without a carton size it falls back to the product's CBM per unit (as the server does)
     cbm: hasCarton ? round(cbmOf(l, w, h, 'CM') * safeCartons, 4) : round((line.product.cbm ?? 0) * safeUnits, 4),
     ...cartonMetrics(safeUnits, safeCartons, numberOrNull(l), numberOrNull(w), numberOrNull(h)),

@@ -1,5 +1,6 @@
 'use client'
 
+import { PoPackagingListsSection } from '../shared/PoPackagingListsSection'
 import React, { useState } from 'react'
 import Link from 'next/link'
 import { ReasonDialog } from '@/components/reason-dialog/ReasonDialog'
@@ -208,6 +209,10 @@ const DetailBody: React.FC<{ detail: PurchaseInvoiceDetail; onClose: () => void 
         <h3 className="mb-2 text-sm font-semibold text-text-primary">Items and expenses</h3>
         <Contents detail={detail} />
       </section>
+
+      <div className="mt-4">
+        <PoPackagingListsSection lists={detail.packagingLists} poNo={detail.purchaseOrder.poNo} />
+      </div>
 
       {can.decide && (
         <section className="mt-4 rounded-xl border border-border p-4">
