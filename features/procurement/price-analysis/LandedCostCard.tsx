@@ -1,126 +1,85 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React from 'react'
 import { FormField, fieldClass } from '@/components/form-field/FormField'
 import { NumericInput } from '@/components/form-field/NumericInput'
-import { SegmentedToggle } from '@/components/segmented-toggle/SegmentedToggle'
 import { Button } from '@/design-system/buttons'
-import { Card, CardContent, CardHeader, CardTitle } from '@/design-system/cards/Card'
+import { Card, CardContent } from '@/design-system/cards/Card'
 import { useApiFeedback } from '@/hooks/useApiFeedback'
 import { useSavePriceFamilySettingsMutation, type PriceFamilySettings } from '@/services/api/procurement.api'
-
-/** What the form starts with when nobody set landed cost yet (a starting point to edit, not a rule). */
-const STARTING_POINT = { freightPerCbm: '', defaultDutyPercent: '', clearingPerUnit: '' }
-
-interface Draft {
-  landedEnabled: boolean
-  freightPerCbm: string
-  defaultDutyPercent: string
-  clearingPerUnit: string
-}
-
-const draftFrom = (settings: PriceFamilySettings): Draft => ({
-  landedEnabled: settings.landedEnabled,
-  freightPerCbm: settings.freightPerCbm === null ? STARTING_POINT.freightPerCbm : String(settings.freightPerCbm),
-  defaultDutyPercent: settings.defaultDutyPercent === null ? STARTING_POINT.defaultDutyPercent : String(settings.defaultDutyPercent),
-  clearingPerUnit: settings.clearingPerUnit === null ? STARTING_POINT.clearingPerUnit : String(settings.clearingPerUnit),
-})
-
-const amount = (value: string): number | null => (value.trim() && Number.isFinite(Number(value)) ? Number(value) : null)
+import { draftFrom, settingsFromDraft, type AssumptionsDraft } from './priceAnalysisForm'
 
 interface LandedCostCardProps {
-  /** The master product of the family (or the product itself when it has no variations): the inputs are shared by its variants. */
+  /** The master product of the family: its variants share these assumptions. */
   rootId: number
-  settings: PriceFamilySettings
+  /** As saved for the family. */
+  saved: PriceFamilySettings
+  /** As typed: they rank the quotes live, before anything is saved. */
+  draft: AssumptionsDraft
+  onChange: (draft: AssumptionsDraft) => void
   canWrite: boolean
   currency: string
 }
 
 /**
- * Landed cost, shared by every variant of the family. Off, quotes are ranked by FOB price; on, each quote gets a unit CBM
- * and duty and is ranked on what it costs once it is here.
+ * Landed cost assumptions of the family (freight per CBM, default duty, clearing/3PL per unit). Typing re-ranks the quotes
+ * at once; Save keeps them for the family, so the figures behind every ranking are on record.
  */
-export const LandedCostCard: React.FC<LandedCostCardProps> = ({ rootId, settings, canWrite, currency }) => {
+export const LandedCostCard: React.FC<LandedCostCardProps> = ({ rootId, saved, draft, onChange, canWrite, currency }) => {
   const { success, failure } = useApiFeedback()
   const [save, { isLoading }] = useSavePriceFamilySettingsMutation()
-  const [draft, setDraft] = useState<Draft>(() => draftFrom(settings))
-  const [tried, setTried] = useState(false)
+  const [tried, setTried] = React.useState(false)
 
-  // A save (here, or on another variant of the family) refreshes the card
-  useEffect(() => {
-    setDraft(draftFrom(settings))
-    setTried(false)
-  }, [settings])
-
-  const dirty = JSON.stringify(draft) !== JSON.stringify(draftFrom(settings))
-  const freightMissing = draft.landedEnabled && amount(draft.freightPerCbm) === null
-  const dutyTooHigh = amount(draft.defaultDutyPercent) !== null && Number(draft.defaultDutyPercent) > 100
+  const dirty = JSON.stringify(draft) !== JSON.stringify(draftFrom(saved))
+  const dutyTooHigh = Number(draft.defaultDutyPercent) > 100
+  const set = (field: keyof AssumptionsDraft) => (event: React.ChangeEvent<HTMLInputElement>) => onChange({ ...draft, [field]: event.target.value })
 
   const submit = async () => {
     setTried(true)
-    if (freightMissing || dutyTooHigh) return
+    if (dutyTooHigh) return
+    const { landedEnabled, freightPerCbm, defaultDutyPercent, clearingPerUnit } = settingsFromDraft(draft, null)
     try {
-      await save({
-        rootId,
-        body: { landedEnabled: draft.landedEnabled, freightPerCbm: amount(draft.freightPerCbm), defaultDutyPercent: amount(draft.defaultDutyPercent), clearingPerUnit: amount(draft.clearingPerUnit) },
-      }).unwrap()
-      success(draft.landedEnabled ? 'Landed cost saved · quotes can be ranked by landed cost' : 'Landed cost is off · quotes are ranked by FOB price')
+      await save({ rootId, body: { landedEnabled, freightPerCbm, defaultDutyPercent, clearingPerUnit } }).unwrap()
+      success('Landed cost assumptions saved for this product family')
+      setTried(false)
     } catch (error) {
-      failure(error, 'Could not save landed cost')
+      failure(error, 'Could not save the assumptions')
     }
   }
 
-  const disabled = !canWrite
-  const inputs = draft.landedEnabled
+  const prefix = currency === 'CAD' ? 'CA$' : '$'
   return (
     <Card>
-      <CardHeader>
+      <CardContent className="flex flex-col gap-3 pt-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <CardTitle>
-            Landed cost <span className="ml-1 text-sm font-normal text-text-muted">shared by every variant of this product</span>
-          </CardTitle>
-          <SegmentedToggle<'off' | 'on'>
-            ariaLabel="Landed cost"
-            value={draft.landedEnabled ? 'on' : 'off'}
-            onChange={(value) => setDraft((current) => ({ ...current, landedEnabled: value === 'on' }))}
-            options={[
-              { value: 'off', label: 'Off' },
-              { value: 'on', label: 'On' },
-            ]}
-            disabled={disabled}
-          />
-        </div>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-3">
-        {!inputs ? (
-          <p className="text-sm text-text-muted">Quotes are ranked by the FOB price. Turn landed cost on to add freight, duty and clearing and rank by what a unit costs once it is here.</p>
-        ) : (
-          <>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-              <FormField label={`Freight rate (${currency} per CBM)`} htmlFor="lc-freight" error={tried && freightMissing ? 'Enter the freight rate' : undefined}>
-                <NumericInput decimal id="lc-freight" value={draft.freightPerCbm} placeholder="0.00" onChange={(event) => setDraft((current) => ({ ...current, freightPerCbm: event.target.value }))} className={fieldClass(tried && freightMissing ? 'x' : undefined)} disabled={disabled} />
-              </FormField>
-              <FormField label="Default duty (%)" htmlFor="lc-duty" hint="Each quote can override it" error={tried && dutyTooHigh ? 'Duty cannot be above 100%' : undefined}>
-                <NumericInput decimal id="lc-duty" value={draft.defaultDutyPercent} placeholder="0" onChange={(event) => setDraft((current) => ({ ...current, defaultDutyPercent: event.target.value }))} className={fieldClass(tried && dutyTooHigh ? 'x' : undefined)} disabled={disabled} />
-              </FormField>
-              <FormField label={`Clearing / 3PL (${currency} per unit)`} htmlFor="lc-clearing">
-                <NumericInput decimal id="lc-clearing" value={draft.clearingPerUnit} placeholder="0.00" onChange={(event) => setDraft((current) => ({ ...current, clearingPerUnit: event.target.value }))} className={fieldClass(undefined)} disabled={disabled} />
-              </FormField>
-            </div>
-            <p className="rounded-lg bg-secondary-50 px-3 py-2 font-mono text-xs text-text-secondary">Landed = FOB + (unit CBM × freight per CBM) + (FOB × duty %) + clearing</p>
-          </>
-        )}
-        {canWrite && (
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" size="sm" disabled={!dirty || isLoading} onClick={() => setDraft(draftFrom(settings))}>
-              Discard
-            </Button>
-            <Button type="button" size="sm" disabled={!dirty} isLoading={isLoading} onClick={() => void submit()}>
-              Save landed cost
-            </Button>
+          <div className="flex items-center gap-2">
+            <h2 className="text-base font-semibold text-text-primary">Landed cost assumptions</h2>
+            <span className="rounded-md bg-secondary-100 px-2 py-0.5 text-[11px] font-medium text-text-secondary">Live Formula</span>
           </div>
-        )}
-        {dirty && <p className="text-xs text-text-muted">Not saved yet: the quotes below keep using the saved values.</p>}
+          <button type="button" onClick={() => onChange(draftFrom(saved))} disabled={!dirty} className="text-sm font-medium text-primary-600 hover:underline disabled:cursor-not-allowed disabled:text-text-muted disabled:no-underline">
+            Reset defaults
+          </button>
+        </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <FormField label={`Freight Rate (${prefix}/CBM)`} htmlFor="lc-freight">
+            <NumericInput decimal id="lc-freight" value={draft.freightPerCbm} placeholder="0.00" onChange={set('freightPerCbm')} className={fieldClass(undefined)} disabled={!canWrite} />
+          </FormField>
+          <FormField label="Default Duty (%)" htmlFor="lc-duty" error={tried && dutyTooHigh ? 'Duty cannot be above 100%' : undefined}>
+            <NumericInput decimal id="lc-duty" value={draft.defaultDutyPercent} placeholder="0" onChange={set('defaultDutyPercent')} className={fieldClass(tried && dutyTooHigh ? 'x' : undefined)} disabled={!canWrite} />
+          </FormField>
+          <FormField label={`Clearing / 3PL (${prefix}/unit)`} htmlFor="lc-clearing">
+            <NumericInput decimal id="lc-clearing" value={draft.clearingPerUnit} placeholder="0.00" onChange={set('clearingPerUnit')} className={fieldClass(undefined)} disabled={!canWrite} />
+          </FormField>
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-2">
+          <p className="font-mono text-[11px] text-text-muted">Landed = FOB + (Unit CBM × Freight/CBM) + (FOB × Duty%) + Clearing</p>
+          {canWrite && (
+            <Button type="button" size="sm" disabled={!dirty} isLoading={isLoading} onClick={() => void submit()}>
+              Save assumptions
+            </Button>
+          )}
+        </div>
+        {dirty && <p className="text-xs text-text-muted">Not saved yet: the table ranks with what is typed here, but the family keeps its saved assumptions until you save.</p>}
       </CardContent>
     </Card>
   )

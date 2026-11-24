@@ -1,4 +1,5 @@
-import type { PoCurrency, PriceAnalysisBody, PriceAnalysisView, PriceFamilySettings, QuoteSample, SupplierRef } from '@/services/api/procurement.api'
+import { z } from 'zod'
+import type { PoCurrency, PriceAnalysisBody, PriceAnalysisView, PriceFamilySettings, QuoteSample } from '@/services/api/procurement.api'
 
 /** Sample options in the order they are offered; one source for the select and the timeline labels. */
 export const SAMPLE_OPTIONS: ReadonlyArray<{ value: QuoteSample; label: string }> = [
@@ -9,8 +10,24 @@ export const SAMPLE_OPTIONS: ReadonlyArray<{ value: QuoteSample; label: string }
 
 export const sampleLabel = (value: QuoteSample | undefined): string => SAMPLE_OPTIONS.find((option) => option.value === value)?.label ?? 'Not Provided'
 
-/** Cards on the screen: the cheapest five. Rows after that are kept but get no card. */
+/** Ranks that get a colour in the table; rows after that are kept, just grey. */
 export const TOP_RANKS = 5
+
+/** Cards on the screen: the cheapest three. */
+export const TOP_CARDS = 3
+
+/**
+ * A supplier as typed: letters and spaces, plus the dot, hyphen, apostrophe and ampersand company names use (no digits).
+ * The server checks the same rule.
+ */
+const SUPPLIER_CHARS = /[^\p{L} .'&-]/gu
+export const sanitizeSupplierName = (value: string): string => value.replace(SUPPLIER_CHARS, '')
+export const supplierNameSchema = z
+  .string()
+  .trim()
+  .min(1, 'Enter the supplier name')
+  .max(120, 'Supplier name is too long')
+  .regex(/^\p{L}[\p{L} .'&-]*$/u, 'Supplier name can only contain letters')
 
 /** Packaging a supplier can be asked to quote; free text is accepted too. */
 export const PACKAGING_SUGGESTIONS = ['Polybag', 'Color Box', 'Master Carton', 'Blister Pack', 'Shrink Wrap']
@@ -18,8 +35,9 @@ export const PACKAGING_SUGGESTIONS = ['Polybag', 'Color Box', 'Master Carton', '
 export interface QuoteRow {
   /** Stable while editing (the packaging text, which identifies the quote, changes as it is typed). */
   uid: string
-  supplier: Pick<SupplierRef, 'id' | 'name' | 'contactName'>
-  /** Point of contact for this quote; starts as the supplier's own contact. */
+  /** The supplier as typed. */
+  supplierName: string
+  /** Point of contact at the supplier. */
   contactName: string
   remarks: string
   sample: QuoteSample
@@ -40,22 +58,22 @@ export interface PriceAnalysisForm {
   rows: QuoteRow[]
 }
 
-export type RowErrors = Partial<Record<'contactName' | 'remarks' | 'unitPrice' | 'supplierId' | 'packagingOption' | 'moq' | 'leadTimeDays' | 'unitCbm' | 'dutyPercent', string>>
+export type RowErrors = Partial<Record<'contactName' | 'remarks' | 'unitPrice' | 'supplierName' | 'packagingOption' | 'moq' | 'leadTimeDays' | 'unitCbm' | 'dutyPercent', string>>
 
 let counter = 0
 export const newUid = (): string => `q${++counter}`
 
 /** What identifies a quote on the server: the supplier, and the packaging when it quoted several. */
-export const quoteKey = (supplierId: number, packagingOption: string): string => `${supplierId}|${packagingOption.trim().toLowerCase()}`
-export const rowKey = (row: Pick<QuoteRow, 'supplier' | 'packagingOption'>): string => quoteKey(row.supplier.id, row.packagingOption)
+export const quoteKey = (supplierName: string, packagingOption: string): string => `${supplierName.trim().toLowerCase()}|${packagingOption.trim().toLowerCase()}`
+export const rowKey = (row: Pick<QuoteRow, 'supplierName' | 'packagingOption'>): string => quoteKey(row.supplierName, row.packagingOption)
 
 /** How a quote reads in messages: the supplier, and its packaging when it has one. */
 export const quoteName = (supplierName: string, packagingOption: string): string => (packagingOption.trim() ? `${supplierName} (${packagingOption.trim()})` : supplierName)
 
-export const blankRow = (supplier: QuoteRow['supplier'], packagingOption = ''): QuoteRow => ({
+export const blankRow = (packagingOption = ''): QuoteRow => ({
   uid: newUid(),
-  supplier: { id: supplier.id, name: supplier.name, contactName: supplier.contactName },
-  contactName: supplier.contactName ?? '',
+  supplierName: '',
+  contactName: '',
   remarks: '',
   sample: 'NOT_PROVIDED',
   unitPrice: '',
@@ -75,7 +93,7 @@ export function formFrom(view: PriceAnalysisView): PriceAnalysisForm {
     currency: analysis.currency,
     rows: analysis.quotes.map((quote) => ({
       uid: newUid(),
-      supplier: { id: quote.supplier.id, name: quote.supplier.name, contactName: quote.supplier.contactName },
+      supplierName: quote.supplierName,
       contactName: quote.contactName ?? '',
       remarks: quote.remarks ?? '',
       sample: quote.sample,
@@ -106,6 +124,8 @@ const parseDecimal = (value: string, decimals: number): number | null => (new Re
 
 export function rowError(row: QuoteRow): RowErrors {
   const errors: RowErrors = {}
+  const name = supplierNameSchema.safeParse(row.supplierName)
+  if (!name.success) errors.supplierName = name.error.issues[0].message
   if (row.unitPrice.trim() === '') errors.unitPrice = 'Enter a price'
   else if (parsePrice(row.unitPrice) === null) errors.unitPrice = 'Enter an amount above 0 with at most 2 decimals'
   if (row.contactName.length > 120) errors.contactName = 'Contact name is too long'
@@ -116,6 +136,27 @@ export function rowError(row: QuoteRow): RowErrors {
   if (row.unitCbm.trim() && (parseDecimal(row.unitCbm, 6) === null || Number(row.unitCbm) <= 0)) errors.unitCbm = 'Above 0, up to 6 decimals'
   if (row.dutyPercent.trim() && (parseDecimal(row.dutyPercent, 2) === null || Number(row.dutyPercent) > 100)) errors.dutyPercent = '0 to 100'
   return errors
+}
+
+/** The landed-cost assumptions as typed on the screen; they rank the quotes live, and are saved for the family on demand. */
+export interface AssumptionsDraft {
+  freightPerCbm: string
+  defaultDutyPercent: string
+  clearingPerUnit: string
+}
+
+export const draftFrom = (settings: PriceFamilySettings): AssumptionsDraft => ({
+  freightPerCbm: settings.freightPerCbm === null ? '' : String(settings.freightPerCbm),
+  defaultDutyPercent: settings.defaultDutyPercent === null ? '' : String(settings.defaultDutyPercent),
+  clearingPerUnit: settings.clearingPerUnit === null ? '' : String(settings.clearingPerUnit),
+})
+
+const amountOrNull = (value: string): number | null => (value.trim() && Number.isFinite(Number(value)) ? Number(value) : null)
+
+/** The typed assumptions as the numbers the ranking and the server use; landed cost is on while a freight rate is entered. */
+export function settingsFromDraft(draft: AssumptionsDraft, updatedAt: string | null): PriceFamilySettings {
+  const freightPerCbm = amountOrNull(draft.freightPerCbm)
+  return { landedEnabled: freightPerCbm !== null, freightPerCbm, defaultDutyPercent: amountOrNull(draft.defaultDutyPercent), clearingPerUnit: amountOrNull(draft.clearingPerUnit), updatedAt }
 }
 
 /** Two rows of the same supplier and packaging cannot both be saved. */
@@ -205,7 +246,7 @@ export function toBody(form: PriceAnalysisForm, loadedAt: string | null): PriceA
     material: form.material.trim() || null,
     currency: form.currency,
     quotes: form.rows.map((row) => ({
-      supplierId: row.supplier.id,
+      supplierName: row.supplierName.trim(),
       packagingOption: row.packagingOption.trim(),
       moq: numberOrNull(row.moq, (text) => parseWhole(text, 1)),
       leadTimeDays: numberOrNull(row.leadTimeDays, (text) => parseWhole(text, 0)),

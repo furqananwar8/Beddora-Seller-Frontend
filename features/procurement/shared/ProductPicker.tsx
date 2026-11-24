@@ -41,11 +41,11 @@ const ProductOption: React.FC<{ product: PoProduct; note?: React.ReactNode }> = 
  * Server-searched orderable products, fetched only while the dropdown is open. Every opening asks the server
  * again (a product created or edited meanwhile, here or in another browser tab, must show up in the search).
  */
-function useProductOptions() {
+function useProductOptions(parentsOnly = false) {
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
   const debounced = useDebounce(search, 250)
-  const { data = [], isFetching } = useGetPoProductOptionsQuery({ search: debounced }, { skip: !open, refetchOnMountOrArgChange: true, refetchOnFocus: true })
+  const { data = [], isFetching } = useGetPoProductOptionsQuery({ search: debounced, parentsOnly }, { skip: !open, refetchOnMountOrArgChange: true, refetchOnFocus: true })
   return { search, setSearch, setOpen, options: data, isFetching }
 }
 
@@ -56,11 +56,13 @@ interface ProductSelectProps {
   disabled?: boolean
   error?: string
   placeholder?: string
+  /** List parent products only (a family is picked first, its variants after). */
+  parentsOnly?: boolean
 }
 
 /** Pick one product (price analysis): the same search and options as the PO picker. */
-export const ProductSelect: React.FC<ProductSelectProps> = ({ id, value, onChange, disabled, error, placeholder = 'Search SKU or product name' }) => {
-  const lookup = useProductOptions()
+export const ProductSelect: React.FC<ProductSelectProps> = ({ id, value, onChange, disabled, error, placeholder = 'Search SKU or product name', parentsOnly }) => {
+  const lookup = useProductOptions(parentsOnly)
   return (
     <SearchableSelect<PoProduct>
       id={id}

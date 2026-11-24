@@ -18,8 +18,7 @@ import {
   type PersonRef,
   type RuleAssignee,
 } from '@/services/api/approvals.api'
-import { Button } from '@/design-system/buttons'
-import { Modal } from '@/design-system/modals'
+import { UnsavedChangesDialog } from '@/components/unsaved-changes-dialog/UnsavedChangesDialog'
 import type { Slots } from './ApprovalsScreen'
 import { AddPicker, Btn, Chip, FooterBar, Loading, PaneTitle, RemoveBtn, Select, SideItem, SideTitle, Tag, TwoPane, type PickOption } from './ui'
 import { cn } from '@/utils/cn'
@@ -274,14 +273,7 @@ export const RulesTab: React.FC<{ slots: Slots }> = ({ slots }) => {
     >
       {key ? <RuleLoader guard={guard} actionKey={key} lookups={lookups} readOnly={!canEdit} slots={slots} /> : <p className="text-sm text-slate-500">No approvable actions yet.</p>}
     </TwoPane>
-    <Modal isOpen={pending !== null} onClose={stay} title="Unsaved changes" size="sm" closeOnEscape={!savingPending}>
-      <p className="text-sm text-text-secondary">This rule has changes that are not saved. Save them before moving to another rule?</p>
-      <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-        <Button type="button" variant="outline" onClick={stay} disabled={savingPending}>Stay</Button>
-        <Button type="button" variant="outline" onClick={goPending} disabled={savingPending}>Discard and continue</Button>
-        <Button type="button" variant="primary" onClick={() => void saveAndGo()} isLoading={savingPending}>Save and continue</Button>
-      </div>
-    </Modal>
+    <UnsavedChangesDialog isOpen={pending !== null} subject="This rule" destination="another rule" saving={savingPending} onStay={stay} onDiscard={goPending} onSave={() => void saveAndGo()} />
     </>
   )
 }

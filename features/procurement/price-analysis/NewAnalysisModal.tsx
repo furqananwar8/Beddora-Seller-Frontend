@@ -8,7 +8,7 @@ import { Modal } from '@/design-system/modals'
 import type { PoProduct } from '@/services/api/procurement.api'
 import { ProductSelect } from '../shared/ProductPicker'
 
-/** "New price analysis": pick the product (a variation, or a product without variations), then quote it on its own page. */
+/** "New price analysis": pick the parent product; its variants load on the analysis page, where each is quoted on its own. */
 export const NewAnalysisModal: React.FC<{ isOpen: boolean; onClose: () => void; hrefFor: (productId: number) => string }> = ({ isOpen, onClose, hrefFor }) => {
   const router = useRouter()
   const [product, setProduct] = useState<PoProduct | null>(null)
@@ -21,8 +21,8 @@ export const NewAnalysisModal: React.FC<{ isOpen: boolean; onClose: () => void; 
   return (
     <Modal isOpen={isOpen} onClose={close} title="New price analysis" size="md" closeOnEscape className="sm:overflow-visible">
       <div className="flex flex-col gap-4">
-        <FormField label="Product" htmlFor="pa-new-product" hint="A product that already has an analysis opens it instead">
-          <ProductSelect id="pa-new-product" value={product} onChange={setProduct} />
+        <FormField label="Parent product" htmlFor="pa-new-product" hint="Its variants load next; a variant that already has an analysis opens it">
+          <ProductSelect id="pa-new-product" value={product} onChange={setProduct} parentsOnly />
         </FormField>
         <div className="flex justify-end gap-2">
           <Button type="button" variant="outline" onClick={close}>

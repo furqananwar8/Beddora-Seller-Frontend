@@ -221,7 +221,7 @@ export const PriceAnalysesScreen: React.FC = () => {
                       {row.approval && row.currency ? (
                         <div className="flex flex-col items-center">
                           <span className="font-medium text-text-primary">
-                            {row.approval.supplier.name}
+                            {row.approval.supplierName}
                             {row.approval.packagingOption ? ` (${row.approval.packagingOption})` : ''}
                           </span>
                           <span className="text-xs text-text-muted">

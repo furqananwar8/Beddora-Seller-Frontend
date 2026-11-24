@@ -18,9 +18,9 @@ const TYPE_LABEL: Record<PriceAnalysisRevision['type'], { label: string; tone: '
 }
 
 /** How a supplier's price moved against the previous snapshot: a new supplier, a price change, or no change. */
-const sameQuote = (a: { supplierId: number; packagingOption?: string }, b: { supplierId: number; packagingOption?: string }) => a.supplierId === b.supplierId && (a.packagingOption ?? '') === (b.packagingOption ?? '')
+const sameQuote = (a: { supplierName: string; packagingOption?: string }, b: { supplierName: string; packagingOption?: string }) => a.supplierName.toLowerCase() === b.supplierName.toLowerCase() && (a.packagingOption ?? '') === (b.packagingOption ?? '')
 
-function changeOf(revision: PriceAnalysisRevision, previous: PriceAnalysisRevision | undefined, current: { supplierId: number; packagingOption?: string }, price: number) {
+function changeOf(revision: PriceAnalysisRevision, previous: PriceAnalysisRevision | undefined, current: { supplierName: string; packagingOption?: string }, price: number) {
   if (!previous) return null
   const before = previous.quotes.find((quote) => sameQuote(quote, current))
   if (!before) return { text: 'new', tone: 'text-sky-700' }
@@ -46,7 +46,7 @@ const Revision: React.FC<{ revision: PriceAnalysisRevision; previous?: PriceAnal
           {revision.quotes.map((quote) => {
             const change = changeOf(revision, previous, quote, quote.unitPrice)
             return (
-              <li key={`${quote.supplierId}|${quote.packagingOption ?? ''}`} className="flex flex-wrap items-baseline justify-between gap-2 py-1">
+              <li key={`${quote.supplierName}|${quote.packagingOption ?? ''}`} className="flex flex-wrap items-baseline justify-between gap-2 py-1">
                 <span className="min-w-0 break-words text-text-primary">
                   {quote.supplierName}
                   {quote.packagingOption && <span className="text-text-muted"> ({quote.packagingOption})</span>}
