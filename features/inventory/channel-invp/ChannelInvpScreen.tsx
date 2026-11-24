@@ -16,6 +16,7 @@ import { cn } from '@/utils/cn'
 import { InvpTable } from './InvpTable'
 import { CHANNEL_OPTIONS, defaultFilters, MARKETPLACE_OPTIONS } from './invpFilters'
 
+import { usePageSize } from '@/hooks/usePageSize'
 const PAGE_SIZE = 20
 
 
@@ -27,6 +28,7 @@ const PAGE_SIZE = 20
 export const ChannelInvpScreen: React.FC = () => {
   const defaults = useMemo(defaultFilters, [])
   const [page, setPage] = useState(1)
+  const pageSize = usePageSize(PAGE_SIZE)
   const filters = useStagedFilters(defaults, () => setPage(1))
   const { draft, setDraft, applied, changed } = filters
   // Potentials typed into the table, by product id; the report recomputes from them
@@ -46,7 +48,7 @@ export const ChannelInvpScreen: React.FC = () => {
     marketplaces: applied.marketplaces,
     search: applied.search.trim(),
     page,
-    limit: PAGE_SIZE,
+    limit: pageSize,
   }
   const { data, isLoading, isFetching, isError } = useGetChannelInvpQuery(query)
   // Built by the export worker; the file downloads by itself when the server announces it over SSE
@@ -115,7 +117,7 @@ export const ChannelInvpScreen: React.FC = () => {
       <div className={cn(isFetching && !isLoading && 'opacity-70 transition-opacity')}>
         <InvpTable report={data} isLoading={isLoading} isError={isError} onPotentialChange={editPotential} />
         {data && data.totalRecords > 0 && (
-          <PaginationFooter page={data.page} pageSize={data.limit} totalItems={data.totalRecords} totalPages={data.totalPages} onPageChange={setPage} itemLabel="SKUs" />
+          <PaginationFooter selectablePageSize page={data.page} pageSize={data.limit} totalItems={data.totalRecords} totalPages={data.totalPages} onPageChange={setPage} itemLabel="SKUs" />
         )}
       </div>
     </Container>

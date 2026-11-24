@@ -9,15 +9,17 @@ import { PaginationFooter } from '@/components/pagination-footer/PaginationFoote
 import { useDebounce } from '@/utils/debounce'
 import { useGetManualReturnsQuery } from '@/services/api/barcode.api'
 
+import { usePageSize } from '@/hooks/usePageSize'
 const PAGE_SIZE = 10
 const when = (iso: string) => new Date(iso).toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false })
 
 /** The returns entered by hand, newest first: what came back, how it was split, and the notes kept with it. */
 export function ManualReturnsList({ onAdd }: { onAdd?: () => void }) {
   const [page, setPage] = useState(1)
+  const pageSize = usePageSize(PAGE_SIZE)
   const [search, setSearch] = useState('')
   const debounced = useDebounce(search.trim(), 300)
-  const { data, isLoading, isError } = useGetManualReturnsQuery({ page, limit: PAGE_SIZE, search: debounced })
+  const { data, isLoading, isError } = useGetManualReturnsQuery({ page, limit: pageSize, search: debounced })
 
   return (
     <div className="space-y-4">
@@ -89,7 +91,7 @@ export function ManualReturnsList({ onAdd }: { onAdd?: () => void }) {
             </table>
           </div>
         )}
-        {data && data.totalRecords > 0 && <PaginationFooter page={data.page} pageSize={data.limit} totalItems={data.totalRecords} totalPages={data.totalPages} onPageChange={setPage} itemLabel="manual returns" />}
+        {data && data.totalRecords > 0 && <PaginationFooter selectablePageSize page={data.page} pageSize={data.limit} totalItems={data.totalRecords} totalPages={data.totalPages} onPageChange={setPage} itemLabel="manual returns" />}
       </div>
     </div>
   )

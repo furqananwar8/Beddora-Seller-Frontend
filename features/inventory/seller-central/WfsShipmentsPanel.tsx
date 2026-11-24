@@ -16,6 +16,7 @@ import { WfsStatusBadge, wfsStatusLabel } from './WfsStatusBadge'
 import { PanelProps, copyText, n } from './panel'
 import { useListFilters } from './useListFilters'
 
+import { usePageSize } from '@/hooks/usePageSize'
 const PAGE_SIZE = 20
 
 const marketLabel = (id: string) => (id === 'Walmart.CA' ? 'CANADA' : id === 'Walmart.US' ? 'USA' : id)
@@ -23,10 +24,11 @@ const marketLabel = (id: string) => (id === 'Walmart.CA' ? 'CANADA' : id === 'Wa
 /** Walmart: the WFS inbound shipments made in Walmart Seller Center, one row per fulfillment-center shipment. */
 export const WfsShipmentsPanel: React.FC<PanelProps> = ({ syncing, notify }) => {
   const filters = useListFilters()
+  const pageSize = usePageSize(PAGE_SIZE)
   const [openKey, setOpenKey] = useState<string | null>(null)
   const [refreshingKey, setRefreshingKey] = useState<string | null>(null)
   const [refreshShipment] = useRefreshWfsSellerCentralShipmentMutation()
-  const { data, isLoading, isFetching, isError } = useGetWfsSellerCentralShipmentsQuery({ ...filters.params, page: filters.page, limit: PAGE_SIZE })
+  const { data, isLoading, isFetching, isError } = useGetWfsSellerCentralShipmentsQuery({ ...filters.params, page: filters.page, limit: pageSize })
 
   // Walmart's status words aren't a fixed set, so the filter lists the ones the synced shipments carry
   const statusOptions = useMemo(

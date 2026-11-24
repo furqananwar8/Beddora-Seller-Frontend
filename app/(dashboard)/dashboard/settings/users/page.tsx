@@ -32,6 +32,7 @@ import {
   useUpdateManagedUserPermissionsMutation,
 } from '@/services/api/users.api'
 
+import { usePageSize } from '@/hooks/usePageSize'
 const PAGE_SIZE = 10
 
 type Tab = 'active' | 'invited'
@@ -70,10 +71,11 @@ export default function UsersPage() {
   const [search, setSearch] = useState('')
   const debouncedSearch = useDebounce(search, 300)
   const [page, setPage] = useState(1)
+  const pageSize = usePageSize(PAGE_SIZE)
   const [modalOpen, setModalOpen] = useState(false)
   const [selectedRow, setSelectedRow] = useState<UserRow | null>(null)
 
-  const listParams = { page, limit: PAGE_SIZE, search: debouncedSearch }
+  const listParams = { page, limit: pageSize, search: debouncedSearch }
   const usersQuery = useGetManagedUsersQuery(listParams, { skip: tab !== 'active' })
   const invitesQuery = useGetInvitesQuery(listParams, { skip: tab !== 'invited' })
   const [deleteInvite] = useDeleteInviteMutation()
@@ -282,7 +284,7 @@ export default function UsersPage() {
             </Table>
           </div>
           {pageData && (
-            <PaginationFooter
+            <PaginationFooter selectablePageSize
               page={pageData.page}
               pageSize={pageData.limit}
               totalItems={pageData.totalRecords}

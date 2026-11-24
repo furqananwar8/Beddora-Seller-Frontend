@@ -19,6 +19,7 @@ import { ParentSkuList } from './ParentSkuList'
 
 /** Same cap as the server: a month of day columns stays readable. */
 const MAX_RANGE_DAYS = 31
+import { usePageSize } from '@/hooks/usePageSize'
 const PAGE_SIZE = 50
 
 interface Filters extends Record<string, unknown> {
@@ -52,6 +53,7 @@ export const CampaignPerformanceScreen: React.FC = () => {
   const debouncedParentSearch = useDebounce(parentSearch, 300)
   const [selected, setSelected] = useState<string | null>(null)
   const [page, setPage] = useState(1)
+  const pageSize = usePageSize(PAGE_SIZE)
 
   const startDate = applied.range.startDate ?? ''
   const endDate = applied.range.endDate ?? ''
@@ -67,7 +69,7 @@ export const CampaignPerformanceScreen: React.FC = () => {
   useEffect(() => setPage(1), [activeParent, applied])
 
   const { data, isFetching, isError } = useGetParentKeywordsQuery(
-    { parentSku: activeParent ?? '', startDate, endDate, marketplaces, search: applied.keyword || undefined, page, limit: PAGE_SIZE },
+    { parentSku: activeParent ?? '', startDate, endDate, marketplaces, search: applied.keyword || undefined, page, limit: pageSize },
     { skip: !ready || !activeParent }
   )
 
@@ -142,7 +144,7 @@ export const CampaignPerformanceScreen: React.FC = () => {
           {data && data.total > 0 && (
             <div className="border-t border-border px-3 py-1 text-xs text-text-muted">
               Showing {(data.page - 1) * data.limit + 1} to {Math.min(data.page * data.limit, data.total)} of {data.total} keywords
-              <PaginationFooter
+              <PaginationFooter selectablePageSize
                 page={data.page}
                 pageSize={data.limit}
                 totalItems={data.total}

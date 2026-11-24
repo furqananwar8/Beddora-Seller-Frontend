@@ -34,6 +34,7 @@ import { MARKETPLACES } from './productForm'
 import { ProductsTable } from './ProductsTable'
 
 const BASE = '/dashboard/procurement/products'
+import { usePageSize } from '@/hooks/usePageSize'
 const PAGE_SIZE = 20
 
 type TagFilter = 'ALL' | ProductTag
@@ -68,13 +69,15 @@ export const ProductsScreen: React.FC = () => {
   const { success, failure } = useApiFeedback()
 
   const [page, setPage] = useState(1)
+
+  const pageSize = usePageSize(PAGE_SIZE)
   const filters = useStagedFilters(DEFAULT_FILTERS, () => setPage(1))
   const { applied, draft, setDraft } = filters
   const debouncedSearch = applied.search.trim()
 
   const { data, isLoading, isFetching, isError } = useGetPoProductsQuery({
     page,
-    limit: PAGE_SIZE,
+    limit: pageSize,
     search: debouncedSearch,
     categoryId: applied.category?.id,
     color: applied.color ?? undefined,
@@ -233,7 +236,7 @@ export const ProductsScreen: React.FC = () => {
           />
         </div>
         {data && (
-          <PaginationFooter page={data.page} pageSize={data.limit} totalItems={data.totalRecords} totalPages={data.totalPages} onPageChange={setPage} itemLabel="masters" />
+          <PaginationFooter selectablePageSize page={data.page} pageSize={data.limit} totalItems={data.totalRecords} totalPages={data.totalPages} onPageChange={setPage} itemLabel="masters" />
         )}
       </div>
 

@@ -25,6 +25,7 @@ import { useMarketingPlan } from './useMarketingPlan'
  * is saved, and the plan starts from the defaults on every visit.
  */
 
+import { usePageSize } from '@/hooks/usePageSize'
 const PAGE_SIZE = 50
 
 const COUNTRY_OPTIONS = [
@@ -52,12 +53,13 @@ const MarketingPlanBoard: React.FC<{ country: PricingCountry; onCountryChange: (
   const [search, setSearch] = useState('')
   const debouncedSearch = useDebounce(search.trim(), 300)
   const [page, setPage] = useState(1)
+  const pageSize = usePageSize(PAGE_SIZE)
   const plan = useMarketingPlan(country, debouncedSearch)
   const { settings, setSettings, budgetCap, setBudgetCap, currency } = plan
 
   useEffect(() => setPage(1), [debouncedSearch])
-  const totalPages = Math.max(1, Math.ceil(plan.lines.length / PAGE_SIZE))
-  const pageLines = useMemo(() => plan.lines.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [plan.lines, page])
+  const totalPages = Math.max(1, Math.ceil(plan.lines.length / pageSize))
+  const pageLines = useMemo(() => plan.lines.slice((page - 1) * pageSize, page * pageSize), [plan.lines, page])
   const context = useMemo(() => ({ currency, setStage: plan.setStage, setPlannedUnits: plan.setPlannedUnits }), [currency, plan.setStage, plan.setPlannedUnits])
 
   // The SKU column can be dragged wider or narrower, like the product column of the settlement report
@@ -192,7 +194,7 @@ const MarketingPlanBoard: React.FC<{ country: PricingCountry; onCountryChange: (
             </tbody>
           </table>
         </div>
-        {plan.lines.length > 0 && <PaginationFooter page={page} pageSize={PAGE_SIZE} totalItems={plan.lines.length} totalPages={totalPages} onPageChange={setPage} itemLabel="SKUs" />}
+        {plan.lines.length > 0 && <PaginationFooter selectablePageSize page={page} pageSize={pageSize} totalItems={plan.lines.length} totalPages={totalPages} onPageChange={setPage} itemLabel="SKUs" />}
       </div>
     </div>
   )

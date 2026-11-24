@@ -12,6 +12,7 @@ import { cn } from '@/utils/cn'
 import { ChannelStockFilters, DEFAULT_CHANNEL_STOCK_FILTERS, type ChannelStockFilterValues } from './ChannelStockFilters'
 import { ChannelStockTable } from './ChannelStockTable'
 
+import { usePageSize } from '@/hooks/usePageSize'
 const PAGE_SIZE = 20
 
 const n = (value: number | null | undefined) => (value === null || value === undefined ? '–' : value.toLocaleString())
@@ -22,6 +23,7 @@ const syncedLabel = (iso: string | null | undefined) =>
 export const ChannelInventoryScreen: React.FC = () => {
   const fit = useFitToViewport<HTMLDivElement>()
   const [page, setPage] = useState(1)
+  const pageSize = usePageSize(PAGE_SIZE)
   // A link can open it on a channel and already searched (?channel=walmart&search=SKU), e.g. from a shipment's products
   const searchParams = useSearchParams()
   const urlChannel = searchParams.get('channel')
@@ -40,7 +42,7 @@ export const ChannelInventoryScreen: React.FC = () => {
     fulfillments: applied.fulfillments,
     search: applied.search.trim(),
     page,
-    limit: PAGE_SIZE,
+    limit: pageSize,
   })
   const appliedChannel = channels.find((channel) => channel.id === applied.channel)
   const summary = data?.summary
@@ -83,7 +85,7 @@ export const ChannelInventoryScreen: React.FC = () => {
         </div>
         {data && (
           <>
-            <PaginationFooter
+            <PaginationFooter selectablePageSize
               page={data.page}
               pageSize={data.limit}
               totalItems={data.totalRecords}

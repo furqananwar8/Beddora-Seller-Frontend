@@ -13,6 +13,7 @@ import { useFinanceFeedback } from '../shared/useFinanceFeedback'
 import { BankProfileDialog } from './BankProfileDialog'
 import { BankProfileTable } from './BankProfileTable'
 
+import { usePageSize } from '@/hooks/usePageSize'
 const PAGE_SIZE = 20
 
 /** Company bank accounts payments are made from, kept apart from partners' payment details. */
@@ -22,11 +23,12 @@ export const BankProfileScreen: React.FC = () => {
   const [search, setSearch] = useState('')
   const debouncedSearch = useDebounce(search, 300)
   const [page, setPage] = useState(1)
+  const pageSize = usePageSize(PAGE_SIZE)
   // `null` closes the dialog, 'new' adds, a profile edits it
   const [editing, setEditing] = useState<BankProfile | 'new' | null>(null)
   const [removing, setRemoving] = useState<BankProfile | null>(null)
 
-  const { data, isLoading, isFetching, isError } = useGetBankProfilesQuery({ search: debouncedSearch, page, limit: PAGE_SIZE })
+  const { data, isLoading, isFetching, isError } = useGetBankProfilesQuery({ search: debouncedSearch, page, limit: pageSize })
   const [remove, { isLoading: isRemoving }] = useDeleteBankProfileMutation()
 
   const confirmRemove = async () => {
@@ -66,7 +68,7 @@ export const BankProfileScreen: React.FC = () => {
           onRemove={canWriteBankProfiles ? setRemoving : undefined}
         />
         {data && data.totalRecords > 0 && (
-          <PaginationFooter
+          <PaginationFooter selectablePageSize
             page={data.page}
             pageSize={data.limit}
             totalItems={data.totalRecords}

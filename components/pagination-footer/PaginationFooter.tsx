@@ -1,9 +1,14 @@
+import { useSavePageSize } from '@/hooks/usePageSize';
+import { PAGE_SIZE_OPTIONS } from '@/services/api/pagePreferences.api';
+
 interface PaginationFooterProps {
   page: number;
   pageSize: number;
   totalItems: number;
   totalPages: number;
   onPageChange: (page: number) => void;
+  /** Shows the rows-per-page picker and saves the choice for this user and screen. The screen reads it with usePageSize. */
+  selectablePageSize?: boolean;
   itemLabel?: string; // e.g. "products", "orders" — defaults to "items"
 }
 
@@ -14,8 +19,10 @@ export function PaginationFooter({
   totalPages,
   onPageChange,
   itemLabel = 'items',
+  selectablePageSize = false,
 }: PaginationFooterProps) {
-  if (totalPages <= 1) return null;
+  const savePageSize = useSavePageSize();
+  if (totalPages <= 1 && !(selectablePageSize && totalItems > PAGE_SIZE_OPTIONS[0])) return null;
 
   const startItem = (page - 1) * pageSize + 1;
   const endItem = Math.min(page * pageSize, totalItems);
@@ -57,6 +64,18 @@ export function PaginationFooter({
         {totalItems.toLocaleString()} {itemLabel}
       </span>
       <div className="flex items-center gap-2">
+        {selectablePageSize && (
+          <label className="flex items-center gap-1.5 text-sm text-gray-500 mr-2">
+            Rows per page
+            <select
+              value={pageSize}
+              onChange={(e) => { savePageSize(Number(e.target.value)); onPageChange(1); }}
+              className="border border-gray-200 rounded-md bg-white px-2 py-1 text-sm text-gray-700"
+            >
+              {PAGE_SIZE_OPTIONS.map((n) => <option key={n} value={n}>{n}</option>)}
+            </select>
+          </label>
+        )}
         <button
           onClick={() => onPageChange(page - 1)}
           disabled={page === 1}

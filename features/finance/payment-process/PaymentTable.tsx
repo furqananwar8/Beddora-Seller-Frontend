@@ -125,6 +125,7 @@ export const PaymentTable: React.FC<PaymentTableProps> = ({ page, isLoading, isF
       </div>
       {page && (
         <PaginationFooter
+          selectablePageSize
           page={page.page}
           pageSize={page.limit}
           totalItems={page.totalRecords}

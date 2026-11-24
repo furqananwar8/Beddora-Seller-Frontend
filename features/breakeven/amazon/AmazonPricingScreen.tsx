@@ -24,6 +24,7 @@ import { ApplyFiltersButton } from '@/features/profit/dashboard/components/Apply
  * columns to its right follow. Edits are kept in this browser; they are what-ifs and change nothing in Amazon.
  */
 
+import { usePageSize } from '@/hooks/usePageSize'
 const PAGE_SIZE = 50
 
 const COUNTRY_OPTIONS = [
@@ -60,6 +61,7 @@ const AmazonPricingBoard: React.FC<{ country: PricingCountry; onCountryChange: (
   const [search, setSearch] = useState('')
   const debouncedSearch = useDebounce(search.trim(), 300)
   const [page, setPage] = useState(1)
+  const pageSize = usePageSize(PAGE_SIZE)
   const { data, isLoading, isFetching, error, globals, applyGlobals, setEdit, setMode, resetEdits, editedCount, lines } = useAmazonPricing(country, debouncedSearch)
 
   // The filters are picked as a draft and take effect together when Apply Filters is pressed (search applies as you type)
@@ -75,8 +77,8 @@ const AmazonPricingBoard: React.FC<{ country: PricingCountry; onCountryChange: (
   // a new search or filter starts from the first page
   useEffect(() => setPage(1), [debouncedSearch, globals.fulfillment])
 
-  const totalPages = Math.max(1, Math.ceil(lines.length / PAGE_SIZE))
-  const pageLines = useMemo(() => lines.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [lines, page])
+  const totalPages = Math.max(1, Math.ceil(lines.length / pageSize))
+  const pageLines = useMemo(() => lines.slice((page - 1) * pageSize, page * pageSize), [lines, page])
   const context = useMemo<ColumnContext>(() => ({ currency: data?.currency ?? 'CAD', country, globals, setEdit, setMode }), [data?.currency, country, globals, setEdit, setMode])
 
   // SKU and ASIN can be dragged wider or narrower, like the product column of the settlement report
@@ -196,7 +198,7 @@ const AmazonPricingBoard: React.FC<{ country: PricingCountry; onCountryChange: (
           </table>
         </div>
         {lines.length > 0 && (
-          <PaginationFooter page={page} pageSize={PAGE_SIZE} totalItems={lines.length} totalPages={totalPages} onPageChange={setPage} itemLabel="listings" />
+          <PaginationFooter selectablePageSize page={page} pageSize={pageSize} totalItems={lines.length} totalPages={totalPages} onPageChange={setPage} itemLabel="listings" />
         )}
       </div>
     </div>

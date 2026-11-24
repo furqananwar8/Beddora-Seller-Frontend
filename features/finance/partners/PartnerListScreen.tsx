@@ -14,6 +14,7 @@ import { PartnerTable } from './PartnerTable'
 import { usePartnerRemoval } from './usePartnerRemoval'
 import { useRowSelection } from '@/hooks/useRowSelection'
 
+import { usePageSize } from '@/hooks/usePageSize'
 const PAGE_SIZE = 10
 const BASE = '/dashboard/finance/partner-profile'
 
@@ -26,12 +27,13 @@ export const PartnerListScreen: React.FC = () => {
   const debouncedSearch = useDebounce(search, 300)
   const [type, setType] = useState<TypeFilter>('ALL')
   const [page, setPage] = useState(1)
+  const pageSize = usePageSize(PAGE_SIZE)
 
   const { data, isLoading, isFetching, isError } = useGetPartnersQuery({
     search: debouncedSearch,
     type: type === 'ALL' ? undefined : type,
     page,
-    limit: PAGE_SIZE,
+    limit: pageSize,
   })
   const rows = data?.data ?? []
   const selection = useRowSelection(rows.map((row) => row.id))
@@ -84,7 +86,7 @@ export const PartnerListScreen: React.FC = () => {
           onDelete={canWritePartners ? removal.askOne : undefined}
         />
         {data && (
-          <PaginationFooter
+          <PaginationFooter selectablePageSize
             page={data.page}
             pageSize={data.limit}
             totalItems={data.totalRecords}

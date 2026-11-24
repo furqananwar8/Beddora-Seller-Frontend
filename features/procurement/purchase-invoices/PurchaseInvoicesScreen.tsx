@@ -30,6 +30,7 @@ import { PiPaymentRequestsModal } from '../shared/PoPaymentRequests'
 import { PurchaseInvoiceDetailModal } from './PurchaseInvoiceDetailModal'
 import { usePurchaseInvoiceActions } from './usePurchaseInvoiceActions'
 
+import { usePageSize } from '@/hooks/usePageSize'
 const PAGE_SIZE = 20
 const CELL = 'text-center align-middle'
 const COLUMNS = 14
@@ -59,10 +60,12 @@ export const PurchaseInvoicesScreen: React.FC = () => {
   const openId = positiveParam(params.get('open'))
 
   const [page, setPage] = useState(1)
+
+  const pageSize = usePageSize(PAGE_SIZE)
   const filters = useStagedFilters(DEFAULT_FILTERS, () => setPage(1))
   const { applied, draft, setDraft, changed } = filters
   const debouncedSearch = applied.search.trim()
-  const { data, isLoading, isFetching, isError } = useGetPurchaseInvoicesQuery({ page, limit: PAGE_SIZE, search: debouncedSearch, purchaseOrderId, statuses: applied.statuses })
+  const { data, isLoading, isFetching, isError } = useGetPurchaseInvoicesQuery({ page, limit: pageSize, search: debouncedSearch, purchaseOrderId, statuses: applied.statuses })
   const { data: summary } = useGetPurchaseInvoiceSummaryQuery({ search: debouncedSearch, purchaseOrderId })
   const { data: marketplaces } = useGetPurchaseInvoiceDestinationsQuery()
   const actions = usePurchaseInvoiceActions()
@@ -246,7 +249,7 @@ export const PurchaseInvoicesScreen: React.FC = () => {
             </TableBody>
           </Table>
         </div>
-        {data && <PaginationFooter page={data.page} pageSize={data.limit} totalItems={data.totalRecords} totalPages={data.totalPages} onPageChange={setPage} itemLabel="purchase invoices" />}
+        {data && <PaginationFooter selectablePageSize page={data.page} pageSize={data.limit} totalItems={data.totalRecords} totalPages={data.totalPages} onPageChange={setPage} itemLabel="purchase invoices" />}
       </div>
 
       <NewPurchaseInvoiceModal isOpen={creating} onClose={() => setCreating(false)} />

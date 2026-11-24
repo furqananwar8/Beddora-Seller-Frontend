@@ -15,6 +15,7 @@ import { PanelProps, copyText, n } from './panel'
 import { planTitle } from './planTitle'
 import { useListFilters } from './useListFilters'
 
+import { usePageSize } from '@/hooks/usePageSize'
 const PAGE_SIZE = 20
 
 const STATUS_OPTIONS = [
@@ -26,6 +27,7 @@ const STATUS_OPTIONS = [
 /** Amazon: the inbound plans created in Seller Central. */
 export const AmazonPlansPanel: React.FC<PanelProps> = ({ syncing, notify }) => {
   const filters = useListFilters()
+  const pageSize = usePageSize(PAGE_SIZE)
   const [openPlan, setOpenPlan] = useState<string | null>(null)
   const [refreshingId, setRefreshingId] = useState<string | null>(null)
   const [refreshPlan] = useRefreshSellerCentralPlanMutation()
@@ -33,7 +35,7 @@ export const AmazonPlansPanel: React.FC<PanelProps> = ({ syncing, notify }) => {
     ...filters.params,
     status: filters.params.status as 'ACTIVE' | 'SHIPPED' | undefined,
     page: filters.page,
-    limit: PAGE_SIZE,
+    limit: pageSize,
   })
 
   const handleRefresh = async (planId: string, name: string) => {

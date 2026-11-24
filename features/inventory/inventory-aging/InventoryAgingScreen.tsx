@@ -15,6 +15,7 @@ import { cn } from '@/utils/cn'
 import { InventoryAgingTable } from './InventoryAgingTable'
 import { AGE_OPTIONS, defaultFilters, MARKETPLACE_OPTIONS } from './inventoryAgingFilters'
 
+import { usePageSize } from '@/hooks/usePageSize'
 const PAGE_SIZE = 25
 
 /**
@@ -24,6 +25,7 @@ const PAGE_SIZE = 25
 export const InventoryAgingScreen: React.FC = () => {
   const defaults = useMemo(defaultFilters, [])
   const [page, setPage] = useState(1)
+  const pageSize = usePageSize(PAGE_SIZE)
   const filters = useStagedFilters(defaults, () => setPage(1))
   const { draft, setDraft, applied, changed } = filters
   // Unsorted keeps the server's oldest-stock-first order; a header click sorts highest first, again lowest first
@@ -46,7 +48,7 @@ export const InventoryAgingScreen: React.FC = () => {
   const { data, isLoading, isFetching, isError } = useGetInventoryAgingQuery({
     ...query,
     page,
-    limit: PAGE_SIZE,
+    limit: pageSize,
   })
   // Built by the export worker; the file downloads by itself when the server announces it over SSE
   const { start: startExport, isExporting } = useReportExport('inventory-aging')
@@ -106,7 +108,7 @@ export const InventoryAgingScreen: React.FC = () => {
 
       <div className={cn('space-y-3', isFetching && !isLoading && 'opacity-70 transition-opacity')}>
         <InventoryAgingTable report={data} isLoading={isLoading} isError={isError} sort={sort} onSort={onSort} />
-        {data && data.totalRecords > 0 && <PaginationFooter page={data.page} pageSize={data.limit} totalItems={data.totalRecords} totalPages={data.totalPages} onPageChange={setPage} itemLabel="listings" />}
+        {data && data.totalRecords > 0 && <PaginationFooter selectablePageSize page={data.page} pageSize={data.limit} totalItems={data.totalRecords} totalPages={data.totalPages} onPageChange={setPage} itemLabel="listings" />}
       </div>
     </Container>
   )

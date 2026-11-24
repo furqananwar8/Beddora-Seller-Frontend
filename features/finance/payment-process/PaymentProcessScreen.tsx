@@ -23,6 +23,7 @@ import { PaymentTable } from './PaymentTable'
 import { PopDialogMode, PopUploadDialog } from './PopUploadDialog'
 import type { RowAction } from './RowActions'
 
+import { usePageSize } from '@/hooks/usePageSize'
 const PAGE_SIZE = 10
 
 interface Filters extends Record<string, unknown> {
@@ -38,6 +39,7 @@ export const PaymentProcessScreen: React.FC = () => {
   const searchParams = useSearchParams()
 
   const [page, setPage] = useState(1)
+  const pageSize = usePageSize(PAGE_SIZE)
   const filters = useStagedFilters(DEFAULT_FILTERS, () => setPage(1))
   const { applied, draft, setDraft, changed } = filters
   const debouncedSearch = applied.search.trim()
@@ -64,7 +66,7 @@ export const PaymentProcessScreen: React.FC = () => {
     }
   }, [pathname, router, searchParams])
 
-  const list = useGetPaymentDocumentsQuery({ search: debouncedSearch, page, limit: PAGE_SIZE, statuses: applied.statuses })
+  const list = useGetPaymentDocumentsQuery({ search: debouncedSearch, page, limit: pageSize, statuses: applied.statuses })
   const summary = useGetPaymentDocumentSummaryQuery({ search: debouncedSearch })
 
   const onAction = (row: PaymentDocumentListItem, action: RowAction) => {

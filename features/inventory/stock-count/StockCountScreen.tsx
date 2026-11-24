@@ -16,6 +16,7 @@ import { StockCountTable } from './StockCountTable'
 import { defaultFilters, earliestAsOf, todayDay } from './stockCountFilters'
 import type { CountFormValues } from './stockCountMath'
 
+import { usePageSize } from '@/hooks/usePageSize'
 const PAGE_SIZE = 25
 
 /**
@@ -27,10 +28,11 @@ export const StockCountScreen: React.FC = () => {
   const feedback = useApiFeedback()
   const defaults = useMemo(defaultFilters, [])
   const [page, setPage] = useState(1)
+  const pageSize = usePageSize(PAGE_SIZE)
   const filters = useStagedFilters(defaults, () => setPage(1))
   const { draft, setDraft, applied, changed } = filters
 
-  const { data, isLoading, isFetching, isError } = useGetStockCountsQuery({ asOf: applied.asOf, search: applied.search.trim(), page, limit: PAGE_SIZE })
+  const { data, isLoading, isFetching, isError } = useGetStockCountsQuery({ asOf: applied.asOf, search: applied.search.trim(), page, limit: pageSize })
   const [saveCount, { isLoading: saving }] = useSaveStockCountMutation()
   const [target, setTarget] = useState<StockCountRow | null>(null)
   const [historyOf, setHistoryOf] = useState<StockCountRow | null>(null)
@@ -84,7 +86,7 @@ export const StockCountScreen: React.FC = () => {
       <div className={cn('space-y-3', isFetching && !isLoading && 'opacity-70 transition-opacity')}>
         <StockCountTable rows={data?.data} asOf={data?.data[0]?.asOf ?? applied.asOf} isLoading={isLoading} isError={isError} onAdjust={setTarget} onHistory={setHistoryOf} />
         {data && data.totalRecords > 0 && (
-          <PaginationFooter page={data.page} pageSize={data.limit} totalItems={data.totalRecords} totalPages={data.totalPages} onPageChange={setPage} itemLabel="SKUs" />
+          <PaginationFooter selectablePageSize page={data.page} pageSize={data.limit} totalItems={data.totalRecords} totalPages={data.totalPages} onPageChange={setPage} itemLabel="SKUs" />
         )}
       </div>
 

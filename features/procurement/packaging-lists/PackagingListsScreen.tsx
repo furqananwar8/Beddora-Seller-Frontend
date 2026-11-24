@@ -24,6 +24,7 @@ import { CONTAINER_ROUTES } from '../containers/routes'
 import { containerLabel, formatPoNo, newPackagingListHref, supplierNames } from '../shared/poMeta'
 
 const BASE = '/dashboard/procurement/packaging-lists'
+import { usePageSize } from '@/hooks/usePageSize'
 const PAGE_SIZE = 20
 const CELL = 'text-center align-middle'
 const COLUMNS = 9
@@ -59,10 +60,12 @@ export const PackagingListsScreen: React.FC = () => {
   const purchaseOrderId = Number.isInteger(poParam) && poParam > 0 ? poParam : undefined
 
   const [page, setPage] = useState(1)
+
+  const pageSize = usePageSize(PAGE_SIZE)
   const filters = useStagedFilters(DEFAULT_FILTERS, () => setPage(1))
   const { applied, draft, setDraft, changed } = filters
   const debouncedSearch = applied.search.trim()
-  const { data, isLoading, isFetching, isError } = useGetPackagingListsQuery({ page, limit: PAGE_SIZE, search: debouncedSearch, purchaseOrderId, container: applied.container })
+  const { data, isLoading, isFetching, isError } = useGetPackagingListsQuery({ page, limit: pageSize, search: debouncedSearch, purchaseOrderId, container: applied.container })
   const { data: summary } = useGetPackagingListSummaryQuery()
 
   const [requesting, setRequesting] = useState<PackagingListItem | null>(null)
@@ -230,7 +233,7 @@ export const PackagingListsScreen: React.FC = () => {
             </TableBody>
           </Table>
         </div>
-        {data && <PaginationFooter page={data.page} pageSize={data.limit} totalItems={data.totalRecords} totalPages={data.totalPages} onPageChange={setPage} itemLabel="packaging lists" />}
+        {data && <PaginationFooter selectablePageSize page={data.page} pageSize={data.limit} totalItems={data.totalRecords} totalPages={data.totalPages} onPageChange={setPage} itemLabel="packaging lists" />}
       </div>
 
       <ConfirmDialog

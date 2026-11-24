@@ -25,6 +25,7 @@ import { OrderDrawer } from './OrderDrawer'
 import { OrdersTable } from './OrdersTable'
 import { useOrderInvoiceDownload } from './useOrderInvoiceDownload'
 
+import { usePageSize } from '@/hooks/usePageSize'
 const PAGE_SIZE = 20
 
 interface Filters extends Record<string, unknown> {
@@ -83,6 +84,7 @@ export const OrdersScreen: React.FC = () => {
   const { success, failure, info } = useApiFeedback()
   const params = useSearchParams()
   const [page, setPage] = useState(1)
+  const pageSize = usePageSize(PAGE_SIZE)
   const [initial] = useState<Filters>(() => ({ ...DEFAULT_FILTERS, search: params.get('search') ?? '' }))
   const filters = useStagedFilters(DEFAULT_FILTERS, () => setPage(1), initial)
   const { draft, setDraft, applied, changed } = filters
@@ -100,7 +102,7 @@ export const OrdersScreen: React.FC = () => {
 
   const { data, isLoading, isFetching, isError } = useGetChannelOrdersQuery({
     page,
-    limit: PAGE_SIZE,
+    limit: pageSize,
     search: applied.search.trim(),
     channels: applied.channels,
     countries: applied.countries,
@@ -211,7 +213,7 @@ export const OrdersScreen: React.FC = () => {
             invoiceBusy={invoiceBusy}
           />
         </div>
-        {data && data.totalRecords > 0 && <PaginationFooter page={data.page} pageSize={data.limit} totalItems={data.totalRecords} totalPages={data.totalPages} onPageChange={setPage} itemLabel="orders" />}
+        {data && data.totalRecords > 0 && <PaginationFooter selectablePageSize page={data.page} pageSize={data.limit} totalItems={data.totalRecords} totalPages={data.totalPages} onPageChange={setPage} itemLabel="orders" />}
       </div>
 
       {scanItems.dialog}

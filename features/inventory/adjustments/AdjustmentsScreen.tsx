@@ -23,6 +23,7 @@ import { EditDimensionsModal } from './EditDimensionsModal'
 import { EditQuantityModal } from './EditQuantityModal'
 import { AdjustmentAction, RowActions } from './RowActions'
 
+import { usePageSize } from '@/hooks/usePageSize'
 const PAGE_SIZE = 20
 
 const n = (value: number) => value.toLocaleString()
@@ -43,7 +44,8 @@ export const AdjustmentsScreen: React.FC = () => {
   const [search, setSearch] = useState('')
   const debouncedSearch = useDebounce(search, 300)
   const [page, setPage] = useState(1)
-  const { data, isLoading, isFetching, isError } = useGetAdjustmentsQuery({ search: debouncedSearch, page, limit: PAGE_SIZE })
+  const pageSize = usePageSize(PAGE_SIZE)
+  const { data, isLoading, isFetching, isError } = useGetAdjustmentsQuery({ search: debouncedSearch, page, limit: pageSize })
   const rows = data?.data ?? []
   const [adjustQuantity, { isLoading: savingQuantity }] = useAdjustQuantityMutation()
   const [updateBox, { isLoading: savingBox }] = useUpdateBoxDimensionsMutation()
@@ -159,7 +161,7 @@ export const AdjustmentsScreen: React.FC = () => {
         </Table>
         </div>
         {data && (
-          <PaginationFooter
+          <PaginationFooter selectablePageSize
             page={data.page}
             pageSize={data.limit}
             totalItems={data.totalRecords}

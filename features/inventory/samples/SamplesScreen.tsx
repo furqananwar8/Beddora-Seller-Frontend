@@ -15,6 +15,7 @@ import { CreateSampleModal } from './CreateSampleModal'
 import { SAMPLE_STATUS_OPTIONS, SAMPLE_TYPE_OPTIONS } from './sampleMeta'
 import { SamplesTable } from './SamplesTable'
 
+import { usePageSize } from '@/hooks/usePageSize'
 const PAGE_SIZE = 25
 
 interface SampleFilters extends Record<string, unknown> {
@@ -43,6 +44,7 @@ const pending = (changed: Set<keyof SampleFilters>, key: keyof SampleFilters) =>
 export const SamplesScreen: React.FC = () => {
   const defaults = useMemo(defaultFilters, [])
   const [page, setPage] = useState(1)
+  const pageSize = usePageSize(PAGE_SIZE)
   const filters = useStagedFilters(defaults, () => setPage(1))
   const { draft, setDraft, applied, changed } = filters
   const canWrite = useAppAbility().can('write', 'inventory:samples')
@@ -51,7 +53,7 @@ export const SamplesScreen: React.FC = () => {
   const { data: suppliers = [] } = useGetSampleSuppliersQuery()
   const { data, isLoading, isFetching, isError } = useGetSamplesQuery({
     page,
-    limit: PAGE_SIZE,
+    limit: pageSize,
     ...(applied.search.trim() && { search: applied.search.trim() }),
     ...(applied.supplierId && { supplierId: Number(applied.supplierId) }),
     ...(applied.type && { type: applied.type }),
@@ -110,7 +112,7 @@ export const SamplesScreen: React.FC = () => {
       <div className={cn('space-y-3', isFetching && !isLoading && 'opacity-70 transition-opacity')}>
         <SamplesTable rows={data?.data} isLoading={isLoading} isError={isError} />
         {data && data.totalRecords > 0 && (
-          <PaginationFooter page={data.page} pageSize={data.limit} totalItems={data.totalRecords} totalPages={data.totalPages} onPageChange={setPage} itemLabel="SKU rows" />
+          <PaginationFooter selectablePageSize page={data.page} pageSize={data.limit} totalItems={data.totalRecords} totalPages={data.totalPages} onPageChange={setPage} itemLabel="SKU rows" />
         )}
       </div>
       <CreateSampleModal isOpen={creating} onClose={() => setCreating(false)} />

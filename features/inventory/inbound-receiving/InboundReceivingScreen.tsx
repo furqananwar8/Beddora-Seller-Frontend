@@ -20,6 +20,7 @@ import { ContainerStatusBadge } from '@/features/procurement/shared/poMeta'
 import { ReceivingPdfModal } from './ReceivingPdfModal'
 import { RECEIVING_ROUTES } from './routes'
 
+import { usePageSize } from '@/hooks/usePageSize'
 const PAGE_SIZE = 25
 type StatusFilter = 'ALL' | ReceivingStatus
 
@@ -84,11 +85,12 @@ export const InboundReceivingScreen: React.FC = () => {
     }
   }
   const [page, setPage] = useState(1)
+  const pageSize = usePageSize(PAGE_SIZE)
   const [status, setStatus] = useState<StatusFilter>('ALL')
   const [search, setSearch] = useState('')
   const [printing, setPrinting] = useState<ReceivingListItem | null>(null)
 
-  const { data, isLoading, isFetching, isError } = useGetReceivingListQuery({ page, limit: PAGE_SIZE, search: search.trim(), status: status === 'ALL' ? undefined : status })
+  const { data, isLoading, isFetching, isError } = useGetReceivingListQuery({ page, limit: pageSize, search: search.trim(), status: status === 'ALL' ? undefined : status })
   const rows = data?.data ?? []
 
   return (
@@ -203,7 +205,7 @@ export const InboundReceivingScreen: React.FC = () => {
           </div>
         </div>
         {data && data.totalRecords > 0 && (
-          <PaginationFooter page={data.page} pageSize={data.limit} totalItems={data.totalRecords} totalPages={data.totalPages} onPageChange={setPage} itemLabel="containers" />
+          <PaginationFooter selectablePageSize page={data.page} pageSize={data.limit} totalItems={data.totalRecords} totalPages={data.totalPages} onPageChange={setPage} itemLabel="containers" />
         )}
       </div>
 

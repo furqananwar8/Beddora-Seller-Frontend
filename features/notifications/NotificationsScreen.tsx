@@ -22,6 +22,7 @@ import { ANY_DATE, dateBounds } from '@/utils/dateRangeFilter'
 import { notificationHref } from '@/utils/notificationLink'
 import type { DateRangeValue } from '@/components/date-range-picker/DateRangePicker'
 
+import { usePageSize } from '@/hooks/usePageSize'
 const PAGE_SIZE = 20
 
 const TONES = [
@@ -56,6 +57,7 @@ const NO_FILTERS: Filters = { search: '', categories: [], actorIds: [], unreadOn
 export const NotificationsScreen: React.FC = () => {
   const router = useRouter()
   const [page, setPage] = useState(1)
+  const pageSize = usePageSize(PAGE_SIZE)
   const [pending, setPending] = useState<Filters>(NO_FILTERS)
   const [applied, setApplied] = useState<Filters>(NO_FILTERS)
 
@@ -64,7 +66,7 @@ export const NotificationsScreen: React.FC = () => {
   const bounds = useMemo(() => dateBounds(applied.dateRange), [applied.dateRange])
   const { data, isLoading, isFetching, isError } = useGetNotificationsQuery({
     page,
-    limit: PAGE_SIZE,
+    limit: pageSize,
     search: applied.search.trim() || undefined,
     categories: applied.categories,
     actorIds: applied.actorIds,
@@ -196,7 +198,7 @@ export const NotificationsScreen: React.FC = () => {
           </ul>
         )}
         {data && (
-          <PaginationFooter page={data.page} pageSize={PAGE_SIZE} totalItems={data.totalRecords} totalPages={data.totalPages} onPageChange={setPage} itemLabel="notifications" />
+          <PaginationFooter selectablePageSize page={data.page} pageSize={pageSize} totalItems={data.totalRecords} totalPages={data.totalPages} onPageChange={setPage} itemLabel="notifications" />
         )}
       </div>
     </Container>

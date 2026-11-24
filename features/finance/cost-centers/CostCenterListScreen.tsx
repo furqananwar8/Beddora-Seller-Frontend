@@ -17,6 +17,7 @@ import { LevelBadge } from './LevelBadge'
 import { EditCostCenterAction } from './EditCostCenterAction'
 import { RemoveCostCenterAction } from './RemoveCostCenterAction'
 
+import { usePageSize } from '@/hooks/usePageSize'
 const PAGE_SIZE = 15
 export const COST_CENTER_BASE = '/dashboard/finance/cost-center'
 
@@ -50,8 +51,9 @@ export const CostCenterListScreen: React.FC = () => {
   const [search, setSearch] = useState('')
   const debouncedSearch = useDebounce(search, 300)
   const [page, setPage] = useState(1)
+  const pageSize = usePageSize(PAGE_SIZE)
 
-  const { data, isLoading, isFetching, isError } = useGetCostCentersQuery({ search: debouncedSearch, page, limit: PAGE_SIZE })
+  const { data, isLoading, isFetching, isError } = useGetCostCentersQuery({ search: debouncedSearch, page, limit: pageSize })
 
   return (
     <Container size="full" className="py-4 sm:py-8">
@@ -86,7 +88,7 @@ export const CostCenterListScreen: React.FC = () => {
           errorText="Could not load cost centers."
         />
         {data && data.totalRecords > 0 && (
-          <PaginationFooter
+          <PaginationFooter selectablePageSize
             page={data.page}
             pageSize={data.limit}
             totalItems={data.totalRecords}

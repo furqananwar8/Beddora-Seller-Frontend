@@ -18,6 +18,7 @@ import { WarehouseEntriesModal } from './WarehouseEntriesModal'
 import { WarehouseInventoryTable } from './WarehouseInventoryTable'
 import { defaultFilters, earliestAsOf, STOCK_OPTIONS, todayDay } from './warehouseInventoryFilters'
 
+import { usePageSize } from '@/hooks/usePageSize'
 const PAGE_SIZE = 25
 
 /**
@@ -29,6 +30,7 @@ export const WarehouseInventoryScreen: React.FC = () => {
   const urlSearch = useSearchParams().get('search') ?? ''
   const defaults = useMemo(() => ({ ...defaultFilters(), search: urlSearch }), [urlSearch])
   const [page, setPage] = useState(1)
+  const pageSize = usePageSize(PAGE_SIZE)
   /** The SKU whose sample history is open. */
   const [samplesOf, setSamplesOf] = useState<WarehouseInventoryRow['product'] | null>(null)
   /** The SKU whose damaged or returned entries are open. */
@@ -37,7 +39,7 @@ export const WarehouseInventoryScreen: React.FC = () => {
   const { draft, setDraft, applied, changed } = filters
 
   const query = { asOf: applied.asOf, stock: applied.stock, search: applied.search.trim() }
-  const { data, isLoading, isFetching, isError } = useGetWarehouseInventoryQuery({ ...query, page, limit: PAGE_SIZE })
+  const { data, isLoading, isFetching, isError } = useGetWarehouseInventoryQuery({ ...query, page, limit: pageSize })
   // Built by the export worker; the file downloads by itself when the server announces it over SSE
   const { start: startExport, isExporting } = useReportExport('warehouse-inventory')
 
@@ -90,7 +92,7 @@ export const WarehouseInventoryScreen: React.FC = () => {
       <div className={cn('space-y-3', isFetching && !isLoading && 'opacity-70 transition-opacity')}>
         <WarehouseInventoryTable report={data} isLoading={isLoading} isError={isError} onOpenSamples={setSamplesOf} onOpenEntries={(product, kind) => setEntriesOf({ product, kind })} />
         {data && data.totalRecords > 0 && (
-          <PaginationFooter page={data.page} pageSize={data.limit} totalItems={data.totalRecords} totalPages={data.totalPages} onPageChange={setPage} itemLabel="SKUs" />
+          <PaginationFooter selectablePageSize page={data.page} pageSize={data.limit} totalItems={data.totalRecords} totalPages={data.totalPages} onPageChange={setPage} itemLabel="SKUs" />
         )}
       </div>
       <WarehouseEntriesModal target={entriesOf} onClose={() => setEntriesOf(null)} onSwitch={(kind) => setEntriesOf((current) => (current ? { ...current, kind } : current))} />

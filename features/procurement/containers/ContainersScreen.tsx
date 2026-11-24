@@ -197,7 +197,7 @@ export const ContainersScreen: React.FC = () => {
             errorText="Could not load containers."
           />
         </div>
-        {data && <PaginationFooter page={data.page} pageSize={data.limit} totalItems={data.totalRecords} totalPages={data.totalPages} onPageChange={list.setPage} itemLabel="containers" />}
+        {data && <PaginationFooter selectablePageSize page={data.page} pageSize={data.limit} totalItems={data.totalRecords} totalPages={data.totalPages} onPageChange={list.setPage} itemLabel="containers" />}
       </div>
 
       {actions.dialogs}

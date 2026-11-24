@@ -39,6 +39,7 @@ import { PurchaseOrdersTable } from './PurchaseOrdersTable'
 import { usePoActions } from './usePoActions'
 
 const BASE = '/dashboard/procurement/purchase-orders'
+import { usePageSize } from '@/hooks/usePageSize'
 const PAGE_SIZE = 20
 
 type AlertFilter = Exclude<EtdAlertLevel, 'NONE'>
@@ -104,13 +105,15 @@ export const PurchaseOrdersScreen: React.FC = () => {
   const { success, failure } = useApiFeedback()
 
   const [page, setPage] = useState(1)
+
+  const pageSize = usePageSize(PAGE_SIZE)
   const filters = useStagedFilters(DEFAULT_FILTERS, () => setPage(1))
   const { applied, draft, setDraft, changed } = filters
   const debouncedSearch = applied.search.trim()
 
   const { data, isLoading, isFetching, isError } = useGetProcurementPurchaseOrdersQuery({
     page,
-    limit: PAGE_SIZE,
+    limit: pageSize,
     search: debouncedSearch,
     colors: applied.colors,
     destinations: applied.destinations,
@@ -277,7 +280,7 @@ export const PurchaseOrdersScreen: React.FC = () => {
             onFromRemaining={(row) => router.push(`${BASE}/new?fromRemaining=${row.id}`)}
           />
         </div>
-        {data && <PaginationFooter page={data.page} pageSize={data.limit} totalItems={data.totalRecords} totalPages={data.totalPages} onPageChange={setPage} itemLabel="purchase orders" />}
+        {data && <PaginationFooter selectablePageSize page={data.page} pageSize={data.limit} totalItems={data.totalRecords} totalPages={data.totalPages} onPageChange={setPage} itemLabel="purchase orders" />}
       </div>
 
       <PoLegend />

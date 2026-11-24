@@ -30,6 +30,7 @@ import { NewAnalysisModal } from './NewAnalysisModal'
 import { PriceHistoryModal } from './PriceHistoryModal'
 import { PRICE_ANALYSIS_LIST } from './PriceAnalysisScreen'
 
+import { usePageSize } from '@/hooks/usePageSize'
 const PAGE_SIZE = 20
 const CELL = 'text-center align-middle'
 const COLUMNS = 8
@@ -76,12 +77,14 @@ export const PriceAnalysesScreen: React.FC = () => {
   }, [legacy, router])
 
   const [page, setPage] = useState(1)
+
+  const pageSize = usePageSize(PAGE_SIZE)
   const filters = useStagedFilters(DEFAULT_FILTERS, () => setPage(1))
   const { applied, draft, setDraft, changed } = filters
   const debouncedSearch = applied.search.trim()
   const { data, isLoading, isFetching, isError } = useGetPriceAnalysesQuery({
     page,
-    limit: PAGE_SIZE,
+    limit: pageSize,
     search: debouncedSearch,
     status: applied.status,
     categoryId: applied.category?.id,
@@ -251,7 +254,7 @@ export const PriceAnalysesScreen: React.FC = () => {
             </TableBody>
           </Table>
         </div>
-        {data && <PaginationFooter page={data.page} pageSize={data.limit} totalItems={data.totalRecords} totalPages={data.totalPages} onPageChange={setPage} itemLabel="analyses" />}
+        {data && <PaginationFooter selectablePageSize page={data.page} pageSize={data.limit} totalItems={data.totalRecords} totalPages={data.totalPages} onPageChange={setPage} itemLabel="analyses" />}
       </div>
 
       <ConfirmDialog isOpen={deleting !== null} title="Delete price analysis?" confirmLabel="Delete analysis" tone="danger" busy={deleteState.isLoading} onConfirm={confirmDelete} onClose={() => setDeleting(null)}>

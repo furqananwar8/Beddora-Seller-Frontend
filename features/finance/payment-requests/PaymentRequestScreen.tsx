@@ -33,6 +33,7 @@ import { RequestDetailModal } from './RequestDetailModal'
 import { RequestsTable } from './RequestsTable'
 import { useRequestActions } from './useRequestActions'
 
+import { usePageSize } from '@/hooks/usePageSize'
 const PAGE_SIZE = 10
 
 /** A status, or approved requests split by whether their payment is marked paid. */
@@ -120,6 +121,7 @@ export const PaymentRequestScreen: React.FC = () => {
   // A link can start the list filtered, e.g. a container's page opens its container number here
   const [search, setSearch] = useState(() => searchParams.get('search') ?? '')
   const [page, setPage] = useState(1)
+  const pageSize = usePageSize(PAGE_SIZE)
   const [chosenTab, setChosenTab] = useState<TabId | null>(() => (tabParam && TAB_IDS.has(tabParam) ? tabParam : highlightId ? 'ALL' : null))
   const [costCenterId, setCostCenterId] = useState('')
   const [batched, setBatched] = useState<'' | 'yes' | 'no'>('')
@@ -157,7 +159,7 @@ export const PaymentRequestScreen: React.FC = () => {
   const listParams: PaymentRequestListParams = {
     ...filters,
     page,
-    limit: PAGE_SIZE,
+    limit: pageSize,
     ...tabFilters(tab),
   }
 
@@ -336,7 +338,7 @@ export const PaymentRequestScreen: React.FC = () => {
           />
         </div>
         {data && (
-          <PaginationFooter
+          <PaginationFooter selectablePageSize
             page={data.page}
             pageSize={data.limit}
             totalItems={data.totalRecords}

@@ -35,6 +35,7 @@ import { EmailTable } from './EmailTable'
 import { useEmailLive } from './useEmailLive'
 import { useSelection } from './useSelection'
 
+import { usePageSize } from '@/hooks/usePageSize'
 const PAGE_SIZE = 25
 const BACKLOG_DEFAULT_DAYS = 90
 
@@ -74,6 +75,7 @@ const EmailWorkspace: React.FC = () => {
   const { success, failure, info } = useApiFeedback()
   const [tab, setTab] = useState<ScreenTab>('ALL')
   const [page, setPage] = useState(1)
+  const pageSize = usePageSize(PAGE_SIZE)
   const [search, setSearch] = useState('')
   const [template, setTemplate] = useState('')
   const [range, setRange] = useState<DateRangeValue>(ANY_DATE)
@@ -85,7 +87,7 @@ const EmailWorkspace: React.FC = () => {
   const [confirming, setConfirming] = useState<{ target: ResendBody; sent: number } | null>(null)
 
   const listParams = useMemo<EmailListParams>(
-    () => ({ page, limit: PAGE_SIZE, status: tab === 'BACKLOG' ? 'ALL' : tab, search: search.trim() || undefined, template: template || undefined, from: range.startDate || undefined, to: range.endDate || undefined }),
+    () => ({ page, limit: pageSize, status: tab === 'BACKLOG' ? 'ALL' : tab, search: search.trim() || undefined, template: template || undefined, from: range.startDate || undefined, to: range.endDate || undefined }),
     [page, tab, search, template, range]
   )
   const { data: summary } = useGetEmailSummaryQuery()
@@ -210,7 +212,7 @@ const EmailWorkspace: React.FC = () => {
               onCopy={copyRecipient}
             />
             {data && data.totalRecords > 0 && (
-              <PaginationFooter
+              <PaginationFooter selectablePageSize
                 page={data.page}
                 pageSize={data.limit}
                 totalItems={data.totalRecords}

@@ -15,6 +15,7 @@ import { ActivityEntry, useGetActivityEntryQuery, useGetActivityFiltersQuery, us
 import { cn } from '@/utils/cn'
 import { ANY_DATE, dateBounds } from '@/utils/dateRangeFilter'
 
+import { usePageSize } from '@/hooks/usePageSize'
 const PAGE_SIZE = 50
 
 interface Filters {
@@ -47,6 +48,7 @@ const ACTION_VARIANT: Record<string, 'success' | 'error' | 'primary' | 'secondar
 /** Admin timeline: every successful create/update/delete, grouped by day, newest first. Click an entry for its details. */
 export const ActivityScreen: React.FC = () => {
   const [page, setPage] = useState(1)
+  const pageSize = usePageSize(PAGE_SIZE)
   const [pending, setPending] = useState<Filters>(NO_FILTERS)
   const [applied, setApplied] = useState<Filters>(NO_FILTERS)
   const [openId, setOpenId] = useState<number | null>(null)
@@ -55,7 +57,7 @@ export const ActivityScreen: React.FC = () => {
   const bounds = useMemo(() => dateBounds(applied.dateRange), [applied.dateRange])
   const { data, isLoading, isFetching, isError, error } = useGetActivityQuery({
     page,
-    limit: PAGE_SIZE,
+    limit: pageSize,
     search: applied.search.trim() || undefined,
     userIds: applied.userIds,
     screens: applied.screens,
@@ -152,7 +154,7 @@ export const ActivityScreen: React.FC = () => {
             </section>
           ))
         )}
-        {data && <PaginationFooter page={data.page} pageSize={PAGE_SIZE} totalItems={data.totalRecords} totalPages={data.totalPages} onPageChange={setPage} itemLabel="actions" />}
+        {data && <PaginationFooter selectablePageSize page={data.page} pageSize={pageSize} totalItems={data.totalRecords} totalPages={data.totalPages} onPageChange={setPage} itemLabel="actions" />}
       </div>
 
       <ActivityDetailModal id={openId} onClose={() => setOpenId(null)} />

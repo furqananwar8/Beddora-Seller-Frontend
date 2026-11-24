@@ -5,6 +5,7 @@ import { useStagedFilters } from '@/components/filter-bar/useStagedFilters'
 import type { SortDirection } from '@/components/sort-header/SortHeader'
 import type { ContainerParams, ContainerSortColumn, ContainerStatus, PoDestination, ProductPlatform } from '@/services/api/procurement.api'
 
+import { usePageSize } from '@/hooks/usePageSize'
 const PAGE_SIZE = 20
 
 export type StatusFilter = 'ALL' | ContainerStatus
@@ -26,6 +27,7 @@ const DEFAULT_FILTERS: ContainerFilters = { search: '', status: 'ALL', destinati
  */
 export function useContainerListState(initialSearch = '') {
   const [page, setPage] = useState(1)
+  const pageSize = usePageSize(PAGE_SIZE)
   const filters = useStagedFilters(DEFAULT_FILTERS, () => setPage(1), { ...DEFAULT_FILTERS, search: initialSearch })
   const { applied } = filters
   const search = filters.draft.search
@@ -39,7 +41,7 @@ export function useContainerListState(initialSearch = '') {
 
   const params: ContainerParams = {
     page,
-    limit: PAGE_SIZE,
+    limit: pageSize,
     search: debouncedSearch,
     sortBy: sort?.column,
     sortOrder: sort?.order,

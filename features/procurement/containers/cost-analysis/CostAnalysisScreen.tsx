@@ -97,7 +97,7 @@ export const CostAnalysisScreen: React.FC = () => {
             errorText="Could not load the cost analysis."
           />
         </div>
-        {data && <PaginationFooter page={data.page} pageSize={data.limit} totalItems={data.totalRecords} totalPages={data.totalPages} onPageChange={list.setPage} itemLabel="containers" />}
+        {data && <PaginationFooter selectablePageSize page={data.page} pageSize={data.limit} totalItems={data.totalRecords} totalPages={data.totalPages} onPageChange={list.setPage} itemLabel="containers" />}
       </div>
 
       <CostMappingModal open={mapping} onClose={() => setMapping(false)} />

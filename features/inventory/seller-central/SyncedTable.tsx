@@ -91,6 +91,7 @@ export function SyncedTable<T>({ columns, rows, rowKey, isLoading, isFetching, i
       </div>
       {pageInfo && (
         <PaginationFooter
+          selectablePageSize
           page={pageInfo.page}
           pageSize={pageInfo.limit}
           totalItems={pageInfo.totalRecords}

@@ -21,6 +21,7 @@ import { OpexMappingModal } from './OpexMappingModal'
 import { WarehouseOverheadModal } from './WarehouseOverheadModal'
 import { defaultSkuLandedFilters, todayDay } from './skuLandedFilters'
 
+import { usePageSize } from '@/hooks/usePageSize'
 const PAGE_SIZE = 25
 const muted = <span className="text-text-muted">—</span>
 /** A country's warehouse cost / the CBM of its containers, read as a percentage (9,900 / 129.9 CBM = 76.21 %). */
@@ -82,9 +83,10 @@ export const SkuLandedScreen: React.FC = () => {
   const fit = useFitToViewport<HTMLDivElement>()
   const defaults = useMemo(defaultSkuLandedFilters, [])
   const [page, setPage] = useState(1)
+  const pageSize = usePageSize(PAGE_SIZE)
   const filters = useStagedFilters(defaults, () => setPage(1))
   const { draft, setDraft, applied, changed } = filters
-  const { data, isLoading, isFetching, isError } = useGetSkuLandedQuery({ page, limit: PAGE_SIZE, search: applied.search.trim(), asOf: applied.asOf })
+  const { data, isLoading, isFetching, isError } = useGetSkuLandedQuery({ page, limit: pageSize, search: applied.search.trim(), asOf: applied.asOf })
   const opex = data?.opex
   const canWrite = useAppAbility().can('write', 'containers:sku-landed')
   const [dialog, setDialog] = useState<'overhead' | 'mapping' | null>(null)
@@ -163,7 +165,7 @@ export const SkuLandedScreen: React.FC = () => {
             headerTone="primary"
           />
         </div>
-        {data && <PaginationFooter page={data.page} pageSize={data.limit} totalItems={data.totalRecords} totalPages={data.totalPages} onPageChange={setPage} itemLabel="SKUs" />}
+        {data && <PaginationFooter selectablePageSize page={data.page} pageSize={data.limit} totalItems={data.totalRecords} totalPages={data.totalPages} onPageChange={setPage} itemLabel="SKUs" />}
       </div>
 
       <WarehouseOverheadModal open={dialog === 'overhead'} onClose={() => setDialog(null)} canEdit={canWrite} />
