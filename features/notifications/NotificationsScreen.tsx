@@ -7,7 +7,6 @@ import { Container } from '@/components/layout'
 import { ListDateFilter } from '@/components/date-range-picker/ListDateFilter'
 import { MultiSelectInput } from '@/components/multi-select-input/MultiSelectInput'
 import { PaginationFooter } from '@/components/pagination-footer/PaginationFooter'
-import { Badge } from '@/design-system/badges'
 import { Button } from '@/design-system/buttons'
 import { Spinner } from '@/design-system/loaders'
 import {
@@ -24,6 +23,24 @@ import { notificationHref } from '@/utils/notificationLink'
 import type { DateRangeValue } from '@/components/date-range-picker/DateRangePicker'
 
 const PAGE_SIZE = 20
+
+const TONES = [
+  'bg-violet-100 text-violet-700',
+  'bg-sky-100 text-sky-700',
+  'bg-emerald-100 text-emerald-700',
+  'bg-amber-100 text-amber-800',
+  'bg-rose-100 text-rose-700',
+  'bg-teal-100 text-teal-700',
+  'bg-indigo-100 text-indigo-700',
+  'bg-orange-100 text-orange-700',
+]
+
+/** Each notification type keeps one colour, so the list can be scanned by type. */
+const categoryTone = (category: string): string => {
+  let hash = 0
+  for (const char of category) hash = (hash * 31 + char.charCodeAt(0)) >>> 0
+  return TONES[hash % TONES.length]
+}
 
 interface Filters {
   search: string
@@ -125,12 +142,14 @@ export const NotificationsScreen: React.FC = () => {
             placeholder="Read and unread"
           />
           <ListDateFilter value={pending.dateRange} onApply={(dateRange) => setPending((prev) => ({ ...prev, dateRange }))} />
-          <Button type="button" variant="primary" disabled={!dirty} onClick={apply}>
-            Filter
-          </Button>
-          <Button type="button" variant="outline" onClick={reset}>
-            Reset
-          </Button>
+          <div className="ml-auto flex items-center gap-2">
+            <Button type="button" variant="outline" onClick={reset}>
+              Reset
+            </Button>
+            <Button type="button" variant="primary" disabled={!dirty} onClick={apply}>
+              Apply filters
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -151,23 +170,25 @@ export const NotificationsScreen: React.FC = () => {
                   type="button"
                   onClick={() => open(notification)}
                   className={cn(
-                    'flex w-full items-start gap-3 border-b border-border px-4 py-3 text-left transition-colors hover:bg-secondary-50',
+                    'flex w-full items-center gap-3 border-b border-border px-4 py-2.5 text-left transition-colors last:border-b-0 hover:bg-secondary-50',
                     !notification.readAt && 'bg-secondary-50/70'
                   )}
                 >
-                  <span className={cn('mt-2 h-2 w-2 shrink-0 rounded-full', notification.readAt ? 'bg-transparent' : 'bg-danger-500')} aria-label={notification.readAt ? 'Read' : 'Unread'} />
+                  <span className={cn('h-2 w-2 shrink-0 rounded-full', notification.readAt ? 'bg-transparent' : 'bg-danger-500')} aria-label={notification.readAt ? 'Read' : 'Unread'} />
                   <span className="min-w-0 flex-1">
-                    <span className="flex flex-wrap items-center gap-2">
-                      <span className="text-sm font-medium text-text-primary">{notification.title}</span>
-                      <Badge variant="secondary" size="sm">
+                    <span className="flex items-center gap-2">
+                      <span className={cn('truncate text-sm text-text-primary', notification.readAt ? 'font-medium' : 'font-semibold')}>{notification.title}</span>
+                      <span className={cn('shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium', categoryTone(notification.category))}>
                         {notification.categoryLabel ?? notification.category}
-                      </Badge>
+                      </span>
                     </span>
-                    {notification.body && <span className="mt-0.5 block whitespace-pre-line text-xs text-text-muted">{notification.body}</span>}
-                    <span className="mt-1 block text-[11px] text-text-subtle">
-                      {notification.actor ? `By ${notification.actor.name} · ` : ''}
-                      {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
-                    </span>
+                    {notification.body && (
+                      <span className="mt-0.5 block truncate text-xs text-text-muted">{notification.body.split('\n').filter(Boolean).join('  ·  ')}</span>
+                    )}
+                  </span>
+                  <span className="shrink-0 text-right text-[11px] leading-tight text-text-subtle">
+                    <span className="block whitespace-nowrap">{formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}</span>
+                    {notification.actor && <span className="mt-0.5 block max-w-[140px] truncate">{notification.actor.name}</span>}
                   </span>
                 </button>
               </li>
