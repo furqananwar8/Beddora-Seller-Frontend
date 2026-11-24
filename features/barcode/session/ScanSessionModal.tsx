@@ -129,12 +129,16 @@ export function ScanSessionModal({ sessionId, onClose }: Props) {
   useEffect(() => {
     const input = inputRef.current
     if (!input || !open || confirming) return
-    // preventScroll: the plain autofocus attribute scrolls the modal's frame down to this field on a small screen
-    input.focus({ preventScroll: true })
     const scanner = new ScanFieldSource(input)
     scanner.start((scan) => void onScan(scan.barcode))
     return () => scanner.stop()
   }, [open, confirming, onScan])
+
+  // Focus the scanner field once when scanning opens (and when a dialog over it closes), never on a re-render: that would take the
+  // keyboard from the units / product search fields. preventScroll: the autofocus attribute scrolls the modal's frame on a small screen.
+  useEffect(() => {
+    if (open && !confirming) inputRef.current?.focus({ preventScroll: true })
+  }, [open, confirming])
 
   useEffect(() => {
     if (!open) return
