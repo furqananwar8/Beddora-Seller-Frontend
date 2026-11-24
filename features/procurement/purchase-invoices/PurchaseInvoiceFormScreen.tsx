@@ -43,7 +43,6 @@ import { financeDocumentPath } from '@/features/finance/shared/downloadDocument'
 import { PURCHASE_INVOICES_URL, PURCHASE_INVOICE_STATUS_META, formatPoNo } from '../shared/poMeta'
 import { InvoiceExpensesSection } from './InvoiceExpensesSection'
 import { InvoiceItemsSection } from './InvoiceItemsSection'
-import { PoPackagingListsPanel } from '../shared/PoPackagingListsSection'
 import { PoPaymentsPanel } from './PoPaymentsPanel'
 import {
   PurchaseInvoiceFormValues,
@@ -339,8 +338,6 @@ export const PurchaseInvoiceFormScreen: React.FC = () => {
         />
 
         <InvoiceExpensesSection control={control} register={register} errors={errors} currency={currency} costCenters={costCenterSource} />
-
-        {po && <PoPackagingListsPanel purchaseOrderId={po.id} poNo={po.poNo} />}
 
         {po && <PoPaymentsPanel purchaseOrderId={po.id} poNo={po.poNo} currency={po.currency} payment={po.payment} invoiceTotal={totals.amount} />}
 

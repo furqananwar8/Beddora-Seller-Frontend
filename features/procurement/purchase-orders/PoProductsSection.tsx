@@ -151,7 +151,7 @@ export const PoProductsSection: React.FC<PoProductsSectionProps> = ({ form, read
                         </td>
                         <td className={cn(CELL, 'whitespace-nowrap tabular-nums')}>{formatCurrency(lineAmount(line), currency)}</td>
                         <td className={cn(CELL, 'tabular-nums text-text-muted')}>{units(line.allocated)}</td>
-                        <td className={cn(CELL, 'tabular-nums', remaining < 0 && 'text-danger-600')}>{units(Math.max(0, remaining))}</td>
+                        <td className={cn(CELL, 'tabular-nums', remaining < 0 && 'text-danger-600')}>{units(remaining)}</td>
                         {!readOnly && (
                           <td className={CELL}>
                             <button

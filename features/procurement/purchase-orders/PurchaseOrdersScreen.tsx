@@ -275,7 +275,6 @@ export const PurchaseOrdersScreen: React.FC = () => {
             onDelete={setDeleting}
             onUnlock={(row) => void decisions.unlock(row)}
             onLock={(row) => void decisions.lock(row)}
-            onReadyToShip={(row) => void decisions.readyToShip(row)}
             onClose={setClosing}
             onReopen={(row) => void changeOpen(row, true)}
             onFromRemaining={(row) => router.push(`${BASE}/new?fromRemaining=${row.id}`)}

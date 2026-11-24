@@ -44,9 +44,7 @@ export const PoPackagingListsModal: React.FC<{ purchaseOrder: PoRef | null; onCl
           {rows.map((row) => (
             <li key={row.id} className="flex flex-col gap-2 px-1 py-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="font-mono text-sm font-semibold text-text-primary">
-                  {row.plNo} <StatusBadge label={row.kind === 'FINAL' ? 'FINAL' : 'TENTATIVE'} tone={row.kind === 'FINAL' ? 'success' : 'warning'} />
-                </span>
+                <span className="font-mono text-sm font-semibold text-text-primary">{row.plNo}</span>
                 <span className="flex items-center gap-1.5">
                   <StatusBadge label={DESTINATION_LABEL[row.destination]} tone="neutral" />
                   {row.container ? (

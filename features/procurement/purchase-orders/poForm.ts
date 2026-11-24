@@ -21,8 +21,6 @@ export const poLineSchema = z.object({
   unitPrice: unitRate,
   /** Units already in packaging lists (read-only here). */
   allocated: z.number(),
-  /** Every ordered unit is in a container (read-only, from the server). */
-  shippedFully: z.boolean().optional(),
   /** From-remaining POs cannot take more than the source PO has left. */
   maxUnits: z.number().optional(),
 })
@@ -169,7 +167,7 @@ export function fromDetail(po: PurchaseOrderDetail): PoFormValues {
     warehouseId: po.warehouse ? String(po.warehouse.id) : '',
     currency: po.currency,
     etd: day(po.etd),
-    lines: po.lines.map((line) => ({ product: line.product, unitsOrdered: String(line.unitsOrdered), unitPrice: line.unitPrice === null ? '' : String(line.unitPrice), allocated: line.allocated, shippedFully: line.shippedFully })),
+    lines: po.lines.map((line) => ({ product: line.product, unitsOrdered: String(line.unitsOrdered), unitPrice: line.unitPrice === null ? '' : String(line.unitPrice), allocated: line.allocated })),
     samples: po.samples.map((sample) => ({
       id: sample.id,
       product: sample.product,

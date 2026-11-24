@@ -50,7 +50,7 @@ export const PackagingListsModal: React.FC<PackagingListsModalProps> = ({ contai
   const lists = container?.packagingLists ?? []
 
   const { data, isFetching } = useGetPackagingListsQuery(
-    { page: 1, limit: 50, kind: 'FINAL', container: 'NONE', destination: container?.destination, search: debounced },
+    { page: 1, limit: 50, container: 'NONE', destination: container?.destination, search: debounced },
     { skip: !container || !open }
   )
   const choices: ListChoice[] = (data?.data ?? []).map((list) => ({ id: list.id, plNo: list.plNo, supplierName: supplierNames(list.suppliers), units: list.units, cbm: list.cbm }))

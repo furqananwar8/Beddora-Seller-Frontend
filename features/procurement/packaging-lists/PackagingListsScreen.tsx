@@ -14,11 +14,10 @@ import { PaginationFooter } from '@/components/pagination-footer/PaginationFoote
 import { RowActionsMenu, type RowActionItem } from '@/components/row-actions-menu/RowActionsMenu'
 import { SegmentedToggle } from '@/components/segmented-toggle/SegmentedToggle'
 import { Spinner } from '@/design-system/loaders'
-import { Tabs } from '@/design-system/tabs'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/design-system/tables'
 import { useApiFeedback } from '@/hooks/useApiFeedback'
 import { useAppAbility } from '@/hooks/useAppAbility'
-import { useDeletePackagingListMutation, useGetPackagingListsQuery, useGetPackagingListSummaryQuery, useRequestContainerMutation, type ContainerFilter, type PackagingListItem, type PackagingListKind } from '@/services/api/procurement.api'
+import { useDeletePackagingListMutation, useGetPackagingListsQuery, useGetPackagingListSummaryQuery, useRequestContainerMutation, type ContainerFilter, type PackagingListItem } from '@/services/api/procurement.api'
 import { cn } from '@/utils/cn'
 import { downloadApiFile } from '@/utils/downloadFile'
 import { CONTAINER_ROUTES } from '../containers/routes'
@@ -61,21 +60,12 @@ export const PackagingListsScreen: React.FC = () => {
   const purchaseOrderId = Number.isInteger(poParam) && poParam > 0 ? poParam : undefined
 
   const [page, setPage] = useState(1)
-  // Tentative lists are drafted from Ready to ship POs; Packaging list holds the ones converted to final (the only ones that go in a container)
-  const kind: PackagingListKind = params.get('tab') === 'tentative' ? 'TENTATIVE' : 'FINAL'
-  const switchTab = (next: PackagingListKind) => {
-    const query = new URLSearchParams(params.toString())
-    if (next === 'TENTATIVE') query.set('tab', 'tentative')
-    else query.delete('tab')
-    setPage(1)
-    router.replace(query.size ? `${pathname}?${query}` : pathname)
-  }
 
   const pageSize = usePageSize(PAGE_SIZE)
   const filters = useStagedFilters(DEFAULT_FILTERS, () => setPage(1))
   const { applied, draft, setDraft, changed } = filters
   const debouncedSearch = applied.search.trim()
-  const { data, isLoading, isFetching, isError } = useGetPackagingListsQuery({ page, limit: pageSize, search: debouncedSearch, purchaseOrderId, kind, container: kind === 'FINAL' ? applied.container : 'ALL' })
+  const { data, isLoading, isFetching, isError } = useGetPackagingListsQuery({ page, limit: pageSize, search: debouncedSearch, purchaseOrderId, container: applied.container })
   const { data: summary } = useGetPackagingListSummaryQuery()
 
   const [requesting, setRequesting] = useState<PackagingListItem | null>(null)
@@ -118,21 +108,16 @@ export const PackagingListsScreen: React.FC = () => {
     const shipped = row.container ? `In ${containerLabel(row.container)}; its quantities are locked` : undefined
     return [
       { key: 'view', label: 'View packaging list', onSelect: () => router.push(`${BASE}/${row.id}`) },
-      ...(canWrite && row.kind === 'TENTATIVE' ? [{ key: 'convert', label: 'Convert to final', onSelect: () => router.push(`${BASE}/${row.id}?convert=1`) }] : []),
       ...(canWrite ? [{ key: 'edit', label: 'Edit quantities', onSelect: () => router.push(`${BASE}/${row.id}?edit=1`), disabled: Boolean(shipped), disabledReason: shipped }] : []),
       // Containers are booked on the Containers screen: a list only asks for one, and stays in it once there
-      ...(canAssign && row.kind === 'FINAL' && !row.container ? [{ key: 'request', label: 'Request container', onSelect: () => setRequesting(row) }] : []),
+      ...(canAssign && !row.container ? [{ key: 'request', label: 'Request container', onSelect: () => setRequesting(row) }] : []),
       ...(row.container ? [{ key: 'container', label: `Open ${containerLabel(row.container)}`, onSelect: () => router.push(CONTAINER_ROUTES.detail(row.container!.id)) }] : []),
       { key: 'pdf', label: 'Download PDF', onSelect: () => void download(row) },
       ...(canWrite ? [{ key: 'delete', label: 'Delete list', tone: 'danger' as const, onSelect: () => setDeleting(row), disabled: Boolean(shipped), disabledReason: shipped }] : []),
     ]
   }
 
-  const clearPurchaseOrder = () => router.replace(kind === 'TENTATIVE' ? `${pathname}?tab=tentative` : pathname)
-  const tabs = [
-    { id: 'TENTATIVE', label: `Tentative Packaging List${summary ? ` (${summary.tentative})` : ''}` },
-    { id: 'FINAL', label: `Packaging List${summary ? ` (${summary.final})` : ''}` },
-  ]
+  const clearPurchaseOrder = () => router.replace(pathname)
   const rows = data?.data ?? []
 
   return (
@@ -152,24 +137,18 @@ export const PackagingListsScreen: React.FC = () => {
           </div>
           {summary && (
             <p className="text-sm text-text-muted">
-              {kind === 'TENTATIVE'
-                ? `${summary.tentative} tentative ${summary.tentative === 1 ? 'list' : 'lists'} · convert one to final to book it in a container`
-                : `${summary.final} packaging ${summary.final === 1 ? 'list' : 'lists'} · ${summary.withoutContainer} without a container`}
+              {summary.all} packaging {summary.all === 1 ? 'list' : 'lists'} · {summary.withoutContainer} without a container
             </p>
           )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <ExportExcelButton report="packaging-lists" filters={{ search: debouncedSearch || undefined, purchaseOrderId, kind, container: kind === 'FINAL' ? applied.container : undefined }} noun="packaging lists export" />
-          {canWrite && kind === 'TENTATIVE' && (
+          <ExportExcelButton report="packaging-lists" filters={{ search: debouncedSearch || undefined, purchaseOrderId, container: applied.container }} noun="packaging lists export" />
+          {canWrite && (
             <Link href={newPackagingListHref(purchaseOrderId)} className="ds-button ds-button-primary ds-button-sm">
-              + New tentative packaging list
+              + New packaging list
             </Link>
           )}
         </div>
-      </div>
-
-      <div className="mb-4 max-w-full overflow-x-auto">
-        <Tabs items={tabs} activeTab={kind} onChange={(id) => switchTab(id as PackagingListKind)} />
       </div>
 
       <div className="mb-4 rounded-lg border border-border bg-surface p-3 shadow-sm sm:p-4">
@@ -186,7 +165,6 @@ export const PackagingListsScreen: React.FC = () => {
               />
             </FormField>
           </FilterItem>
-          {kind === 'FINAL' && (
           <FilterItem wide>
             <FormField label="Container">
               <SegmentedToggle<ContainerFilter>
@@ -198,7 +176,6 @@ export const PackagingListsScreen: React.FC = () => {
               />
             </FormField>
           </FilterItem>
-          )}
         </FilterBar>
       </div>
 
@@ -232,7 +209,7 @@ export const PackagingListsScreen: React.FC = () => {
                 <TableRow>
                   <TableCell colSpan={COLUMNS}>
                     <div className={isError ? 'py-12 text-center font-medium text-danger-600' : 'py-12 text-center text-text-muted'}>
-                      {isError ? 'Could not load packaging lists.' : debouncedSearch || purchaseOrderId || filters.appliedCount > 0 ? 'No packaging list matches.' : kind === 'TENTATIVE' ? 'No tentative packaging lists yet. Mark a purchase order Ready to ship, then create one.' : 'No packaging lists yet. Convert a tentative packaging list to final to see it here.'}
+                      {isError ? 'Could not load packaging lists.' : debouncedSearch || purchaseOrderId || filters.appliedCount > 0 ? 'No packaging list matches.' : 'No packaging lists yet.'}
                     </div>
                   </TableCell>
                 </TableRow>

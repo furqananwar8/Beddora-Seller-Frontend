@@ -18,7 +18,7 @@ interface PackablePoSelectProps {
 const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? '' : 's'}`
 
 /**
- * Why a PO cannot join the current selection, mirroring the server's rules: Ready to ship and open only,
+ * Why a PO cannot join the current selection, mirroring the server's rules: approved and open only,
  * one destination per list, and several POs only while none of them has a packaging list yet.
  */
 export function unpackableReason(po: PackablePurchaseOrder, selected: PackablePurchaseOrder[]): string | null {
@@ -52,7 +52,7 @@ export const PackablePoSelect: React.FC<PackablePoSelectProps> = ({ id, options,
               {po.poNo} <span className="font-normal text-text-secondary">· {po.supplier.name}</span>
             </span>
             <span className="truncate text-xs text-text-muted">
-              {DESTINATION_LABEL[po.destination]} · {po.unitsLeft.toLocaleString('en-CA')} of {po.units.toLocaleString('en-CA')} units left · {po.listCount ? plural(po.listCount, 'packaging list') : 'no packaging lists'}
+              {DESTINATION_LABEL[po.destination]} · {po.unitsLeft.toLocaleString('en-CA')} of {po.units.toLocaleString('en-CA')} units left · {po.listCount ? plural(po.listCount, 'packaging list') : 'no packaging lists'} · {po.invoiceCount ? `${po.invoicedUnitsLeft.toLocaleString('en-CA')} invoiced units left` : 'no purchase invoice'}
             </span>
           </span>
           {/* Units of this PO already booked in containers, so nobody packs them twice */}
