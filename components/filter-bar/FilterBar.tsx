@@ -60,7 +60,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({ children, pendingCount, ac
       <Button type="button" variant="outline" size="sm" className="h-10" onClick={onReset} disabled={activeCount === 0 && pendingCount === 0}>
         Reset
       </Button>
-      <Button type="button" size="sm" className="h-10 gap-2" onClick={onApply} disabled={pendingCount === 0}>
+      <Button type="button" size="sm" className="h-10 gap-2" onClick={onApply}>
         {applyIcon}
         {applyLabel}
       </Button>

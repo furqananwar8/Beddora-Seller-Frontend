@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { baseApi } from '@/services/api/baseApi'
 import { useAppDispatch } from '@/store/hooks'
 import { addNotification } from '@/store/ui.slice'
 import { Container } from '@/components/layout'
@@ -240,7 +241,9 @@ export const InventoryPlannerScreen: React.FC<{ initialSearch?: string }> = ({ i
   const handleApplyFilters = useCallback(() => {
     setAppliedFilters({ ...pendingFilters })
     setAppliedSearch(searchTerm.trim())
-  }, [pendingFilters, searchTerm])
+    // The same search again still re-reads: stock may have moved since the list loaded
+    dispatch(baseApi.util.invalidateTags(['Inventory']))
+  }, [pendingFilters, searchTerm, dispatch])
 
   /** Opens a new shipment on the Shipments tab (FBA unless WFS is asked for) with the channel SKUs bound to these internal SKUs picked. */
   const openShipmentCreation = (internalSkus: string[], channel: 'amazon_fba' | 'walmart_wfs' = 'amazon_fba') => {

@@ -15,6 +15,7 @@ import { Input } from '@/design-system/inputs'
 import { MultiSelectInput } from '@/components/multi-select-input/MultiSelectInput'
 import { Badge } from '@/design-system/badges'
 import { InventoryItemStatus, ProductInventoryItem } from '@/services/api/inventoryPlanner.api'
+import { AllocationHistoryModal } from './AllocationHistoryModal'
 import { formatNumber } from '@/utils/format'
 import { cn } from '@/utils/cn'
 import { InventoryBulkEdit } from './useInventoryBulkEdit'
@@ -111,6 +112,7 @@ export const ProductInventoryTable = ({
   bulkEdit,
 }: ProductInventoryTableProps) => {
   const [view, setView] = useState<ViewState>(INITIAL_VIEW)
+  const [historyFor, setHistoryFor] = useState<{ id: string; sku: string } | null>(null)
   const { edit, setDraftField, save } = bulkEdit
 
   useEffect(() => setView((prev) => ({ ...prev, currentPage: 1 })), [searchTerm])
@@ -320,7 +322,9 @@ export const ProductInventoryTable = ({
                         )}
                       </TableCell>
                       <TableCell className={CELL_CLASS}>
-                        <div className="font-medium">{formatNumber(product.totalQuantity, 0)}</div>
+                        <button type="button" className="font-medium text-primary-600 hover:underline" title="See who allocated this SKU, to which channel, and when" onClick={() => setHistoryFor({ id: product.id, sku: product.sku })}>
+                          {formatNumber(product.totalQuantity, 0)}
+                        </button>
                         {product.unallocated > 0 && (
                           <div className="text-xs text-warning-700" title="Arrived but not yet split between FBA and FBM">
                             {formatNumber(product.unallocated, 0)} unallocated
@@ -434,6 +438,7 @@ export const ProductInventoryTable = ({
           </div>
         </div>
       )}
+      <AllocationHistoryModal target={historyFor} onClose={() => setHistoryFor(null)} />
     </form>
   )
 }

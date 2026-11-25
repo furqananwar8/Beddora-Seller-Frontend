@@ -1,14 +1,16 @@
 'use client'
 
 import { useFitToViewport } from '@/hooks/useFitToViewport'
-import React, { useState } from 'react'
+import React, { useMemo, useState } from 'react'
+import { FilterBar, FilterItem } from '@/components/filter-bar/FilterBar'
+import { useStagedFilters } from '@/components/filter-bar/useStagedFilters'
+import { FormField } from '@/components/form-field/FormField'
 import { Container } from '@/components/layout'
 import { PaginationFooter } from '@/components/pagination-footer/PaginationFooter'
 import { Spinner } from '@/design-system/loaders'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/design-system/tables'
 import { useAppDispatch } from '@/store/hooks'
 import { addNotification } from '@/store/ui.slice'
-import { useDebounce } from '@/utils/debounce'
 import { cn } from '@/utils/cn'
 import {
   AdjustmentRow,
@@ -41,11 +43,11 @@ type Dialog = { action: AdjustmentAction; rowId: string } | null
 export const AdjustmentsScreen: React.FC = () => {
   const fit = useFitToViewport<HTMLDivElement>()
   const dispatch = useAppDispatch()
-  const [search, setSearch] = useState('')
-  const debouncedSearch = useDebounce(search, 300)
   const [page, setPage] = useState(1)
+  const defaults = useMemo(() => ({ search: '' }), [])
+  const filters = useStagedFilters(defaults, () => setPage(1))
   const pageSize = usePageSize(PAGE_SIZE)
-  const { data, isLoading, isFetching, isError } = useGetAdjustmentsQuery({ search: debouncedSearch, page, limit: pageSize })
+  const { data, isLoading, isFetching, isError } = useGetAdjustmentsQuery({ search: filters.applied.search.trim(), page, limit: pageSize })
   const rows = data?.data ?? []
   const [adjustQuantity, { isLoading: savingQuantity }] = useAdjustQuantityMutation()
   const [updateBox, { isLoading: savingBox }] = useUpdateBoxDimensionsMutation()
@@ -92,17 +94,24 @@ export const AdjustmentsScreen: React.FC = () => {
         <p className="mt-1 text-sm text-text-muted">Correct on-hand quantities and box dimensions for each SKU.</p>
       </div>
 
-      <input
-        type="search"
-        placeholder="Search SKU or product"
-        aria-label="Search SKU or product"
-        value={search}
-        onChange={(e) => {
-          setSearch(e.target.value)
-          setPage(1)
-        }}
-        className="mb-4 w-full sm:max-w-md rounded-md border border-border bg-surface px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-secondary-200"
-      />
+      <div className="mb-4 rounded-lg border border-border bg-surface p-4 shadow-sm">
+        <h2 className="mb-3 text-sm font-semibold text-text-primary">Filters</h2>
+        <FilterBar pendingCount={filters.changed.size} activeCount={filters.activeCount} onApply={filters.apply} onReset={filters.reset}>
+          <FilterItem wide>
+            <FormField label="Search" htmlFor="adjustments-search">
+              <input
+                id="adjustments-search"
+                type="search"
+                value={filters.draft.search}
+                onChange={(e) => filters.setDraft('search', e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && filters.apply()}
+                placeholder="Search SKU or product"
+                className={cn('ds-input ds-input-default rounded-lg', filters.changed.has('search') && 'border-primary-500 ring-1 ring-primary-500')}
+              />
+            </FormField>
+          </FilterItem>
+        </FilterBar>
+      </div>
 
       <div className={cn('overflow-hidden rounded-lg border border-border shadow-sm', isFetching && 'opacity-70 transition-opacity')}>
         <div ref={fit.ref} style={fit.style} className="max-h-[calc(100vh-320px)] overflow-auto">

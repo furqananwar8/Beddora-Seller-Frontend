@@ -1,4 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
+import { baseApi, tagTypes } from '@/services/api/baseApi'
+import { useAppDispatch } from '@/store/hooks'
 
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
 
@@ -8,6 +10,7 @@ const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
  * `initial` starts somewhere other than the defaults (e.g. filters kept in the page address).
  */
 export function useStagedFilters<T extends Record<string, unknown>>(defaults: T, onApply?: (applied: T) => void, initial: T = defaults) {
+  const dispatch = useAppDispatch()
   const [draft, setDraftState] = useState<T>(initial)
   const [applied, setApplied] = useState<T>(initial)
 
@@ -25,7 +28,9 @@ export function useStagedFilters<T extends Record<string, unknown>>(defaults: T,
   const apply = useCallback(() => {
     setApplied(draft)
     onApply?.(draft)
-  }, [draft, onApply])
+    // Applying the same filters again re-reads them: the list may have changed since it was loaded
+    dispatch(baseApi.util.invalidateTags([...tagTypes]))
+  }, [draft, onApply, dispatch])
 
   const reset = useCallback(() => {
     setDraftState(defaults)

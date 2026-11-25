@@ -156,6 +156,8 @@ export const baseApi = createApi({
   // Default cache time: 60 seconds (can be overridden per endpoint)
   // This ensures data is reused across navigations instead of refetching too often
   keepUnusedDataFor: 60,
+  // A new search or filter always asks the server: cached results of the same query can be stale after a scan or adjustment
+  refetchOnMountOrArgChange: true,
   endpoints: () => ({}),
 })
 

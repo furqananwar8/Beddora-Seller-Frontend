@@ -44,6 +44,16 @@ export interface ProductInventoryItem {
   fbaDaysUntilNextOrder: number | null
 }
 
+export interface AllocationHistoryEntry {
+  id: number
+  at: string
+  units: number
+  /** Null when the units came from outside the planner's buckets. */
+  from: StockBucket | 'DAMAGED' | null
+  to: StockBucket | 'DAMAGED' | null
+  by: string | null
+}
+
 export interface InventoryItemChange {
   id: string
   status?: InventoryItemStatus
@@ -187,6 +197,12 @@ export const inventoryPlannerApi = baseApi.injectEndpoints({
       providesTags: ['Inventory'],
     }),
 
+    /** Who moved a SKU's stock between buckets (FBA, FBM, buffer ...) and when, newest first. */
+    getAllocationHistory: builder.query<AllocationHistoryEntry[], string>({
+      query: (id) => `/inventory/planner/${id}/allocation-history`,
+      providesTags: ['Inventory'],
+    }),
+
     getInventorySummary: builder.query<InventorySummary[], InventoryPlannerFilters>({
       query: (filters) => ({
         url: '/inventory/planner/summary',
@@ -300,6 +316,7 @@ export const inventoryPlannerApi = baseApi.injectEndpoints({
 })
 
 export const {
+  useGetAllocationHistoryQuery,
   useGetFbaStockQuery,
   useGetInventorySummaryQuery,
   useGetProductInventoryQuery,

@@ -36,6 +36,8 @@ export const REALTIME_TOPICS: Record<string, TagType[]> = {
   'system.email': [],
   /** A scan session's counts or status changed (one event per matched batch); `SessionDetailScreen` refetches only its own session. */
   'barcode.scan-session': [],
+  /** Any stock movement (adjustment, scan, allocation, receipt): the planner, internal inventory and adjustments re-read. */
+  'inventory.stock': ['Inventory', 'InventoryAdjustments'],
 }
 
 export interface RealtimeMessage<T = Record<string, unknown>> {

@@ -7,10 +7,13 @@ import { Button } from '@/design-system/buttons'
 import { Card, CardContent } from '@/design-system/cards'
 import { Input, Select } from '@/design-system/inputs'
 import { Spinner } from '@/design-system/loaders'
+import { useRealtime } from '@/components/realtime/RealtimeProvider'
 import { useGetScanSessionsQuery, useGetScanSessionStatsQuery, useGetScanStartersQuery, type ScanListStatus, type ScanSessionFilters } from '@/services/api/barcode.api'
 import { RowActionsMenu } from '@/components/row-actions-menu/RowActionsMenu'
 import { CHANNEL_LABEL, SOURCE_LABEL, channelName, sessionCode } from './scanSession'
 import { StatusChip } from './StatusChip'
+import { PaginationFooter } from '@/components/pagination-footer/PaginationFooter'
+import { usePageSize } from '@/hooks/usePageSize'
 
 const PAGE_SIZE = 10
 /** Sessions end and start all day; the listing keeps up without a reload. */
@@ -47,11 +50,17 @@ export function SessionsListing() {
   const [draft, setDraft] = useState<Draft>(EMPTY)
   const [applied, setApplied] = useState<Draft>(EMPTY)
   const [page, setPage] = useState(1)
+  const pageSize = usePageSize(PAGE_SIZE)
   const set = (key: keyof Draft) => (value: string) => setDraft((d) => ({ ...d, [key]: value }))
 
-  const { data: stats } = useGetScanSessionStatsQuery(undefined, { pollingInterval: REFRESH_MS })
+  const { data: stats, refetch: refetchStats } = useGetScanSessionStatsQuery(undefined, { pollingInterval: REFRESH_MS })
   const { data: users } = useGetScanStartersQuery()
-  const { data, isFetching } = useGetScanSessionsQuery({ page, limit: PAGE_SIZE, ...toFilters(applied) }, { pollingInterval: REFRESH_MS })
+  const { data, isFetching, refetch } = useGetScanSessionsQuery({ page, limit: pageSize, ...toFilters(applied) }, { pollingInterval: REFRESH_MS })
+  // A session started, scanned or ended anywhere shows up right away; the polling above is only the fallback
+  useRealtime('barcode.scan-session', () => {
+    void refetch()
+    void refetchStats()
+  })
 
   const apply = () => {
     setApplied(draft)
@@ -194,21 +203,7 @@ export function SessionsListing() {
               </table>
             </div>
           )}
-          {data && data.totalRecords > 0 && (
-            <div className="flex items-center justify-between border-t border-border px-4 py-3 text-sm text-text-muted">
-              <span>
-                Showing {(data.page - 1) * data.limit + 1}–{Math.min(data.page * data.limit, data.totalRecords)} of {data.totalRecords} sessions{isFetching ? ' · updating…' : ''}
-              </span>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
-                  Previous
-                </Button>
-                <Button variant="outline" size="sm" disabled={page >= data.totalPages} onClick={() => setPage((p) => p + 1)}>
-                  Next
-                </Button>
-              </div>
-            </div>
-          )}
+          {data && <PaginationFooter selectablePageSize page={data.page} pageSize={data.limit} totalItems={data.totalRecords} totalPages={data.totalPages} onPageChange={setPage} itemLabel="sessions" />}
         </CardContent>
       </Card>
     </div>

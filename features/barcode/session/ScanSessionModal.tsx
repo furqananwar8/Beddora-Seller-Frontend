@@ -5,6 +5,7 @@ import { Badge } from '@/design-system/badges'
 import { Button } from '@/design-system/buttons'
 import { Spinner } from '@/design-system/loaders'
 import { Modal } from '@/design-system/modals'
+import { ConfirmDialog } from '@/components/confirm-dialog/ConfirmDialog'
 import { useApiFeedback, apiErrorMessage } from '@/hooks/useApiFeedback'
 import {
   useAddSessionScanMutation,
@@ -65,6 +66,7 @@ export function ScanSessionModal({ sessionId, onClose }: Props) {
 
   // Finishing: first the review (counts and damaged units), then the choice of how to end
   const [confirming, setConfirming] = useState(false)
+  const [confirmingShort, setConfirmingShort] = useState(false)
   const [choosing, setChoosing] = useState(false)
   // Inventory-in: per product, how many units were damaged / a normal return (asked once, when ending); the rest are sellable
   const [split, setSplit] = useState<ConditionCounts>({})
@@ -208,6 +210,7 @@ export function ScanSessionModal({ sessionId, onClose }: Props) {
   const receipt = isReceipt(session.scenario)
   const overLines = session.lines.filter((l) => l.state === 'OVER')
   const stillToScan = session.lines.filter((l) => l.scanned < l.expected).length
+  const short = session.lines.reduce((sum, l) => sum + Math.max(0, l.expected - l.scanned), 0)
   const totalExpected = session.lines.reduce((sum, l) => sum + l.expected, 0)
   const matchedUnits = session.lines.reduce((sum, l) => sum + (receipt && isReturn ? l.scanned : Math.min(l.scanned, l.expected)), 0)
   const requestClose = () => (open ? setConfirming(true) : onClose(false))
@@ -445,7 +448,20 @@ export function ScanSessionModal({ sessionId, onClose }: Props) {
         // Nothing scanned: there is nothing to choose, the session is simply discarded
         onConfirm={() => (session.scanned === 0 ? void finish(false) : (setConfirming(false), setChoosing(true)))}
       />
-      <EndChoice session={session} open={choosing} busy={ending || discarding || pausing} onBack={() => (setChoosing(false), setConfirming(true))} onEnd={(closeScanning) => void finish(closeScanning)} onPause={() => void pauseSession()} />
+      <EndChoice session={session} open={choosing} busy={ending || discarding || pausing} onBack={() => (setChoosing(false), setConfirming(true))} onEnd={(closeScanning) => (closeScanning && short > 0 ? setConfirmingShort(true) : void finish(closeScanning))} onPause={() => void pauseSession()} />
+      <ConfirmDialog
+        isOpen={confirmingShort}
+        title="Close with units short?"
+        confirmLabel="Close and update inventory"
+        busy={ending || discarding}
+        onClose={() => setConfirmingShort(false)}
+        onConfirm={() => {
+          setConfirmingShort(false)
+          void finish(true)
+        }}
+      >
+        You are closing scanning with <b>{short} unit{short === 1 ? '' : 's'} short</b>. Inventory is reduced only by what you scanned, and no more scans can be added to {session.ref}.
+      </ConfirmDialog>
     </>
   )
 }
