@@ -26,7 +26,7 @@ import {
 } from '@/services/api/barcode.api'
 import { ScanFieldSource } from '../scanner/ScanFieldSource'
 import { LiveChip } from './StatusChip'
-import { CODE_FIELDS, DIRECTION_META, channelName, conditionName, conditionsFor, isReceipt, sessionCode } from './scanSession'
+import { CODE_FIELDS, DIRECTION_META, channelName, conditionName, conditionsFor, isReceipt, poolName, sessionCode } from './scanSession'
 
 /** The server's lock lapses after 90 s; this keeps it alive for as long as the modal is open. */
 const HEARTBEAT_MS = 30_000
@@ -265,16 +265,17 @@ export function ScanSessionModal({ sessionId, onClose }: Props) {
                 <tbody>
                   {session.lines.map((line) => (
                     <Fragment key={line.inventoryItemId}>
-                      <tr className={`border-t border-border ${line.state === 'OVER' ? 'bg-warning-50' : ''}`}>
+                      <tr className={`border-t border-border ${line.state === 'OVER' ? 'bg-warning-50' : ''} ${line.blocked ? 'bg-secondary-50 opacity-70' : ''}`} title={line.blocked ?? undefined}>
                         <td className="px-3 py-2.5 text-center align-middle">
                           <div className="font-mono text-xs text-text-primary">{line.sku}</div>
                           {line.channelSku && <div className="text-xs text-text-muted">{line.channelSku}</div>}
+                          {line.blocked && <div className="text-xs font-semibold text-danger-600">Not enough {poolName(session.channel)} pool</div>}
                         </td>
                         <td className="px-3 py-2.5 font-mono text-xs text-center align-middle">{line.upc ?? (line.asin ? '-' : <Badge variant="warning" size="sm">No UPC</Badge>)}</td>
                         <td className="px-3 py-2.5 font-mono text-xs text-center align-middle">{line.asin ?? (line.upc ? '-' : <Badge variant="warning" size="sm">No ASIN</Badge>)}</td>
                         <td className="px-3 py-2.5 text-center align-middle">{line.expected}</td>
                         <td className={`px-3 py-2.5 text-center align-middle font-semibold ${line.state === 'MATCHED' ? 'text-success-700' : line.state === 'OVER' ? 'text-warning-700' : ''}`}>
-                          {open ? <UnitsInput sku={line.sku} value={line.scanned} onCommit={(count) => saveCount(line.inventoryItemId, count)} /> : line.scanned}
+                          {open && !line.blocked ? <UnitsInput sku={line.sku} value={line.scanned} onCommit={(count) => saveCount(line.inventoryItemId, count)} /> : line.scanned}
                         </td>
                         <td className="px-3 py-2.5 text-center align-middle">
                           <div className="mx-auto h-1.5 w-24 overflow-hidden rounded-full bg-secondary-200">
@@ -342,11 +343,15 @@ export function ScanSessionModal({ sessionId, onClose }: Props) {
                           </Badge>
                         </td>
                         <td className="px-3 py-2 text-text-secondary text-center align-middle">
-                          {entry.reason === 'NOT_ON_RECORD' ? `Not on this ${receipt ? 'receiving' : 'record'}${entry.sku ? ` (${entry.sku})` : ''}` : 'UPC / ASIN not in catalog'}
+                          {entry.reason === 'NOT_ENOUGH_POOL'
+                            ? `Not enough ${poolName(session.channel)} pool${entry.sku ? ` (${entry.sku})` : ''}`
+                            : entry.reason === 'NOT_ON_RECORD'
+                              ? `Not on this ${receipt ? 'receiving' : 'record'}${entry.sku ? ` (${entry.sku})` : ''}`
+                              : 'UPC / ASIN not in catalog'}
                         </td>
                         {open && (
                           <td className="px-3 py-2 text-center align-middle">
-                            <ProductPicker sessionId={sessionId} onPick={(product) => setAttaching({ code: entry.upc, product })} />
+                            {entry.reason !== 'NOT_ENOUGH_POOL' && <ProductPicker sessionId={sessionId} onPick={(product) => setAttaching({ code: entry.upc, product })} />}
                           </td>
                         )}
                         {open && (

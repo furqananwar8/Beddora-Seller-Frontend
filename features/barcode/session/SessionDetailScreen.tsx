@@ -9,7 +9,7 @@ import { Card, CardContent } from '@/design-system/cards'
 import { Spinner } from '@/design-system/loaders'
 import { useGetScanSessionQuery } from '@/services/api/barcode.api'
 import { ScanSessionModal } from './ScanSessionModal'
-import { DIRECTION_META, SOURCE_LABEL, channelName, isReceipt, sessionCode } from './scanSession'
+import { DIRECTION_META, SOURCE_LABEL, channelName, isReceipt, poolName, sessionCode } from './scanSession'
 import { StatusChip } from './StatusChip'
 
 const when = (iso: string | null) => (iso ? new Date(iso).toLocaleString([], { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }) : '-')
@@ -174,7 +174,7 @@ export function SessionDetailScreen({ sessionId }: { sessionId: number }) {
                   <td className="px-4 py-2.5 font-mono text-xs text-center align-middle">{row.upc}</td>
                   <td className="px-4 py-2.5 text-center align-middle">
                     <Badge variant={row.reason === 'NOT_IN_CATALOG' ? 'error' : 'warning'} size="sm">
-                      {row.reason === 'NOT_IN_CATALOG' ? 'UPC not in catalog' : 'Not on this record'}
+                      {row.reason === 'NOT_IN_CATALOG' ? 'UPC not in catalog' : row.reason === 'NOT_ENOUGH_POOL' ? `Not enough ${poolName(session.channel)} pool` : 'Not on this record'}
                     </Badge>
                   </td>
                   <td className="px-4 py-2.5 font-mono text-xs text-center align-middle">{row.sku ?? '-'}</td>

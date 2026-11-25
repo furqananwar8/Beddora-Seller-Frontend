@@ -81,6 +81,8 @@ export interface ScanSessionLine {
   expected: number
   scanned: number
   state: ScanLineState
+  /** Why this product can't be scanned right now (no FBA / WFS pool to take from): it shows read-only. */
+  blocked?: string | null
 }
 
 export interface ScanLineScans {
@@ -140,7 +142,7 @@ export interface ScanAppliedLine {
 
 export interface ScanUnmatched {
   upc: string
-  reason: 'NOT_IN_CATALOG' | 'NOT_ON_RECORD'
+  reason: 'NOT_IN_CATALOG' | 'NOT_ON_RECORD' | 'NOT_ENOUGH_POOL'
   sku: string | null
   count: number
   firstScannedAt: string

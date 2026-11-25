@@ -8,6 +8,9 @@ export interface ScanTarget {
 }
 
 /** Where each kind of record is scanned from, for the listing and the detail page. */
+/** The pool a shipment's channel takes stock from, as the team calls it. */
+export const poolName = (channel: string | null | undefined) => (channel === 'WALMART_WFS' ? 'WFS' : 'FBA')
+
 export const SOURCE_LABEL: Record<ScanScenario, string> = { FBA_WFS: 'Shipment', FBM_ORDER: 'Order', CONTAINER: 'Receiving' }
 
 export const CHANNEL_LABEL: Record<string, string> = {
