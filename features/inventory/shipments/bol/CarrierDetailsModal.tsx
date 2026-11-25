@@ -5,6 +5,7 @@ import { Modal } from '@/design-system/modals'
 import { Button } from '@/design-system/buttons'
 import { Input } from '@/design-system/inputs'
 import { SearchableSelect } from '@/components/searchable-select/SearchableSelect'
+import { SingleDatePicker } from '@/components/single-date-picker/SingleDatePicker'
 import { useGetShipmentCarriersQuery } from '@/services/api/inboundShipments.api'
 import { useUpdateBolCarrierDetailsMutation, type BolLeg } from '@/services/api/shipmentBols.api'
 
@@ -81,8 +82,14 @@ const CarrierDetailsForm: React.FC<{ shipmentId: string; leg: BolLeg; onClose: (
             disabled={isSaving}
           />
         </div>
-        <Input label="Pick-up date" type="date" value={pickupDate} disabled={isSaving} onChange={(e) => setPickupDate(e.target.value)} />
-        <Input label="Delivery date" type="date" min={pickupDate || undefined} value={deliveryDate} disabled={isSaving} onChange={(e) => setDeliveryDate(e.target.value)} />
+        <div>
+          <label htmlFor="bol-pickup-date" className="ds-input-label">Pick-up date</label>
+          <SingleDatePicker id="bol-pickup-date" value={pickupDate} disabled={isSaving} onChange={setPickupDate} />
+        </div>
+        <div>
+          <label htmlFor="bol-delivery-date" className="ds-input-label">Delivery date</label>
+          <SingleDatePicker id="bol-delivery-date" min={pickupDate || undefined} value={deliveryDate} disabled={isSaving} onChange={setDeliveryDate} />
+        </div>
         <div className="sm:col-span-2">
           <Input label="Delivery appointment ID (optional)" maxLength={60} value={appointmentNo} disabled={isSaving} onChange={(e) => setAppointmentNo(e.target.value)} />
         </div>

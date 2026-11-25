@@ -5,6 +5,7 @@ import { cn } from '@/utils/cn'
 import { Modal } from '@/design-system/modals'
 import { Button } from '@/design-system/buttons'
 import { Spinner } from '@/design-system/loaders'
+import { Input } from '@/design-system/inputs'
 import { useReportExport } from '@/hooks/useReportExport'
 import { useApiFeedback } from '@/hooks/useApiFeedback'
 import { useGetShipmentBolsQuery, useSaveShipmentBolTrailersMutation, type Bol, type BolLeg, type BolStatus, type BolView } from '@/services/api/shipmentBols.api'
@@ -25,7 +26,7 @@ interface BolModalProps {
  * themselves when ready, like every export.
  */
 export const BolModal: React.FC<BolModalProps> = ({ shipment, onClose }) => (
-  <Modal isOpen={shipment !== null} onClose={onClose} title={shipment ? `Bills of lading · ${shipment.reference}` : 'Bills of lading'} size="xl">
+  <Modal isOpen={shipment !== null} onClose={onClose} title={shipment ? `Bills of lading · ${shipment.reference}` : 'Bills of lading'} size="2xl">
     {shipment && <BolBody key={shipment.id} shipmentId={shipment.id} onClose={onClose} />}
   </Modal>
 )
@@ -278,7 +279,8 @@ const LegPanel: React.FC<LegPanelProps> = ({ view, leg, shipmentId, rows, setRow
             How many trailers are taking {leg.fulfillmentCenter}&apos;s {formatUnits(leg.totals.boxes)} boxes? Boxes, units, pallets and weight are split for you.
           </p>
           <div className="flex items-center justify-center gap-2">
-            <input
+            <div className="w-24">
+            <Input
               aria-label="Number of trailers"
               type="number"
               min={1}
@@ -292,8 +294,8 @@ const LegPanel: React.FC<LegPanelProps> = ({ view, leg, shipmentId, rows, setRow
                 const digits = e.target.value.replace(/\D/g, '')
                 setPlanCount(digits === '' ? '' : String(Math.min(20, Number(digits))))
               }}
-              className="w-20 rounded-md border border-border px-3 py-2 text-sm"
             />
+            </div>
             <Button disabled={disabled || !(Number(planCount) >= 1)} onClick={() => setRows(plannedTrailers(view, leg, Math.min(20, Math.floor(Number(planCount)))))}>
               Create trailers
             </Button>
@@ -322,24 +324,24 @@ const LegPanel: React.FC<LegPanelProps> = ({ view, leg, shipmentId, rows, setRow
                 const status = changed ? 'unsaved' : row.status ?? 'draft'
                 const isOpen = open === row.key
                 const numberCell = (field: TrailerCountField, step?: string) => (
-                  <input
-                    aria-label={`Trailer ${index + 1} ${field}`}
-                    type="number"
-                    min={0}
-                    step={step ?? '1'}
-                    value={row[field]}
-                    disabled={disabled}
-                    onKeyDown={(e) => {
-                      // No negatives or exponents anywhere, and no decimals in whole-number columns.
-                      if (['-', '+', 'e', 'E'].includes(e.key) || (field !== 'weight' && ['.', ','].includes(e.key))) e.preventDefault()
-                    }}
-                    onChange={(e) => update(row.key, { [field]: e.target.value.replace(/-/g, '') })}
-                    className={cn(
-                      'rounded-md border px-2 py-1.5 text-sm', field === 'weight' ? 'w-24' : 'w-[72px]',
-                      errors[field] || ((field === 'boxes' && check.overBoxes > 0) || (field === 'units' && check.overUnits > 0)) ? 'border-danger-500 bg-danger-50' : 'border-border'
-                    )}
-                    title={errors[field]}
-                  />
+                  <div className={field === 'weight' ? 'w-28' : 'w-20'}>
+                    <Input
+                      aria-label={`Trailer ${index + 1} ${field}`}
+                      type="number"
+                      min={0}
+                      step={step ?? '1'}
+                      value={row[field]}
+                      disabled={disabled}
+                      onKeyDown={(e) => {
+                        // No negatives or exponents anywhere, and no decimals in whole-number columns.
+                        if (['-', '+', 'e', 'E'].includes(e.key) || (field !== 'weight' && ['.', ','].includes(e.key))) e.preventDefault()
+                      }}
+                      onChange={(e) => update(row.key, { [field]: e.target.value.replace(/-/g, '') })}
+                      aria-invalid={Boolean(errors[field]) || (field === 'boxes' && check.overBoxes > 0) || (field === 'units' && check.overUnits > 0)}
+                      className="aria-[invalid=true]:border-danger-500 aria-[invalid=true]:bg-danger-50"
+                      title={errors[field]}
+                    />
+                  </div>
                 )
                 return (
                   <React.Fragment key={row.key}>
@@ -353,15 +355,16 @@ const LegPanel: React.FC<LegPanelProps> = ({ view, leg, shipmentId, rows, setRow
                       <td className="px-2 py-2">{numberCell('units')}</td>
                       <td className="px-2 py-2">{numberCell('weight', '0.01')}</td>
                       <td className="px-2 py-2">
-                        <input
-                          aria-label={`Trailer ${index + 1} pick-up number`}
-                          value={row.pickupNo}
-                          disabled={disabled}
-                          maxLength={60}
-                          placeholder="Carrier's #"
-                          onChange={(e) => update(row.key, { pickupNo: e.target.value })}
-                          className="w-28 rounded-md border border-border px-2 py-1.5 text-sm"
-                        />
+                        <div className="w-32">
+                          <Input
+                            aria-label={`Trailer ${index + 1} pick-up number`}
+                            value={row.pickupNo}
+                            disabled={disabled}
+                            maxLength={60}
+                            placeholder="Carrier's #"
+                            onChange={(e) => update(row.key, { pickupNo: e.target.value })}
+                          />
+                        </div>
                       </td>
                       <td className="px-2 py-2">
                         <span className={cn('rounded px-2 py-0.5 text-xs font-medium', STATUS_META[status].className)}>{STATUS_META[status].label}</span>
