@@ -44,8 +44,9 @@ export function SegmentedToggle<T extends string>({ options, value, onChange, ar
             disabled={disabled || option.disabled}
             onClick={() => onChange(option.value)}
             className={cn(
-              'flex items-center justify-center gap-1.5 whitespace-nowrap rounded-md px-4 py-1.5 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50',
-              active ? ACTIVE[variant] : 'text-text-muted hover:text-text-primary'
+              'flex items-center justify-center gap-1.5 whitespace-nowrap rounded-md px-4 py-1.5 text-sm font-medium transition-colors disabled:cursor-not-allowed',
+              // Disabled fades only the unpicked options: the picked one must stay readable (a locked choice still shows what it is)
+              active ? ACTIVE[variant] : 'text-text-muted hover:text-text-primary disabled:opacity-50'
             )}
           >
             {option.icon}
