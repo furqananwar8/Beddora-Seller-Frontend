@@ -1,5 +1,5 @@
 import type { BadgeProps } from '@/design-system/badges'
-import type { ReturnCondition, ScanDirection, ScanLineState, ScanScenario, ScanSessionScan, ScanSessionSummary } from '@/services/api/barcode.api'
+import type { ReturnCondition, ScanCodeField, ScanDirection, ScanLineState, ScanScenario, ScanSessionScan, ScanSessionSummary } from '@/services/api/barcode.api'
 
 /** The record a scan is started from; the scan screen and the stock movement follow from it. */
 export interface ScanTarget {
@@ -28,6 +28,12 @@ export function sessionStatus(session: Pick<ScanSessionSummary, 'status' | 'notM
 }
 
 export const sessionCode = (id: number) => `S-${id}`
+
+/** Same rules as the product form: a UPC is 8, 12, 13 or 14 digits; an ASIN is 10 letters or digits. */
+export const CODE_FIELDS: Array<{ field: ScanCodeField; label: string; valid: (code: string) => boolean }> = [
+  { field: 'upc', label: 'UPC', valid: (code) => /^(\d{8}|\d{12,14})$/.test(code) },
+  { field: 'asin', label: 'ASIN', valid: (code) => /^[A-Za-z0-9]{10}$/.test(code) },
+]
 
 export const sessionHref = (id: number, condition?: ReturnCondition) => `/dashboard/barcode/session/${id}${condition ? `?condition=${condition}` : ''}`
 

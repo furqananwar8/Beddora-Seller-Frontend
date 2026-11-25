@@ -67,10 +67,14 @@ export interface ScanSourceInfo {
 
 export type ScanLineState = 'NOT_STARTED' | 'IN_PROGRESS' | 'MATCHED' | 'OVER'
 
+/** A scanned code is saved on a product as its UPC or as its ASIN. */
+export type ScanCodeField = 'upc' | 'asin'
+
 export interface ScanSessionLine {
   inventoryItemId: number
   sku: string
   upc: string | null
+  asin: string | null
   channelSku: string | null
   expected: number
   scanned: number
@@ -126,6 +130,7 @@ export interface ScanAppliedLine {
   inventoryItemId: number
   sku: string
   upc: string | null
+  asin: string | null
   expected: number
   scanned: number
   applied: number
@@ -305,11 +310,11 @@ export const barcodeApi = baseApi.injectEndpoints({
       transformResponse: unwrap,
     }),
     // Products to pick for an unmatched UPC (this record's first), and saving the scanned UPC on the picked product
-    searchScanProducts: b.query<Array<{ sku: string; name: string; upc: string | null; onRecord: boolean }>, { id: number; q: string }>({
+    searchScanProducts: b.query<Array<{ sku: string; name: string; upc: string | null; asin: string | null; onRecord: boolean }>, { id: number; q: string }>({
       query: ({ id, q }) => ({ url: `/barcode/sessions/${id}/products`, params: { q } }),
       transformResponse: unwrap,
     }),
-    assignUnmatchedUpc: b.mutation<ScanSession, { id: number; upc: string; sku: string }>({
+    assignUnmatchedCode: b.mutation<ScanSession, { id: number; code: string; field: ScanCodeField; sku: string }>({
       query: ({ id, ...body }) => ({ url: `/barcode/sessions/${id}/unmatched/assign`, method: 'POST', body }),
       transformResponse: unwrap,
       invalidatesTags: ['Barcode'],
@@ -419,7 +424,7 @@ export const {
   useUndoSessionScanMutation,
   useSetScanLineCountMutation,
   useSearchScanProductsQuery,
-  useAssignUnmatchedUpcMutation,
+  useAssignUnmatchedCodeMutation,
   useDismissUnmatchedUpcMutation,
   useRecheckUnmatchedScansMutation,
   useEndScanSessionMutation,

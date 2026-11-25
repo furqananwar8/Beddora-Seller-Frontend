@@ -15,16 +15,17 @@ import {
   usePauseScanSessionMutation,
   useRecheckUnmatchedScansMutation,
   useScanSessionHeartbeatMutation,
-  useAssignUnmatchedUpcMutation,
+  useAssignUnmatchedCodeMutation,
   useSearchScanProductsQuery,
   useSetScanLineCountMutation,
   useUndoSessionScanMutation,
   type ReturnCondition,
+  type ScanCodeField,
   type ScanSession,
 } from '@/services/api/barcode.api'
 import { ScanFieldSource } from '../scanner/ScanFieldSource'
 import { LiveChip } from './StatusChip'
-import { DIRECTION_META, channelName, conditionName, conditionsFor, isReceipt, sessionCode } from './scanSession'
+import { CODE_FIELDS, DIRECTION_META, channelName, conditionName, conditionsFor, isReceipt, sessionCode } from './scanSession'
 
 /** The server's lock lapses after 90 s; this keeps it alive for as long as the modal is open. */
 const HEARTBEAT_MS = 30_000
@@ -56,7 +57,9 @@ export function ScanSessionModal({ sessionId, onClose }: Props) {
   const [pause, { isLoading: pausing }] = usePauseScanSessionMutation()
   const [undoScan] = useUndoSessionScanMutation()
   const [setLineCount] = useSetScanLineCountMutation()
-  const [assignUnmatched] = useAssignUnmatchedUpcMutation()
+  const [assignUnmatched, { isLoading: assigning }] = useAssignUnmatchedCodeMutation()
+  // A scanned code and the product picked for it, waiting for the answer: save it as the product's UPC or as its ASIN
+  const [attaching, setAttaching] = useState<{ code: string; product: ProductChoice } | null>(null)
   const [dismissUnmatched] = useDismissUnmatchedUpcMutation()
   const [recheck, { isLoading: rechecking }] = useRecheckUnmatchedScansMutation()
 
@@ -110,20 +113,21 @@ export function ScanSessionModal({ sessionId, onClose }: Props) {
   const removeScan = (scanId: number) => run(() => undoScan({ id: sessionId, scanId }).unwrap(), 'Could not remove the scan')
   // A product's units are typed in once (a master carton scanned a single time); more scans still add one each
   const saveCount = (inventoryItemId: number, count: number) => run(() => setLineCount({ id: sessionId, inventoryItemId, count }).unwrap(), 'Could not change the count')
-  const assignUpc = (upc: string, sku: string) =>
+  const assignCode = (code: string, sku: string, field: ScanCodeField) =>
     run(async () => {
-      await assignUnmatched({ id: sessionId, upc, sku }).unwrap()
-      feedback.success(`${upc} saved on ${sku}`)
-    }, 'Could not save the UPC')
+      await assignUnmatched({ id: sessionId, code, field, sku }).unwrap()
+      setAttaching(null)
+      feedback.success(`${code} saved on ${sku} as its ${field === 'upc' ? 'UPC' : 'ASIN'}`)
+    }, `Could not save the ${field === 'upc' ? 'UPC' : 'ASIN'}`)
   const dropUnmatched = (upc: string) => run(() => dismissUnmatched({ id: sessionId, upc }).unwrap(), 'Could not remove the UPC')
   const recheckUnmatched = () =>
     run(async () => {
       const before = session?.notMatched ?? 0
       const next = await recheck(sessionId).unwrap()
       const fixed = before - next.notMatched
-      if (fixed > 0) feedback.success(`${fixed} UPC${fixed === 1 ? ' now matches' : 's now match'}`)
-      else feedback.error('Nothing new matched. Fix the product UPC, or scan the item again')
-    }, 'Could not re-check the UPCs')
+      if (fixed > 0) feedback.success(`${fixed} code${fixed === 1 ? ' now matches' : 's now match'}`)
+      else feedback.error('Nothing new matched. Fix the product UPC or ASIN, or scan the item again')
+    }, 'Could not re-check the codes')
 
   // Handheld scanners type into the field; it keeps focus so every scan lands in it
   useEffect(() => {
@@ -249,6 +253,7 @@ export function ScanSessionModal({ sessionId, onClose }: Props) {
                   <tr>
                     <th className="px-3 py-2 font-semibold text-center align-middle">SKU</th>
                     <th className="px-3 py-2 font-semibold text-center align-middle">UPC</th>
+                    <th className="px-3 py-2 font-semibold text-center align-middle">ASIN</th>
                     <th className="px-3 py-2 text-center font-semibold align-middle">Expected</th>
                     <th className="px-3 py-2 text-center font-semibold align-middle">Scanned</th>
                     <th className="px-3 py-2 font-semibold text-center align-middle">Progress</th>
@@ -262,7 +267,8 @@ export function ScanSessionModal({ sessionId, onClose }: Props) {
                           <div className="font-mono text-xs text-text-primary">{line.sku}</div>
                           {line.channelSku && <div className="text-xs text-text-muted">{line.channelSku}</div>}
                         </td>
-                        <td className="px-3 py-2.5 font-mono text-xs text-center align-middle">{line.upc ?? <Badge variant="warning" size="sm">No UPC</Badge>}</td>
+                        <td className="px-3 py-2.5 font-mono text-xs text-center align-middle">{line.upc ?? (line.asin ? '-' : <Badge variant="warning" size="sm">No UPC</Badge>)}</td>
+                        <td className="px-3 py-2.5 font-mono text-xs text-center align-middle">{line.asin ?? (line.upc ? '-' : <Badge variant="warning" size="sm">No ASIN</Badge>)}</td>
                         <td className="px-3 py-2.5 text-center align-middle">{line.expected}</td>
                         <td className={`px-3 py-2.5 text-center align-middle font-semibold ${line.state === 'MATCHED' ? 'text-success-700' : line.state === 'OVER' ? 'text-warning-700' : ''}`}>
                           {open ? <UnitsInput sku={line.sku} value={line.scanned} onCommit={(count) => saveCount(line.inventoryItemId, count)} /> : line.scanned}
@@ -279,6 +285,7 @@ export function ScanSessionModal({ sessionId, onClose }: Props) {
                   <tr className="border-t border-border bg-secondary-50 font-bold">
                     <td className="px-3 py-2 text-center align-middle">Total</td>
                     <td />
+                    <td />
                     <td className="px-3 py-2 text-center align-middle">{totalExpected}</td>
                     <td className="px-3 py-2 text-center align-middle">
                       {matchedUnits} / {totalExpected}
@@ -292,19 +299,19 @@ export function ScanSessionModal({ sessionId, onClose }: Props) {
             <div className="overflow-x-auto rounded-lg border border-border">
               <div className="flex items-center justify-between gap-3 border-b border-border px-3 py-2.5 text-sm font-bold">
                 <span>
-                  Not matched UPCs <span className="font-normal text-text-muted">· one row per UPC</span>
+                  Not matched codes <span className="font-normal text-text-muted">· one row per UPC or ASIN</span>
                 </span>
                 <span className="flex items-center gap-3">
                   <span className="text-xs font-medium text-text-muted">{session.notMatched} not matched</span>
                   {open && session.notMatched > 0 && (
-                    <Button size="sm" variant="outline" onClick={() => void recheckUnmatched()} disabled={rechecking} title="After fixing a product's UPC, match these scans again. Scanning the item again also resolves it">
+                    <Button size="sm" variant="outline" onClick={() => void recheckUnmatched()} disabled={rechecking} title="After fixing a product's UPC or ASIN, match these scans again. Scanning the item again also resolves it">
                       {rechecking ? 'Checking…' : 'Re-check'}
                     </Button>
                   )}
                 </span>
               </div>
               {session.unmatched.length === 0 && waiting.length === 0 ? (
-                <p className="p-4 text-sm text-text-muted">{session.scanned === 0 ? 'Nothing scanned yet. Scan a UPC to start.' : 'Every scanned UPC matched. Type a SKU’s units above when a carton holds more than you scan.'}</p>
+                <p className="p-4 text-sm text-text-muted">{session.scanned === 0 ? 'Nothing scanned yet. Scan a UPC or ASIN to start.' : 'Every scanned code matched. Type a SKU’s units above when a carton holds more than you scan.'}</p>
               ) : (
                 <table className="w-full text-sm">
                   <tbody>
@@ -332,11 +339,11 @@ export function ScanSessionModal({ sessionId, onClose }: Props) {
                           </Badge>
                         </td>
                         <td className="px-3 py-2 text-text-secondary text-center align-middle">
-                          {entry.reason === 'NOT_ON_RECORD' ? `Not on this ${receipt ? 'receiving' : 'record'}${entry.sku ? ` (${entry.sku})` : ''}` : 'UPC not in catalog'}
+                          {entry.reason === 'NOT_ON_RECORD' ? `Not on this ${receipt ? 'receiving' : 'record'}${entry.sku ? ` (${entry.sku})` : ''}` : 'UPC / ASIN not in catalog'}
                         </td>
                         {open && (
                           <td className="px-3 py-2 text-center align-middle">
-                            <ProductPicker sessionId={sessionId} onPick={(sku) => void assignUpc(entry.upc, sku)} />
+                            <ProductPicker sessionId={sessionId} onPick={(product) => setAttaching({ code: entry.upc, product })} />
                           </td>
                         )}
                         {open && (
@@ -425,6 +432,7 @@ export function ScanSessionModal({ sessionId, onClose }: Props) {
         </div>
       </Modal>
 
+      <AttachCodeDialog attaching={attaching} busy={assigning} onPick={(field) => attaching && void assignCode(attaching.code, attaching.product.sku, field)} onCancel={() => setAttaching(null)} />
       <EndConfirm
         session={session}
         open={confirming}
@@ -635,8 +643,44 @@ function UnitsInput({ sku, value, onCommit }: { sku: string; value: number; onCo
   )
 }
 
-/** Search the products (this record's first) and pick the one a scanned UPC belongs to; the UPC is saved on it and the scan matches. */
-function ProductPicker({ sessionId, onPick }: { sessionId: number; onPick: (sku: string) => void }) {
+type ProductChoice = { sku: string; upc: string | null; asin: string | null }
+
+/** Asks whether a scanned code the product was picked for is its UPC or its ASIN, then saves it there so the scan matches. */
+function AttachCodeDialog({ attaching, busy, onPick, onCancel }: { attaching: { code: string; product: ProductChoice } | null; busy: boolean; onPick: (field: ScanCodeField) => void; onCancel: () => void }) {
+  return (
+    <Modal isOpen={attaching !== null} onClose={onCancel} title="Save this scanned code" size="md">
+      {attaching && (
+        <>
+          <p className="mb-4 text-sm text-text-secondary">
+            Is <b className="font-mono">{attaching.code}</b> the UPC or the ASIN of <b className="font-mono">{attaching.product.sku}</b>?
+          </p>
+          <div className="space-y-3">
+            {CODE_FIELDS.map(({ field, label, valid }) => {
+              const current = attaching.product[field]
+              const ok = valid(attaching.code)
+              return (
+                <button key={field} type="button" disabled={busy || !ok} onClick={() => onPick(field)} className="block w-full rounded-lg border border-border p-4 text-left hover:bg-secondary-50 disabled:opacity-50">
+                  <span className="block text-sm font-semibold text-text-primary">Save as {label}</span>
+                  <span className="block text-xs text-text-muted">
+                    {!ok ? (field === 'upc' ? 'A UPC is 8, 12, 13 or 14 digits.' : 'An ASIN is 10 letters or digits.') : current ? `Replaces the current ${label} (${current}).` : `${attaching.product.sku} has no ${label} yet.`}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+          <div className="mt-5 flex justify-end">
+            <Button variant="outline" onClick={onCancel} disabled={busy}>
+              Cancel
+            </Button>
+          </div>
+        </>
+      )}
+    </Modal>
+  )
+}
+
+/** Search the products (this record's first) and pick the one a scanned code belongs to; the next step asks whether it is its UPC or ASIN. */
+function ProductPicker({ sessionId, onPick }: { sessionId: number; onPick: (product: ProductChoice) => void }) {
   const [text, setText] = useState('')
   const [q, setQ] = useState('')
   const [shown, setShown] = useState(false)
@@ -653,8 +697,8 @@ function ProductPicker({ sessionId, onPick }: { sessionId: number; onPick: (sku:
       <input
         ref={field}
         value={text}
-        placeholder="Search product to set UPC"
-        aria-label="Search a product to set this UPC on"
+        placeholder="Search product to attach"
+        aria-label="Search a product to attach this code to"
         onFocus={() => setShown(true)}
         onBlur={() => setTimeout(() => setShown(false), 150)}
         onChange={(event) => setText(event.target.value)}
@@ -665,7 +709,7 @@ function ProductPicker({ sessionId, onPick }: { sessionId: number; onPick: (sku:
           {data.length === 0 && <li className="px-3 py-2 text-text-muted">No products found</li>}
           {data.map((p) => (
             <li key={p.sku}>
-              <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => (onPick(p.sku), setShown(false), setText(''))} className="block w-full px-3 py-2 text-left hover:bg-secondary-50">
+              <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => (onPick(p), setShown(false), setText(''))} className="block w-full px-3 py-2 text-left hover:bg-secondary-50">
                 <span className="font-mono font-semibold">{p.sku}</span>
                 {p.onRecord && <span className="ml-1 text-success-700">· on this record</span>}
                 <span className="block truncate text-text-muted">{p.name}</span>

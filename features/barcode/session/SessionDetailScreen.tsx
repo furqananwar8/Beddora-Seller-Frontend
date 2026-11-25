@@ -98,6 +98,7 @@ export function SessionDetailScreen({ sessionId }: { sessionId: number }) {
               <tr>
                 <th className="px-4 py-2.5 font-semibold text-center align-middle">SKU</th>
                 <th className="px-4 py-2.5 font-semibold text-center align-middle">UPC</th>
+                <th className="px-4 py-2.5 font-semibold text-center align-middle">ASIN</th>
                 <th className="px-4 py-2.5 text-center font-semibold align-middle">Expected</th>
                 <th className="px-4 py-2.5 text-center font-semibold align-middle">Scanned</th>
                 <th className="px-4 py-2.5 text-center font-semibold align-middle">{countOnly ? 'Counted' : 'Inventory change'}</th>
@@ -106,8 +107,8 @@ export function SessionDetailScreen({ sessionId }: { sessionId: number }) {
             <tbody>
               {matchedRows.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-4 py-6 text-center text-text-muted">
-                    No UPC matched.
+                  <td colSpan={6} className="px-4 py-6 text-center text-text-muted">
+                    No code matched.
                   </td>
                 </tr>
               )}
@@ -115,6 +116,7 @@ export function SessionDetailScreen({ sessionId }: { sessionId: number }) {
                 <tr key={row.inventoryItemId} className="border-t border-border">
                   <td className="px-4 py-2.5 font-mono text-xs text-center align-middle">{row.sku}</td>
                   <td className="px-4 py-2.5 font-mono text-xs text-center align-middle">{row.upc ?? '-'}</td>
+                  <td className="px-4 py-2.5 font-mono text-xs text-center align-middle">{row.asin ?? '-'}</td>
                   <td className="px-4 py-2.5 text-center align-middle">{row.expected}</td>
                   <td className="px-4 py-2.5 text-center align-middle">{row.scanned}</td>
                   <td className="px-4 py-2.5 text-center align-middle">
