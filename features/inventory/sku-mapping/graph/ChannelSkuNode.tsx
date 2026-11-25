@@ -2,6 +2,7 @@
 
 import React, { memo } from 'react'
 import { Handle, Position, type NodeProps } from '@xyflow/react'
+import { X } from 'lucide-react'
 import { cn } from '@/utils/cn'
 import { marketplaceName } from '../constants'
 import { MappingStatusBadge } from '../MappingStatusBadge'
@@ -10,7 +11,7 @@ import type { ChannelNode } from './graphLayout'
 import { NODE_WIDTH, WHOLE_NODE_HANDLE } from './graphLayout'
 
 export const ChannelSkuNode = memo(function ChannelSkuNode({ data }: NodeProps<ChannelNode>) {
-  const { select, readOnly } = useGraphActions()
+  const { select, dismissChannel, readOnly } = useGraphActions()
   const { row, status, selected, compact } = data
 
   return (
@@ -38,6 +39,20 @@ export const ChannelSkuNode = memo(function ChannelSkuNode({ data }: NodeProps<C
         {!compact && <span className="block truncate text-xs text-text-muted">{marketplaceName(row.marketplace)}{row.reference ? ` · ${row.reference}` : ''}</span>}
       </span>
       <MappingStatusBadge status={status} />
+      {!readOnly && (
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation()
+            dismissChannel(row.key)
+          }}
+          aria-label={`Unbind and remove ${row.sku}`}
+          title="Unbind its internal SKUs; press again to remove it from the graph"
+          className="nodrag nopan relative shrink-0 rounded p-0.5 text-text-muted hover:bg-danger-50 hover:text-danger-600"
+        >
+          <X className="h-3.5 w-3.5" aria-hidden />
+        </button>
+      )}
       {/* The whole box is the handle (invisible): press and drag from anywhere on it to an internal SKU to link them; a click still selects */}
       <Handle type="source" position={Position.Right} isConnectable={!readOnly} className={WHOLE_NODE_HANDLE} />
     </div>
