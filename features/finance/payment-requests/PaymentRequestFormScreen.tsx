@@ -52,6 +52,7 @@ import { PayablePoSelect } from './PayablePoSelect'
 import { SamplePaySelect, SelectedSamples } from './SamplesToPay'
 import { PayableInvoiceSelect } from './PayableInvoiceSelect'
 import { PoPaymentHistory } from './PoPaymentHistory'
+import { PoTermsBreakdown } from './PoTermsBreakdown'
 import { CarrierShipmentSelect } from './CarrierShipmentSelect'
 import { FxConversionNote } from '../shared/FxConversionNote'
 import { ContainerSelect, containerRefOf } from './ContainerSelect'
@@ -617,9 +618,8 @@ export const PaymentRequestFormScreen: React.FC = () => {
               />
             </FormField>
             {byPurchaseOrder && (
-              <FormField label="Payment terms" hint="Set by the purchase order">
-                {/* Always there on a purchase-order request; empty when the PO has no terms (or none is picked yet) */}
-                <p className="min-h-10 rounded-lg border border-border bg-secondary-50 px-3 py-2 text-sm text-text-primary">{pickedPo?.paymentTerms}</p>
+              <FormField label="Payment terms" hint="Set by the purchase order: what the advance and the balance come to, and what is left to request" className="sm:col-span-2 lg:col-span-4">
+                <PoTermsBreakdown purchaseOrder={pickedPo ?? null} />
               </FormField>
             )}
           </div>

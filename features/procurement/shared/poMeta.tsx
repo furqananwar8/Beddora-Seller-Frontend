@@ -34,6 +34,7 @@ export const PO_STATUS_META: Record<PoStatus, { label: string; tone: StatusTone 
   PENDING_APPROVAL: { label: 'PENDING FOR APPROVAL', tone: 'warning' },
   APPROVED: { label: 'APPROVED', tone: 'success' },
   IN_PROGRESS: { label: 'IN PRODUCTION', tone: 'info' },
+  READY_TO_SHIP: { label: 'READY TO SHIP', tone: 'info' },
   PARTIALLY_PACKED: { label: 'PARTIALLY PACKED', tone: 'warning' },
   FULLY_PACKED: { label: 'FULLY PACKED', tone: 'success' },
   SHORT_CLOSED: { label: 'SHORT CLOSED', tone: 'danger' },
@@ -64,6 +65,9 @@ export const isInProduction = (po: { status: PoStatus }): boolean => po.status !
 
 /** The production date can be set once the PO is approved, while it is open. Mirrors the server's rule. */
 export const canSetProductionDate = (po: { status: PoStatus; isOpen: boolean }): boolean => po.isOpen && isApprovedPo(po)
+
+/** "Ready To Ship" (actions menu): an open PO in production (IN PRODUCTION) that was not marked yet. Mirrors the server's rule. */
+export const canMarkReadyToShip = (po: { status: PoStatus; isOpen: boolean }): boolean => po.isOpen && po.status === 'IN_PROGRESS'
 
 /** The ARD can be set once the PO is in production, while it is open. Mirrors the server's rule. */
 export const canSetArd = (po: { status: PoStatus; isOpen: boolean }): boolean => po.isOpen && isInProduction(po)

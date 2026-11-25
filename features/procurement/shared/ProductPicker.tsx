@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react'
 import { SearchableSelect } from '@/components/searchable-select/SearchableSelect'
-import { useGetPoProductOptionsQuery, type PoProduct } from '@/services/api/procurement.api'
+import { useGetPoProductOptionsQuery, type PoProduct, type ProductPlatform } from '@/services/api/procurement.api'
 import { useDebounce } from '@/utils/debounce'
 import { QuickProductModal } from '../products/QuickProductModal'
 import { MarketplaceTags } from './MarketplaceTags'
@@ -18,6 +18,8 @@ interface ProductPickerProps {
   disabled?: boolean
   error?: string
   placeholder?: string
+  /** Only products of this platform are listed (a PO is for Ecommerce or Retail). */
+  platform?: ProductPlatform
 }
 
 export const productLabel = (product: Pick<PoProduct, 'name' | 'variantName'>): string => product.variantName ?? product.name
@@ -41,11 +43,11 @@ const ProductOption: React.FC<{ product: PoProduct; note?: React.ReactNode }> = 
  * Server-searched orderable products, fetched only while the dropdown is open. Every opening asks the server
  * again (a product created or edited meanwhile, here or in another browser tab, must show up in the search).
  */
-function useProductOptions(parentsOnly = false) {
+function useProductOptions(parentsOnly = false, platform?: ProductPlatform) {
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
   const debounced = useDebounce(search, 250)
-  const { data = [], isFetching } = useGetPoProductOptionsQuery({ search: debounced, parentsOnly }, { skip: !open, refetchOnMountOrArgChange: true, refetchOnFocus: true })
+  const { data = [], isFetching } = useGetPoProductOptionsQuery({ search: debounced, parentsOnly, platform }, { skip: !open, refetchOnMountOrArgChange: true, refetchOnFocus: true })
   return { search, setSearch, setOpen, options: data, isFetching }
 }
 
@@ -89,8 +91,8 @@ export const ProductSelect: React.FC<ProductSelectProps> = ({ id, value, onChang
  * Type SKU or name, tick products to add them. Lists what can be ordered: variations and masters
  * without variations, each with its SKU and tag. Shared by every procurement product picker.
  */
-export const ProductPicker: React.FC<ProductPickerProps> = ({ id, selected, onChange, canCreate, disabled, error, placeholder = 'Search SKU or name to add products' }) => {
-  const lookup = useProductOptions()
+export const ProductPicker: React.FC<ProductPickerProps> = ({ id, selected, onChange, canCreate, disabled, error, placeholder = 'Search SKU or name to add products', platform }) => {
+  const lookup = useProductOptions(false, platform)
   const [creating, setCreating] = useState(false)
   const picked = new Set(selected.map((product) => product.id))
 

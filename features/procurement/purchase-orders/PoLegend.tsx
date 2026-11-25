@@ -16,7 +16,9 @@ export const PoLegend: React.FC = () => (
         <PoStatusBadge status="APPROVED" />
         <Arrow label="production date set" />
         <PoStatusBadge status="IN_PROGRESS" />
-        <Arrow label="packing" />
+        <Arrow label="actions › Ready to ship" />
+        <PoStatusBadge status="READY_TO_SHIP" />
+        <Arrow label="tentative packing list" />
         <PoStatusBadge status="PARTIALLY_PACKED" />
         <Arrow label="all units packed" />
         <PoStatusBadge status="FULLY_PACKED" />

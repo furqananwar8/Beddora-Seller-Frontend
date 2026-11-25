@@ -173,12 +173,13 @@ export interface ProductBody extends VariantInput, WeightInput, Pick<DimensionIn
 
 export type PoDestination = 'US' | 'CA'
 export type PoCurrency = 'USD' | 'CAD'
-/** DRAFT (new, or sent back by a rejection) → PENDING_APPROVAL (submitted) → APPROVED → IN_PROGRESS (production date set, shown as IN PRODUCTION) → PARTIALLY_PACKED → FULLY_PACKED → PARTIALLY_SHIPPED → FULLY_SHIPPED; SHORT_CLOSED when closed before every unit was packed. */
+/** DRAFT (new, or sent back by a rejection) → PENDING_APPROVAL (submitted) → APPROVED → IN_PROGRESS (production date set, shown as IN PRODUCTION) → READY_TO_SHIP (set by hand from the actions menu) → PARTIALLY_PACKED → FULLY_PACKED → PARTIALLY_SHIPPED → FULLY_SHIPPED; SHORT_CLOSED when closed before every unit was packed. */
 export type PoStatus =
   | 'DRAFT'
   | 'PENDING_APPROVAL'
   | 'APPROVED'
   | 'IN_PROGRESS'
+  | 'READY_TO_SHIP'
   | 'PARTIALLY_PACKED'
   | 'FULLY_PACKED'
   | 'SHORT_CLOSED'
@@ -211,6 +212,8 @@ export interface PurchaseOrderListItem {
   externalRef: string | null
   supplier: { id: number; name: string }
   destination: PoDestination
+  /** The brand the PO is for. */
+  platform: ProductPlatform
   currency: PoCurrency
   productionDate: string | null
   /** The date the PO was issued to the supplier. */
@@ -255,7 +258,12 @@ export interface PoLine {
   /** Units x rate. */
   amount: number
   allocated: number
+  /** Units still to be put on a packaging list. */
   remaining: number
+  /** Units in a container. */
+  shipped: number
+  /** Every ordered unit is in a container. */
+  shippedFully: boolean
 }
 
 /** Where a sample stands; derived from its payment requests. FREE needs no payment. */
@@ -318,8 +326,34 @@ export interface PoApproval {
   canDecide: boolean
 }
 
+export type PoBatchStatus = 'DRAFT' | 'PENDING_APPROVAL' | 'IN_PRODUCTION' | 'PACKED' | 'SHIPPED' | 'RECEIVED'
+
+/** A production run of a PO: its own SKUs and units, production date and status (derived from the PO and its packaging list). */
+export interface PoBatch {
+  id: number
+  seq: number
+  label: string
+  productionDate: string | null
+  status: PoBatchStatus
+  units: number
+  /** Units on the batch's packaging list. */
+  packed: number
+  packagingList: { id: number; plNo: string; kind: PackagingListKind; container: ContainerRef | null } | null
+  lines: Array<{ id: number; product: PoProduct; units: number; unitPrice: number | null; packed: number; remaining: number }>
+}
+
+export interface AddBatchBody {
+  productionDate?: string
+  lines: Array<{ productId: number; units: number }>
+}
+
 export interface PurchaseOrderDetail {
   id: number
+  /** The brand the PO is for: every product, batch and packaging list of it is of this platform. */
+  platform: ProductPlatform
+  advancePercent: number
+  balanceTerm: string
+  balancePercent: number
   poNo: string
   /** The PO number from another system (the legacy sheet), when the PO came from there. */
   externalRef: string | null
@@ -342,6 +376,8 @@ export interface PurchaseOrderDetail {
   status: PoStatus
   isOpen: boolean
   closedAt: string | null
+  /** When the goods were marked Ready to ship; null before that. */
+  readyToShipAt: string | null
   payment: PoPayment
   rejectionReason: string | null
   rejectedAt: string | null
@@ -353,10 +389,13 @@ export interface PurchaseOrderDetail {
   source: { id: number; poNo: string } | null
   derived: Array<{ id: number; poNo: string }>
   lines: PoLine[]
+  batches: PoBatch[]
+  /** SKUs of the approved PO that no batch holds yet (what a short packaging list left): the most a new batch may take. */
+  unbatched: Array<{ product: PoProduct; units: number }>
   samples: PoSample[]
   sampleTotals: { units: number; chargeableAmount: number }
   /** `amount` is the lines plus the samples that ride with the PO; `linesAmount` is the lines alone. */
-  totals: { units: number; allocated: number; amount: number; linesAmount: number }
+  totals: { units: number; allocated: number; remaining: number; amount: number; linesAmount: number }
   remainingForNewPo: number
   events: PoEvent[]
   /** The approval chain of the latest submission; null when it never had one. */
@@ -364,7 +403,7 @@ export interface PurchaseOrderDetail {
   /** Set while an approver has unlocked this approved PO for editing; the next save locks it again. */
   unlockedAt: string | null
   unlockedBy: { id: number; name: string | null } | null
-  can: { edit: boolean; setProductionDate: boolean; setArd: boolean; submit: boolean; delete: boolean; decide: boolean; unlock: boolean; lock: boolean; toggleOpen: boolean; createFromRemaining: boolean }
+  can: { edit: boolean; addBatch: boolean; setProductionDate: boolean; setArd: boolean; markReadyToShip: boolean; submit: boolean; delete: boolean; decide: boolean; unlock: boolean; lock: boolean; toggleOpen: boolean; createFromRemaining: boolean }
 }
 
 export interface PurchaseOrderBody {
@@ -374,11 +413,18 @@ export interface PurchaseOrderBody {
   contactName: string | null
   paymentTerms: string | null
   destination: PoDestination
+  /** Ecommerce or Retail; its products must all be of this platform. */
+  platform: ProductPlatform
+  /** Payment terms: an advance, and the rest due on `balanceTerm`; the two add up to 100. */
+  advancePercent: number
+  balanceTerm: string
+  balancePercent: number
   /** The warehouse the goods go to; null leaves it unset. */
   warehouseId: number | null
   currency: PoCurrency
   etd: string
-  lines: Array<{ productId: number; unitsOrdered: number; unitPrice: number }>
+  /** The PO's batches; each has its own products. `id` is a saved batch being edited. */
+  batches: Array<{ id?: number; lines: Array<{ productId: number; unitsOrdered: number; unitPrice: number }> }>
   /** Samples on the PO: an `id` links an existing sample, none creates a new one; a unit price of 0 means free. */
   samples: Array<{ id?: number; productId: number; units: number; unitPrice: number }>
   sourcePurchaseOrderId?: number
@@ -391,6 +437,7 @@ export interface RemainingDraft {
   supplier: SupplierRef
   contactName: string | null
   destination: PoDestination
+  platform: ProductPlatform
   currency: PoCurrency
   lines: Array<{ product: PoProduct; unitsOrdered: number; unitPrice: number | null }>
 }
@@ -488,6 +535,8 @@ export interface PurchaseInvoiceExpense {
 export interface PurchaseInvoiceDetail extends Omit<PurchaseInvoiceListItem, 'partner' | 'can'> {
   lines: PurchaseInvoiceLine[]
   expenses: PurchaseInvoiceExpense[]
+  /** The PO's packaging lists (tentative and final), with per-SKU units. */
+  packagingLists: PoPackagingListSummary[]
   /** `amount` = invoice + expenses. */
   totals: { po: number; invoice: number; expenses: number; amount: number }
   /** What its payment requests have paid so far. */
@@ -527,9 +576,14 @@ export const purchaseInvoicePdfPath = (invoiceId: number): string => `/procureme
 
 /* ─────────────── Packaging lists ─────────────── */
 
+/** TENTATIVE: drafted from a Ready to ship PO. FINAL: converted (units confirmed); only these go in containers. */
+export type PackagingListKind = 'TENTATIVE' | 'FINAL'
+
 export interface PackagingListItem {
   id: number
   plNo: string
+  kind: PackagingListKind
+  finalizedAt: string | null
   /** The suppliers of its purchase orders (a list may span several). */
   suppliers: Array<{ id: number; name: string }>
   destination: PoDestination
@@ -551,19 +605,24 @@ export interface PackagingListParams extends PageParams {
   purchaseOrderId?: number
   container?: ContainerFilter
   destination?: PoDestination
+  kind?: PackagingListKind
 }
 
 export interface PackagingLineDetail {
   id: number
   purchaseOrderId: number
   poNo: string
+  batchId: number
+  batchNo: string
+  batchProductionDate: string | null
   product: PoProduct
+  /** Units of this SKU in the batch. */
   poQty: number
-  /** Units the supplier invoiced for this PO line (approved purchase invoices). */
-  invoiced: number
-  /** Units of this PO line on other lists. */
+  /** Units of this batch line on other lists. */
   allocatedElsewhere: number
   available: number
+  /** The units as first drafted; `units` is the final value once the list is converted. Null on lists never converted. */
+  tentativeUnits: number | null
   units: number
   cartons: number
   /** Outer carton size typed on the line, in cm; null on lines saved before cartons were recorded. */
@@ -579,50 +638,66 @@ export interface PackagingLineDetail {
 export interface PackagingListDetail {
   id: number
   plNo: string
+  kind: PackagingListKind
+  finalizedAt: string | null
   suppliers: Array<{ id: number; name: string }>
   destination: PoDestination
   createdBy: { id: number; name: string | null }
   createdAt: string
   updatedAt: string
   purchaseOrders: Array<{ id: number; poNo: string }>
+  batches: Array<{ id: number; poNo: string; label: string }>
   container: ContainerRef | null
   lines: PackagingLineDetail[]
   totals: { skuCount: number; units: number; cartons: number; cbm: number; netWeightKg: number; grossWeightKg: number }
 }
 
-/** A PO for the list form (any supplier), with what decides whether it can be picked. */
+/** A PO the container form can pick (its destination sets the container's country). */
 export interface PackablePurchaseOrder {
   id: number
   poNo: string
   supplier: { id: number; name: string }
   destination: PoDestination
-  currency: PoCurrency
-  status: PoStatus
-  isOpen: boolean
-  units: number
-  /** Units not yet on another packaging list. */
-  unitsLeft: number
-  /** Approved purchase invoices of this PO; none means nothing can be packed until one is created. */
-  invoiceCount: number
-  /** Invoiced units not yet on another packaging list. */
-  invoicedUnitsLeft: number
-  /** Other packaging lists this PO is already on. */
-  listCount: number
-  /** Containers already holding some of this PO's units, with how many. */
-  containers: Array<{ id: number; containerNo: string; containerNumber: string | null; status: ContainerStatus; units: number }>
 }
 
-export interface PackablePoLines {
+/** A batch IN PRODUCTION for the list form (any supplier), or one already on the list being edited. */
+export interface PackableBatch {
+  id: number
+  batchNo: string
+  /** `PO-0120 / Batch 2`. */
+  label: string
+  purchaseOrderId: number
+  poNo: string
+  supplier: { id: number; name: string }
+  destination: PoDestination
+  platform: ProductPlatform
+  currency: PoCurrency
+  productionDate: string | null
+  units: number
+}
+
+export interface PackableBatchLines {
+  batch: { id: number; seq: number; label: string; productionDate: string | null }
   /** `price` is the PO's total (units x rate) in its currency; null when no rate has been entered yet. */
   purchaseOrder: { id: number; poNo: string; currency: PoCurrency; destination: PoDestination; supplier: { id: number; name: string }; price: number | null }
-  /** The approved purchase invoices the quantities come from; empty when the PO has none yet. */
-  invoices: Array<{ id: number; invoiceNo: string; units: number }>
-  /** Only the SKUs the supplier invoiced: PO qty, invoiced, taken by other lists, and left for this list. */
-  lines: Array<{ product: PoProduct; poQty: number; invoiced: number; allocated: number; available: number }>
+  /** Every SKU of the batch: its units, taken by other lists, and left for this list. */
+  lines: Array<{ product: PoProduct; poQty: number; allocated: number; available: number }>
+}
+
+/** A packaging list carrying a PO's units, as the invoice screens show it (units of this PO only). */
+export interface PoPackagingListSummary {
+  id: number
+  plNo: string
+  kind: PackagingListKind
+  finalizedAt: string | null
+  container: ContainerRef | null
+  totals: { units: number; finalUnits: number | null; cartons: number; cbm: number }
+  /** `units` is the drafted quantity, `finalUnits` the confirmed one (null until the list is converted). */
+  lines: Array<{ product: PoProduct; units: number; finalUnits: number | null; cartons: number; cbm: number }>
 }
 
 export interface PackagingLineBody {
-  purchaseOrderId: number
+  batchId: number
   productId: number
   units: number
   cartons: number
@@ -637,7 +712,7 @@ export interface PackagingLineBody {
 }
 
 export interface PackagingListBody {
-  purchaseOrderIds: number[]
+  batchIds: number[]
   lines: PackagingLineBody[]
   closePurchaseOrderIds: number[]
   expectedUpdatedAt?: string
@@ -1230,8 +1305,8 @@ export const procurementApi = baseApi.injectEndpoints({
       transformResponse: unwrap,
       providesTags: ['ProcurementProducts'],
     }),
-    getPoProductOptions: b.query<PoProduct[], { search?: string; limit?: number; parentsOnly?: boolean }>({
-      query: ({ search, limit, parentsOnly }) => ({ url: '/procurement/products/options', params: { search: search || undefined, limit, parentsOnly: parentsOnly || undefined } }),
+    getPoProductOptions: b.query<PoProduct[], { search?: string; limit?: number; parentsOnly?: boolean; platform?: ProductPlatform }>({
+      query: ({ search, limit, parentsOnly, platform }) => ({ url: '/procurement/products/options', params: { search: search || undefined, limit, parentsOnly: parentsOnly || undefined, platform } }),
       transformResponse: unwrap,
       // A search result goes stale the moment a product is created; don't keep one around for reuse
       keepUnusedDataFor: 0,
@@ -1344,6 +1419,16 @@ export const procurementApi = baseApi.injectEndpoints({
       transformResponse: unwrap,
       invalidatesTags: ['ProcurementPurchaseOrders'],
     }),
+    addPurchaseOrderBatch: b.mutation<PurchaseOrderDetail, { id: number; body: AddBatchBody }>({
+      query: ({ id, body }) => ({ url: `/procurement/purchase-orders/${id}/batches`, method: 'POST', body }),
+      transformResponse: unwrap,
+      invalidatesTags: ['ProcurementPurchaseOrders', 'ProcurementPackagingLists'],
+    }),
+    setPurchaseOrderBatchProductionDate: b.mutation<PurchaseOrderDetail, { id: number; batchId: number; productionDate: string }>({
+      query: ({ id, batchId, productionDate }) => ({ url: `/procurement/purchase-orders/${id}/batches/${batchId}/production-date`, method: 'PUT', body: { productionDate } }),
+      transformResponse: unwrap,
+      invalidatesTags: ['ProcurementPurchaseOrders'],
+    }),
     updateProcurementPurchaseOrder: b.mutation<PurchaseOrderDetail, { id: number; body: PurchaseOrderBody }>({
       query: ({ id, body }) => ({ url: `/procurement/purchase-orders/${id}`, method: 'PUT', body }),
       transformResponse: unwrap,
@@ -1368,6 +1453,12 @@ export const procurementApi = baseApi.injectEndpoints({
       query: (id) => ({ url: `/procurement/purchase-orders/${id}/approve`, method: 'POST' }),
       transformResponse: unwrap,
       invalidatesTags: ['ProcurementPurchaseOrders'],
+    }),
+    /** Marks the goods Ready to ship: fires the PO Ready to ship notification (set up on the Approvals screen). */
+    markPurchaseOrderReadyToShip: b.mutation<PurchaseOrderDetail, number>({
+      query: (id) => ({ url: `/procurement/purchase-orders/${id}/ready-to-ship`, method: 'POST' }),
+      transformResponse: unwrap,
+      invalidatesTags: ['ProcurementPurchaseOrders', 'ProcurementPackagingLists'],
     }),
     submitPurchaseOrder: b.mutation<PurchaseOrderDetail, number>({
       query: (id) => ({ url: `/procurement/purchase-orders/${id}/submit`, method: 'POST' }),
@@ -1470,7 +1561,7 @@ export const procurementApi = baseApi.injectEndpoints({
       query: ({ search, ...params }) => ({ url: '/procurement/packaging-lists', params: { ...params, search: search || undefined } }),
       providesTags: ['ProcurementPackagingLists', 'ProcurementContainers'],
     }),
-    getPackagingListSummary: b.query<{ all: number; withoutContainer: number }, void>({
+    getPackagingListSummary: b.query<{ all: number; tentative: number; final: number; withoutContainer: number }, void>({
       query: () => '/procurement/packaging-lists/summary',
       transformResponse: unwrap,
       providesTags: ['ProcurementPackagingLists'],
@@ -1480,13 +1571,18 @@ export const procurementApi = baseApi.injectEndpoints({
       transformResponse: unwrap,
       providesTags: ['ProcurementPackagingLists'],
     }),
-    getPackablePurchaseOrders: b.query<PackablePurchaseOrder[], { excludeListId?: number }>({
-      query: (params) => ({ url: '/procurement/packaging-lists/po-options', params }),
+    getPackablePurchaseOrders: b.query<PackablePurchaseOrder[], Record<string, never>>({
+      query: () => '/procurement/packaging-lists/po-options',
       transformResponse: unwrap,
       providesTags: ['ProcurementPackagingLists', 'ProcurementPurchaseOrders'],
     }),
-    getPackablePoLines: b.query<PackablePoLines[], { purchaseOrderIds: number[]; excludeListId?: number }>({
-      query: ({ purchaseOrderIds, excludeListId }) => ({ url: '/procurement/packaging-lists/po-lines', params: { purchaseOrderIds: csv(purchaseOrderIds), excludeListId } }),
+    getPackableBatches: b.query<PackableBatch[], { excludeListId?: number }>({
+      query: (params) => ({ url: '/procurement/packaging-lists/batch-options', params }),
+      transformResponse: unwrap,
+      providesTags: ['ProcurementPackagingLists', 'ProcurementPurchaseOrders'],
+    }),
+    getPackableBatchLines: b.query<PackableBatchLines[], { batchIds: number[]; excludeListId?: number }>({
+      query: ({ batchIds, excludeListId }) => ({ url: '/procurement/packaging-lists/batch-lines', params: { batchIds: csv(batchIds), excludeListId } }),
       transformResponse: unwrap,
       providesTags: ['ProcurementPackagingLists', 'ProcurementPurchaseOrders'],
     }),
@@ -1499,6 +1595,17 @@ export const procurementApi = baseApi.injectEndpoints({
       query: ({ id, body }) => ({ url: `/procurement/packaging-lists/${id}`, method: 'PUT', body }),
       transformResponse: unwrap,
       invalidatesTags: ['ProcurementPackagingLists', 'ProcurementPurchaseOrders'],
+    }),
+    /** Converts a tentative list to final: the body's units are the confirmed (final) units. */
+    finalizePackagingList: b.mutation<PackagingListDetail, { id: number; body: PackagingListBody }>({
+      query: ({ id, body }) => ({ url: `/procurement/packaging-lists/${id}/finalize`, method: 'PUT', body }),
+      transformResponse: unwrap,
+      invalidatesTags: ['ProcurementPackagingLists', 'ProcurementPurchaseOrders'],
+    }),
+    getPoPackagingLists: b.query<PoPackagingListSummary[], number>({
+      query: (purchaseOrderId) => `/procurement/purchase-orders/${purchaseOrderId}/packaging-lists`,
+      transformResponse: unwrap,
+      providesTags: ['ProcurementPackagingLists', 'ProcurementPurchaseOrders'],
     }),
     deletePackagingList: b.mutation<void, number>({
       query: (id) => ({ url: `/procurement/packaging-lists/${id}`, method: 'DELETE' }),
@@ -1738,6 +1845,7 @@ export const {
   useApprovePurchaseOrderMutation,
   useRejectPurchaseOrderMutation,
   useSubmitPurchaseOrderMutation,
+  useMarkPurchaseOrderReadyToShipMutation,
   useDeleteProcurementPurchaseOrderMutation,
   useDeletePurchaseInvoiceMutation,
   useDeleteContainerMutation,
@@ -1759,9 +1867,14 @@ export const {
   useGetPackagingListSummaryQuery,
   useGetPackagingListQuery,
   useGetPackablePurchaseOrdersQuery,
-  useGetPackablePoLinesQuery,
+  useAddPurchaseOrderBatchMutation,
+  useSetPurchaseOrderBatchProductionDateMutation,
+  useGetPackableBatchesQuery,
+  useGetPackableBatchLinesQuery,
   useCreatePackagingListMutation,
   useUpdatePackagingListMutation,
+  useFinalizePackagingListMutation,
+  useGetPoPackagingListsQuery,
   useDeletePackagingListMutation,
   useGetContainersQuery,
   useGetContainerSummaryQuery,

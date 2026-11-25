@@ -13,7 +13,8 @@ import { ProductPicker, productLabel } from '../shared/ProductPicker'
 import { ExpandToggle, ProductSpecs, useExpandedRows } from '../shared/ProductSpecs'
 import { ProductTagBadge } from '../shared/ProductTagBadge'
 import { cbmOf, formatCbm, formatDimensions } from '../shared/units'
-import { lineAmount, newLine, summarize, type PoFormValues } from './poForm'
+import { Button } from '@/design-system/buttons'
+import { allLines, lineAmount, newLine, summarize, type PoFormValues } from './poForm'
 
 interface PoProductsSectionProps {
   form: UseFormReturn<PoFormValues>
@@ -24,6 +25,14 @@ interface PoProductsSectionProps {
   purchaseOrderId?: number
 }
 
+interface PoBatchCardProps extends PoProductsSectionProps {
+  batchIndex: number
+  batchCount: number
+  /** A batch on a packaging list cannot be removed. */
+  locked: boolean
+  onRemove: () => void
+}
+
 const HEAD = 'px-3 py-2 text-center text-xs font-semibold uppercase tracking-wide text-text-muted'
 const CELL = 'px-3 py-2 text-center align-middle'
 const units = (value: number) => value.toLocaleString('en-CA')
@@ -32,15 +41,17 @@ const units = (value: number) => value.toLocaleString('en-CA')
 const cbmPerUnit = (product: PoProduct): number | null =>
   product.cbm ?? (product.lengthCm !== null && product.widthCm !== null && product.heightCm !== null ? cbmOf(product.lengthCm, product.widthCm, product.heightCm, 'CM') : null)
 
-export const PoProductsSection: React.FC<PoProductsSectionProps> = ({ form, readOnly, fixedProducts, purchaseOrderId }) => {
+const PoBatchCard: React.FC<PoBatchCardProps> = ({ form, readOnly, fixedProducts, purchaseOrderId, batchIndex, batchCount, locked, onRemove }) => {
   const {
     control,
     register,
     formState: { errors },
   } = form
-  const { fields, append, remove } = useFieldArray({ control, name: 'lines', keyName: 'fieldId' })
-  const lines = useWatch({ control, name: 'lines' }) ?? []
+  const { fields, append, remove } = useFieldArray({ control, name: `batches.${batchIndex}.lines`, keyName: 'fieldId' })
+  const lines = useWatch({ control, name: `batches.${batchIndex}.lines` }) ?? []
+  const batchErrors = errors.batches?.[batchIndex]
   const currency = useWatch({ control, name: 'currency' })
+  const platform = useWatch({ control, name: 'platform' })
   const { isOpen, toggle } = useExpandedRows<number>()
   const columns = readOnly ? 14 : 15
   const productIds = lines.map((line) => line.product.id)
@@ -56,20 +67,25 @@ export const PoProductsSection: React.FC<PoProductsSectionProps> = ({ form, read
   }
 
   const { products } = summarize(lines, [])
-  const linesError = (errors.lines as { message?: string } | undefined)?.message ?? (errors.lines as { root?: { message?: string } } | undefined)?.root?.message
+  const linesError = (batchErrors?.lines as { message?: string } | undefined)?.message ?? (batchErrors?.lines as { root?: { message?: string } } | undefined)?.root?.message
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Products</CardTitle>
+      <CardHeader className="flex flex-row items-center justify-between gap-3">
+        <CardTitle>{batchCount > 1 || !readOnly ? `Batch ${batchIndex + 1} · Products` : 'Products'}</CardTitle>
+        {!readOnly && batchCount > 1 && (
+          <Button type="button" size="sm" variant="outline" disabled={locked} title={locked ? 'This batch is on a packaging list' : undefined} onClick={onRemove}>
+            Remove batch
+          </Button>
+        )}
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         {!readOnly && !fixedProducts && (
           <div>
-            <label htmlFor="po-products" className="ds-input-label">
+            <label htmlFor={`po-products-${batchIndex}`} className="ds-input-label">
               Add products
             </label>
-            <ProductPicker id="po-products" selected={lines.map((line) => line.product)} onChange={syncPicked} canCreate />
+            <ProductPicker id={`po-products-${batchIndex}`} selected={lines.map((line) => line.product)} onChange={syncPicked} canCreate platform={platform} />
           </div>
         )}
         {fixedProducts && !readOnly && <p className="text-xs text-text-muted">This PO takes over units left on another PO, so its products are fixed. Lower a quantity or remove a line if needed.</p>}
@@ -102,8 +118,8 @@ export const PoProductsSection: React.FC<PoProductsSectionProps> = ({ form, read
                 {fields.map((field, index) => {
                   const line = lines[index] ?? field
                   const { product } = line
-                  const unitsError = errors.lines?.[index]?.unitsOrdered?.message
-                  const rateError = errors.lines?.[index]?.unitPrice?.message
+                  const unitsError = batchErrors?.lines?.[index]?.unitsOrdered?.message
+                  const rateError = batchErrors?.lines?.[index]?.unitPrice?.message
                   const remaining = (Number(line.unitsOrdered) || 0) - line.allocated
                   const expanded = isOpen(product.id)
                   return (
@@ -134,7 +150,7 @@ export const PoProductsSection: React.FC<PoProductsSectionProps> = ({ form, read
                             aria-label={`Units ordered for ${product.ref}`}
                             className={cn(fieldClass(unitsError), 'mx-auto h-9 w-28 py-1 text-right tabular-nums')}
                             disabled={readOnly}
-                            {...register(`lines.${index}.unitsOrdered`)}
+                            {...register(`batches.${batchIndex}.lines.${index}.unitsOrdered`)}
                           />
                           {unitsError && <p className="mt-1 text-xs text-danger-600">{unitsError}</p>}
                           {!unitsError && line.maxUnits !== undefined && <p className="mt-1 text-xs text-text-muted">max {units(line.maxUnits)}</p>}
@@ -145,13 +161,13 @@ export const PoProductsSection: React.FC<PoProductsSectionProps> = ({ form, read
                             aria-label={`Unit rate for ${product.ref}`}
                             className={cn(fieldClass(rateError), 'mx-auto h-9 w-28 py-1 text-right tabular-nums')}
                             disabled={readOnly}
-                            {...register(`lines.${index}.unitPrice`)}
+                            {...register(`batches.${batchIndex}.lines.${index}.unitPrice`)}
                           />
                           {rateError && <p className="mt-1 text-xs text-danger-600">{rateError}</p>}
                         </td>
                         <td className={cn(CELL, 'whitespace-nowrap tabular-nums')}>{formatCurrency(lineAmount(line), currency)}</td>
                         <td className={cn(CELL, 'tabular-nums text-text-muted')}>{units(line.allocated)}</td>
-                        <td className={cn(CELL, 'tabular-nums', remaining < 0 && 'text-danger-600')}>{units(remaining)}</td>
+                        <td className={cn(CELL, 'tabular-nums', remaining < 0 && 'text-danger-600')}>{units(Math.max(0, remaining))}</td>
                         {!readOnly && (
                           <td className={CELL}>
                             <button
@@ -181,7 +197,7 @@ export const PoProductsSection: React.FC<PoProductsSectionProps> = ({ form, read
               <tfoot>
                 <tr className="border-t border-border font-semibold">
                   <td className={cn(CELL, 'text-left')} colSpan={9}>
-                    Total · {products.count} {products.count === 1 ? 'product' : 'products'}
+                    Total · {fields.length} {fields.length === 1 ? 'product' : 'products'}
                   </td>
                   <td className={cn(CELL, 'tabular-nums')}>{units(products.ordered)}</td>
                   <td />
@@ -196,5 +212,48 @@ export const PoProductsSection: React.FC<PoProductsSectionProps> = ({ form, read
         )}
       </CardContent>
     </Card>
+  )
+}
+
+/**
+ * The PO's products, one card per batch. The first card is the PO's products as before; "Add batch" adds another card with
+ * its own products and units (any number of batches, each with any number of SKUs).
+ */
+export const PoProductsSection: React.FC<PoProductsSectionProps> = ({ form, readOnly, fixedProducts, purchaseOrderId }) => {
+  const { control } = form
+  const { fields, append, remove } = useFieldArray({ control, name: 'batches', keyName: 'fieldId' })
+  const batches = useWatch({ control, name: 'batches' }) ?? []
+  const currency = useWatch({ control, name: 'currency' })
+  const total = summarize(allLines(batches), []).products
+  const topError = (form.formState.errors.batches as { message?: string; root?: { message?: string } } | undefined)
+  return (
+    <>
+      {topError && (topError.message || topError.root?.message) && <p className="text-sm text-danger-600">{topError.message ?? topError.root?.message}</p>}
+      {fields.map((field, index) => (
+        <PoBatchCard
+          key={field.fieldId}
+          form={form}
+          readOnly={readOnly}
+          fixedProducts={fixedProducts}
+          purchaseOrderId={purchaseOrderId}
+          batchIndex={index}
+          batchCount={fields.length}
+          locked={Boolean(batches[index]?.locked)}
+          onRemove={() => remove(index)}
+        />
+      ))}
+      {!readOnly && !fixedProducts && (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <Button type="button" variant="outline" onClick={() => append({ lines: [] }, { shouldFocus: false })}>
+            + Add batch
+          </Button>
+          {fields.length > 1 && (
+            <p className="text-sm text-text-secondary">
+              {fields.length} batches · {total.count} {total.count === 1 ? 'product' : 'products'} · {units(total.ordered)} units · {formatCurrency(total.amount, currency)}
+            </p>
+          )}
+        </div>
+      )}
+    </>
   )
 }

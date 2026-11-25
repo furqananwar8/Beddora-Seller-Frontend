@@ -1,8 +1,8 @@
-import type { PackablePoLines, PackagingLineBody, PackagingLineDetail, PoProduct } from '@/services/api/procurement.api'
+import type { PackableBatchLines, PackagingLineBody, PackagingLineDetail, PoProduct } from '@/services/api/procurement.api'
 import { cartonMetrics } from '@/utils/cartonMetrics'
 import { cbmOf } from '../shared/units'
 
-/** What the user typed for one SKU of one PO. Carton dimensions are in cm; empty net weight follows the product. */
+/** What the user typed for one SKU of one batch. Carton dimensions are in cm; empty net weight follows the product. */
 export interface LineValue {
   units: string
   cartons: string
@@ -13,9 +13,9 @@ export interface LineValue {
   gross: string
 }
 
-export type PackableLine = PackablePoLines['lines'][number]
+export type PackableLine = PackableBatchLines['lines'][number]
 
-export const lineKey = (purchaseOrderId: number, productId: number) => `${purchaseOrderId}:${productId}`
+export const lineKey = (batchId: number, productId: number) => `${batchId}:${productId}`
 
 export const EMPTY_LINE: LineValue = { units: '', cartons: '', cartonL: '', cartonW: '', cartonH: '', net: '', gross: '' }
 
@@ -56,8 +56,8 @@ export function savedLine(line: PackagingLineDetail): LineValue {
   }
 }
 
-/** Live figures for one line: remaining after this list, CBM from the carton size, net weight (typed, else from the product), and what is wrong. */
-export function computeLine(line: PackableLine, value: LineValue | undefined) {
+/** Live figures for one line (`allowOver`: final units may exceed what is available): remaining after this list, CBM from the carton size, net weight (typed, else from the product), and what is wrong. */
+export function computeLine(line: PackableLine, value: LineValue | undefined, allowOver = false) {
   const units = value ? wholeNumber(value.units || '0') : 0
   const cartons = value ? wholeNumber(value.cartons || '0') : 0
   const typedNet = value?.net.trim() ? Number(value.net) : NaN
@@ -70,7 +70,7 @@ export function computeLine(line: PackableLine, value: LineValue | undefined) {
   const net = Number.isFinite(typedNet) && typedNet >= 0 ? typedNet : productNet
   const errors: { units?: string; cartons?: string; carton?: string; net?: string; gross?: string } = {}
   if (!Number.isFinite(units)) errors.units = 'Whole units only'
-  else if (units > line.available) errors.units = `Only ${line.available.toLocaleString('en-CA')} invoiced and available`
+  else if (!allowOver && units > line.available) errors.units = `Only ${line.available.toLocaleString('en-CA')} still unpacked in the batch`
   if (safeUnits > 0 && !(cartons >= 1)) errors.cartons = 'Required'
   if (safeUnits > 0 && !hasCarton) errors.carton = 'Enter L, W and H'
   if (value?.net.trim() && (!Number.isFinite(typedNet) || typedNet < 0)) errors.net = 'Not a weight'
@@ -80,7 +80,7 @@ export function computeLine(line: PackableLine, value: LineValue | undefined) {
     units: safeUnits,
     cartons: safeCartons,
     carton: { length: numberOrNull(l), width: numberOrNull(w), height: numberOrNull(h) },
-    remaining: line.available - safeUnits,
+    remaining: Math.max(0, line.available - safeUnits),
     // Cartons x the carton's volume; without a carton size it falls back to the product's CBM per unit (as the server does)
     cbm: hasCarton ? round(cbmOf(l, w, h, 'CM') * safeCartons, 4) : round((line.product.cbm ?? 0) * safeUnits, 4),
     ...cartonMetrics(safeUnits, safeCartons, numberOrNull(l), numberOrNull(w), numberOrNull(h)),
@@ -95,8 +95,8 @@ export function computeLine(line: PackableLine, value: LineValue | undefined) {
 export type LineFigures = ReturnType<typeof computeLine>
 
 /** One line as the API takes it. */
-export const toLineBody = (purchaseOrderId: number, productId: number, figures: LineFigures, value: LineValue | undefined): PackagingLineBody => ({
-  purchaseOrderId,
+export const toLineBody = (batchId: number, productId: number, figures: LineFigures, value: LineValue | undefined): PackagingLineBody => ({
+  batchId,
   productId,
   units: figures.units,
   cartons: figures.cartons,

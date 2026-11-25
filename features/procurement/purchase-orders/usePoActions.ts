@@ -3,12 +3,13 @@ import { useApiFeedback } from '@/hooks/useApiFeedback'
 import {
   useApprovePurchaseOrderMutation,
   useDeleteProcurementPurchaseOrderMutation,
+  useMarkPurchaseOrderReadyToShipMutation,
   useRejectPurchaseOrderMutation,
   useSetPurchaseOrderLockedMutation,
   useSubmitPurchaseOrderMutation,
 } from '@/services/api/procurement.api'
 
-export type PoAction = 'approve' | 'reject' | 'submit' | 'delete' | 'unlock' | 'lock'
+export type PoAction = 'approve' | 'reject' | 'submit' | 'delete' | 'unlock' | 'lock' | 'readyToShip'
 
 interface PoRef {
   id: number
@@ -22,6 +23,7 @@ const DONE: Record<PoAction, (poNo: string) => string> = {
   delete: (poNo) => `${poNo} deleted`,
   unlock: (poNo) => `${poNo} unlocked for editing`,
   lock: (poNo) => `${poNo} locked`,
+  readyToShip: (poNo) => `${poNo} marked Ready to ship`,
 }
 
 /**
@@ -34,6 +36,7 @@ export function usePoActions() {
   const [submitMutation] = useSubmitPurchaseOrderMutation()
   const [deleteMutation] = useDeleteProcurementPurchaseOrderMutation()
   const [lockMutation] = useSetPurchaseOrderLockedMutation()
+  const [readyToShipMutation] = useMarkPurchaseOrderReadyToShipMutation()
   const { success, failure } = useApiFeedback()
   const [busy, setBusy] = useState<{ id: number; action: PoAction } | null>(null)
 
@@ -44,7 +47,7 @@ export function usePoActions() {
       success(DONE[action](po.poNo))
       return true
     } catch (error) {
-      failure(error, `Could not ${action} ${po.poNo}`)
+      failure(error, action === 'readyToShip' ? `Could not mark ${po.poNo} Ready to ship` : `Could not ${action} ${po.poNo}`)
       return false
     } finally {
       setBusy(null)
@@ -58,6 +61,7 @@ export function usePoActions() {
     remove: (po: PoRef) => run(po, 'delete', () => deleteMutation(po.id).unwrap()),
     unlock: (po: PoRef) => run(po, 'unlock', () => lockMutation({ id: po.id, locked: false }).unwrap()),
     lock: (po: PoRef) => run(po, 'lock', () => lockMutation({ id: po.id, locked: true }).unwrap()),
+    readyToShip: (po: PoRef) => run(po, 'readyToShip', () => readyToShipMutation(po.id).unwrap()),
     busy,
   }
 }

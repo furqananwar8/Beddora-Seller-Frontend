@@ -6,12 +6,13 @@ import { FormField, fieldClass } from '@/components/form-field/FormField'
 import { SegmentedToggle } from '@/components/segmented-toggle/SegmentedToggle'
 import { SingleDatePicker } from '@/components/single-date-picker/SingleDatePicker'
 import { Card, CardContent, CardHeader, CardTitle } from '@/design-system/cards/Card'
-import { useGetPoWarehousesQuery, type PoCurrency, type PoDestination, type PoWarehouse } from '@/services/api/procurement.api'
+import { useGetPoWarehousesQuery, type PoCurrency, type PoDestination, type PoWarehouse, type ProductPlatform } from '@/services/api/procurement.api'
 import { cn } from '@/utils/cn'
 import { formatCalendarDay } from '@/utils/format'
 import { DESTINATION_OPTIONS } from '../shared/poMeta'
 import { SupplierSelect } from '../shared/SupplierSelect'
 import { WarehouseSelect, warehouseAddress } from '../shared/WarehouseSelect'
+import { PoPaymentTerms } from './PoPaymentTerms'
 import type { PoFormValues } from './poForm'
 
 const CURRENCIES: Array<{ value: PoCurrency; label: string }> = [
@@ -221,9 +222,21 @@ const WarehouseField: React.FC<SectionProps> = ({ form, readOnly }) => {
   )
 }
 
-export const PoOrderDetailsSection: React.FC<SectionProps> = ({ form, readOnly }) => {
+interface OrderDetailsProps extends SectionProps {
+  /** The brand cannot change once the PO was submitted: its approval rule depends on it. */
+  platformLocked?: boolean
+}
+
+const PLATFORMS: Array<{ value: ProductPlatform; label: string }> = [
+  { value: 'ECOMMERCE', label: 'Ecommerce' },
+  { value: 'RETAIL', label: 'Retail' },
+]
+
+export const PoOrderDetailsSection: React.FC<OrderDetailsProps> = ({ form, readOnly, platformLocked }) => {
   const {
     control,
+    getValues,
+    setValue,
     formState: { errors },
   } = form
   const etd = useWatch({ control, name: 'etd' })
@@ -234,6 +247,27 @@ export const PoOrderDetailsSection: React.FC<SectionProps> = ({ form, readOnly }
         <CardTitle>Order details</CardTitle>
       </CardHeader>
       <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <FormField label="Brand" required hint={platformLocked ? 'Fixed once submitted: it picks the approval rule' : 'Only this brand\'s products can be added. Switching clears the products.'}>
+          <Controller
+            control={control}
+            name="platform"
+            render={({ field }) => (
+              <SegmentedToggle<ProductPlatform>
+                ariaLabel="Brand"
+                value={field.value}
+                onChange={(next) => {
+                  if (next === field.value) return
+                  field.onChange(next)
+                  // A PO is for one brand: the other brand's products leave the batches
+                  const batches = getValues('batches')
+                  if (batches.some((batch) => batch.lines.length > 0)) setValue('batches', batches.map((batch) => ({ ...batch, lines: [] })), { shouldDirty: true })
+                }}
+                options={PLATFORMS}
+                disabled={readOnly || platformLocked}
+              />
+            )}
+          />
+        </FormField>
         <FormField label="Destination" required hint="Drives the container's city list later">
           <Controller
             control={control}
@@ -271,22 +305,7 @@ export const PoOrderDetailsSection: React.FC<SectionProps> = ({ form, readOnly }
           />
         </FormField>
         <WarehouseField form={form} readOnly={readOnly} />
-        <FormField
-          label="Payment terms"
-          htmlFor="po-payment-terms"
-          className="sm:col-span-2 lg:col-span-3"
-          error={errors.paymentTerms?.message}
-          hint="Optional · up to 200 characters · replaces the supplier's term on the PDF"
-        >
-          <textarea
-            id="po-payment-terms"
-            rows={2}
-            maxLength={200}
-            readOnly={readOnly}
-            className={cn(fieldClass(errors.paymentTerms?.message), 'h-auto max-h-32 min-h-0 w-full resize-y overflow-y-auto py-2')}
-            {...form.register('paymentTerms')}
-          />
-        </FormField>
+        <PoPaymentTerms form={form} readOnly={readOnly} />
       </CardContent>
     </Card>
   )

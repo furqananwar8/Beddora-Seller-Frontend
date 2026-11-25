@@ -21,8 +21,18 @@ export const poLineSchema = z.object({
   unitPrice: unitRate,
   /** Units already in packaging lists (read-only here). */
   allocated: z.number(),
+  /** Every ordered unit is in a container (read-only, from the server). */
+  shippedFully: z.boolean().optional(),
   /** From-remaining POs cannot take more than the source PO has left. */
   maxUnits: z.number().optional(),
+})
+
+/** A batch of the PO: its own products. `id` is the saved batch (none on a new one). */
+export const poBatchSchema = z.object({
+  id: z.number().optional(),
+  lines: z.array(poLineSchema),
+  /** Saved batch on a packaging list: it cannot be removed. */
+  locked: z.boolean().optional(),
 })
 
 /**
@@ -51,22 +61,40 @@ export const poFormSchema = z
     contactName: z.string().trim().max(150, 'Contact name is too long'),
     paymentTerms: z.string().trim().max(200, 'Payment terms are too long (200 characters max)'),
     destination: z.enum(['US', 'CA']),
+    /** The brand the PO is for; its products are all of this platform. */
+    platform: z.enum(['ECOMMERCE', 'RETAIL']),
+    /** Payment terms as typed: the advance %, what the balance is due on, and the balance % (the two add up to 100). */
+    advancePercent: z.string().trim(),
+    balanceTerm: z.string().min(1),
+    balancePercent: z.string().trim(),
     /** The delivery warehouse's id as a string; empty = none. */
     warehouseId: z.string(),
     currency: z.enum(['USD', 'CAD']),
     etd: z.string().min(1, 'ERD is required'),
-    lines: z.array(poLineSchema),
+    batches: z.array(poBatchSchema),
     samples: z.array(poSampleSchema),
   })
   .superRefine((values, ctx) => {
     if (!values.supplier) ctx.addIssue({ code: 'custom', path: ['supplier'], message: 'Supplier is required' })
-    if (values.lines.length === 0) ctx.addIssue({ code: 'custom', path: ['lines'], message: 'Add at least one product; samples alone do not make a PO' })
-    values.lines.forEach((line, index) => {
-      if (line.unitPrice === '') ctx.addIssue({ code: 'custom', path: ['lines', index, 'unitPrice'], message: 'Enter a unit rate' })
-      if (line.maxUnits !== undefined && Number(line.unitsOrdered) > line.maxUnits) {
-        ctx.addIssue({ code: 'custom', path: ['lines', index, 'unitsOrdered'], message: `Only ${line.maxUnits} left` })
-      }
+    if (values.batches.every((batch) => batch.lines.length === 0)) ctx.addIssue({ code: 'custom', path: ['batches'], message: 'Add at least one product; samples alone do not make a PO' })
+    const rates = new Map<number, string>()
+    values.batches.forEach((batch, batchIndex) => {
+      if (batch.lines.length === 0 && values.batches.length > 1) ctx.addIssue({ code: 'custom', path: ['batches', batchIndex, 'lines'], message: 'Add at least one product to this batch, or remove the batch' })
+      batch.lines.forEach((line, index) => {
+        const at = ['batches', batchIndex, 'lines', index]
+        if (line.unitPrice === '') ctx.addIssue({ code: 'custom', path: [...at, 'unitPrice'], message: 'Enter a unit rate' })
+        else if (rates.has(line.product.id) && Number(rates.get(line.product.id)) !== Number(line.unitPrice)) ctx.addIssue({ code: 'custom', path: [...at, 'unitPrice'], message: 'One rate per product: same as in the other batch' })
+        rates.set(line.product.id, line.unitPrice)
+        if (line.maxUnits !== undefined && Number(line.unitsOrdered) > line.maxUnits) {
+          ctx.addIssue({ code: 'custom', path: [...at, 'unitsOrdered'], message: `Only ${line.maxUnits} left` })
+        }
+      })
     })
+    const advance = Number(values.advancePercent === '' ? 0 : values.advancePercent)
+    const balance = Number(values.balancePercent === '' ? 0 : values.balancePercent)
+    if (!Number.isFinite(advance) || advance < 0 || advance > 100) ctx.addIssue({ code: 'custom', path: ['advancePercent'], message: 'Advance must be between 0 and 100' })
+    else if (!Number.isFinite(balance) || balance < 0 || balance > 100) ctx.addIssue({ code: 'custom', path: ['balancePercent'], message: 'Must be between 0 and 100' })
+    else if (Math.round((advance + balance) * 100) !== 10000) ctx.addIssue({ code: 'custom', path: ['balancePercent'], message: 'The advance and the balance must add up to 100%' })
     values.samples.forEach((sample, index) => {
       if (sample.fixed) return
       if (!/^\d+$/.test(sample.units) || Number(sample.units) < 1) ctx.addIssue({ code: 'custom', path: ['samples', index, 'units'], message: 'Enter at least 1 unit' })
@@ -77,6 +105,10 @@ export const poFormSchema = z
 
 export type PoFormValues = z.infer<typeof poFormSchema>
 export type PoLineValues = z.infer<typeof poLineSchema>
+export type PoBatchValues = z.infer<typeof poBatchSchema>
+
+/** Every line of every batch, in order. */
+export const allLines = (batches: PoBatchValues[]): PoLineValues[] => batches.flatMap((batch) => batch.lines)
 export type PoSampleValues = z.infer<typeof poSampleSchema>
 
 /** Units x rate rounded to cents; 0 until both are usable numbers. */
@@ -92,10 +124,14 @@ export const emptyPoValues: PoFormValues = {
   contactName: '',
   paymentTerms: '',
   destination: 'US',
+  platform: 'ECOMMERCE',
+  advancePercent: '0',
+  balanceTerm: 'Against B/L on sight',
+  balancePercent: '100',
   warehouseId: '',
   currency: 'USD',
   etd: '',
-  lines: [],
+  batches: [{ lines: [] }],
   samples: [],
 }
 
@@ -120,7 +156,8 @@ export const linkedSample = (sample: LinkableSample): PoSampleValues => ({
 export function summarize(lines: PoLineValues[], samples: PoSampleValues[]) {
   const sum = <T>(rows: T[], pick: (row: T) => number) => rows.reduce((total, row) => total + pick(row), 0)
   const products = {
-    count: lines.length,
+    // A SKU in two batches counts once
+    count: new Set(lines.map((line) => line.product.id)).size,
     ordered: sum(lines, (line) => Number(line.unitsOrdered) || 0),
     allocated: sum(lines, (line) => line.allocated),
     amount: sum(lines, lineAmount),
@@ -137,10 +174,14 @@ export function toPoBody(values: PoFormValues, extras: { sourcePurchaseOrderId?:
     contactName: values.contactName.trim() || null,
     paymentTerms: values.paymentTerms.trim() || null,
     destination: values.destination as PoDestination,
+    platform: values.platform,
+    advancePercent: Number(values.advancePercent || 0),
+    balanceTerm: values.balanceTerm,
+    balancePercent: Number(values.balancePercent || 0),
     warehouseId: values.warehouseId ? Number(values.warehouseId) : null,
     currency: values.currency as PoCurrency,
     etd: values.etd,
-    lines: values.lines.map((line) => ({ productId: line.product.id, unitsOrdered: Number(line.unitsOrdered), unitPrice: Number(line.unitPrice) })),
+    batches: values.batches.map((batch) => ({ ...(batch.id && { id: batch.id }), lines: batch.lines.map((line) => ({ productId: line.product.id, unitsOrdered: Number(line.unitsOrdered), unitPrice: Number(line.unitPrice) })) })),
     samples: values.samples.map((sample) => ({ ...(sample.id && { id: sample.id }), productId: sample.product.id, units: Number(sample.units), unitPrice: sample.paid ? Number(sample.unitPrice) : 0 })),
     ...(extras.sourcePurchaseOrderId && { sourcePurchaseOrderId: extras.sourcePurchaseOrderId }),
     ...(extras.expectedUpdatedAt && { expectedUpdatedAt: extras.expectedUpdatedAt }),
@@ -151,8 +192,8 @@ export function toPoBody(values: PoFormValues, extras: { sourcePurchaseOrderId?:
 /** A server issue's field as a form path; `samples.2.id` (a sample that cannot be linked) shows on that row's units. */
 export function formPathOf(_values: PoFormValues, field: string): string {
   if (field === 'supplierId') return 'supplier'
-  const line = field.match(/^lines\.(\d+)\.productId$/)
-  if (line) return `lines.${line[1]}.unitsOrdered`
+  const line = field.match(/^batches\.(\d+)\.lines\.(\d+)\.productId$/)
+  if (line) return `batches.${line[1]}.lines.${line[2]}.unitsOrdered`
   const sample = field.match(/^samples\.(\d+)\.(\w+)$/)
   if (sample) return `samples.${sample[1]}.${sample[2] === 'id' || sample[2] === 'productId' ? 'units' : sample[2]}`
   return field
@@ -164,10 +205,18 @@ export function fromDetail(po: PurchaseOrderDetail): PoFormValues {
     contactName: po.contactName ?? '',
     paymentTerms: po.paymentTerms ?? '',
     destination: po.destination,
+    platform: po.platform,
+    advancePercent: String(po.advancePercent),
+    balanceTerm: po.balanceTerm,
+    balancePercent: String(po.balancePercent),
     warehouseId: po.warehouse ? String(po.warehouse.id) : '',
     currency: po.currency,
     etd: day(po.etd),
-    lines: po.lines.map((line) => ({ product: line.product, unitsOrdered: String(line.unitsOrdered), unitPrice: line.unitPrice === null ? '' : String(line.unitPrice), allocated: line.allocated })),
+    batches: po.batches.map((batch) => ({
+      id: batch.id,
+      locked: batch.packagingList !== null,
+      lines: batch.lines.map((line) => ({ product: line.product, unitsOrdered: String(line.units), unitPrice: line.unitPrice === null ? '' : String(line.unitPrice), allocated: line.packed })),
+    })),
     samples: po.samples.map((sample) => ({
       id: sample.id,
       product: sample.product,
@@ -187,7 +236,8 @@ export function fromRemaining(draft: RemainingDraft): PoFormValues {
     supplier: draft.supplier,
     contactName: draft.contactName ?? '',
     destination: draft.destination,
+    platform: draft.platform,
     currency: draft.currency,
-    lines: draft.lines.map((line) => ({ product: line.product, unitsOrdered: String(line.unitsOrdered), unitPrice: line.unitPrice === null ? '' : String(line.unitPrice), allocated: 0, maxUnits: line.unitsOrdered })),
+    batches: [{ lines: draft.lines.map((line) => ({ product: line.product, unitsOrdered: String(line.unitsOrdered), unitPrice: line.unitPrice === null ? '' : String(line.unitPrice), allocated: 0, maxUnits: line.unitsOrdered })) }],
   }
 }
