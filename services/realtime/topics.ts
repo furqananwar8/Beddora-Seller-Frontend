@@ -30,6 +30,8 @@ export const REALTIME_TOPICS: Record<string, TagType[]> = {
   'procurement.price-analysis': ['ProcurementPriceAnalysis'],
   /** Email sent / failed / queued: only the four accounts that may open System > Email receive it. `useEmailLive` patches the cache itself instead of refetching. */
   'system.email': [],
+  /** A scan session's counts or status changed (one event per matched batch); `SessionDetailScreen` refetches only its own session. */
+  'barcode.scan-session': [],
 }
 
 export interface RealtimeMessage<T = Record<string, unknown>> {

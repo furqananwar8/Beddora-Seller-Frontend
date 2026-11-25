@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
+import { useRealtime } from '@/components/realtime/RealtimeProvider'
 import { Badge } from '@/design-system/badges'
 import { Button } from '@/design-system/buttons'
 import { Card, CardContent } from '@/design-system/cards'
@@ -17,7 +18,11 @@ const clock = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: '2-d
 /** One finished (or running) session: who, when, what matched and moved inventory, and the UPCs to fix and scan again. */
 export function SessionDetailScreen({ sessionId }: { sessionId: number }) {
   const router = useRouter()
-  const { data: session, isLoading, isError } = useGetScanSessionQuery(sessionId)
+  const { data: session, isLoading, isError, refetch } = useGetScanSessionQuery(sessionId)
+  // Someone scanning elsewhere: follow their counts live instead of waiting for a reload
+  useRealtime('barcode.scan-session', (message) => {
+    if (message.data.id === sessionId) void refetch()
+  })
   // A session that is yours and still running continues in the scan modal
   const [dismissed, setDismissed] = useState(false)
 
