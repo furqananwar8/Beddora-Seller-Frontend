@@ -3,6 +3,7 @@
 import { formatCbmPerPiece, formatUnitsPerCarton } from '@/utils/cartonMetrics'
 import React from 'react'
 import { fieldClass } from '@/components/form-field/FormField'
+import { CellField } from '@/components/form-field/CellField'
 import { NumericInput } from '@/components/form-field/NumericInput'
 import type { PackableBatchLines } from '@/services/api/procurement.api'
 import { cn } from '@/utils/cn'
@@ -35,7 +36,7 @@ const HEAD = 'px-3 py-2 text-center text-xs font-semibold uppercase tracking-wid
  * Body cells align to the top and plain values sit in an input-high box ({@link Value}), so a message appearing under
  * one input grows the row downwards instead of re-centering (and so moving) every input on it.
  */
-const CELL = 'px-3 py-2 text-center align-top tabular-nums'
+const CELL = 'px-3 py-2 text-center align-middle tabular-nums'
 const FOOT_CELL = 'px-3 py-2 text-center align-middle tabular-nums'
 const BASE_COLUMNS = 14
 const qty = (value: number) => value.toLocaleString('en-CA')
@@ -45,9 +46,6 @@ const kg = (value: number) => `${value.toLocaleString('en-CA', { maximumFraction
 const Value: React.FC<{ className?: string; children: React.ReactNode }> = ({ className, children }) => (
   <div className={cn('flex h-9 items-center justify-center', className)}>{children}</div>
 )
-
-const CellMessage: React.FC<{ error?: string; hint?: string }> = ({ error, hint }) =>
-  error ? <p className="mt-1 text-xs text-danger-600">{error}</p> : hint ? <p className="mt-1 text-xs text-text-muted">{hint}</p> : null
 
 const NumberCell: React.FC<{
   label: string
@@ -60,7 +58,7 @@ const NumberCell: React.FC<{
   decimal?: boolean
   className?: string
 }> = ({ label, value, onChange, error, placeholder, readOnly, hint, decimal, className }) => (
-  <>
+  <CellField error={error} hint={hint}>
     <NumericInput
       decimal={decimal}
       aria-label={label}
@@ -70,8 +68,7 @@ const NumberCell: React.FC<{
       readOnly={readOnly}
       className={cn(fieldClass(error), 'mx-auto h-9 w-24 py-1 text-right tabular-nums', readOnly && 'bg-secondary-50', className)}
     />
-    <CellMessage error={error} hint={hint} />
-  </>
+  </CellField>
 )
 
 /** SKU lines grouped by batch: batch qty, allocated elsewhere, available, quantity to be shipped (units, then final units once converted), remaining, cartons, carton size, CBM, net and gross weight. */
@@ -167,7 +164,8 @@ export const PackingLinesTable: React.FC<PackingLinesTableProps> = ({ groups, va
                         <NumberCell label={`Cartons of ${line.product.ref}`} value={value.cartons} onChange={(next) => onChange(key, 'cartons', next)} error={errors.cartons} readOnly={readOnly} />
                       </td>
                       <td className={CELL}>
-                        <div className="flex items-center justify-center gap-1">
+                        <CellField error={errors.carton}>
+                          <div className="flex items-center justify-center gap-1">
                           {(
                             [
                               ['cartonL', 'Length'],
@@ -187,8 +185,8 @@ export const PackingLinesTable: React.FC<PackingLinesTableProps> = ({ groups, va
                               />
                             </React.Fragment>
                           ))}
-                        </div>
-                        <CellMessage error={errors.carton} />
+                          </div>
+                        </CellField>
                       </td>
                       <td className={cn(CELL, 'font-mono text-xs')}>
                         <Value>{figures.cbm.toFixed(2)}</Value>
