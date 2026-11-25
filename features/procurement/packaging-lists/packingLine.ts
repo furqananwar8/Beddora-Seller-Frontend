@@ -1,8 +1,8 @@
-import type { PackablePoLines, PackagingLineBody, PackagingLineDetail, PoProduct } from '@/services/api/procurement.api'
+import type { PackableBatchLines, PackagingLineBody, PackagingLineDetail, PoProduct } from '@/services/api/procurement.api'
 import { cartonMetrics } from '@/utils/cartonMetrics'
 import { cbmOf } from '../shared/units'
 
-/** What the user typed for one SKU of one PO. Carton dimensions are in cm; empty net weight follows the product. */
+/** What the user typed for one SKU of one batch. Carton dimensions are in cm; empty net weight follows the product. */
 export interface LineValue {
   units: string
   cartons: string
@@ -13,9 +13,9 @@ export interface LineValue {
   gross: string
 }
 
-export type PackableLine = PackablePoLines['lines'][number]
+export type PackableLine = PackableBatchLines['lines'][number]
 
-export const lineKey = (purchaseOrderId: number, productId: number) => `${purchaseOrderId}:${productId}`
+export const lineKey = (batchId: number, productId: number) => `${batchId}:${productId}`
 
 export const EMPTY_LINE: LineValue = { units: '', cartons: '', cartonL: '', cartonW: '', cartonH: '', net: '', gross: '' }
 
@@ -70,7 +70,7 @@ export function computeLine(line: PackableLine, value: LineValue | undefined, al
   const net = Number.isFinite(typedNet) && typedNet >= 0 ? typedNet : productNet
   const errors: { units?: string; cartons?: string; carton?: string; net?: string; gross?: string } = {}
   if (!Number.isFinite(units)) errors.units = 'Whole units only'
-  else if (!allowOver && units > line.available) errors.units = `Only ${line.available.toLocaleString('en-CA')} still unpacked on the PO`
+  else if (!allowOver && units > line.available) errors.units = `Only ${line.available.toLocaleString('en-CA')} still unpacked in the batch`
   if (safeUnits > 0 && !(cartons >= 1)) errors.cartons = 'Required'
   if (safeUnits > 0 && !hasCarton) errors.carton = 'Enter L, W and H'
   if (value?.net.trim() && (!Number.isFinite(typedNet) || typedNet < 0)) errors.net = 'Not a weight'
@@ -95,8 +95,8 @@ export function computeLine(line: PackableLine, value: LineValue | undefined, al
 export type LineFigures = ReturnType<typeof computeLine>
 
 /** One line as the API takes it. */
-export const toLineBody = (purchaseOrderId: number, productId: number, figures: LineFigures, value: LineValue | undefined): PackagingLineBody => ({
-  purchaseOrderId,
+export const toLineBody = (batchId: number, productId: number, figures: LineFigures, value: LineValue | undefined): PackagingLineBody => ({
+  batchId,
   productId,
   units: figures.units,
   cartons: figures.cartons,

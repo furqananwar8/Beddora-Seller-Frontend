@@ -13,7 +13,7 @@ import { formatCurrency } from '@/utils/format'
 import { ProductSelect, productLabel } from '../shared/ProductPicker'
 import { LinkSampleSelect } from './LinkSampleSelect'
 import type { LinkableSample } from '@/services/api/samples.api'
-import { linkedSample, newSample, sampleAmount, summarize, type PoFormValues } from './poForm'
+import { allLines, linkedSample, newSample, sampleAmount, summarize, type PoFormValues } from './poForm'
 
 interface PoSamplesSectionProps {
   form: UseFormReturn<PoFormValues>
@@ -40,7 +40,7 @@ export const PoSamplesSection: React.FC<PoSamplesSectionProps> = ({ form, readOn
   } = form
   const { fields, append, remove } = useFieldArray({ control, name: 'samples', keyName: 'fieldId' })
   const samples = useWatch({ control, name: 'samples' }) ?? []
-  const lines = useWatch({ control, name: 'lines' }) ?? []
+  const lines = allLines(useWatch({ control, name: 'batches' }) ?? [])
   const supplier = useWatch({ control, name: 'supplier' })
   const currency = useWatch({ control, name: 'currency' })
   const [mode, setMode] = useState<Mode>('idle')

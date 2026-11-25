@@ -4,7 +4,7 @@ import { formatCbmPerPiece, formatUnitsPerCarton } from '@/utils/cartonMetrics'
 import React from 'react'
 import { fieldClass } from '@/components/form-field/FormField'
 import { NumericInput } from '@/components/form-field/NumericInput'
-import type { PackablePoLines } from '@/services/api/procurement.api'
+import type { PackableBatchLines } from '@/services/api/procurement.api'
 import { cn } from '@/utils/cn'
 import { productLabel } from '../shared/ProductPicker'
 import { ExpandToggle, ProductSpecs, useExpandedRows } from '../shared/ProductSpecs'
@@ -13,7 +13,7 @@ import { formatDimensions } from '../shared/units'
 import { computeLine, EMPTY_LINE, lineKey, type LineValue } from './packingLine'
 
 interface PackingLinesTableProps {
-  groups: PackablePoLines[]
+  groups: PackableBatchLines[]
   values: Map<string, LineValue>
   onChange: (key: string, field: keyof LineValue, value: string) => void
   /** Errors from the server, keyed like {@link lineKey}. */
@@ -74,12 +74,12 @@ const NumberCell: React.FC<{
   </>
 )
 
-/** SKU lines grouped by PO: PO qty, allocated elsewhere, available, quantity to be shipped (units, then final units once converted), remaining, cartons, carton size, CBM, net and gross weight. */
+/** SKU lines grouped by batch: batch qty, allocated elsewhere, available, quantity to be shipped (units, then final units once converted), remaining, cartons, carton size, CBM, net and gross weight. */
 export const PackingLinesTable: React.FC<PackingLinesTableProps> = ({ groups, values, onChange, serverErrors, readOnly, onRemove, draftedUnits, allowOverAllocation }) => {
   const { isOpen, toggle } = useExpandedRows<string>()
   const removable = Boolean(onRemove) && !readOnly
   const columns = BASE_COLUMNS + (draftedUnits ? 1 : 0) + (removable ? 1 : 0)
-  const all = groups.flatMap((group) => group.lines.map((line) => ({ key: lineKey(group.purchaseOrder.id, line.product.id), line, figures: computeLine(line, values.get(lineKey(group.purchaseOrder.id, line.product.id)), allowOverAllocation) })))
+  const all = groups.flatMap((group) => group.lines.map((line) => ({ key: lineKey(group.batch.id, line.product.id), line, figures: computeLine(line, values.get(lineKey(group.batch.id, line.product.id)), allowOverAllocation) })))
   const total = (pick: (row: (typeof all)[number]) => number) => all.reduce((sum, row) => sum + pick(row), 0)
 
   return (
@@ -89,7 +89,7 @@ export const PackingLinesTable: React.FC<PackingLinesTableProps> = ({ groups, va
           <tr>
             <th className="w-8" aria-label="Expand" />
             <th className={cn(HEAD, 'min-w-[13rem]')}>SKU / product</th>
-            <th className={HEAD}>PO qty</th>
+            <th className={HEAD}>Batch qty</th>
             <th className={HEAD}>Allocated</th>
             <th className={HEAD}>Available</th>
             {draftedUnits && <th className={HEAD}>Units</th>}
@@ -107,15 +107,15 @@ export const PackingLinesTable: React.FC<PackingLinesTableProps> = ({ groups, va
         </thead>
         <tbody>
           {groups.map((group) => (
-            <React.Fragment key={group.purchaseOrder.id}>
+            <React.Fragment key={group.batch.id}>
               <tr className="border-t border-border bg-secondary-50/60">
                 <td colSpan={columns} className="px-3 py-2 text-left text-xs text-text-secondary">
-                  <span className="font-semibold text-text-primary">{group.purchaseOrder.poNo}</span> · {group.purchaseOrder.supplier.name} · PO price{' '}
+                  <span className="font-semibold text-text-primary">{group.batch.label}</span> · {group.purchaseOrder.supplier.name} · PO price{' '}
                   <span className="font-semibold tabular-nums text-text-primary">{group.purchaseOrder.price === null ? 'no rates yet' : formatCurrencyAmount(group.purchaseOrder.currency, group.purchaseOrder.price)}</span>
                 </td>
               </tr>
               {group.lines.map((line) => {
-                const key = lineKey(group.purchaseOrder.id, line.product.id)
+                const key = lineKey(group.batch.id, line.product.id)
                 const value = values.get(key) ?? EMPTY_LINE
                 const figures = computeLine(line, value, allowOverAllocation)
                 // Validation is for typing; a saved list shown read-only is displayed as it was saved
@@ -228,7 +228,7 @@ export const PackingLinesTable: React.FC<PackingLinesTableProps> = ({ groups, va
                             <button
                               type="button"
                               onClick={() => onRemove?.(key)}
-                              title={`Remove ${line.product.ref} from this list (its units stay on ${group.purchaseOrder.poNo})`}
+                              title={`Remove ${line.product.ref} from this list (its units stay in ${group.batch.label})`}
                               aria-label={`Remove ${line.product.ref} from this list`}
                               className="rounded p-1 text-text-muted hover:bg-danger-50 hover:text-danger-600"
                             >
@@ -261,7 +261,7 @@ export const PackingLinesTable: React.FC<PackingLinesTableProps> = ({ groups, va
           <tr className="border-t border-border bg-secondary-50 font-semibold">
             <td />
             <td className={cn(FOOT_CELL, 'text-left')}>
-              Total · {groups.length} {groups.length === 1 ? 'PO' : 'POs'} · {all.length} {all.length === 1 ? 'SKU' : 'SKUs'}
+              Total · {groups.length} {groups.length === 1 ? 'batch' : 'batches'} · {all.length} {all.length === 1 ? 'SKU' : 'SKUs'}
             </td>
             <td className={FOOT_CELL}>{qty(total((row) => row.line.poQty))}</td>
             <td className={FOOT_CELL}>{qty(total((row) => row.line.allocated))}</td>

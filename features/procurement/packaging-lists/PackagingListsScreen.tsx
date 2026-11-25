@@ -232,7 +232,7 @@ export const PackagingListsScreen: React.FC = () => {
                 <TableRow>
                   <TableCell colSpan={COLUMNS}>
                     <div className={isError ? 'py-12 text-center font-medium text-danger-600' : 'py-12 text-center text-text-muted'}>
-                      {isError ? 'Could not load packaging lists.' : debouncedSearch || purchaseOrderId || filters.appliedCount > 0 ? 'No packaging list matches.' : kind === 'TENTATIVE' ? 'No tentative packaging lists yet. Mark a purchase order Ready to ship, then create one.' : 'No packaging lists yet. Convert a tentative packaging list to final to see it here.'}
+                      {isError ? 'Could not load packaging lists.' : debouncedSearch || purchaseOrderId || filters.appliedCount > 0 ? 'No packaging list matches.' : kind === 'TENTATIVE' ? 'No tentative packaging lists yet. Create one from a batch that is in production.' : 'No packaging lists yet. Convert a tentative packaging list to final to see it here.'}
                     </div>
                   </TableCell>
                 </TableRow>

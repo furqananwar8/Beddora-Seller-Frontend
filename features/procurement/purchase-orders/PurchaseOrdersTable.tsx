@@ -2,17 +2,20 @@
 
 import React from 'react'
 import { RowActionsMenu, type RowActionItem } from '@/components/row-actions-menu/RowActionsMenu'
+import { StatusBadge } from '@/components/status-badge/StatusBadge'
 import { Spinner } from '@/design-system/loaders'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/design-system/tables'
 import type { PurchaseOrderListItem } from '@/services/api/procurement.api'
 import { cn } from '@/utils/cn'
 import { formatCalendarDay, formatCurrency } from '@/utils/format'
+import { ExpandToggle, useExpandedRows } from '../shared/ProductSpecs'
 import { ArdCell } from './ArdCell'
+import { PoBatchesPanel } from './PoBatchesPanel'
 import { ProductionDateCell } from './ProductionDateCell'
 import { DESTINATION_LABEL, EtdBadge, OpenBadge, PaymentBadge, PoStatusBadge, canMarkReadyToShip, canRequestPayment, isApprovedPo } from '../shared/poMeta'
 
 const CELL = 'text-center align-middle'
-const COLUMNS = 17
+const COLUMNS = 19
 
 export interface PoRowActions {
   canWrite: boolean
@@ -117,12 +120,16 @@ interface PurchaseOrdersTableProps extends PoRowActions {
   filtered: boolean
 }
 
-export const PurchaseOrdersTable: React.FC<PurchaseOrdersTableProps> = ({ rows, isLoading, isError, filtered, ...actions }) => (
+export const PurchaseOrdersTable: React.FC<PurchaseOrdersTableProps> = ({ rows, isLoading, isError, filtered, ...actions }) => {
+  const { isOpen: isExpanded, toggle } = useExpandedRows<number>()
+  return (
   <Table className="min-w-full" wrapperClassName="overflow-visible">
     <TableHeader className="sticky top-0 z-10 bg-surface shadow-sm">
       <TableRow>
+        <TableHead className="w-8" aria-label="Batches" />
         <TableHead className={CELL}>PO #</TableHead>
         <TableHead className={cn(CELL, 'min-w-[160px]')}>Supplier</TableHead>
+        <TableHead className={CELL}>Brand</TableHead>
         <TableHead className={CELL}>Dest. · Cur.</TableHead>
         <TableHead className={cn(CELL, 'min-w-[150px]')}>ERD</TableHead>
         <TableHead className={cn(CELL, 'min-w-[160px]')}>ARD</TableHead>
@@ -159,13 +166,20 @@ export const PurchaseOrdersTable: React.FC<PurchaseOrdersTableProps> = ({ rows, 
         </TableRow>
       ) : (
         rows.map((row) => (
-          <TableRow key={row.id} className="hover:bg-secondary-50">
+          <React.Fragment key={row.id}>
+          <TableRow className="hover:bg-secondary-50">
+            <TableCell className={CELL}>
+              {isApprovedPo(row) && <ExpandToggle expanded={isExpanded(row.id)} onToggle={() => toggle(row.id)} label={`batches of ${row.poNo}`} />}
+            </TableCell>
             <TableCell className={cn(CELL, 'whitespace-nowrap font-semibold text-text-primary')}>
               {row.poNo}
               {row.externalRef && <span className="mt-0.5 block text-xs font-normal text-text-muted">{row.externalRef}</span>}
               {row.rejectionReason && <span className="mt-0.5 block text-xs font-normal text-danger-600">Rejected</span>}
             </TableCell>
             <TableCell className={CELL}>{row.supplier.name}</TableCell>
+            <TableCell className={CELL}>
+              <StatusBadge label={row.platform === 'RETAIL' ? 'Retail' : 'Ecommerce'} tone={row.platform === 'RETAIL' ? 'warning' : 'info'} />
+            </TableCell>
             <TableCell className={cn(CELL, 'whitespace-nowrap')}>
               {DESTINATION_LABEL[row.destination]} · {row.currency}
             </TableCell>
@@ -216,8 +230,18 @@ export const PurchaseOrdersTable: React.FC<PurchaseOrdersTableProps> = ({ rows, 
               <RowActionsMenu label={row.poNo} items={actionsFor(row, actions)} />
             </TableCell>
           </TableRow>
+          {isExpanded(row.id) && (
+            <TableRow className="bg-secondary-50/60">
+              <TableCell />
+              <TableCell colSpan={COLUMNS - 1} className="py-3">
+                <PoBatchesPanel purchaseOrderId={row.id} />
+              </TableCell>
+            </TableRow>
+          )}
+          </React.Fragment>
         ))
       )}
     </TableBody>
   </Table>
-)
+  )
+}

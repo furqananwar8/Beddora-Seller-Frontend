@@ -6,7 +6,7 @@ import { FormField, fieldClass } from '@/components/form-field/FormField'
 import { SegmentedToggle } from '@/components/segmented-toggle/SegmentedToggle'
 import { SingleDatePicker } from '@/components/single-date-picker/SingleDatePicker'
 import { Card, CardContent, CardHeader, CardTitle } from '@/design-system/cards/Card'
-import { useGetPoWarehousesQuery, type PoCurrency, type PoDestination, type PoWarehouse } from '@/services/api/procurement.api'
+import { useGetPoWarehousesQuery, type PoCurrency, type PoDestination, type PoWarehouse, type ProductPlatform } from '@/services/api/procurement.api'
 import { cn } from '@/utils/cn'
 import { formatCalendarDay } from '@/utils/format'
 import { DESTINATION_OPTIONS } from '../shared/poMeta'
@@ -221,9 +221,21 @@ const WarehouseField: React.FC<SectionProps> = ({ form, readOnly }) => {
   )
 }
 
-export const PoOrderDetailsSection: React.FC<SectionProps> = ({ form, readOnly }) => {
+interface OrderDetailsProps extends SectionProps {
+  /** The brand cannot change once the PO was submitted: its approval rule depends on it. */
+  platformLocked?: boolean
+}
+
+const PLATFORMS: Array<{ value: ProductPlatform; label: string }> = [
+  { value: 'ECOMMERCE', label: 'Ecommerce' },
+  { value: 'RETAIL', label: 'Retail' },
+]
+
+export const PoOrderDetailsSection: React.FC<OrderDetailsProps> = ({ form, readOnly, platformLocked }) => {
   const {
     control,
+    getValues,
+    setValue,
     formState: { errors },
   } = form
   const etd = useWatch({ control, name: 'etd' })
@@ -234,6 +246,27 @@ export const PoOrderDetailsSection: React.FC<SectionProps> = ({ form, readOnly }
         <CardTitle>Order details</CardTitle>
       </CardHeader>
       <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <FormField label="Brand" required hint={platformLocked ? 'Fixed once submitted: it picks the approval rule' : 'Only this brand\'s products can be added. Switching clears the products.'}>
+          <Controller
+            control={control}
+            name="platform"
+            render={({ field }) => (
+              <SegmentedToggle<ProductPlatform>
+                ariaLabel="Brand"
+                value={field.value}
+                onChange={(next) => {
+                  if (next === field.value) return
+                  field.onChange(next)
+                  // A PO is for one brand: the other brand's products leave the batches
+                  const batches = getValues('batches')
+                  if (batches.some((batch) => batch.lines.length > 0)) setValue('batches', batches.map((batch) => ({ ...batch, lines: [] })), { shouldDirty: true })
+                }}
+                options={PLATFORMS}
+                disabled={readOnly || platformLocked}
+              />
+            )}
+          />
+        </FormField>
         <FormField label="Destination" required hint="Drives the container's city list later">
           <Controller
             control={control}

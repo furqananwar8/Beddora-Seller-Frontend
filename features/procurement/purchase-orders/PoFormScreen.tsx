@@ -29,6 +29,8 @@ import { DownloadPoPdfButton } from '../shared/DownloadPoPdfButton'
 import { ApprovalPanel } from './ApprovalPanel'
 import { emptyPoValues, formPathOf, fromDetail, fromRemaining, poFormSchema, toPoBody, type PoFormValues } from './poForm'
 import { PoOrderDetailsSection, PoSupplierSection } from './PoDetailsSections'
+import { Card, CardContent, CardHeader, CardTitle } from '@/design-system/cards/Card'
+import { PoBatchesPanel } from './PoBatchesPanel'
 import { PoProductsSection } from './PoProductsSection'
 import { PoSamplesSection } from './PoSamplesSection'
 import { PoTimeline } from './PoTimeline'
@@ -36,7 +38,7 @@ import { usePoActions } from './usePoActions'
 
 const LIST = '/dashboard/procurement/purchase-orders'
 
-const FORM_FIELDS = new Set(['supplierId', 'contactName', 'paymentTerms', 'destination', 'warehouseId', 'currency', 'etd', 'lines', 'samples'])
+const FORM_FIELDS = new Set(['supplierId', 'contactName', 'paymentTerms', 'destination', 'warehouseId', 'currency', 'etd', 'batches', 'samples'])
 
 const REALTIME_VERB: Record<string, string> = {
   approved: 'approved',
@@ -212,7 +214,17 @@ export const PoFormScreen: React.FC<PoFormScreenProps> = ({ purchaseOrderId }) =
         )}
 
         <PoSupplierSection form={form} readOnly={readOnly} supplierLocked={Boolean(fromSource)} />
-        <PoOrderDetailsSection form={form} readOnly={readOnly} />
+        <PoOrderDetailsSection form={form} readOnly={readOnly} platformLocked={Boolean(po && po.status !== 'DRAFT')} />
+        {po && isApprovedPo(po) && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Batches</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <PoBatchesPanel purchaseOrderId={po.id} withAdd />
+            </CardContent>
+          </Card>
+        )}
         <PoProductsSection form={form} readOnly={readOnly} fixedProducts={Boolean(fromSource)} purchaseOrderId={po?.id} />
         <PoSamplesSection form={form} readOnly={readOnly} purchaseOrderId={po?.id} />
 

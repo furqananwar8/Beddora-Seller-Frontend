@@ -25,7 +25,7 @@ import { cn } from '@/utils/cn'
 
 // Same order as the design
 const GROUP_ORDER = ['Procurement', 'Finance']
-const ACTION_ORDER = ['procurement.po.submit', 'procurement.purchase-invoice.submit', 'procurement.price-analysis.approve', 'finance.payment-request.submit']
+const ACTION_ORDER = ['procurement.po.submit.ecommerce', 'procurement.po.submit.retail', 'procurement.purchase-invoice.submit', 'procurement.price-analysis.approve', 'finance.payment-request.submit']
 const rank = (list: string[], item: string) => (list.indexOf(item) + 1 || 99)
 
 const COMPLETIONS: Array<{ value: Completion; label: string }> = [
