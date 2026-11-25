@@ -61,7 +61,7 @@ const CarrierDetailsForm: React.FC<{ shipmentId: string; leg: BolLeg; onClose: (
   return (
     <>
       <p className="mb-4 text-sm text-text-muted">
-        Updates the carrier step&apos;s record for {leg.fulfillmentCenter}. Amazon isn&apos;t told and the shipment stays on its current step. All of this FC&apos;s
+        Updates the carrier step&apos;s record for {leg.fulfillmentCenter}. The partner isn&apos;t told and the shipment stays on its current step. All of this FC&apos;s
         trailers print the new values; ready BOLs go back to draft.
       </p>
       <div className="grid gap-3 sm:grid-cols-2">
@@ -84,7 +84,7 @@ const CarrierDetailsForm: React.FC<{ shipmentId: string; leg: BolLeg; onClose: (
         <Input label="Pick-up date" type="date" value={pickupDate} disabled={isSaving} onChange={(e) => setPickupDate(e.target.value)} />
         <Input label="Delivery date" type="date" min={pickupDate || undefined} value={deliveryDate} disabled={isSaving} onChange={(e) => setDeliveryDate(e.target.value)} />
         <div className="sm:col-span-2">
-          <Input label="Amazon appointment ID (optional)" maxLength={60} value={appointmentNo} disabled={isSaving} onChange={(e) => setAppointmentNo(e.target.value)} />
+          <Input label="Delivery appointment ID (optional)" maxLength={60} value={appointmentNo} disabled={isSaving} onChange={(e) => setAppointmentNo(e.target.value)} />
         </div>
       </div>
       {error && (

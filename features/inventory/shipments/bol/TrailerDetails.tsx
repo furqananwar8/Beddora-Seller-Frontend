@@ -46,16 +46,16 @@ export const TrailerDetails: React.FC<TrailerDetailsProps> = ({ view, leg, draft
 
   return (
     <div className="space-y-4 rounded-lg border border-border bg-background p-4">
-      <Section title="From the carrier step" note={step.done ? 'Edit changes every trailer of this FC, or just this one' : 'The carrier step has not been done yet'}>
-        <ShipmentValue label="Carrier / driver" value={step.carrier} override={o.carrier} carrierStep={step.done} disabled={disabled} onEditAll={onEditCarrierStep} onOverride={(v) => set('carrier', v)} />
-        <ShipmentValue label="Pick-up date" type="date" value={step.pickupDate} override={o.pickupDate} carrierStep={step.done} disabled={disabled} onEditAll={onEditCarrierStep} onOverride={(v) => set('pickupDate', v)} />
-        <ShipmentValue label="Delivery date" type="date" value={step.deliveryDate} override={o.deliveryDate} carrierStep={step.done} disabled={disabled} onEditAll={onEditCarrierStep} onOverride={(v) => set('deliveryDate', v)} />
+      <Section title="From the carrier step" note={step.editable ? 'Edit changes every trailer of this FC, or just this one' : 'The carrier step has not been done yet: Edit changes this trailer only'}>
+        <ShipmentValue label="Carrier / driver" value={step.carrier} override={o.carrier} carrierStep={step.editable} disabled={disabled} onEditAll={onEditCarrierStep} onOverride={(v) => set('carrier', v)} />
+        <ShipmentValue label="Pick-up date" type="date" value={step.pickupDate} override={o.pickupDate} carrierStep={step.editable} disabled={disabled} onEditAll={onEditCarrierStep} onOverride={(v) => set('pickupDate', v)} />
+        <ShipmentValue label="Delivery date" type="date" value={step.deliveryDate} override={o.deliveryDate} carrierStep={step.editable} disabled={disabled} onEditAll={onEditCarrierStep} onOverride={(v) => set('deliveryDate', v)} />
         <ShipmentValue
           label="Appointment #"
           value={step.appointmentNo}
           missing="Not set in the carrier step"
           override={o.appointmentNo}
-          carrierStep={step.done}
+          carrierStep={step.editable}
           disabled={disabled}
           onEditAll={onEditCarrierStep}
           onOverride={(v) => set('appointmentNo', v)}
@@ -76,11 +76,11 @@ export const TrailerDetails: React.FC<TrailerDetailsProps> = ({ view, leg, draft
         {field('proNo', 'PRO # (freight bill)')}
       </Section>
 
-      <Section title="From the shipment and Amazon" note="Edit changes this trailer only">
-        <ShipmentValue label="Receiver" value={`Amazon.com · ${leg.fulfillmentCenter}`} override={o.receiverName} disabled={disabled} onOverride={(v) => set('receiverName', v)} />
-        <ShipmentValue label="Receiver address" value={leg.receiverAddress || null} missing="Not received from Amazon yet" multiline override={o.receiverAddress} disabled={disabled} onOverride={(v) => set('receiverAddress', v)} />
-        <ShipmentValue label="FBA shipment ID" value={leg.shipmentConfirmationId} override={o.shipmentConfirmationId} disabled={disabled} onOverride={(v) => set('shipmentConfirmationId', v)} />
-        <ShipmentValue label="Amazon reference ID" value={leg.amazonReferenceId} missing="Not received from Amazon yet" override={o.amazonReferenceId} disabled={disabled} onOverride={(v) => set('amazonReferenceId', v)} />
+      <Section title={`From the shipment and ${view.labels.partner}`} note="Edit changes this trailer only">
+        <ShipmentValue label="Receiver" value={leg.receiverName} override={o.receiverName} disabled={disabled} onOverride={(v) => set('receiverName', v)} />
+        <ShipmentValue label="Receiver address" value={leg.receiverAddress || null} missing={`Not received from ${view.labels.partner} yet`} multiline override={o.receiverAddress} disabled={disabled} onOverride={(v) => set('receiverAddress', v)} />
+        <ShipmentValue label={view.labels.shipmentId} value={leg.shipmentConfirmationId} override={o.shipmentConfirmationId} disabled={disabled} onOverride={(v) => set('shipmentConfirmationId', v)} />
+        <ShipmentValue label={view.labels.referenceId} value={leg.amazonReferenceId} missing={`Not received from ${view.labels.partner} yet`} override={o.amazonReferenceId} disabled={disabled} onOverride={(v) => set('amazonReferenceId', v)} />
         <ShipmentValue label="Shipper" value={view.shipper.name} override={o.shipperName} disabled={disabled} onOverride={(v) => set('shipperName', v)} />
         <ShipmentValue label="Shipper address" value={view.shipper.address} multiline override={o.shipperAddress} disabled={disabled} onOverride={(v) => set('shipperAddress', v)} />
       </Section>

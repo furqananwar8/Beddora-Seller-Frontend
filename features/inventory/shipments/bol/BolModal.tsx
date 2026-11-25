@@ -7,7 +7,7 @@ import { Button } from '@/design-system/buttons'
 import { Spinner } from '@/design-system/loaders'
 import { useReportExport } from '@/hooks/useReportExport'
 import { useApiFeedback } from '@/hooks/useApiFeedback'
-import { useGetShipmentBolsQuery, useSaveShipmentBolTrailersMutation, type BolLeg, type BolStatus, type BolView } from '@/services/api/shipmentBols.api'
+import { useGetShipmentBolsQuery, useSaveShipmentBolTrailersMutation, type Bol, type BolLeg, type BolStatus, type BolView } from '@/services/api/shipmentBols.api'
 import { formatUnits } from '../ShipmentParts'
 import type { InboundShipment } from '../types'
 import { CarrierDetailsModal } from './CarrierDetailsModal'
@@ -42,6 +42,7 @@ const BolBody: React.FC<{ shipmentId: string; onClose: () => void }> = ({ shipme
   const [drafts, setDrafts] = useState<Record<string, TrailerDraft[]>>({})
   const [carrierLeg, setCarrierLeg] = useState<BolLeg | null>(null)
   const { start, isExporting } = useReportExport('shipment-bol', { noun: 'bill of lading' })
+  const { failure } = useApiFeedback()
 
   // A finished export marked its BOLs as built: show them as ready
   const wasExporting = useRef(false)
@@ -63,8 +64,14 @@ const BolBody: React.FC<{ shipmentId: string; onClose: () => void }> = ({ shipme
   const rows = drafts[leg.amazonShipmentId] ?? leg.bols.map(fromBol)
   const setRows = (next: TrailerDraft[] | ((rows: TrailerDraft[]) => TrailerDraft[])) =>
     setDrafts((all) => ({ ...all, [leg.amazonShipmentId]: typeof next === 'function' ? next(all[leg.amazonShipmentId] ?? leg.bols.map(fromBol)) : next }))
-  const download = (bolIds: number[]) => start('pdf', { shipmentId: view.shipmentId, bolIds })
+  const download = (bolIds: number[]) => {
+    // A BOL without a carrier prints a blank carrier and driver line: ask for it first
+    const missing = view.legs.filter((l) => !l.carrierStep.done && l.bols.some((b) => bolIds.includes(b.id) && !b.overrides.carrier)).map((l) => l.fulfillmentCenter)
+    if (missing.length) return failure(null, `Add the carrier for ${missing.join(', ')} first (Enter carrier details, or ✎ Edit on each trailer)`)
+    start('pdf', { shipmentId: view.shipmentId, bolIds })
+  }
   const allBolIds = view.legs.flatMap((l) => l.bols.filter((b) => b.status !== 'over').map((b) => b.id))
+  const unsaved = view.legs.some((l) => drafts[l.amazonShipmentId] && isDirty(l, drafts[l.amazonShipmentId]))
 
   return (
     <div className="space-y-4">
@@ -99,9 +106,18 @@ const BolBody: React.FC<{ shipmentId: string; onClose: () => void }> = ({ shipme
         shipmentId={shipmentId}
         rows={rows}
         setRows={setRows}
-        onSaved={() => setDrafts((all) => {
-          const { [leg.amazonShipmentId]: _saved, ...rest } = all
-          return rest
+        onSaved={(sent, saved) => setDrafts((all) => {
+          const { [leg.amazonShipmentId]: current, ...rest } = all
+          if (!current || current === sent) return rest
+          // Edited while it was saving: keep the edits, and give the rows that were new their saved ids so they aren't created twice
+          const byKey = new Map(sent.map((row, index) => [row.key, saved[index]]))
+          return {
+            ...rest,
+            [leg.amazonShipmentId]: current.map((row) => {
+              const bol = byKey.get(row.key)
+              return bol && row.id === undefined ? { ...row, id: bol.id, reference: bol.reference, status: bol.status } : row
+            }),
+          }
         })}
         onDownload={download}
         isExporting={isExporting}
@@ -109,12 +125,17 @@ const BolBody: React.FC<{ shipmentId: string; onClose: () => void }> = ({ shipme
       />
 
       <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-4">
-        <span className="text-xs text-text-muted">PDFs are prepared in the background and download by themselves when ready.</span>
+        <span className="text-xs text-text-muted">Changes save by themselves. PDFs are prepared in the background and download by themselves when ready.</span>
         <div className="flex gap-2">
           <Button variant="outline" onClick={onClose}>
             Close
           </Button>
-          <Button variant="outline" disabled={isExporting || allBolIds.length === 0} onClick={() => download(allBolIds)}>
+          <Button
+            variant="outline"
+            disabled={isExporting || unsaved || allBolIds.length === 0}
+            title={unsaved ? 'Waiting for your changes to save (fix any highlighted trailer)' : undefined}
+            onClick={() => download(allBolIds)}
+          >
             {isExporting ? 'Preparing…' : `Download all (${allBolIds.length})`}
           </Button>
         </div>
@@ -131,7 +152,8 @@ interface LegPanelProps {
   shipmentId: string
   rows: TrailerDraft[]
   setRows: (next: TrailerDraft[] | ((rows: TrailerDraft[]) => TrailerDraft[])) => void
-  onSaved: () => void
+  /** `sent`: the rows saved; `saved`: their BOLs as stored, in the same order. */
+  onSaved: (sent: TrailerDraft[], saved: Bol[]) => void
   onDownload: (bolIds: number[]) => void
   isExporting: boolean
   onEditCarrierStep: () => void
@@ -145,14 +167,15 @@ const STATUS_META: Record<BolStatus | 'unsaved', { label: string; className: str
 }
 
 const LegPanel: React.FC<LegPanelProps> = ({ view, leg, shipmentId, rows, setRows, onSaved, onDownload, isExporting, onEditCarrierStep }) => {
-  const { success, failure } = useApiFeedback()
+  const { failure } = useApiFeedback()
   const [save, { isLoading: isSaving }] = useSaveShipmentBolTrailersMutation()
   const [open, setOpen] = useState<string | null>(null)
   const [planCount, setPlanCount] = useState('1')
   const [confirmPartial, setConfirmPartial] = useState(false)
   const check = useMemo(() => checkLeg(leg, rows), [leg, rows])
   const dirty = isDirty(leg, rows)
-  const disabled = !view.editable || isSaving
+  // Inputs stay enabled while an autosave runs, so typing never loses focus
+  const disabled = !view.editable
   const step = leg.carrierStep
   const carrierMissing = !step.done && rows.some((r) => !r.overrides.carrier)
 
@@ -161,27 +184,39 @@ const LegPanel: React.FC<LegPanelProps> = ({ view, leg, shipmentId, rows, setRow
     [setRows]
   )
 
-  const persist = async (): Promise<number[] | null> => {
-    if (check.blocker) {
-      failure(null, check.blocker)
-      return null
-    }
-    try {
-      const saved = await save({ shipmentId, amazonShipmentId: leg.amazonShipmentId, trailers: rows.map(toInput) }).unwrap()
-      onSaved()
-      return saved.legs.find((l) => l.amazonShipmentId === leg.amazonShipmentId)?.bols.map((b) => b.id) ?? []
-    } catch (err) {
-      failure(err, errorText(err, 'Could not save the trailers'))
-      return null
-    }
+  /** One save at a time: a second one would create the new rows twice. */
+  const inFlight = useRef<Promise<number[] | null> | null>(null)
+  const persist = (): Promise<number[] | null> => {
+    if (inFlight.current) return inFlight.current
+    if (check.blocker) return Promise.resolve(null)
+    const sent = rows
+    inFlight.current = (async () => {
+      try {
+        const result = await save({ shipmentId, amazonShipmentId: leg.amazonShipmentId, trailers: sent.map(toInput) }).unwrap()
+        const bols = result.legs.find((l) => l.amazonShipmentId === leg.amazonShipmentId)?.bols ?? []
+        onSaved(sent, bols)
+        return bols.map((b) => b.id)
+      } catch (err) {
+        failure(err, errorText(err, 'Could not save the trailers'))
+        return null
+      } finally {
+        inFlight.current = null
+      }
+    })()
+    return inFlight.current
   }
 
-  const saveDrafts = async () => {
-    if ((await persist()) !== null) success(`${leg.fulfillmentCenter}: trailers saved`)
-  }
+  // Edits save themselves shortly after the last change, so the PDF always prints what is on screen
+  const persistRef = useRef(persist)
+  persistRef.current = persist
+  useEffect(() => {
+    if (!dirty || check.blocker || !view.editable) return
+    const timer = setTimeout(() => void persistRef.current(), 700)
+    return () => clearTimeout(timer)
+  }, [rows, dirty, check.blocker, view.editable])
 
   const generate = async (force = false) => {
-    if (carrierMissing) return failure(null, `Add the carrier for ${leg.fulfillmentCenter} first (carrier step, or ✎ Edit on each trailer)`)
+    if (carrierMissing) return failure(null, `Add the carrier for ${leg.fulfillmentCenter} first (Enter carrier details, or ✎ Edit on each trailer)`)
     if (!force && (check.unassigned.boxes > 0 || check.unassigned.units > 0)) return setConfirmPartial(true)
     setConfirmPartial(false)
     const ids = dirty ? await persist() : leg.bols.map((b) => b.id)
@@ -201,8 +236,14 @@ const LegPanel: React.FC<LegPanelProps> = ({ view, leg, shipmentId, rows, setRow
 
       {!step.done ? (
         <Note tone="err">
-          The carrier step hasn&apos;t been done for {leg.fulfillmentCenter}, so there is no carrier or dates to print. Enter the carrier from the shipment row first
-          (or ✎ Edit the carrier on each trailer).
+          No carrier is recorded for {leg.fulfillmentCenter}, so there is no carrier or dates to print.{' '}
+          {view.editable && step.editable ? (
+            <button type="button" className="font-semibold underline" onClick={onEditCarrierStep}>
+              Enter carrier details
+            </button>
+          ) : (
+            'Enter the carrier from the shipment row first (or ✎ Edit the carrier on each trailer).'
+          )}
         </Note>
       ) : !step.appointmentNo ? (
         <Note tone="warn">
@@ -221,7 +262,7 @@ const LegPanel: React.FC<LegPanelProps> = ({ view, leg, shipmentId, rows, setRow
           <span className="font-semibold text-text-primary">
             {formatUnits(leg.totals.boxes)} boxes · {formatUnits(leg.totals.units)} units
           </span>{' '}
-          (from the SKUs in this shipment) · {formatUnits(check.unassigned.boxes)} boxes and {formatUnits(check.unassigned.units)} units left to put on a trailer
+          ({leg.boxesCounted ? 'from the SKUs in this shipment' : "box count not known for this synced shipment, so boxes are capped at the units"}) ·{formatUnits(check.unassigned.boxes)} boxes and {formatUnits(check.unassigned.units)} units left to put on a trailer
         </div>
         <Allocation label="Boxes" used={check.used.boxes} total={leg.totals.boxes} width={bar(check.used.boxes, leg.totals.boxes)} over={check.overBoxes > 0} />
         <Allocation label="Units" used={check.used.units} total={leg.totals.units} width={bar(check.used.units, leg.totals.units)} over={check.overUnits > 0} />
@@ -330,7 +371,7 @@ const LegPanel: React.FC<LegPanelProps> = ({ view, leg, shipmentId, rows, setRow
                           {isOpen ? 'Hide details' : 'Details'}
                         </button>
                         {saved && !changed && status !== 'over' && (
-                          <button type="button" className="mr-3 text-xs font-semibold text-primary-600 hover:underline disabled:opacity-40" disabled={isExporting || carrierMissing} onClick={() => onDownload([saved.id])}>
+                          <button type="button" className="mr-3 text-xs font-semibold text-primary-600 hover:underline disabled:opacity-40" disabled={isExporting} onClick={() => onDownload([saved.id])}>
                             Download
                           </button>
                         )}
@@ -341,7 +382,7 @@ const LegPanel: React.FC<LegPanelProps> = ({ view, leg, shipmentId, rows, setRow
                             className="text-sm text-text-muted hover:text-danger-600"
                             disabled={disabled}
                             onClick={() => {
-                              if (row.status === 'ready' && !window.confirm(`${row.reference} was already generated. Remove this trailer? It is deleted when you save.`)) return
+                              if (row.status === 'ready' && !window.confirm(`${row.reference} was already generated. Remove this trailer? It is deleted right away.`)) return
                               setRows((current) => current.filter((r) => r.key !== row.key))
                             }}
                           >
@@ -419,17 +460,12 @@ const LegPanel: React.FC<LegPanelProps> = ({ view, leg, shipmentId, rows, setRow
       )}
 
       {view.editable && (rows.length > 0 || leg.bols.length > 0) && (
-        <div className="flex flex-wrap justify-end gap-2">
-          {dirty && (
-            <Button variant="outline" disabled={disabled} onClick={() => setRows(leg.bols.map(fromBol))}>
-              Discard changes
-            </Button>
-          )}
-          <Button variant="outline" disabled={disabled || !dirty || !!check.blocker} onClick={() => void saveDrafts()}>
-            {isSaving ? 'Saving…' : 'Save drafts'}
-          </Button>
-          <Button disabled={disabled || isExporting || rows.length === 0 || !!check.blocker} onClick={() => void generate()}>
-            {isExporting ? 'Preparing…' : dirty ? 'Save & generate' : `Generate ${rows.length === 1 ? 'BOL' : `all ${rows.length} BOLs`}`}
+        <div className="flex flex-wrap items-center justify-end gap-3">
+          <span role="status" className="text-xs text-text-muted">
+            {check.blocker ? 'Not saved: fix the trailer above' : isSaving ? 'Saving…' : dirty ? 'Unsaved changes' : 'All changes saved'}
+          </span>
+          <Button disabled={disabled || isSaving || isExporting || rows.length === 0 || !!check.blocker} onClick={() => void generate()}>
+            {isExporting ? 'Preparing…' : `Generate ${rows.length === 1 ? 'BOL' : `all ${rows.length} BOLs`}`}
           </Button>
         </div>
       )}

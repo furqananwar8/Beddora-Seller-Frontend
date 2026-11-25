@@ -50,6 +50,8 @@ export interface Bol extends TrailerFields {
 
 export interface BolCarrierStep {
   done: boolean
+  /** The BOLs may record the carrier for the whole FC (false only for an app-made Amazon shipment before its carrier step). */
+  editable: boolean
   carrier: string | null
   carrierPartnerId: number | null
   pickupDate: string | null
@@ -58,13 +60,18 @@ export interface BolCarrierStep {
 }
 
 export interface BolLeg {
+  /** The partner's id of the FC shipment (Walmart's shipmentId for WFS). */
   amazonShipmentId: string
   fulfillmentCenter: string
+  /** "Amazon.com · YYZ5" / "Walmart · Calgary Fulfillment Center" */
+  receiverName: string
   fcLocation: string | null
   shipmentConfirmationId: string | null
   amazonReferenceId: string | null
   receiverAddress: string
   totals: { boxes: number; units: number }
+  /** False for a synced shipment nobody counted the boxes of: `totals.boxes` is then its units. */
+  boxesCounted: boolean
   suggested: { pallets: number; weight: number; weightUnit: 'LB' }
   carrierStep: BolCarrierStep
   deliveryTime: string | null
@@ -76,6 +83,7 @@ export interface BolView {
   reference: string
   name: string
   shippingMode: 'SPD' | 'LTL_FTL' | null
+  labels: { partner: string; shipmentId: string; referenceId: string }
   editable: boolean
   shipper: { name: string; address: string; contact: string | null; phone: string | null }
   defaults: { contact: string | null; commodity: string; pickupTime: string | null }

@@ -726,7 +726,7 @@ export const ShipmentsScreen: React.FC = () => {
                       onDelete={() => openDialog({ type: 'delete', id: s.id })}
                       onScanItems={canScan ? () => scanItems.open({ scenario: 'FBA_WFS', sourceId: String(s.id) }) : undefined}
                       scanLockedBy={scanItems.lockedBy({ scenario: 'FBA_WFS', sourceId: String(s.id) })}
-                      onBillOfLading={channel === 'amazon_fba' ? () => setBolShipmentId(s.id) : undefined}
+                      onBillOfLading={() => setBolShipmentId(s.id)}
                       onGoBack={(to) => handleBack(s.id, to)}
                       onDownloadLabel={(type) => handleDownloadLabel(s.id, type)}
                       // The open dialog's own buttons show the progress, so the row behind it stays still
@@ -751,7 +751,7 @@ export const ShipmentsScreen: React.FC = () => {
         onCreate={handleCreate}
       />
 
-      {/* Bills of lading (Amazon FBA, from the row menu) */}
+      {/* Bills of lading (from the row menu) */}
       <BolModal shipment={bolShipmentId ? byId(bolShipmentId) ?? null : null} onClose={() => setBolShipmentId(null)} />
 
       {/* Amazon FBA steps */}
