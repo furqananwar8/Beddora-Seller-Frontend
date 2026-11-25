@@ -52,9 +52,11 @@ export const PackagingListFormScreen: React.FC<PackagingListFormScreenProps> = (
   const { data: existing, isLoading: loadingExisting, isError: existingError } = useGetPackagingListQuery(packagingListId ?? 0, { skip: isNew })
   // A list in a container has shipped: it stays read-only until it is taken out
   const container = existing?.container ?? null
+  // Only a final list is locked by its container; a tentative one keeps changing and the container follows
+  const locked = container !== null && existing?.kind === 'FINAL'
   // Converting a tentative list to final: the units become editable "Final units", next to the drafted "Units"
-  const converting = !isNew && params.get('convert') === '1' && canWrite && !container && existing?.kind === 'TENTATIVE'
-  const editing = !isNew && (params.get('edit') === '1' || converting) && canWrite && !container
+  const converting = !isNew && params.get('convert') === '1' && canWrite && !locked && existing?.kind === 'TENTATIVE'
+  const editing = !isNew && (params.get('edit') === '1' || converting) && canWrite && !locked
   const readOnly = !isNew && !editing
   // Units may exceed the batch, tentative or final: the supplier may pack more than planned
   const allowOver = true
@@ -219,7 +221,9 @@ export const PackagingListFormScreen: React.FC<PackagingListFormScreenProps> = (
         </div>
         {container && (
           <p className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-800">
-            This list is in {containerLabel(container)}, so its quantities are locked.
+            {locked
+              ? `This list is in ${containerLabel(container)}, so its quantities are locked.`
+              : `This tentative list is in ${containerLabel(container)}. Changes you save here update the container until the list is made final.`}
           </p>
         )}
 
@@ -341,12 +345,12 @@ export const PackagingListFormScreen: React.FC<PackagingListFormScreenProps> = (
               Download PDF
             </Button>
           )}
-          {readOnly && canWrite && existing && !container && (
+          {readOnly && canWrite && existing && !locked && (
             <Button type="button" variant={existing.kind === 'TENTATIVE' ? 'outline' : 'primary'} onClick={() => router.push(`${LIST}/${existing.id}?edit=1`)}>
               Edit quantities
             </Button>
           )}
-          {readOnly && canWrite && existing?.kind === 'TENTATIVE' && !container && (
+          {readOnly && canWrite && existing?.kind === 'TENTATIVE' && !locked && (
             <Button type="button" onClick={() => router.push(`${LIST}/${existing.id}?convert=1`)}>
               Convert to final
             </Button>

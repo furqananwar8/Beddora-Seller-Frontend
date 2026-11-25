@@ -23,6 +23,7 @@ interface ListChoice {
   supplierName: string
   units: number
   cbm: number
+  tentative: boolean
 }
 
 interface PackagingListsModalProps {
@@ -50,10 +51,10 @@ export const PackagingListsModal: React.FC<PackagingListsModalProps> = ({ contai
   const lists = container?.packagingLists ?? []
 
   const { data, isFetching } = useGetPackagingListsQuery(
-    { page: 1, limit: 50, kind: 'FINAL', container: 'NONE', destination: container?.destination, search: debounced },
+    { page: 1, limit: 50, container: 'NONE', destination: container?.destination, search: debounced },
     { skip: !container || !open }
   )
-  const choices: ListChoice[] = (data?.data ?? []).map((list) => ({ id: list.id, plNo: list.plNo, supplierName: supplierNames(list.suppliers), units: list.units, cbm: list.cbm }))
+  const choices: ListChoice[] = (data?.data ?? []).map((list) => ({ id: list.id, plNo: list.plNo, supplierName: supplierNames(list.suppliers), units: list.units, cbm: list.cbm, tentative: list.kind === 'TENTATIVE' }))
 
   useEffect(() => {
     setPicked(null)
@@ -110,17 +111,20 @@ export const PackagingListsModal: React.FC<PackagingListsModalProps> = ({ contai
             </ul>
           )}
 
-          <FormField label="Add a packaging list" htmlFor="add-list" hint={`Only lists shipping to ${DESTINATION_LABEL[container.destination]} that are not in a container. Totals add up across the lists.`}>
+          <FormField label="Add a packaging list" htmlFor="add-list" hint={`Only lists shipping to ${DESTINATION_LABEL[container.destination]} that are not in a container. A tentative list's units can still change; the totals follow until it is final.`}>
             <SearchableSelect<ListChoice>
               id="add-list"
               value={picked}
               onChange={setPicked}
               options={choices}
               getKey={(choice) => choice.id}
-              getLabel={(choice) => `${choice.plNo} · ${choice.supplierName}`}
+              getLabel={(choice) => `${choice.plNo}${choice.tentative ? ' (tentative)' : ''} · ${choice.supplierName}`}
               renderOption={(choice) => (
                 <span className="flex w-full justify-between gap-3">
-                  <span className="font-mono text-sm font-semibold">{choice.plNo}</span>
+                  <span className="font-mono text-sm font-semibold">
+                    {choice.plNo}
+                    {choice.tentative && <span className="ml-2 font-sans text-xs font-medium text-warning-600">Tentative</span>}
+                  </span>
                   <span className="truncate text-xs text-text-muted">
                     {choice.supplierName} · {choice.units.toLocaleString('en-CA')} units · {choice.cbm.toFixed(2)} CBM
                   </span>

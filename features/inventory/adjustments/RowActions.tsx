@@ -1,11 +1,12 @@
 import React from 'react'
 import { RowActionsMenu } from '@/components/row-actions-menu/RowActionsMenu'
 
-export type AdjustmentAction = 'dimensions' | 'quantity'
+export type AdjustmentAction = 'dimensions' | 'quantity' | 'history'
 
 const ACTIONS: { action: AdjustmentAction; label: string }[] = [
   { action: 'dimensions', label: 'Edit box dimensions' },
   { action: 'quantity', label: 'Edit quantity' },
+  { action: 'history', label: 'Adjustment history' },
 ]
 
 /** Three-dot menu for one adjustments row, using the app's shared row actions menu. */

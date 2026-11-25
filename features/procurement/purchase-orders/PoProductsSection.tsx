@@ -52,6 +52,9 @@ const PoBatchCard: React.FC<PoBatchCardProps> = ({ form, readOnly, fixedProducts
   const { fields, append, remove } = useFieldArray({ control, name: `batches.${batchIndex}.lines`, keyName: 'fieldId' })
   const lines = useWatch({ control, name: `batches.${batchIndex}.lines` }) ?? []
   const batchErrors = errors.batches?.[batchIndex]
+  // null when no line has a size to work the volume from
+  const cbms = lines.map((line) => { const unit = cbmPerUnit(line.product); return unit === null ? null : unit * (Number(line.unitsOrdered) || 0) })
+  const totalCbm = cbms.some((cbm) => cbm !== null) ? cbms.reduce<number>((sum, cbm) => sum + (cbm ?? 0), 0) : null
   const currency = useWatch({ control, name: 'currency' })
   const platform = useWatch({ control, name: 'platform' })
   const { isOpen, toggle } = useExpandedRows<number>()
@@ -208,6 +211,7 @@ const PoBatchCard: React.FC<PoBatchCardProps> = ({ form, readOnly, fixedProducts
                   <td className={cn(CELL, 'text-left')} colSpan={9}>
                     Total · {fields.length} {fields.length === 1 ? 'product' : 'products'}
                   </td>
+                  <td className={cn(CELL, 'whitespace-nowrap tabular-nums')}>{formatCbm(totalCbm)}</td>
                   <td className={cn(CELL, 'tabular-nums')}>{units(products.ordered)}</td>
                   <td />
                   <td className={cn(CELL, 'whitespace-nowrap tabular-nums')}>{formatCurrency(products.amount, currency)}</td>

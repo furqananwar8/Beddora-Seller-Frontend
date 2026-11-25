@@ -7,6 +7,7 @@ import { useStagedFilters } from '@/components/filter-bar/useStagedFilters'
 import { FormField } from '@/components/form-field/FormField'
 import { Container } from '@/components/layout'
 import { PaginationFooter } from '@/components/pagination-footer/PaginationFooter'
+import { Button } from '@/design-system/buttons'
 import { Spinner } from '@/design-system/loaders'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/design-system/tables'
 import { useAppDispatch } from '@/store/hooks'
@@ -22,6 +23,7 @@ import {
 import { apiErrorMessage } from '../shipments/useShipments'
 import { ADJUSTMENT_ROWS, balanceOf } from './buckets'
 import { EditDimensionsModal } from './EditDimensionsModal'
+import { AdjustmentHistoryModal } from './AdjustmentHistoryModal'
 import { EditQuantityModal } from './EditQuantityModal'
 import { AdjustmentAction, RowActions } from './RowActions'
 
@@ -54,6 +56,7 @@ export const AdjustmentsScreen: React.FC = () => {
 
   const [dialog, setDialog] = useState<Dialog>(null)
   const [error, setError] = useState<string | null>(null)
+  const [allHistory, setAllHistory] = useState(false)
   const target = dialog ? rows.find((r) => r.id === dialog.rowId) ?? null : null
 
   const open = (row: AdjustmentRow, action: AdjustmentAction) => {
@@ -89,9 +92,14 @@ export const AdjustmentsScreen: React.FC = () => {
 
   return (
     <Container size="full" className="py-4 sm:py-8">
-      <div className="mb-4 px-1 sm:mb-6">
-        <h1 className="text-xl font-bold sm:text-2xl text-text-primary">Adjustments</h1>
-        <p className="mt-1 text-sm text-text-muted">Correct on-hand quantities and box dimensions for each SKU.</p>
+      <div className="mb-4 flex items-start justify-between gap-3 px-1 sm:mb-6">
+        <div>
+          <h1 className="text-xl font-bold sm:text-2xl text-text-primary">Adjustments</h1>
+          <p className="mt-1 text-sm text-text-muted">Correct on-hand quantities and box dimensions for each SKU.</p>
+        </div>
+        <Button type="button" variant="outline" onClick={() => setAllHistory(true)}>
+          Adjustment history
+        </Button>
       </div>
 
       <div className="mb-4 rounded-lg border border-border bg-surface p-4 shadow-sm">
@@ -195,6 +203,8 @@ export const AdjustmentsScreen: React.FC = () => {
         onSave={saveBox}
         onClose={close}
       />
+      <AdjustmentHistoryModal isOpen={allHistory} onClose={() => setAllHistory(false)} />
+      <AdjustmentHistoryModal isOpen={dialog?.action === 'history'} row={target} onClose={close} />
     </Container>
   )
 }
