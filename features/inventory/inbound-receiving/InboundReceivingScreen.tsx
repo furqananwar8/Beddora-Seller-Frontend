@@ -51,11 +51,14 @@ const COLUMNS = 9
 /** PO or packaging list numbers, each a link that opens that record in a new tab. */
 const Numbers: React.FC<{ links: Array<{ no: string; id: number }>; href: (id: number) => string }> = ({ links, href }) =>
   links.length ? (
-    <span className="whitespace-nowrap font-mono text-xs">
+    <span className="mx-auto block max-w-[12rem] font-mono text-xs">
       {links.map((link, index) => (
         <React.Fragment key={link.id}>
-          {index > 0 && ', '}
-          <NewTabLink href={href(link.id)}>{link.no}</NewTabLink>
+          {index > 0 && ' '}
+          <span className="whitespace-nowrap">
+            <NewTabLink href={href(link.id)}>{link.no}</NewTabLink>
+            {index < links.length - 1 && ','}
+          </span>
         </React.Fragment>
       ))}
     </span>

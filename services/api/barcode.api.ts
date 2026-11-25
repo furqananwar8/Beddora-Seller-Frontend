@@ -57,6 +57,8 @@ export interface ScanSourceInfo {
   ref: string
   /** Null when the direction can be scanned, else why not. */
   availability: Record<ScanDirection, string | null>
+  /** Set when the stock to take from can't cover the record: scanning shouldn't open. */
+  allocationShortfall?: string | null
   /** Someone else holds this record right now. */
   lockedBy: { id: number; name: string | null; since: string } | null
   resume: { id: number; direction: ScanDirection } | null
@@ -407,6 +409,7 @@ export const {
   useGetBarcodeScansQuery,
   useCreateBarcodeScanMutation,
   useGetScanSourceQuery,
+  useLazyGetScanSourceQuery,
   useGetScanSessionQuery,
   useGetScanSessionsQuery,
   useGetScanSessionStatsQuery,
