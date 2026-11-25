@@ -4,6 +4,7 @@ import React from 'react'
 import { UseFormReturn, useFieldArray, useWatch } from 'react-hook-form'
 import { NumericInput } from '@/components/form-field/NumericInput'
 import { fieldClass } from '@/components/form-field/FormField'
+import { CellField } from '@/components/form-field/CellField'
 import { Card, CardContent, CardHeader, CardTitle } from '@/design-system/cards/Card'
 import { useGetPurchaseOrderLastPurchasesQuery, type PoProduct } from '@/services/api/procurement.api'
 import { cn } from '@/utils/cn'
@@ -149,24 +150,25 @@ const PoBatchCard: React.FC<PoBatchCardProps> = ({ form, readOnly, fixedProducts
                         <td className={cn(CELL, 'whitespace-nowrap')}>{formatDimensions(product.lengthCm, product.widthCm, product.heightCm, product.dimensionUnit)}</td>
                         <td className={cn(CELL, 'whitespace-nowrap tabular-nums')}>{formatCbm(cbmPerUnit(product))}</td>
                         <td className={CELL}>
-                          <NumericInput
-                            aria-label={`Units ordered for ${product.ref}`}
-                            className={cn(fieldClass(unitsError), 'mx-auto h-9 w-28 py-1 text-right tabular-nums')}
-                            disabled={readOnly}
-                            {...register(`batches.${batchIndex}.lines.${index}.unitsOrdered`)}
-                          />
-                          {unitsError && <p className="mt-1 text-xs text-danger-600">{unitsError}</p>}
-                          {!unitsError && line.maxUnits !== undefined && <p className="mt-1 text-xs text-text-muted">max {units(line.maxUnits)}</p>}
+                          <CellField error={unitsError} hint={line.maxUnits !== undefined ? `max ${units(line.maxUnits)}` : undefined}>
+                            <NumericInput
+                              aria-label={`Units ordered for ${product.ref}`}
+                              className={cn(fieldClass(unitsError), 'mx-auto h-9 w-28 py-1 text-right tabular-nums')}
+                              disabled={readOnly}
+                              {...register(`batches.${batchIndex}.lines.${index}.unitsOrdered`)}
+                            />
+                          </CellField>
                         </td>
                         <td className={CELL}>
-                          <NumericInput
-                            decimal
-                            aria-label={`Unit rate for ${product.ref}`}
-                            className={cn(fieldClass(rateError), 'mx-auto h-9 w-28 py-1 text-right tabular-nums')}
-                            disabled={readOnly}
-                            {...register(`batches.${batchIndex}.lines.${index}.unitPrice`)}
-                          />
-                          {rateError && <p className="mt-1 text-xs text-danger-600">{rateError}</p>}
+                          <CellField error={rateError}>
+                            <NumericInput
+                              decimal
+                              aria-label={`Unit rate for ${product.ref}`}
+                              className={cn(fieldClass(rateError), 'mx-auto h-9 w-28 py-1 text-right tabular-nums')}
+                              disabled={readOnly}
+                              {...register(`batches.${batchIndex}.lines.${index}.unitPrice`)}
+                            />
+                          </CellField>
                         </td>
                         <td className={cn(CELL, 'whitespace-nowrap tabular-nums')}>{formatCurrency(lineAmount(line), currency)}</td>
                         <td className={cn(CELL, 'tabular-nums text-text-muted')}>{units(line.allocated)}</td>
