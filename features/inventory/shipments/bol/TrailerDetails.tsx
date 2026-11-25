@@ -2,7 +2,9 @@
 
 import React, { useState } from 'react'
 import { cn } from '@/utils/cn'
-import { Input } from '@/design-system/inputs'
+import { Input, Textarea } from '@/design-system/inputs'
+import { SingleDatePicker } from '@/components/single-date-picker/SingleDatePicker'
+import { SingleTimePicker } from '@/components/single-time-picker/SingleTimePicker'
 import type { BolLeg, BolOverrides, BolView } from '@/services/api/shipmentBols.api'
 import type { RowErrors, TrailerDraft, TrailerTextField } from './bolModel'
 
@@ -44,63 +46,95 @@ export const TrailerDetails: React.FC<TrailerDetailsProps> = ({ view, leg, draft
     />
   )
 
+  const timeField = (name: 'pickupTime' | 'deliveryTime', label: string, error?: string) => (
+    <div className="min-w-0">
+      <span className="ds-input-label">{label}</span>
+      <SingleTimePicker ariaLabel={label} value={draft[name]} error={error} disabled={disabled} onChange={(value) => onText(name, value)} />
+    </div>
+  )
+  const carrierNote = step.editable ? '✎ Edit: whole FC or this trailer only' : '✎ Edit changes this trailer only'
+  const carrierValue = (label: string, key: 'carrier' | 'pickupDate' | 'deliveryDate' | 'appointmentNo', value: string | null, extra?: { type?: 'date'; missing?: string }) => (
+    <ShipmentValue
+      label={label}
+      type={extra?.type}
+      value={value}
+      missing={extra?.missing}
+      override={o[key]}
+      carrierStep={step.editable}
+      disabled={disabled}
+      onEditAll={onEditCarrierStep}
+      onOverride={(v) => set(key, v)}
+    />
+  )
+
   return (
-    <div className="space-y-4 rounded-lg border border-border bg-background p-4">
-      <Section title="From the carrier step" note={step.done ? 'Edit changes every trailer of this FC, or just this one' : 'The carrier step has not been done yet'}>
-        <ShipmentValue label="Carrier / driver" value={step.carrier} override={o.carrier} carrierStep={step.done} disabled={disabled} onEditAll={onEditCarrierStep} onOverride={(v) => set('carrier', v)} />
-        <ShipmentValue label="Pick-up date" type="date" value={step.pickupDate} override={o.pickupDate} carrierStep={step.done} disabled={disabled} onEditAll={onEditCarrierStep} onOverride={(v) => set('pickupDate', v)} />
-        <ShipmentValue label="Delivery date" type="date" value={step.deliveryDate} override={o.deliveryDate} carrierStep={step.done} disabled={disabled} onEditAll={onEditCarrierStep} onOverride={(v) => set('deliveryDate', v)} />
-        <ShipmentValue
-          label="Appointment #"
-          value={step.appointmentNo}
-          missing="Not set in the carrier step"
-          override={o.appointmentNo}
-          carrierStep={step.done}
-          disabled={disabled}
-          onEditAll={onEditCarrierStep}
-          onOverride={(v) => set('appointmentNo', v)}
-        />
-      </Section>
-
-      <Section title="Pick-up and delivery">
+    <div className="grid gap-4 rounded-xl bg-secondary-50 p-4 lg:grid-cols-2">
+      <Card title="Carrier and schedule" note={carrierNote} className="lg:col-span-2" cols="sm:grid-cols-2 xl:grid-cols-4">
+        {carrierValue('Carrier / driver', 'carrier', step.carrier)}
+        {carrierValue('Delivery appointment #', 'appointmentNo', step.appointmentNo, { missing: 'Not set' })}
         {field('pickupNo', 'Pick-up #', { placeholder: "Carrier's booking number" })}
-        {field('pickupTime', 'Pick-up time', { placeholder: '13:00 EDT', error: errors.pickupTime, maxLength: 20 })}
-        {field('deliveryTime', 'Delivery time', { placeholder: '15:00 EDT', error: errors.deliveryTime, maxLength: 20 })}
         {field('contact', 'Shipper contact', { maxLength: 120 })}
-      </Section>
+        {carrierValue('Pick-up date', 'pickupDate', step.pickupDate, { type: 'date' })}
+        {timeField('pickupTime', 'Pick-up time', errors.pickupTime)}
+        {carrierValue('Delivery date', 'deliveryDate', step.deliveryDate, { type: 'date' })}
+        {timeField('deliveryTime', 'Delivery time', errors.deliveryTime)}
+      </Card>
 
-      <Section title="Truck">
+      <Card title="Truck" cols="sm:grid-cols-2">
         {field('truckNo', 'Truck #')}
         {field('trailerNo', 'Trailer #')}
         {field('sealNo', 'Seal #')}
         {field('proNo', 'PRO # (freight bill)')}
-      </Section>
+      </Card>
 
-      <Section title="From the shipment and Amazon" note="Edit changes this trailer only">
-        <ShipmentValue label="Receiver" value={`Amazon.com · ${leg.fulfillmentCenter}`} override={o.receiverName} disabled={disabled} onOverride={(v) => set('receiverName', v)} />
-        <ShipmentValue label="Receiver address" value={leg.receiverAddress || null} missing="Not received from Amazon yet" multiline override={o.receiverAddress} disabled={disabled} onOverride={(v) => set('receiverAddress', v)} />
-        <ShipmentValue label="FBA shipment ID" value={leg.shipmentConfirmationId} override={o.shipmentConfirmationId} disabled={disabled} onOverride={(v) => set('shipmentConfirmationId', v)} />
-        <ShipmentValue label="Amazon reference ID" value={leg.amazonReferenceId} missing="Not received from Amazon yet" override={o.amazonReferenceId} disabled={disabled} onOverride={(v) => set('amazonReferenceId', v)} />
-        <ShipmentValue label="Shipper" value={view.shipper.name} override={o.shipperName} disabled={disabled} onOverride={(v) => set('shipperName', v)} />
-        <ShipmentValue label="Shipper address" value={view.shipper.address} multiline override={o.shipperAddress} disabled={disabled} onOverride={(v) => set('shipperAddress', v)} />
-      </Section>
+      <Card title="Load" note="✎ Edit changes this trailer only" cols="sm:grid-cols-2">
+        <ShipmentValue label={view.labels.shipmentId} value={leg.shipmentConfirmationId} override={o.shipmentConfirmationId} disabled={disabled} onOverride={(v) => set('shipmentConfirmationId', v)} />
+        <ShipmentValue label={view.labels.referenceId} value={leg.amazonReferenceId} missing={`Not received from ${view.labels.partner} yet`} override={o.amazonReferenceId} disabled={disabled} onOverride={(v) => set('amazonReferenceId', v)} />
+        <div className="sm:col-span-2">{field('commodity', 'Commodity', { maxLength: 200 })}</div>
+      </Card>
 
-      <div className="grid gap-3 md:grid-cols-2">
-        {field('commodity', 'Commodity', { maxLength: 200 })}
-        {field('notes', 'Notes (printed on the BOL)', { maxLength: 500 })}
-      </div>
+      <Card title="Shipper (from)" note="✎ Edit changes this trailer only">
+        <ShipmentValue label="Name" value={view.shipper.name} override={o.shipperName} disabled={disabled} onOverride={(v) => set('shipperName', v)} />
+        <ShipmentValue label="Address" value={view.shipper.address} multiline override={o.shipperAddress} disabled={disabled} onOverride={(v) => set('shipperAddress', v)} />
+      </Card>
+
+      <Card title="Receiver (to)" note="✎ Edit changes this trailer only">
+        <ShipmentValue label="Name" value={leg.receiverName} override={o.receiverName} disabled={disabled} onOverride={(v) => set('receiverName', v)} />
+        <ShipmentValue
+          label="Address"
+          value={leg.receiverAddress || null}
+          missing={`Not received from ${view.labels.partner} yet`}
+          multiline
+          override={o.receiverAddress}
+          disabled={disabled}
+          onOverride={(v) => set('receiverAddress', v)}
+        />
+      </Card>
+
+      <Card title="Notes" note="Printed on the BOL" className="lg:col-span-2">
+        <Textarea
+          aria-label="Notes"
+          rows={2}
+          value={draft.notes}
+          disabled={disabled}
+          maxLength={500}
+          placeholder="Handling instructions, dock hours…"
+          onChange={(e) => onText('notes', e.target.value)}
+        />
+      </Card>
     </div>
   )
 }
 
-const Section: React.FC<{ title: string; note?: string; children: React.ReactNode }> = ({ title, note, children }) => (
-  <div>
-    <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
-      <span className="text-xs font-semibold uppercase tracking-wide text-text-secondary">{title}</span>
+/** A titled white card of fields; `cols` sets its grid columns. */
+const Card: React.FC<{ title: string; note?: string; className?: string; cols?: string; children: React.ReactNode }> = ({ title, note, className, cols, children }) => (
+  <section className={cn('rounded-lg border border-border bg-surface shadow-sm', className)}>
+    <header className="flex flex-wrap items-baseline justify-between gap-2 border-b border-border px-4 py-2.5">
+      <h5 className="text-xs font-semibold uppercase tracking-wide text-text-primary">{title}</h5>
       {note && <span className="text-xs text-text-muted">{note}</span>}
-    </div>
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{children}</div>
-  </div>
+    </header>
+    <div className={cn('grid gap-3 p-4', cols)}>{children}</div>
+  </section>
 )
 
 interface ShipmentValueProps {
@@ -152,15 +186,11 @@ const ShipmentValue: React.FC<ShipmentValueProps> = ({ label, value, missing = '
       {editing ? (
         <div className="space-y-1">
           {multiline ? (
-            <textarea
-              className="w-full rounded-md border border-border px-3 py-2 text-sm"
-              rows={3}
-              value={text}
-              autoFocus
-              onChange={(e) => setText(e.target.value)}
-            />
+            <Textarea aria-label={label} rows={3} value={text} autoFocus onChange={(e) => setText(e.target.value)} />
+          ) : type === 'date' ? (
+            <SingleDatePicker value={text} onChange={setText} />
           ) : (
-            <input className="w-full rounded-md border border-border px-3 py-2 text-sm" type={type} value={text} autoFocus onChange={(e) => setText(e.target.value)} />
+            <Input aria-label={label} value={text} autoFocus onChange={(e) => setText(e.target.value)} />
           )}
           <div className="flex gap-3 text-xs">
             <button type="button" className="font-semibold text-primary-600 hover:underline" onClick={commit}>

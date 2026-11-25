@@ -136,7 +136,7 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({
   const next = nextActionOf(shipment)
   const labels = channel.labels.filter((l) => !l.appliesTo || l.appliesTo(shipment))
   // Bills of lading are made per FC shipment, which Amazon creates when the placement is confirmed
-  const hasFcShipments = shipment.legs.some((l) => l.amazonShipmentId)
+  const hasFcShipments = shipment.legs.some((l) => legId(l))
   const planRef = shipment.externalRef ?? shipment.amazonInboundPlanId
   const legRefs = shipment.legs.map(legReference).filter(Boolean)
 
@@ -372,7 +372,7 @@ export const ShipmentRow: React.FC<ShipmentRowProps> = ({
                 {onBillOfLading && (
                   <MenuItem
                     disabled={!hasFcShipments}
-                    title={hasFcShipments ? undefined : 'Available once the warehouse (placement) is confirmed and Amazon has created the FC shipments'}
+                    title={hasFcShipments ? undefined : 'Available once the FC shipments are created (Amazon placement confirmed, or Walmart inbound order accepted)'}
                     onClick={() => { setIsMenuOpen(false); onBillOfLading() }}
                   >
                     Bill of lading
