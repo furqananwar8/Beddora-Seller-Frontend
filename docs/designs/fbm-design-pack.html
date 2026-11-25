@@ -1,0 +1,493 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>FBM design pack</title><style>
+  @page { size: A4 landscape; margin: 10mm; }
+  :root { --text:#111827; --muted:#6b7280; --faint:#94a3b8; --border:#e5e7eb; --soft:#f8fafc; --ink:#111827;
+          --ok:#16a34a; --ok-bg:#dcfce7; --warn:#b45309; --warn-bg:#fef3c7; --bad:#dc2626; --bad-bg:#fee2e2; --info:#1d4ed8; --info-bg:#dbeafe; --neu-bg:#f1f5f9; --neu:#475569; }
+  * { box-sizing:border-box; }
+  body { margin:0; font:11.5px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; color:var(--text); background:#fff; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  .page { page-break-after:always; height:187mm; overflow:hidden; }
+  .page:last-child { page-break-after:auto; }
+  .doc { font-size:10px; color:var(--faint); text-transform:uppercase; letter-spacing:.06em; margin-bottom:4px; display:flex; justify-content:space-between; }
+  .note { font-size:10.5px; color:var(--muted); border-left:3px solid var(--ink); padding:1px 0 1px 8px; margin:0 0 8px; }
+  .app { display:grid; grid-template-columns:150px 1fr; border:1px solid var(--border); border-radius:10px; overflow:hidden; height:calc(100% - 52px); }
+  .side { background:#fff; border-right:1px solid var(--border); padding:10px; font-size:11px; }
+  .brand { font-weight:800; font-size:14px; text-align:center; padding:4px 0 12px; letter-spacing:.02em; }
+  .nav { padding:6px 8px; border-radius:6px; color:var(--neu); margin-bottom:3px; }
+  .nav.on { background:var(--ink); color:#fff; }
+  .sub { padding:4px 8px 4px 22px; color:var(--muted); }
+  .sub.on { color:var(--ink); font-weight:700; }
+  .main { background:var(--soft); display:flex; flex-direction:column; min-width:0; }
+  .top { height:34px; background:#fff; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:flex-end; padding:0 14px; gap:10px; color:var(--muted); font-size:10.5px; }
+  .avatar { width:20px; height:20px; border-radius:50%; background:var(--ink); }
+  .content { padding:12px 14px; overflow:hidden; }
+  .head { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+  h1 { font-size:18px; margin:0; }
+  .btn { height:28px; padding:0 11px; border-radius:6px; border:1px solid var(--border); background:#fff; display:inline-flex; align-items:center; font-weight:500; font-size:10.5px; gap:5px; }
+  .btn.p { background:var(--ink); color:#fff; border-color:var(--ink); }
+  .tabs { display:flex; gap:18px; border-bottom:1px solid var(--border); margin-bottom:10px; }
+  .tab { padding:5px 2px 7px; color:var(--muted); font-weight:500; }
+  .tab.on { color:var(--ink); border-bottom:2px solid var(--ink); font-weight:700; }
+  .bar { display:flex; gap:8px; align-items:center; margin-bottom:10px; }
+  .chip { border:1px solid var(--border); background:#fff; border-radius:6px; height:28px; padding:0 10px; display:inline-flex; align-items:center; gap:6px; font-size:10.5px; }
+  .chip::after { content:"▾"; color:var(--faint); font-size:9px; }
+  .chip.plain::after { content:none; }
+  .grid { display:grid; gap:10px; }
+  .card { background:#fff; border:1px solid var(--border); border-radius:8px; padding:10px 12px; min-width:0; }
+  .card h3 { margin:0 0 6px; font-size:11.5px; display:flex; justify-content:space-between; align-items:center; }
+  .card h3 small { font-weight:400; color:var(--faint); font-size:10px; }
+  .kpi { background:#fff; border:1px solid var(--border); border-radius:8px; padding:6px 12px; position:relative; }
+  .kpi.act { border-color:#f59e0b; box-shadow:0 0 0 1px #f59e0b inset; }
+  .kpi.bad { border-color:#fca5a5; }
+  .kpi span { font-size:10.5px; color:var(--muted); }
+  .kpi b { display:block; font-size:21px; font-weight:700; margin-top:1px; }
+  .kpi i { font-style:normal; font-size:10px; color:var(--faint); }
+  .kpi .go { position:absolute; right:10px; top:9px; font-size:10px; color:var(--info); font-weight:600; }
+  .up { color:var(--ok); font-weight:600; }
+  .pill { font-size:9.5px; font-weight:600; padding:2px 8px; border-radius:999px; display:inline-block; white-space:nowrap; }
+  .ok { background:var(--ok-bg); color:#166534; } .warn { background:var(--warn-bg); color:var(--warn); } .bad { background:var(--bad-bg); color:#991b1b; } .info { background:var(--info-bg); color:var(--info); } .neu { background:var(--neu-bg); color:var(--neu); }
+  table { width:100%; border-collapse:collapse; }
+  th { font-size:9px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); font-weight:600; padding:6px; border-bottom:1px solid var(--border); text-align:center; }
+  td { padding:6px; border-bottom:1px solid var(--border); text-align:center; font-size:10.5px; }
+  tr:last-child td { border-bottom:0; }
+  td.l, th.l { text-align:left; }
+  .mono { font-family:ui-monospace,Consolas,monospace; font-size:10px; }
+  .muted { color:var(--muted); } .faint { color:var(--faint); }
+  .ch { display:inline-block; width:16px; height:16px; border-radius:4px; color:#fff; font-size:9px; font-weight:700; line-height:16px; text-align:center; }
+  .amz { background:#f59e0b; } .wm { background:#2563eb; } .tm { background:#ea580c; }
+  .hb { height:9px; border-radius:5px; background:var(--neu-bg); overflow:hidden; }
+  .hb u { display:block; height:100%; background:var(--ink); }
+  .row { display:flex; align-items:center; gap:8px; margin:6px 0; font-size:10.5px; }
+  .row .n { width:92px; } .row .v { width:48px; text-align:right; font-weight:600; } .row .hb { flex:1; }
+  .att { display:flex; align-items:center; gap:8px; padding:3px 0; border-bottom:1px solid var(--border); font-size:10.5px; }
+  .att:last-child { border:0; }
+  .att .dot { width:8px; height:8px; border-radius:50%; flex:none; }
+  .att .t { flex:1; min-width:0; } .att .t b { display:block; } .att .t span { color:var(--muted); font-size:10px; }
+  .link { color:var(--info); font-weight:600; font-size:10px; }
+  .legend { display:flex; gap:10px; font-size:9.5px; color:var(--muted); margin-top:4px; }
+  .legend s { text-decoration:none; display:inline-block; width:8px; height:8px; border-radius:2px; margin-right:4px; }
+  h2 { font-size:15px; margin:0 0 6px; }
+  .cols { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  ul.t { margin:4px 0 0; padding-left:15px; } ul.t li { margin:3px 0; }
+  .spec td, .spec th { text-align:left; vertical-align:top; padding:5px 7px; font-size:10px; }
+  .tag { font-size:9px; font-weight:700; padding:1px 6px; border-radius:4px; white-space:nowrap; }
+  .have { background:var(--ok-bg); color:#166534; } .need { background:var(--warn-bg); color:var(--warn); }
+  .phone { width:150px; flex:none; border:2px solid var(--ink); border-radius:16px; padding:8px; background:var(--soft); }
+  .fgrid { display:grid; grid-template-columns:repeat(auto-fill,minmax(110px,1fr)); gap:10px; align-items:end; }
+  .fgrid .w { grid-column:span 2; }
+  .fld label { display:block; font-size:10px; font-weight:500; margin-bottom:3px; color:var(--text); }
+  .ctl { height:34px; border:1px solid var(--border); border-radius:8px; background:#fff; padding:0 10px; display:flex; align-items:center; justify-content:space-between; font-size:10.5px; box-shadow:0 1px 2px rgba(0,0,0,.04); white-space:nowrap; overflow:hidden; }
+  .ctl.ph { color:var(--muted); }
+  .ctl.chg { border-color:var(--ink); box-shadow:0 0 0 1px var(--ink); }
+  .ctl svg { width:12px; height:12px; color:var(--muted); flex:none; margin-left:6px; }
+  .fact { display:flex; justify-content:flex-end; align-items:center; gap:8px; margin-top:8px; }
+  .hint { background:#fffbeb; color:#b45309; border-radius:999px; padding:3px 10px; font-size:10px; font-weight:500; }
+  .btn.dis { opacity:.45; }
+  .dots { font-size:14px; font-weight:700; letter-spacing:0; line-height:1; }
+  .big { font-size:19px; font-weight:700; margin:3px 0 2px; }
+
+  .cb { width:13px; height:13px; border:1.5px solid #94a3b8; border-radius:3px; display:inline-block; vertical-align:middle; background:#fff; position:relative; }
+  .cb.on { background:var(--ink); border-color:var(--ink); }
+  .cb.on::after { content:""; position:absolute; left:3px; top:0px; width:3px; height:7px; border:solid #fff; border-width:0 2px 2px 0; transform:rotate(45deg); }
+  .cb.mix { background:var(--ink); border-color:var(--ink); }
+  .cb.mix::after { content:""; position:absolute; left:2px; top:5px; width:7px; height:2px; background:#fff; }
+  .cb.off { background:#f1f5f9; border-color:#e2e8f0; }
+  .selbar { display:flex; align-items:center; gap:10px; background:var(--ink); color:#fff; border-radius:8px; padding:7px 12px; margin-bottom:8px; font-size:10.5px; }
+  .selbar .lk { color:#93c5fd; font-weight:600; }
+  .selbar .btn { height:26px; }
+  .selbar .btn.w { background:#fff; color:var(--ink); border-color:#fff; font-weight:700; }
+  .tip { position:absolute; background:var(--ink); color:#fff; border-radius:6px; padding:4px 8px; font-size:9.5px; white-space:nowrap; z-index:5; }
+  .stepper { display:flex; gap:0; margin-bottom:10px; }
+  .stp { flex:1; display:flex; align-items:center; gap:7px; padding:7px 10px; border:1px solid var(--border); background:#fff; font-size:10.5px; color:var(--muted); }
+  .stp:first-child { border-radius:8px 0 0 8px; } .stp:last-child { border-radius:0 8px 8px 0; }
+  .stp i { font-style:normal; width:17px; height:17px; border-radius:50%; background:var(--neu-bg); color:var(--neu); font-weight:700; font-size:9.5px; text-align:center; line-height:17px; }
+  .stp.on { color:var(--ink); font-weight:700; border-color:var(--ink); } .stp.on i { background:var(--ink); color:#fff; }
+  .stp.done i { background:var(--ok); color:#fff; }
+  .menu { position:absolute; background:#fff; border:1px solid var(--border); border-radius:8px; box-shadow:0 8px 24px rgba(0,0,0,.15); padding:4px; width:290px; z-index:6; text-align:left; }
+  .menu div { padding:5px 7px; border-radius:5px; display:flex; justify-content:space-between; gap:8px; font-size:10px; }
+  .menu div.sel { background:#f1f5f9; }
+  .seg { display:inline-flex; border:1px solid var(--border); border-radius:8px; overflow:hidden; background:#fff; }
+  .seg span { padding:6px 11px; font-size:10.5px; border-right:1px solid var(--border); }
+  .seg span:last-child { border:0; } .seg span.on { background:var(--ink); color:#fff; font-weight:600; }
+  .spin { display:inline-block; width:10px; height:10px; border:2px solid #cbd5e1; border-top-color:var(--ink); border-radius:50%; vertical-align:middle; }
+  .foot { position:absolute; left:0; right:0; bottom:0; background:#fff; border-top:1px solid var(--border); padding:8px 14px; display:flex; justify-content:space-between; align-items:center; }
+  .rel { position:relative; }
+
+  .radio { border:1px solid var(--border); border-radius:8px; padding:7px 10px; display:flex; gap:8px; align-items:flex-start; margin-bottom:5px; background:#fff; }
+  .radio.on { border-color:var(--ink); box-shadow:0 0 0 1px var(--ink); }
+  .radio i { width:12px; height:12px; border-radius:50%; border:1.5px solid #94a3b8; margin-top:2px; flex:none; position:relative; }
+  .radio.on i { border-color:var(--ink); } .radio.on i::after { content:""; position:absolute; inset:2px; border-radius:50%; background:var(--ink); }
+  .radio b { display:block; font-size:10.5px; } .radio span { font-size:9.5px; color:var(--muted); }
+  .modal { background:#fff; border:1px solid var(--border); border-radius:12px; box-shadow:0 12px 40px rgba(0,0,0,.18); padding:14px 16px; }
+  .modal h2 { font-size:14px; margin:0 0 8px; }
+  .scrim { background:rgba(15,23,42,.35); border-radius:8px; padding:14px; }
+  .drawer { background:#fff; border-left:1px solid var(--border); box-shadow:-8px 0 24px rgba(0,0,0,.12); padding:12px 14px; }
+  .alert { border-radius:8px; padding:7px 10px; font-size:10px; }
+  .alert.w { background:var(--warn-bg); color:var(--warn); } .alert.d { background:var(--bad-bg); color:#991b1b; } .alert.i { background:var(--info-bg); color:var(--info); }
+  .amenu { position:absolute; right:8px; top:34px; background:#fff; border:1px solid var(--border); border-radius:8px; box-shadow:0 8px 24px rgba(0,0,0,.18); padding:4px; width:230px; z-index:6; text-align:left; color:var(--text); }
+  .amenu div { padding:6px 8px; border-radius:5px; display:flex; justify-content:space-between; font-size:10.5px; }
+  .amenu div.d { color:var(--bad); } .amenu div.x { color:var(--faint); } .amenu hr { border:0; border-top:1px solid var(--border); margin:3px 0; }
+</style></head><body><section class="page" style="display:flex;flex-direction:column;justify-content:center;padding:0 40px"><div class="doc">Beddora &middot; Shipping &rsaquo; Orders</div>
+<h1 style="font-size:34px;margin:6px 0 4px">FBM design pack</h1><p class="muted" style="font-size:14px;margin:0 0 22px">Dashboard, bulk rates and booking, and bulk labels, tracking and cancel. Sample data throughout.</p>
+<table class="spec" style="max-width:640px"><tr><th>Part</th><th>Pages</th></tr>
+<tr><td><b>1. FBM dashboard</b> (Overview tab, Orders tab, interactions, build map)</td><td>2&ndash;5</td></tr>
+<tr><td><b>2. Bulk rates &amp; bulk book</b> (select, review, rates, confirm, booking, rules)</td><td>6&ndash;11</td></tr>
+<tr><td><b>3. Bulk labels, tracking &amp; cancel</b> (actions menu, print, track, void, rules)</td><td>12&ndash;16</td></tr></table></section>
+
+<!-- PAGE 1: OVERVIEW -->
+<section class="page">
+  <div class="doc"><span>Beddora · Shipping › Orders · FBM dashboard</span><span>1 / 4 · Overview tab (new landing view)</span></div>
+  <p class="note">FBM = seller-fulfilled orders we book with our own carriers. The page opens on an action-first <b>Overview</b>; today's orders list stays as the <b>Orders</b> tab. Same shell, tabs, KPI cards and filter bar as the Profit dashboard. Figures are sample data.</p>
+  <div class="app">
+    <aside class="side">
+      <div class="brand">beddora</div>
+      <div class="nav">Dashboard</div><div class="nav">Procurement</div>
+      <div class="nav on">Shipping ▾</div>
+      <div class="sub on">Orders</div><div class="sub">Create shipment</div>
+      <div class="nav" style="margin-top:3px">Containers</div><div class="nav">Inventory</div><div class="nav">Profit</div><div class="nav">PPC</div>
+    </aside>
+    <div class="main">
+      <div class="top"><span>User</span><div class="avatar"></div></div>
+      <div class="content">
+        <div class="head"><h1>Orders</h1><div style="display:flex;gap:6px"><span class="btn">Export Excel</span><span class="btn p">Create shipment</span></div></div>
+        <div class="tabs"><div class="tab on">Overview</div><div class="tab">Orders <span class="pill neu">1,284</span></div></div>
+        <div class="card" style="margin-bottom:10px">
+          <h3 style="margin-bottom:4px">Filters <small>Pick filters, then filter</small></h3>
+          <div class="fgrid">
+            <div class="fld"><label>Channel</label><div class="ctl ph">All channels<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg></div></div>
+            <div class="fld"><label>Marketplace</label><div class="ctl ph">All marketplaces<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg></div></div>
+            <div class="fld"><label>Order date</label><div class="ctl">Nov 1 – Nov 25<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg></div></div>
+            <div class="fact" style="margin:0;grid-column:span 2"><span class="btn dis">Reset</span><span class="btn p dis">Filter</span></div>
+          </div>
+        </div>
+
+        <div class="grid" style="grid-template-columns:repeat(6,1fr);margin-bottom:10px">
+          <div class="kpi act"><span>To book</span><b>38</b><i>Needs a label today</i><div class="go">Book →</div></div>
+          <div class="kpi bad"><span>Needs attention</span><b style="color:var(--bad)">7</b><i>Failed sync · exceptions</i></div>
+          <div class="kpi"><span>Booked, not shipped</span><b>21</b><i>Awaiting pickup / drop-off</i></div>
+          <div class="kpi"><span>In transit</span><b>164</b><i><span class="up">▲ 12%</span> vs prev. 30d</i></div>
+          <div class="kpi"><span>Delivered</span><b>912</b><i>96.4% on time</i></div>
+          <div class="kpi"><span>Shipping spend</span><b>CAD 9,846</b><i>Avg CAD 8.92 / parcel</i></div>
+        </div>
+
+        <div class="grid" style="grid-template-columns:1.25fr 1fr;margin-bottom:10px">
+          <div class="card">
+            <h3>Fulfillment pipeline <small>orders by state · click a stage to open it in Orders</small></h3>
+            <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;text-align:center;margin-top:8px">
+              <div><div class="pill neu">Not Ready</div><div class="big">12</div><div class="hb"><u style="width:8%"></u></div></div>
+              <div><div class="pill warn">To Book</div><div class="big">38</div><div class="hb"><u style="width:22%"></u></div></div>
+              <div><div class="pill info">Booked</div><div class="big">21</div><div class="hb"><u style="width:14%"></u></div></div>
+              <div><div class="pill info">In transit</div><div class="big">164</div><div class="hb"><u style="width:55%"></u></div></div>
+              <div><div class="pill ok">Delivered</div><div class="big">912</div><div class="hb"><u style="width:100%;background:var(--ok)"></u></div></div>
+            </div>
+            <div class="faint" style="font-size:9.5px;margin-top:8px">Orders shipped on the channel with its own carrier count under In transit / Delivered and carry a <span class="pill neu">Channel-shipped</span> tag.</div>
+          </div>
+          <div class="card">
+            <h3>Orders per day <small>last 30 days · by channel</small></h3>
+            <svg viewBox="0 0 330 100" width="100%" height="100">
+              <g stroke="#e5e7eb"><line x1="0" y1="20" x2="330" y2="20"/><line x1="0" y1="55" x2="330" y2="55"/><line x1="0" y1="90" x2="330" y2="90"/></g>
+              <g fill="#111827"><rect x="6" y="52" width="7" height="38"/><rect x="24" y="44" width="7" height="46"/><rect x="42" y="58" width="7" height="32"/><rect x="60" y="40" width="7" height="50"/><rect x="78" y="48" width="7" height="42"/><rect x="96" y="30" width="7" height="60"/><rect x="114" y="36" width="7" height="54"/><rect x="132" y="50" width="7" height="40"/><rect x="150" y="42" width="7" height="48"/><rect x="168" y="34" width="7" height="56"/><rect x="186" y="26" width="7" height="64"/><rect x="204" y="38" width="7" height="52"/><rect x="222" y="46" width="7" height="44"/><rect x="240" y="32" width="7" height="58"/><rect x="258" y="28" width="7" height="62"/><rect x="276" y="40" width="7" height="50"/><rect x="294" y="22" width="7" height="68"/><rect x="312" y="30" width="7" height="60"/></g>
+              <g fill="#f59e0b"><rect x="6" y="70" width="7" height="20"/><rect x="24" y="66" width="7" height="24"/><rect x="42" y="74" width="7" height="16"/><rect x="60" y="64" width="7" height="26"/><rect x="78" y="68" width="7" height="22"/><rect x="96" y="60" width="7" height="30"/><rect x="114" y="62" width="7" height="28"/><rect x="132" y="70" width="7" height="20"/><rect x="150" y="66" width="7" height="24"/><rect x="168" y="60" width="7" height="30"/><rect x="186" y="56" width="7" height="34"/><rect x="204" y="64" width="7" height="26"/><rect x="222" y="68" width="7" height="22"/><rect x="240" y="60" width="7" height="30"/><rect x="258" y="58" width="7" height="32"/><rect x="276" y="64" width="7" height="26"/><rect x="294" y="52" width="7" height="38"/><rect x="312" y="58" width="7" height="32"/></g>
+            </svg>
+            <div class="legend"><span><s style="background:#f59e0b"></s>Amazon</span><span><s style="background:#111827"></s>Walmart + Temu</span></div>
+          </div>
+        </div>
+
+        <div class="grid" style="grid-template-columns:1.1fr 1fr 1fr">
+          <div class="card">
+            <h3>Needs attention <small>7</small></h3>
+            <div class="att"><span class="dot" style="background:var(--bad)"></span><div class="t"><b>3 · Channel sync failed</b><span>Booked, order not marked shipped</span></div><span class="link">Retry all</span></div>
+            <div class="att"><span class="dot" style="background:var(--bad)"></span><div class="t"><b>2 · Delivery exceptions</b><span>Carrier reports a problem</span></div><span class="link">Open</span></div>
+            <div class="att"><span class="dot" style="background:var(--warn)"></span><div class="t"><b>2 · SKU not mapped</b><span>Can't be booked until mapped</span></div><span class="link">Map SKU</span></div>
+          </div>
+          <div class="card">
+            <h3>Spend by carrier <small>CAD</small></h3>
+            <div class="row"><span class="n">Stallion Express</span><div class="hb"><u style="width:100%"></u></div><span class="v">4,120</span></div>
+            <div class="row"><span class="n">UniUni</span><div class="hb"><u style="width:68%"></u></div><span class="v">2,810</span></div>
+            <div class="row"><span class="n">FedEx</span><div class="hb"><u style="width:46%"></u></div><span class="v">1,902</span></div>
+            <div class="row"><span class="n">Shippo</span><div class="hb"><u style="width:25%"></u></div><span class="v">1,014</span></div>
+            <div class="faint" style="font-size:9.5px;margin-top:6px">Parcels booked here only; channel-carrier shipments have no cost in this app.</div>
+          </div>
+          <div class="card">
+            <h3>By channel &amp; marketplace <small>orders</small></h3>
+            <table>
+              <tr><th class="l">Channel</th><th>CA</th><th>US</th><th>MX</th></tr>
+              <tr><td class="l"><span class="ch amz">A</span> Amazon</td><td>402</td><td>188</td><td>—</td></tr>
+              <tr><td class="l"><span class="ch wm">W</span> Walmart</td><td>311</td><td>96</td><td>22</td></tr>
+              <tr><td class="l"><span class="ch tm">T</span> Temu</td><td>—</td><td>54</td><td>—</td></tr>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PAGE 2: ORDERS TAB -->
+<section class="page">
+  <div class="doc"><span>Beddora · Shipping › Orders · FBM dashboard</span><span>2 / 4 · Orders tab (today's list, plus state chips)</span></div>
+  <p class="note">The existing screen is kept exactly as built (same filter bar with Reset / Filter, 16 columns, row actions menu, pagination). The only enhancement: a <b>state chip row</b> with counts under the filters. A KPI or pipeline click lands here pre-filtered, and Back returns to the Overview.</p>
+  <div class="app">
+    <aside class="side">
+      <div class="brand">beddora</div>
+      <div class="nav">Dashboard</div><div class="nav">Procurement</div>
+      <div class="nav on">Shipping ▾</div><div class="sub on">Orders</div><div class="sub">Create shipment</div>
+      <div class="nav" style="margin-top:3px">Containers</div><div class="nav">Inventory</div>
+    </aside>
+    <div class="main">
+      <div class="top"><span>User</span><div class="avatar"></div></div>
+      <div class="content">
+        <div class="head"><h1>Orders</h1><span class="btn">Export Excel</span></div>
+        <div class="tabs"><div class="tab">Overview</div><div class="tab on">Orders <span class="pill neu">1,284</span></div></div>
+        <div class="card" style="margin-bottom:8px">
+          <h3>Filters <small>Type a search or pick filters, then filter</small></h3>
+          <div class="fgrid">
+            <div class="fld w"><label>Search</label><div class="ctl ph">Order #, customer order #, SKU, tracking #…</div></div>
+            <div class="fld"><label>Origin</label><div class="ctl ph">Manual and channel<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg></div></div>
+            <div class="fld"><label>Channel</label><div class="ctl ph">All channels<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg></div></div>
+            <div class="fld"><label>Marketplace</label><div class="ctl ph">All marketplaces<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg></div></div>
+            <div class="fld"><label>Fulfillment</label><div class="ctl chg">To Book<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg></div></div>
+            <div class="fld"><label>Order date</label><div class="ctl ph">Any date<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg></div></div>
+          </div>
+          <div class="fact"><span class="hint">1 filter changed · not applied yet</span><span class="btn">Reset</span><span class="btn p"><svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h18l-7 8v6l-4 2v-8z"/></svg> Filter</span></div>
+        </div>
+        <div style="display:flex;gap:6px;margin-bottom:8px;align-items:center">
+          <span class="faint" style="font-size:10px;margin-right:2px">STATE</span>
+          <span class="pill neu" style="padding:4px 10px">All 1,284</span>
+          <span class="pill warn" style="padding:4px 10px;outline:2px solid #f59e0b">To Book 38</span>
+          <span class="pill info" style="padding:4px 10px">Booked 21</span>
+          <span class="pill info" style="padding:4px 10px">In transit 164</span>
+          <span class="pill ok" style="padding:4px 10px">Delivered 912</span>
+          <span class="pill bad" style="padding:4px 10px">Attention 7</span>
+          <span class="pill neu" style="padding:4px 10px">Draft 4</span>
+        </div>
+        <div class="card" style="padding:0;overflow:hidden">
+          <table>
+            <tr><th>Origin</th><th>Channel</th><th>Market</th><th>Order</th><th>Order date</th><th>SKU</th><th>Qty</th><th>Fulfillment</th><th>Tracking status</th><th>Carrier</th><th>Tracking #</th><th>Carrier page</th><th>Net total</th><th>Tax</th><th>Total</th><th>Action</th></tr>
+            <tr><td><span class="pill info">Channel</span></td><td><span class="ch wm">W</span></td><td>CA</td><td><b>1089234</b><br><span class="faint">WM-77120</span></td><td>Nov 24, 09:12</td><td class="mono">BED-Q-GRY …</td><td>2</td><td><span class="pill warn">To Book</span></td><td class="faint">—</td><td class="faint">—</td><td class="faint">—</td><td class="faint">—</td><td>168.12</td><td>21.86</td><td>CAD 189.98</td><td class="dots">⋮</td></tr>
+            <tr><td><span class="pill info">Channel</span></td><td><span class="ch amz">A</span></td><td>US</td><td><b>113-88421-0021</b></td><td>Nov 24, 08:40</td><td class="mono">PIL-KG-2PK</td><td>1</td><td><span class="pill warn">To Book</span></td><td class="faint">—</td><td class="faint">—</td><td class="faint">—</td><td class="faint">—</td><td>64.50</td><td>0.00</td><td>CAD 64.50</td><td class="dots">⋮</td></tr>
+            <tr><td><span class="pill info">Channel</span></td><td><span class="ch amz">A</span></td><td>CA</td><td><b>701-55120-8812</b></td><td>Nov 23, 17:03</td><td class="mono">BED-K-WHT</td><td>1</td><td><span class="pill info">Booked</span></td><td><span class="pill neu">Label Created</span></td><td>UniUni · Standard</td><td class="mono">UU48210…</td><td class="link">Open</td><td>125.66</td><td>16.34</td><td>CAD 142.00</td><td class="dots">⋮</td></tr>
+            <tr><td><span class="pill info">Channel</span></td><td><span class="ch wm">W</span></td><td>CA</td><td><b>1088870</b></td><td>Nov 22, 11:30</td><td class="mono">DUV-Q-NVY</td><td>1</td><td><span class="pill ok">Shipped</span></td><td><span class="pill info">In Transit</span></td><td>Stallion · Ground</td><td class="mono">SE9920…</td><td class="link">Open</td><td>86.73</td><td>11.27</td><td>CAD 98.00</td><td class="dots">⋮</td></tr>
+            <tr><td><span class="pill warn">Manual</span></td><td><span class="ch tm">T</span></td><td>US</td><td><b>SHP-000212</b></td><td>Nov 21, 14:02</td><td class="mono">PIL-ST-1</td><td>3</td><td><span class="pill ok">Shipped</span></td><td><span class="pill bad">Exception</span></td><td>FedEx · Ground</td><td class="mono">7849…</td><td class="link">Open</td><td class="faint">—</td><td class="faint">—</td><td class="faint">—</td><td class="dots">⋮</td></tr>
+          </table>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:8px" class="faint"><span>Showing 1–20 of 38 orders</span><span>‹ 1 2 ›</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PAGE 3: INTERACTIONS -->
+<section class="page">
+  <div class="doc"><span>Beddora · Shipping › Orders · FBM dashboard</span><span>3 / 4 · Interactions, states, responsive</span></div>
+  <div class="cols">
+    <div>
+      <h2>Interactions</h2>
+      <table class="spec">
+        <tr><th style="width:26%">Element</th><th>Behaviour</th></tr>
+        <tr><td><b>KPI card</b></td><td>Click opens <b>Orders</b> with that state applied and the current channel / marketplace / date filters carried over. "To book" and "Needs attention" are outlined amber / red because they are the work queue.</td></tr>
+        <tr><td><b>Pipeline stage</b></td><td>Same as a KPI; bar length is the share of the largest stage.</td></tr>
+        <tr><td><b>Needs attention row</b></td><td>Inline action: <i>Retry all</i> (bulk "Retry mark shipped", write permission only), <i>Map SKU</i> (SKU mapper), Counts refresh after the action.</td></tr>
+        <tr><td><b>Top filters</b></td><td>Channel, marketplace and date range apply to every card on the tab, using the same staged "Filter" pattern as the list so cards don't flicker while picking.</td></tr>
+        <tr><td><b>Permissions</b></td><td><code>shipping:orders</code> read shows the Overview; write actions are hidden without write.</td></tr>
+        <tr><td><b>Export</b></td><td>Existing "shipping-orders" Excel export, scoped to the active filters.</td></tr>
+      </table>
+      <h2 style="margin-top:12px">States</h2>
+      <ul class="t">
+        <li><b>Loading:</b> card skeletons.</li>
+        <li><b>Empty:</b> "No orders in this range" with a "Last 90 days" shortcut (existing <code>EmptyState</code>).</li>
+        <li><b>Error:</b> a card fails alone with "Could not load" and Retry; the rest stays.</li>
+        <li><b>Unconnected channel:</b> greyed in the filter with "Not connected", as today.</li>
+        <li><b>Zero attention:</b> the card becomes a green "All clear" line.</li>
+      </ul>
+    </div>
+    <div>
+      <h2>Responsive</h2>
+      <div style="display:flex;gap:14px;align-items:flex-start">
+        <div class="phone">
+          <div style="font-weight:700;font-size:13px;margin-bottom:6px">Orders</div>
+          <div class="tabs" style="gap:10px;margin-bottom:6px;font-size:10px"><div class="tab on">Overview</div><div class="tab">Orders</div></div>
+          <div class="chip plain" style="width:100%;margin-bottom:6px">Filters (1) ▾</div>
+          <div class="grid" style="grid-template-columns:1fr 1fr;gap:6px">
+            <div class="kpi act" style="padding:6px 8px"><span>To book</span><b style="font-size:16px">38</b></div>
+            <div class="kpi bad" style="padding:6px 8px"><span>Attention</span><b style="font-size:16px;color:var(--bad)">7</b></div>
+            <div class="kpi" style="padding:6px 8px"><span>In transit</span><b style="font-size:16px">164</b></div>
+            <div class="kpi" style="padding:6px 8px"><span>Delivered</span><b style="font-size:16px">912</b></div>
+          </div>
+          <div class="card" style="margin-top:6px;padding:6px 8px"><h3 style="font-size:10px">Needs attention</h3><div class="att" style="padding:3px 0"><span class="dot" style="background:var(--bad)"></span><div class="t"><b>3 · Sync failed</b></div></div></div>
+          <div class="faint" style="font-size:9px;text-align:center;margin-top:6px">charts stack below</div>
+        </div>
+        <ul class="t" style="margin-top:0">
+          <li><b>≥ 1280px:</b> as page 1, six KPIs in a row.</li>
+          <li><b>768–1279px:</b> KPIs 3 × 2; the three bottom cards become two columns.</li>
+          <li><b>&lt; 768px:</b> KPIs 2 × 2 (spend folds into a "More" row); filters collapse behind one button; cards stack; tabs stay.</li>
+          <li>The Orders tab is today's table and keeps its horizontal scroll.</li>
+        </ul>
+      </div>
+      <h2 style="margin-top:12px">Colour and type</h2>
+      <p class="muted" style="margin:0">App tokens only: near-black primary, <code>success</code> / <code>warning</code> / <code>danger</code> for state, <code>StatusBadge</code> tones from <code>FULFILLMENT_META</code>, <code>--chart-*</code> variables for charts, Inter for type. Channels keep their existing <code>ChannelBadge</code>.</p>
+    </div>
+  </div>
+</section>
+
+<!-- PAGE 4: BUILD MAP -->
+<section class="page">
+  <div class="doc"><span>Beddora · Shipping › Orders · FBM dashboard</span><span>4 / 4 · What exists and what's needed to build it</span></div>
+  <div class="cols">
+    <div>
+      <h2>Where each card gets its data</h2>
+      <table class="spec">
+        <tr><th>Card</th><th style="width:70px">Status</th><th>Source</th></tr>
+        <tr><td>State counts (To book, Booked, Delivered…)</td><td><span class="tag have">HAVE</span></td><td><code>Fulfillment</code> on each order; needs a grouped count rather than paging the list.</td></tr>
+        <tr><td>In transit / Delivered / Exception</td><td><span class="tag have">HAVE</span></td><td>Booking's <code>latestEvent.status</code> (<code>ParcelStatus</code>).</td></tr>
+        <tr><td>Failed channel sync</td><td><span class="tag have">HAVE</span></td><td><code>booking.channelSync === 'FAILED'</code>; the retry mutation exists.</td></tr>
+        <tr><td>Drafts</td><td><span class="tag have">HAVE</span></td><td><code>DRAFT</code> fulfillment and <code>draftId</code>.</td></tr>
+        <tr><td>Orders per day by channel</td><td><span class="tag need">NEW</span></td><td>Aggregate by <code>orderDate</code> and channel.</td></tr>
+        <tr><td>Spend by carrier, avg per parcel</td><td><span class="tag need">NEW</span></td><td>Aggregate stored booking price.</td></tr>
+        <tr><td>Unmapped SKU count</td><td><span class="tag need">NEW</span></td><td>Detail lines already carry <code>product: null</code>; needs a count.</td></tr>
+        <tr><td>On-time %</td><td><span class="tag need">NEW</span></td><td>Needs estimated vs actual delivery per booking.</td></tr>
+        <tr><td>"Ship by" deadline / overdue</td><td><span class="tag need">MISSING</span></td><td>No ship-by date on orders today, so it is left out. Add a 7th KPI "Overdue to ship" once the channel's promised date is stored.</td></tr>
+      </table>
+    </div>
+    <div>
+      <h2>Build plan (reusing what's there)</h2>
+      <ul class="t">
+        <li><b>Backend:</b> one <code>GET /shipping/orders/overview</code> taking the list's filters (channels, countries, from, to) and returning counts, daily series, spend by carrier and attention counts, so the cards load together and share filters.</li>
+        <li><b>API slice:</b> <code>useGetOrdersOverviewQuery</code> in <code>services/api/shipping.api.ts</code>, beside <code>useGetChannelOrdersQuery</code>.</li>
+        <li><b>Feature:</b> <code>features/shipping/orders/overview/</code> with <code>OverviewTab</code> and small pure cards (<code>PipelineCard</code>, <code>AttentionCard</code>, <code>SpendCard</code>, <code>OrdersPerDayCard</code>) so one failing card doesn't block the rest.</li>
+        <li><b>Reuse:</b> <code>KpiCard</code>, <code>FilterBar</code> + <code>useStagedFilters</code>, <code>DateRangePicker</code>, <code>StatusBadge</code>, <code>ChannelBadge</code>, <code>EmptyState</code>, <code>design-system/charts</code>, <code>FULFILLMENT_META</code>, <code>STATUS_TONE</code>.</li>
+        <li><b>Routing:</b> tab in the address (<code>?tab=overview|orders</code>), like the booking drawer's <code>?shipment=</code>. KPI clicks write <code>?tab=orders&amp;states=…</code>; <code>OrdersScreen</code> reads <code>states</code> as initial filter, as it already does for <code>search</code>.</li>
+        <li><b>Permissions:</b> reuse <code>shipping:orders</code>; no new subject.</li>
+      </ul>
+      <h2 style="margin-top:12px">Decisions for you</h2>
+      <ul class="t">
+        <li>Tabs (Overview | Orders) as drawn, or the KPI strip above the existing list on one page?</li>
+        <li>Overview as the default landing, or keep landing on the list?</li>
+        <li>Is on-time % needed in v1 (needs delivery-date data)?</li>
+        <li>Can we store a promised ship-by date from Amazon / Walmart for an "Overdue" KPI?</li>
+      </ul>
+    </div>
+  </div>
+</section>
+<section class="page"><div class="doc"><span>Beddora &middot; Shipping &rsaquo; Orders &middot; Bulk rates &amp; bulk book</span><span>1 / 6 &middot; Select orders on the Orders tab</span></div>
+<p class="note">Orders tab as today, plus a checkbox column and a selection bar. Tick To Book orders, then <b>Get rates</b>. Figures are sample data.</p><div class="app"><aside class="side"><div class="brand">beddora</div><div class="nav">Dashboard</div><div class="nav">Procurement</div><div class="nav on">Shipping &#9662;</div><div class="sub on">Orders</div><div class="sub">Create shipment</div><div class="nav" style="margin-top:3px">Containers</div><div class="nav">Inventory</div></aside><div class="main"><div class="top"><span>User</span><div class="avatar"></div></div><div class="content rel" style="flex:1"><div class="head"><h1>Orders</h1><span class="btn">Export Excel</span></div>
+<div class="tabs"><div class="tab">Overview</div><div class="tab on">Orders <span class="pill neu">1,284</span></div></div>
+<div class="card" style="margin-bottom:8px"><h3 style="margin-bottom:4px">Filters <small>Type a search or pick filters, then filter</small></h3>
+<div class="fgrid"><div class="fld w"><label>Search</label><div class="ctl ph">Order #, customer order #, SKU, tracking #&hellip;</div></div><div class="fld"><label>Origin</label><div class="ctl ph ">Manual and channel<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg></div></div><div class="fld"><label>Channel</label><div class="ctl ph ">All channels<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg></div></div><div class="fld"><label>Marketplace</label><div class="ctl ph ">All marketplaces<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg></div></div><div class="fld"><label>Fulfillment</label><div class="ctl  ">To Book<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg></div></div><div class="fld"><label>Order date</label><div class="ctl ph ">Any date<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg></div></div>
+<div class="fact" style="margin:0"><span class="btn">Reset</span><span class="btn p">Filter</span></div></div></div>
+<div class="selbar"><span class="cb on" style="border-color:#fff;background:#fff"></span><b>3 selected</b><span>of 38 To Book on this page</span><span class="lk">Select all 38 matching filters</span><span style="margin-left:auto" class="lk">Clear</span><span class="btn w">Get rates (3)</span></div>
+<div class="card rel" style="padding:0;overflow:hidden"><table><tr><th style="width:24px"><span class="cb mix"></span></th><th>Origin</th><th>Channel</th><th>Market</th><th>Order</th><th>Order date</th><th>SKU</th><th>Qty</th><th>Fulfillment</th><th>&hellip;</th><th>Total</th><th>Action</th></tr><tr style="background:#f8fafc"><td><span class="cb on"></span></td><td><span class="pill info">Channel</span></td><td><span class="ch wm">W</span></td><td>CA</td><td><b>1089234</b></td><td>Nov 24, 09:12</td><td class="mono">BED-Q-GRY</td><td>2</td><td><span class="pill warn">To Book</span></td><td class="faint">&hellip;</td><td>CAD 189.98</td><td class="dots">&#8942;</td></tr><tr style="background:#f8fafc"><td><span class="cb on"></span></td><td><span class="pill info">Channel</span></td><td><span class="ch amz">A</span></td><td>US</td><td><b>113-88421-0021</b></td><td>Nov 24, 08:40</td><td class="mono">PIL-KG-2PK</td><td>1</td><td><span class="pill warn">To Book</span></td><td class="faint">&hellip;</td><td>CAD 64.50</td><td class="dots">&#8942;</td></tr><tr style="background:#f8fafc"><td><span class="cb on"></span></td><td><span class="pill info">Channel</span></td><td><span class="ch amz">A</span></td><td>CA</td><td><b>701-55120-9004</b></td><td>Nov 24, 07:58</td><td class="mono">BED-K-WHT</td><td>1</td><td><span class="pill warn">To Book</span></td><td class="faint">&hellip;</td><td>CAD 142.00</td><td class="dots">&#8942;</td></tr><tr style=""><td><span class="cb "></span></td><td><span class="pill info">Channel</span></td><td><span class="ch wm">W</span></td><td>CA</td><td><b>1089101</b></td><td>Nov 23, 19:21</td><td class="mono">DUV-Q-NVY</td><td>1</td><td><span class="pill warn">To Book</span></td><td class="faint">&hellip;</td><td>CAD 98.00</td><td class="dots">&#8942;</td></tr><tr style=""><td><span class="cb off"></span></td><td><span class="pill info">Channel</span></td><td><span class="ch amz">A</span></td><td>CA</td><td><b>701-55120-8812</b></td><td>Nov 23, 17:03</td><td class="mono">BED-K-WHT</td><td>1</td><td><span class="pill info">Booked</span></td><td class="faint">&hellip;</td><td>CAD 142.00</td><td class="dots">&#8942;</td></tr><tr style=""><td><span class="cb off"></span></td><td><span class="pill info">Channel</span></td><td><span class="ch wm">W</span></td><td>CA</td><td><b>1088870</b></td><td>Nov 22, 11:30</td><td class="mono">DUV-Q-NVY</td><td>1</td><td><span class="pill ok">Shipped</span></td><td class="faint">&hellip;</td><td>CAD 98.00</td><td class="dots">&#8942;</td></tr></table>
+<div class="tip" style="left:24px;top:172px">Already booked: nothing to book</div></div>
+<div class="faint" style="margin-top:6px;font-size:10px">Only To Book orders can be ticked. Other rows keep a disabled box with the reason on hover. Every other column and the pagination footer are as today (shown shortened here).</div></div></div></div></section><section class="page"><div class="doc"><span>Beddora &middot; Shipping &rsaquo; Orders &middot; Bulk rates &amp; bulk book</span><span>2 / 6 &middot; Step 1: Review</span></div>
+<p class="note">A readiness check before any rate is requested, so a bad order never wastes a quote. One shared ship-from and shipment defaults, per-order checks below.</p><div class="app"><aside class="side"><div class="brand">beddora</div><div class="nav">Dashboard</div><div class="nav">Procurement</div><div class="nav on">Shipping &#9662;</div><div class="sub on">Orders</div><div class="sub">Create shipment</div><div class="nav" style="margin-top:3px">Containers</div><div class="nav">Inventory</div></aside><div class="main"><div class="top"><span>User</span><div class="avatar"></div></div><div class="content rel" style="flex:1"><div class="head"><h1>Get rates for 6 orders</h1><span class="btn">Back to Orders</span></div><div class="stepper"><div class="stp on"><i>1</i>Review</div><div class="stp "><i>2</i>Rates</div><div class="stp "><i>3</i>Confirm</div><div class="stp "><i>4</i>Booking</div></div>
+<div class="grid" style="grid-template-columns:1fr 2fr;margin-bottom:8px">
+<div class="card"><h3>Ship from <small>applies to all</small></h3><div class="fld"><label>Ship from</label><div class="ctl  ">Warehouse A &middot; Mississauga, ON<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg></div></div>
+<div class="faint" style="font-size:9.5px;margin-top:6px">Orders use the default ship-from. Change it per order later from the Rates step.</div></div>
+<div class="card"><h3>Shipment defaults <small>same options as the single-order Shipment info step</small></h3>
+<div class="fgrid" style="grid-template-columns:repeat(4,1fr)"><div class="fld"><label>Incoterm</label><div class="ctl  ">DAP (customer pays duties)<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg></div></div><div class="fld"><label>Handover</label><div class="ctl  ">Drop-off<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg></div></div><div class="fld"><label>Signature</label><div class="ctl  ">Not required<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg></div></div><div class="fld"><label>Providers</label><div class="ctl  ">All 4 enabled<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg></div></div></div>
+<div class="faint" style="font-size:9.5px;margin-top:6px">Package, products and customs are filled from each order and our products, exactly as when booking one order.</div></div></div>
+<div class="card" style="padding:0;overflow:hidden"><table ><tr><th class="l">Order</th><th>Channel</th><th class="l">Lane</th><th class="l">Items</th><th>Ship-to</th><th>Products mapped</th><th>Package</th><th>Customs</th><th>Status</th><th>Action</th></tr><tr><td class="l"><b>1089234</b></td><td><span class="ch wm">W</span></td><td class="l">Warehouse A &rarr; Toronto, ON</td><td class="l mono">2 &times; BED-Q-GRY</td><td><span style="color:var(--ok);font-weight:700">&#10003;</span></td><td><span style="color:var(--ok);font-weight:700">&#10003;</span></td><td><span style="color:var(--ok);font-weight:700">&#10003;</span></td><td><span style="color:var(--ok);font-weight:700">&#10003;</span></td><td><span class="pill ok">Ready</span></td><td></td></tr><tr><td class="l"><b>113-88421-0021</b></td><td><span class="ch amz">A</span></td><td class="l">Warehouse A &rarr; Buffalo, NY</td><td class="l mono">1 &times; PIL-KG-2PK</td><td><span style="color:var(--ok);font-weight:700">&#10003;</span></td><td><span style="color:var(--ok);font-weight:700">&#10003;</span></td><td><span style="color:var(--ok);font-weight:700">&#10003;</span></td><td><span style="color:var(--ok);font-weight:700">&#10003;</span></td><td><span class="pill ok">Ready</span></td><td></td></tr><tr><td class="l"><b>701-55120-9004</b></td><td><span class="ch amz">A</span></td><td class="l">Warehouse A &rarr; Calgary, AB</td><td class="l mono">1 &times; BED-K-WHT</td><td><span style="color:var(--ok);font-weight:700">&#10003;</span></td><td><span style="color:var(--ok);font-weight:700">&#10003;</span></td><td><span style="color:var(--ok);font-weight:700">&#10003;</span></td><td><span style="color:var(--ok);font-weight:700">&#10003;</span></td><td><span class="pill ok">Ready</span></td><td></td></tr><tr><td class="l"><b>1089101</b></td><td><span class="ch wm">W</span></td><td class="l">Warehouse A &rarr; Ottawa, ON</td><td class="l mono">1 &times; DUV-Q-NVY</td><td><span style="color:var(--ok);font-weight:700">&#10003;</span></td><td><span style="color:var(--ok);font-weight:700">&#10003;</span></td><td><span style="color:var(--ok);font-weight:700">&#10003;</span></td><td><span style="color:var(--ok);font-weight:700">&#10003;</span></td><td><span class="pill ok">Ready</span></td><td></td></tr><tr><td class="l"><b>113-77310-4410</b></td><td><span class="ch amz">A</span></td><td class="l">Warehouse A &rarr; Austin, TX</td><td class="l mono">1 &times; PIL-ST-1</td><td><span style="color:var(--ok);font-weight:700">&#10003;</span></td><td><span style="color:var(--bad);font-weight:700">&#10005;</span></td><td><span style="color:var(--ok);font-weight:700">&#10003;</span></td><td><span style="color:var(--ok);font-weight:700">&#10003;</span></td><td><span class="pill bad">SKU not mapped</span></td><td><span class=link>Map SKU</span></td></tr><tr><td class="l"><b>113-77310-5521</b></td><td><span class="ch amz">A</span></td><td class="l">Warehouse A &rarr; Seattle, WA</td><td class="l mono">2 &times; BED-Q-GRY</td><td><span style="color:var(--ok);font-weight:700">&#10003;</span></td><td><span style="color:var(--ok);font-weight:700">&#10003;</span></td><td><span style="color:var(--ok);font-weight:700">&#10003;</span></td><td><span style="color:var(--bad);font-weight:700">&#10005;</span></td><td><span class="pill bad">HS code missing</span></td><td><span class=link>Fix</span></td></tr></table></div>
+<div class="foot"><span class="muted"><b>4 ready</b> &middot; 2 need fixing (skipped unless fixed)</span><div style="display:flex;gap:6px"><span class="btn">Cancel</span><span class="btn p">Get rates for 4 ready orders</span></div></div></div></div></div></section><section class="page"><div class="doc"><span>Beddora &middot; Shipping &rsaquo; Orders &middot; Bulk rates &amp; bulk book</span><span>3 / 6 &middot; Step 2: Rates</span></div>
+<p class="note">One row per order. A rule fills the cheapest / fastest / best-value pick for all; each row has its own rate select (open on the third row).</p><div class="app"><aside class="side"><div class="brand">beddora</div><div class="nav">Dashboard</div><div class="nav">Procurement</div><div class="nav on">Shipping &#9662;</div><div class="sub on">Orders</div><div class="sub">Create shipment</div><div class="nav" style="margin-top:3px">Containers</div><div class="nav">Inventory</div></aside><div class="main"><div class="top"><span>User</span><div class="avatar"></div></div><div class="content rel" style="flex:1"><div class="head"><h1>Rates for 4 orders</h1><span class="btn">Back to Review</span></div><div class="stepper"><div class="stp done"><i>&#10003;</i>Review</div><div class="stp on"><i>2</i>Rates</div><div class="stp "><i>3</i>Confirm</div><div class="stp "><i>4</i>Booking</div></div>
+<div class="card" style="margin-bottom:8px;display:flex;gap:14px;align-items:center;flex-wrap:wrap">
+<div><div class="faint" style="font-size:9.5px;margin-bottom:3px">PICK FOR ALL</div><div class="seg"><span class="on">Cheapest</span><span>Fastest</span><span>Best value</span><span>Preferred carrier</span></div></div>
+<div style="width:150px"><div class="fld"><label>Preferred carrier</label><div class="ctl ph ">Any carrier<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg></div></div></div>
+<div class="faint" style="font-size:10px;max-width:330px">Picks one rate per order by your rule. You can still change any row, and a hand-picked row is kept when the rule changes.</div>
+<div style="margin-left:auto;font-size:10px" class="muted"><span class="spin"></span> 3 of 4 priced &middot; rates load live per order</div></div>
+<div class="card" style="padding:0;overflow:visible"><table><tr><th class="l" style="width:24px"><span class="cb on"></span></th><th class="l">Order</th><th class="l">To</th><th class="l">Parcel</th><th>Rates</th><th class="l" style="width:230px">Selected rate</th><th>Price</th><th>Est. delivery</th><th>Action</th></tr><tr><td class="l"><span class="cb on"></span></td><td class="l"><span class="ch wm">W</span> <b>1089234</b></td><td class="l">Toronto, ON</td><td class="l faint" style="font-size:9.5px">1 parcel &middot; 61&times;41&times;18 cm &middot; 9.2 kg</td><td><span class="pill ok">4 rates</span></td><td class="l rel" style="overflow:visible"><div class="ctl" style="height:28px;justify-content:space-between;text-align:left"><span>UniUni &middot; Standard &middot; 2&ndash;3 d <span class="pill ok">Cheapest</span></span><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg></div></td><td><b>CAD 14.20</b></td><td>Thu, Nov 27</td><td class="dots">&#8942;</td></tr><tr><td class="l"><span class="cb on"></span></td><td class="l"><span class="ch amz">A</span> <b>113-88421-0021</b></td><td class="l">Buffalo, NY</td><td class="l faint" style="font-size:9.5px">1 parcel &middot; 45&times;30&times;20 cm &middot; 3.1 kg</td><td><span class="pill ok">5 rates</span></td><td class="l rel" style="overflow:visible"><div class="ctl" style="height:28px;justify-content:space-between;text-align:left"><span>Stallion &middot; Ground &middot; 3&ndash;5 d <span class="pill ok">Cheapest</span></span><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg></div></td><td><b>CAD 19.85</b></td><td>Fri, Nov 28</td><td class="dots">&#8942;</td></tr><tr><td class="l"><span class="cb on"></span></td><td class="l"><span class="ch amz">A</span> <b>701-55120-9004</b></td><td class="l">Calgary, AB</td><td class="l faint" style="font-size:9.5px">1 parcel &middot; 70&times;50&times;22 cm &middot; 12.4 kg</td><td><span class="pill ok">4 rates</span></td><td class="l rel" style="overflow:visible"><div class="ctl" style="height:28px;justify-content:space-between;text-align:left"><span>FedEx &middot; Ground &middot; 4&ndash;6 d <span class="pill warn">Changed</span></span><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg></div><div class="menu" style="left:0;top:30px"><div><span>UniUni &middot; Standard &middot; 3&ndash;5 d</span><b>CAD 23.10</b></div><div class="sel"><span>FedEx &middot; Ground &middot; 4&ndash;6 d</span><b>CAD 24.60</b></div><div><span>Stallion &middot; Ground &middot; 3&ndash;5 d <span class="pill ok">Cheapest</span></span><b>CAD 21.35</b></div><div><span>FedEx &middot; Express &middot; 1&ndash;2 d <span class="pill info">Fastest</span></span><b>CAD 61.90</b></div></div></td><td><b>CAD 24.60</b></td><td>Mon, Dec 1</td><td class="dots">&#8942;</td></tr><tr><td class="l"><span class="cb on"></span></td><td class="l"><span class="ch wm">W</span> <b>1089101</b></td><td class="l">Ottawa, ON</td><td class="l faint" style="font-size:9.5px">1 parcel &middot; 61&times;41&times;18 cm &middot; 8.8 kg</td><td><span class="pill neu"><span class="spin"></span> Loading</span></td><td class="l rel" style="overflow:visible"><div class="ctl ph" style="height:28px">Waiting for rates</div></td><td><b>&mdash;</b></td><td>&mdash;</td><td class="dots">&#8942;</td></tr></table></div>
+<div class="faint" style="margin-top:6px;font-size:10px"><span class="pill warn">Changed</span> the row's pick was changed by hand. Rows with no rates show the carriers' reasons and a link to open that order alone.</div>
+<div class="foot"><span><b>3 orders priced</b> &middot; CAD 58.65 total &middot; avg CAD 19.55</span><div style="display:flex;gap:6px"><span class="btn">Back</span><span class="btn p dis">Review booking (3)</span></div></div></div></div></div></section><section class="page"><div class="doc"><span>Beddora &middot; Shipping &rsaquo; Orders &middot; Bulk rates &amp; bulk book</span><span>4 / 6 &middot; Step 3: Confirm</span></div>
+<p class="note">Every order with its chosen carrier, delivery estimate and price, then the total. This is the only step that spends money.</p><div class="app"><aside class="side"><div class="brand">beddora</div><div class="nav">Dashboard</div><div class="nav">Procurement</div><div class="nav on">Shipping &#9662;</div><div class="sub on">Orders</div><div class="sub">Create shipment</div><div class="nav" style="margin-top:3px">Containers</div><div class="nav">Inventory</div></aside><div class="main"><div class="top"><span>User</span><div class="avatar"></div></div><div class="content rel" style="flex:1"><div class="head"><h1>Book 3 orders</h1></div><div class="stepper"><div class="stp done"><i>&#10003;</i>Review</div><div class="stp done"><i>&#10003;</i>Rates</div><div class="stp on"><i>3</i>Confirm</div><div class="stp "><i>4</i>Booking</div></div>
+<div class="card"><h3>Confirm <small>nothing is bought until you press Book</small></h3>
+<table><tr><th class="l">Order</th><th>Channel</th><th class="l">Ship to</th><th class="l">Parcel</th><th class="l">Carrier &middot; service</th><th>Transit</th><th>Est. delivery</th><th>Price (CAD)</th></tr><tr><td class="l"><b>1089234</b></td><td><span class="ch wm">W</span></td><td class="l">Toronto, ON</td><td class="l faint" style="font-size:9.5px">1 parcel</td><td class="l">UniUni &middot; Standard</td><td>2&ndash;3 d</td><td>Thu, Nov 27</td><td><b>14.20</b></td></tr><tr><td class="l"><b>113-88421-0021</b></td><td><span class="ch amz">A</span></td><td class="l">Buffalo, NY</td><td class="l faint" style="font-size:9.5px">1 parcel</td><td class="l">Stallion &middot; Ground</td><td>3&ndash;5 d</td><td>Fri, Nov 28</td><td><b>19.85</b></td></tr><tr><td class="l"><b>701-55120-9004</b></td><td><span class="ch amz">A</span></td><td class="l">Calgary, AB</td><td class="l faint" style="font-size:9.5px">1 parcel</td><td class="l">FedEx &middot; Ground</td><td>4&ndash;6 d</td><td>Mon, Dec 1</td><td><b>24.60</b></td></tr><tr><td class="l" colspan="7" style="text-align:right"><b>Total (3 parcels)</b></td><td><b>58.65</b></td></tr></table>
+<div class="faint" style="font-size:10px;margin:8px 0 0">By carrier: UniUni 1 &middot; CAD 14.20 &nbsp;|&nbsp; Stallion 1 &middot; CAD 19.85 &nbsp;|&nbsp; FedEx 1 &middot; CAD 24.60</div>
+<div style="background:var(--warn-bg);color:var(--warn);border-radius:8px;padding:7px 10px;margin:10px 0;font-size:10px">Booking buys each label and marks the order shipped on its channel. Each parcel can be voided one by one from its booking, not as a batch. Change a rate by going Back to the Rates step.</div>
+<div style="display:flex;justify-content:flex-end;gap:6px"><span class="btn">Back</span><span class="btn p">Book 3 parcels &middot; CAD 58.65</span></div></div></div></div></div></section><section class="page"><div class="doc"><span>Beddora &middot; Shipping &rsaquo; Orders &middot; Bulk rates &amp; bulk book</span><span>5 / 6 &middot; Step 4: Booking</span></div>
+<p class="note">After Book: each order is booked in the background and reports its own result.</p><div class="app"><aside class="side"><div class="brand">beddora</div><div class="nav">Dashboard</div><div class="nav">Procurement</div><div class="nav on">Shipping &#9662;</div><div class="sub on">Orders</div><div class="sub">Create shipment</div><div class="nav" style="margin-top:3px">Containers</div><div class="nav">Inventory</div></aside><div class="main"><div class="top"><span>User</span><div class="avatar"></div></div><div class="content rel" style="flex:1"><div class="head"><h1>Book 3 orders</h1></div><div class="stepper"><div class="stp done"><i>&#10003;</i>Review</div><div class="stp done"><i>&#10003;</i>Rates</div><div class="stp done"><i>&#10003;</i>Confirm</div><div class="stp on"><i>4</i>Booking</div></div>
+<div class="card"><h3>Booking <small>runs on the server: safe to leave this page</small></h3>
+<div class="hb" style="margin:4px 0 8px"><u style="width:100%;background:var(--ok)"></u></div>
+<div style="font-size:10.5px;margin-bottom:6px"><b>2 booked</b> &middot; <b style="color:var(--bad)">1 failed</b> &middot; 0 running &middot; CAD 34.05 spent</div>
+<table><tr><th class="l">Order</th><th class="l">Ship to</th><th class="l">Carrier &middot; service</th><th>Status</th><th class="l">Tracking / reason</th><th>Channel</th><th>Action</th></tr><tr><td class="l"><b>1089234</b></td><td class="l">Toronto, ON</td><td class="l">UniUni &middot; Standard</td><td><span class="pill ok">Booked</span></td><td class="l mono">UU4821093</td><td><span class="pill ok">Marked shipped</span></td><td><span class=dots>&#8942;</span></td></tr><tr><td class="l"><b>113-88421-0021</b></td><td class="l">Buffalo, NY</td><td class="l">Stallion &middot; Ground</td><td><span class="pill ok">Booked</span></td><td class="l mono">SE99201</td><td><span class="pill ok">Marked shipped</span></td><td><span class=dots>&#8942;</span></td></tr><tr><td class="l"><b>701-55120-9004</b></td><td class="l">Calgary, AB</td><td class="l">FedEx &middot; Ground</td><td><span class="pill bad">Failed</span></td><td class="l mono">Address not serviceable by FedEx</td><td>&mdash;</td><td><span class=link>Retry</span></td></tr></table>
+<div style="display:flex;justify-content:flex-end;gap:6px;margin-top:10px"><span class="btn">Retry failed (1)</span><span class="btn">Print all labels (2)</span><span class="btn p">Back to Orders</span></div>
+<div class="faint" style="font-size:9.5px;margin-top:6px">While running, each row shows Queued / Booking with a spinner. Failed rows stay To Book in the Orders list and nothing is charged for them.</div></div></div></div></div></section><section class="page"><div class="doc"><span>Beddora &middot; Shipping &rsaquo; Orders &middot; Bulk rates &amp; bulk book</span><span>6 / 6 &middot; Rules and build map</span></div><div class="cols"><div>
+<h2>Rules</h2>
+<table class="spec"><tr><th style="width:27%">Topic</th><th>Behaviour</th></tr>
+<tr><td><b>Who can be selected</b></td><td>To Book channel orders only (manual shipments and drafts keep their own flow). Needs <code>shipping:orders</code> write; without it no checkboxes show.</td></tr>
+<tr><td><b>Selection size</b></td><td>Page or "all matching filters", capped (proposed 50 per batch) with a clear message above that.</td></tr>
+<tr><td><b>Review</b></td><td>Same checks the single flow makes (mapped SKUs, ship-to, package, customs). Blocked orders are listed with the fix link and skipped unless fixed; they never block the rest.</td></tr>
+<tr><td><b>Rates</b></td><td>Fetched per order over the existing rate stream, a few at a time. Rows fill in as they arrive. "Pick for all" uses the existing Cheapest / Fastest / Best value tags; manual picks stick.</td></tr>
+<tr><td><b>Booking</b></td><td>One booking job per order, each with its own idempotency key, so a retry or double click can't buy a label twice. Partial success is normal: booked rows stay booked, failed rows are retried alone.</td></tr>
+<tr><td><b>Leaving the page</b></td><td>Jobs run server side. Back in Orders the rows show Booking / Booked, and the realtime stream updates them.</td></tr>
+<tr><td><b>Money</b></td><td>The Confirm step is the only point that spends. It shows the total and per-carrier split; the button names the amount.</td></tr></table>
+</div><div>
+<h2>Built from what exists</h2>
+<ul class="t"><li><b>Reuse:</b> <code>useRateStream</code>, <code>rateRanking</code> (tags and sorting), <code>RateRow</code> text and <code>CarrierLogo</code>, <code>useStartBookingMutation</code> + <code>useBookingJob</code> (realtime <code>shipping.booking</code>), <code>valuesFromOrder</code> and <code>unmappedLines</code> (readiness), <code>PrintDialog</code>, <code>WizardStepper</code>, <code>FilterBar</code>, <code>SearchableSelect</code>, <code>StatusBadge</code>.</li>
+<li><b>New screen:</b> <code>features/shipping/orders/bulk/</code> with <code>BulkBookScreen</code> and a small state hook that holds the selected orders, each row's quoted rates and chosen rate; one row component per step.</li>
+<li><b>Orders list:</b> a checkbox column, header checkbox, and the selection bar; selection kept in the address or session storage so Back from the bulk page restores it.</li>
+<li><b>Route:</b> <code>/dashboard/shipping/orders/bulk</code>.</li></ul>
+<h2 style="margin-top:10px">Backend needs</h2>
+<ul class="t"><li><span class="tag need">CHECK</span> Today's rates and booking are per order. Looping them from the browser works for small batches; for 50 orders a <b>batch endpoint</b> (create batch, then realtime per-order results) is safer, runs when the tab closes, and enforces the cap.</li>
+<li><span class="tag need">CHECK</span> How long a quoted rate stays valid; if short, Confirm must re-quote rows older than that before booking.</li>
+<li><span class="tag need">CHECK</span> Carrier rate-limits for many parallel quotes (decides the concurrency).</li></ul>
+<h2 style="margin-top:10px">Decisions for you</h2>
+<ul class="t"><li>Cap per batch (50?) and whether "select all matching filters" is allowed.</li>
+<li>Skip blocked orders automatically, or stop and make the user fix them first?</li>
+<li>Should "Pick for all" remember the last rule per user?</li>
+<li>Batch endpoint now, or ship the browser-side loop first?</li></ul>
+</div></div></section><section class="page"><div class="doc"><span>Beddora &middot; Shipping &rsaquo; Orders &middot; Bulk labels, tracking &amp; cancel</span><span>1 / 5 &middot; Bulk actions on booked orders</span></div><p class="note">After booking, the same selection bar offers one Bulk actions menu: labels, tracking, cancel. Sample data.</p><div class="app"><aside class="side"><div class="brand">beddora</div><div class="nav">Dashboard</div><div class="nav">Procurement</div><div class="nav on">Shipping &#9662;</div><div class="sub on">Orders</div><div class="sub">Create shipment</div><div class="nav" style="margin-top:3px">Containers</div><div class="nav">Inventory</div></aside><div class="main"><div class="top"><span>User</span><div class="avatar"></div></div><div class="content rel" style="flex:1"><div class="head"><h1>Orders</h1><span class="btn">Export Excel</span></div>
+<div class="tabs"><div class="tab">Overview</div><div class="tab on">Orders <span class="pill neu">1,284</span></div></div>
+<div class="card" style="margin-bottom:8px"><h3 style="margin-bottom:4px">Filters <small>Type a search or pick filters, then filter</small></h3>
+<div class="fgrid"><div class="fld w"><label>Search</label><div class="ctl ph">Order #, customer order #, SKU, tracking #&hellip;</div></div><div class="fld"><label>Channel</label><div class="ctl ph ">All channels<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg></div></div><div class="fld"><label>Marketplace</label><div class="ctl ph ">All marketplaces<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg></div></div><div class="fld"><label>Fulfillment</label><div class="ctl  chg">Booked, Shipped<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg></div></div><div class="fld"><label>Order date</label><div class="ctl ph ">Any date<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg></div></div>
+<div class="fact" style="margin:0"><span class="btn">Reset</span><span class="btn p">Filter</span></div></div></div>
+<div class="selbar"><span class="cb on" style="border-color:#fff;background:#fff"></span><b>4 selected</b><span class="lk">Select all 212 matching filters</span><span class="lk">Clear</span>
+<span style="margin-left:auto" class="btn w">Bulk actions &#9662;</span></div>
+<div class="card rel" style="padding:0;overflow:visible"><table><tr><th style="width:24px"><span class="cb mix"></span></th><th>Channel</th><th>Order</th><th>Fulfillment</th><th>Tracking status</th><th>Carrier</th><th>Tracking #</th><th>Carrier page</th><th>Total</th><th>Action</th></tr><tr style="background:#f8fafc"><td><span class="cb on"></span></td><td><span class="ch wm">W</span></td><td><b>1089234</b></td><td><span class="pill info">Booked</span></td><td><span class="pill neu">Label Created</span></td><td>UniUni &middot; Standard</td><td class="mono">UU4821093</td><td><span class="link">Open</span></td><td>CAD 189.98</td><td class="dots">&#8942;</td></tr><tr style="background:#f8fafc"><td><span class="cb on"></span></td><td><span class="ch amz">A</span></td><td><b>113-88421-0021</b></td><td><span class="pill info">Booked</span></td><td><span class="pill info">In Transit</span></td><td>Stallion &middot; Ground</td><td class="mono">SE99201</td><td><span class="link">Open</span></td><td>CAD 64.50</td><td class="dots">&#8942;</td></tr><tr style="background:#f8fafc"><td><span class="cb on"></span></td><td><span class="ch amz">A</span></td><td><b>701-55120-9004</b></td><td><span class="pill ok">Shipped</span></td><td><span class="pill info">Out For Delivery</span></td><td>FedEx &middot; Ground</td><td class="mono">784921</td><td><span class="link">Open</span></td><td>CAD 142.00</td><td class="dots">&#8942;</td></tr><tr style="background:#f8fafc"><td><span class="cb on"></span></td><td><span class="ch wm">W</span></td><td><b>1088870</b></td><td><span class="pill ok">Shipped</span></td><td><span class="pill bad">Exception</span></td><td>Stallion &middot; Ground</td><td class="mono">SE99188</td><td><span class="link">Open</span></td><td>CAD 98.00</td><td class="dots">&#8942;</td></tr><tr style=""><td><span class="cb "></span></td><td><span class="ch amz">A</span></td><td><b>701-55120-8812</b></td><td><span class="pill info">Booked</span></td><td><span class="pill neu">Label Created</span></td><td>UniUni &middot; Standard</td><td class="mono">UU4821050</td><td><span class="link">Open</span></td><td>CAD 142.00</td><td class="dots">&#8942;</td></tr><tr style=""><td><span class="cb off"></span></td><td><span class="ch wm">W</span></td><td><b>1087001</b></td><td><span class="pill ok">Shipped</span></td><td><span class="pill ok">Delivered</span></td><td>UniUni &middot; Standard</td><td class="mono">UU4820111</td><td><span class="link">Open</span></td><td>CAD 88.00</td><td class="dots">&#8942;</td></tr></table>
+<div class="amenu"><div><span>Print labels</span><span class="faint">4 of 4</span></div><div><span>Print commercial invoices</span><span class="faint">1 of 4</span></div><hr><div><span>Refresh tracking</span><span class="faint">4 of 4</span></div><div><span>Copy tracking numbers</span><span class="faint">4</span></div><hr><div class="d"><span>Cancel / void labels</span><span>2 of 4</span></div></div></div>
+<div class="faint" style="margin-top:6px;font-size:10px">One menu for everything after booking; the number says how many of the selected orders each action can act on (the rest are skipped with a reason, never silently). Book actions (Get rates) appear instead when the selection is To Book orders. Delivered rows can't be ticked for actions that can't apply.</div></div></div></div></section><section class="page"><div class="doc"><span>Beddora &middot; Shipping &rsaquo; Orders &middot; Bulk labels, tracking &amp; cancel</span><span>2 / 5 &middot; Print labels in bulk</span></div><p class="note">Same print dialog as today, for many orders. Everything is shown in the dialog before printing, including who is skipped.</p><div class="app"><aside class="side"><div class="brand">beddora</div><div class="nav">Dashboard</div><div class="nav">Procurement</div><div class="nav on">Shipping &#9662;</div><div class="sub on">Orders</div><div class="sub">Create shipment</div><div class="nav" style="margin-top:3px">Containers</div><div class="nav">Inventory</div></aside><div class="main"><div class="top"><span>User</span><div class="avatar"></div></div><div class="content rel" style="flex:1"><div class="head"><h1>Orders</h1></div><div style="height:calc(100% - 36px);overflow:hidden"><div class="scrim" style="height:100%"><div class="modal" style="width:560px;margin:0 auto">
+<h2>Print labels &middot; 4 orders</h2>
+<div class="fld" style="margin-bottom:8px"><label>Document</label><div class="seg"><span class="on">Shipping labels</span><span>Commercial invoices</span></div></div>
+<div class="fld"><label>Label size &amp; format</label>
+<div class="radio on"><i></i><div><b>PDF 4&times;6 in</b><span>Thermal label printers, one label per page</span></div></div>
+<div class="radio"><i></i><div><b>ZPL 4&times;6 in</b><span>Zebra printers: downloads one .zpl file with all labels</span></div></div>
+<div class="radio"><i></i><div><b>PDF Letter</b><span>Office printers</span></div></div></div>
+<div style="font-size:10.5px;margin:4px 0 8px"><span class="cb on"></span> Remember my choice on this device</div>
+<table style="margin-bottom:8px"><tr><th class="l">Order</th><th class="l">Carrier</th><th>Format</th><th>Result</th></tr><tr><td class="l"><b>1089234</b></td><td class="l">UniUni &middot; Standard</td><td>PDF 4x6</td><td><span class="pill ok">Included</span></td></tr><tr><td class="l"><b>113-88421-0021</b></td><td class="l">Stallion &middot; Ground</td><td>PDF 4x6</td><td><span class="pill ok">Included</span></td></tr><tr><td class="l"><b>701-55120-9004</b></td><td class="l">FedEx &middot; Ground</td><td>PDF 4x6</td><td><span class="pill ok">Included</span></td></tr><tr><td class="l"><b>1088870</b></td><td class="l">Stallion &middot; Ground</td><td>PDF 4x6</td><td><span class="pill ok">Included</span></td></tr></table>
+<div class="alert i" style="margin-bottom:8px">All 4 labels are merged into <b>one PDF</b> that opens in a new tab, in the order selected. Orders with no label (shipped on the channel, voided) are skipped and listed here before you print. Only formats every selected carrier offers are shown.</div>
+<div style="display:flex;justify-content:flex-end;gap:6px"><span class="btn">Cancel</span><span class="btn p">Print 4 labels</span></div></div></div></div></div></div></div></section><section class="page"><div class="doc"><span>Beddora &middot; Shipping &rsaquo; Orders &middot; Bulk labels, tracking &amp; cancel</span><span>3 / 5 &middot; Track in bulk</span></div><p class="note">Filter by tracking status, tick the parcels, refresh their tracking and see a roll-up of the latest event for each.</p><div class="app"><aside class="side"><div class="brand">beddora</div><div class="nav">Dashboard</div><div class="nav">Procurement</div><div class="nav on">Shipping &#9662;</div><div class="sub on">Orders</div><div class="sub">Create shipment</div><div class="nav" style="margin-top:3px">Containers</div><div class="nav">Inventory</div></aside><div class="main"><div class="top"><span>User</span><div class="avatar"></div></div><div class="content rel" style="flex:1"><div class="head"><h1>Orders</h1><span class="btn">Export Excel</span></div>
+<div class="tabs"><div class="tab">Overview</div><div class="tab on">Orders <span class="pill neu">1,284</span></div></div>
+<div class="card" style="margin-bottom:8px"><h3 style="margin-bottom:4px">Filters <small>New: Tracking status</small></h3>
+<div class="fgrid"><div class="fld w"><label>Search</label><div class="ctl ph">Order #, SKU, tracking #&hellip;</div></div><div class="fld"><label>Fulfillment</label><div class="ctl  ">Booked, Shipped<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg></div></div><div class="fld"><label>Tracking status</label><div class="ctl  chg">Exception, Out For Delivery<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg></div></div><div class="fld"><label>Carrier</label><div class="ctl ph ">All carriers<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg></div></div><div class="fld"><label>Order date</label><div class="ctl ph ">Any date<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg></div></div><div class="fact" style="margin:0"><span class="btn">Reset</span><span class="btn p">Filter</span></div></div></div>
+<div class="grid" style="grid-template-columns:1fr 1.15fr;align-items:start">
+<div><div class="selbar"><b>4 selected</b><span style="margin-left:auto" class="btn w">Bulk actions &#9662;</span></div>
+<div class="card" style="padding:10px 12px"><h3>What the new filter gives you</h3><ul class="t"><li><b>Tracking status</b> and <b>Carrier</b> filters on the Orders tab (the statuses already exist), so exceptions, out-for-delivery or lost parcels can be listed and ticked together.</li><li>The Overview KPI "Needs attention" opens this view.</li><li><b>Refresh tracking</b> in Bulk actions asks each carrier for fresh scans for the selected parcels, with a progress count; rows update in place.</li><li><b>Copy tracking numbers</b> copies one per line, for a customer service reply or a carrier ticket.</li></ul></div></div>
+<div class="drawer"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><b style="font-size:12px">Tracking &middot; 4 parcels</b><span class="btn">Refresh all</span></div>
+<div class="hb" style="margin-bottom:8px"><u style="width:100%;background:var(--ok)"></u></div>
+<div class="faint" style="font-size:9.5px;margin-bottom:6px">Refreshed 4 of 4 &middot; 1 status changed</div>
+<table><tr><th class="l">Order</th><th class="l">Carrier</th><th>Status</th><th class="l">Latest event</th><th>Updated</th><th>Carrier page</th></tr><tr><td class="l"><b>1089234</b><br><span class="mono faint">UU4821093</span></td><td class="l">UniUni &middot; Standard</td><td><span class="pill neu">Label Created</span></td><td class="l" style="font-size:10px">Label created</td><td>Nov 24, 09:40</td><td class="link">Open</td></tr><tr><td class="l"><b>113-88421-0021</b><br><span class="mono faint">SE99201</span></td><td class="l">Stallion &middot; Ground</td><td><span class="pill info">In Transit</span></td><td class="l" style="font-size:10px">Departed facility &middot; Toronto, ON</td><td>Nov 25, 06:12</td><td class="link">Open</td></tr><tr><td class="l"><b>701-55120-9004</b><br><span class="mono faint">784921</span></td><td class="l">FedEx &middot; Ground</td><td><span class="pill info">Out For Delivery</span></td><td class="l" style="font-size:10px">On vehicle for delivery &middot; Calgary, AB</td><td>Nov 25, 08:03</td><td class="link">Open</td></tr><tr><td class="l"><b>1088870</b><br><span class="mono faint">SE99188</span></td><td class="l">Stallion &middot; Ground</td><td><span class="pill bad">Exception</span></td><td class="l" style="font-size:10px">Address incomplete &middot; Ottawa, ON</td><td>Nov 24, 17:30</td><td class="link">Open</td></tr></table>
+<div class="faint" style="font-size:9.5px;margin-top:6px">A row opens that order's full timeline (existing tracking timeline) in the usual drawer. This panel is a read-only roll-up, for a quick look across many parcels.</div></div></div></div></div></div></section><section class="page"><div class="doc"><span>Beddora &middot; Shipping &rsaquo; Orders &middot; Bulk labels, tracking &amp; cancel</span><span>4 / 5 &middot; Cancel / void in bulk</span></div><p class="note">Eligibility, refund total and a typed confirmation up front, then a result per parcel.</p><div class="app"><aside class="side"><div class="brand">beddora</div><div class="nav">Dashboard</div><div class="nav">Procurement</div><div class="nav on">Shipping &#9662;</div><div class="sub on">Orders</div><div class="sub">Create shipment</div><div class="nav" style="margin-top:3px">Containers</div><div class="nav">Inventory</div></aside><div class="main"><div class="top"><span>User</span><div class="avatar"></div></div><div class="content rel" style="flex:1"><div class="head"><h1>Orders</h1></div>
+<div class="grid" style="grid-template-columns:1.2fr 1fr;align-items:start">
+<div class="modal"><h2 style="color:var(--bad)">Cancel / void 3 labels</h2>
+<table style="margin-bottom:8px"><tr><th class="l">Order</th><th class="l">Carrier</th><th>Status</th><th>Refund (CAD)</th><th>Result</th></tr><tr style=""><td class="l"><b>1089234</b></td><td class="l">UniUni &middot; Standard</td><td><span class="pill neu">Label Created</span></td><td>14.20</td><td>Will be voided</td></tr><tr style="opacity:.55"><td class="l"><b>113-88421-0021</b></td><td class="l">Stallion &middot; Ground</td><td><span class="pill info">In Transit</span></td><td>&mdash;</td><td>Can't void: scanned by the carrier</td></tr><tr style=""><td class="l"><b>701-55120-9004</b></td><td class="l">FedEx &middot; Ground</td><td><span class="pill neu">Label Created</span></td><td>24.60</td><td>Void requested, refund pending</td></tr><tr style=""><td class="l"><b>1088870</b></td><td class="l">Stallion &middot; Ground</td><td><span class="pill neu">Label Created</span></td><td>19.85</td><td>Will be voided</td></tr></table>
+<div class="alert d" style="margin-bottom:6px">Labels are voided with each carrier and the charge refunded to the provider balance. Don't hand these parcels over. <b>1 of 4 can't be voided</b> and is left out.</div>
+<div class="alert w" style="margin-bottom:8px">Estimated refund <b>CAD 58.65</b> (UniUni 14.20, FedEx 24.60 pending, Stallion 19.85). Each void is final per parcel.</div>
+<div class="fld" style="margin-bottom:8px"><label>Type VOID to confirm (asked from 5 labels up)</label><div class="ctl ph">VOID</div></div>
+<div style="display:flex;justify-content:flex-end;gap:6px"><span class="btn">Keep labels</span><span class="btn p" style="background:var(--bad);border-color:var(--bad)">Cancel / void 3 labels</span></div></div>
+<div class="modal"><h2>Result</h2><div class="hb" style="margin-bottom:6px"><u style="width:100%;background:var(--ok)"></u></div>
+<div style="font-size:10.5px;margin-bottom:6px"><b>1 voided</b> &middot; <b style="color:var(--warn)">1 pending</b> &middot; <b style="color:var(--bad)">1 failed</b></div>
+<table><tr><th class="l">Order</th><th>Result</th><th class="l">Detail</th></tr><tr><td class="l"><b>1089234</b></td><td><span class="pill ok">Voided</span></td><td class="l" style="font-size:10px">Refunded CAD 14.20</td></tr><tr><td class="l"><b>701-55120-9004</b></td><td><span class="pill warn">Void pending</span></td><td class="l" style="font-size:10px">FedEx confirms the refund later</td></tr><tr><td class="l"><b>1088870</b></td><td><span class="pill bad">Failed</span></td><td class="l" style="font-size:10px">Carrier already scanned the label</td></tr></table>
+<div style="display:flex;justify-content:flex-end;gap:6px;margin-top:8px"><span class="btn">Retry failed (1)</span><span class="btn p">Done</span></div>
+<div class="faint" style="font-size:9.5px;margin-top:6px">Left: the confirmation. Right: the same dialog once it has run. Each parcel is voided by itself; a failure never undoes the others.</div></div></div></div></div></div></section><section class="page"><div class="doc"><span>Beddora &middot; Shipping &rsaquo; Orders &middot; Bulk labels, tracking &amp; cancel</span><span>5 / 5 &middot; Rules and build map</span></div><div class="cols"><div><h2>Rules</h2><table class="spec"><tr><th style="width:26%">Action</th><th>Behaviour</th></tr>
+<tr><td><b>Entry point</b></td><td>One "Bulk actions" menu in the selection bar. Each item shows <i>n of selected</i> it can act on; ineligible orders are skipped and listed with the reason before anything runs.</td></tr>
+<tr><td><b>Print labels</b></td><td>Needs a booking with a label (not channel-shipped, not voided). Same format choices as today's Print dialog, limited to formats all selected carriers offer; "Remember my choice" shared. PDF: one merged file in a new tab. ZPL: one combined .zpl download.</td></tr>
+<tr><td><b>Commercial invoices</b></td><td>Only cross-border parcels that have one; others skipped.</td></tr>
+<tr><td><b>Refresh tracking</b></td><td>Per parcel, a few at a time, with a progress count. Safe to repeat. Statuses already come from carrier scans; this just pulls them now.</td></tr>
+<tr><td><b>Cancel / void</b></td><td>Only unscanned labels. Shows the refund total, needs typing VOID from 5 labels up, voids each parcel on its own and reports Voided / Void pending / Failed. Failed rows can be retried alone.</td></tr>
+<tr><td><b>Permissions</b></td><td>Print and tracking need read; cancel needs <code>shipping:orders</code> write.</td></tr></table></div>
+<div><h2>What exists, what's new</h2><ul class="t">
+<li><b>Reuse:</b> <code>PrintDialog</code> shell (<code>RadioCards</code>, <code>useLabelFormats</code>, remembered format), <code>usePrintDocument</code>, <code>CancelShipmentDialog</code> wording and <code>ConfirmDialog</code>, <code>useRefreshTrackingMutation</code>, <code>TrackingTimeline</code>, <code>STATUS_TONE</code>, the Orders table and the selection bar from the bulk-booking design.</li>
+<li><b>New UI:</b> <code>BulkPrintDialog</code>, <code>BulkCancelDialog</code>, <code>BulkTrackingDrawer</code>, plus Tracking status and Carrier filters on Orders.</li></ul>
+<h2 style="margin-top:10px">Backend needs</h2><ul class="t">
+<li><span class="tag need">NEW</span> <b>Merged labels:</b> the app has no PDF-merge or zip package, and the labels are fetched one by one today. Merging is best done on the server: <code>POST /shipping/shipments/documents/bulk</code> returns one PDF (or one ZPL).</li>
+<li><span class="tag have">HAVE</span> Void and refresh tracking exist per shipment (<code>/cancel</code>, <code>/tracking/refresh</code>); looping them from the browser works for small batches. A bulk endpoint is better beyond about 20.</li>
+<li><span class="tag need">CHECK</span> The orders list can't filter by tracking status or carrier yet.</li>
+<li><span class="tag need">CHECK</span> What an order becomes after its label is voided (back to To Book so it can be rebooked, or Cancelled)? Not clear from the frontend.</li></ul>
+<h2 style="margin-top:10px">Decisions for you</h2><ul class="t">
+<li>Merged PDF in one tab, or a downloaded file?</li><li>Threshold for typing VOID (5?), and a cap on bulk size (50?).</li><li>Is the tracking roll-up drawer needed in v1, or are the new filters and Refresh tracking enough?</li></ul></div></div></section></body></html>

@@ -495,3 +495,30 @@ export interface ShipmentDraftSummary {
 export interface ShipmentDraftDto extends ShipmentDraftSummary {
   values: Record<string, unknown>
 }
+
+/* ─────────────── Orders overview ─────────────── */
+
+/** `GET /shipping/channel-orders/overview`: the numbers behind Shipping › Orders › Overview. */
+export interface OrdersOverview {
+  currency: 'CAD'
+  /** yyyy-mm-dd: the window the figures cover. */
+  from: string
+  to: string
+  /** Channel orders by fulfillment state; DRAFT counts the saved manual drafts. */
+  fulfillment: Record<Fulfillment, number>
+  /** Parcels booked in the window, by carrier status. */
+  parcels: { labelCreated: number; inTransit: number; outForDelivery: number; exception: number; delivered: number; returned: number }
+  /** What needs a person now, whatever the window. */
+  attention: { channelSyncFailed: number; exceptions: number; drafts: number }
+  spend: { total: number; parcels: number; byCarrier: Array<{ provider: ProviderId; label: string; parcels: number; total: number }> }
+  /** Parcels booked per day, by channel ("manual" for shipments created by hand). */
+  perDay: Array<{ day: string; counts: Record<string, number> }>
+  byMarket: Array<{ channel: ChannelId; channelLabel: string; market: string; marketLabel: string; country: string; orders: number }>
+}
+
+export interface OrdersOverviewParams {
+  channels?: ChannelId[]
+  countries?: string[]
+  from?: string
+  to?: string
+}

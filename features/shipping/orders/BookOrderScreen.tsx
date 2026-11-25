@@ -16,7 +16,7 @@ import type { WizardStep } from '../create/shipmentForm'
 import { ShipmentStep } from '../create/ShipmentStep'
 import { useShipmentForm } from '../create/useShipmentForm'
 import { ORDER_STEPS, WizardStepper } from '../create/WizardStepper'
-import { FULFILLMENT_META, money, ORDERS_HREF } from '../shippingMeta'
+import { FULFILLMENT_META, money, ORDERS_LIST_HREF } from '../shippingMeta'
 import type { ChannelId, ChannelOrderRef, ParcelShipmentDto } from '../types'
 import { unmappedLines, valuesFromOrder } from './orderDraft'
 import { OrderProductsCard } from './OrderProductsCard'
@@ -70,7 +70,7 @@ export const BookOrderScreen: React.FC = () => {
     ? `${unmappedSkus.join(', ')} ${unmapped.length === 1 ? 'needs' : 'need'} to be mapped to one of our products first. Map ${unmapped.length === 1 ? 'it' : 'them'} in the SKU Mapper, then get rates.`
     : undefined
 
-  const backToOrders = () => router.push(ORDERS_HREF)
+  const backToOrders = () => router.push(ORDERS_LIST_HREF)
 
   if (!canWrite) return <Alert variant="info">Booking orders needs the Shipping write permission.</Alert>
   if (!orderRef) return <Alert variant="danger">No order picked. Open one from the Orders list.</Alert>
@@ -87,7 +87,7 @@ export const BookOrderScreen: React.FC = () => {
     return (
       <Alert variant="warning" className="flex flex-wrap items-center justify-between gap-2">
         Order {detail.order.orderId} is {FULFILLMENT_META[detail.order.fulfillment].label}: there is nothing to book.
-        <Link href={ORDERS_HREF} className="ds-button ds-button-outline ds-button-sm">
+        <Link href={ORDERS_LIST_HREF} className="ds-button ds-button-outline ds-button-sm">
           Back to Orders
         </Link>
       </Alert>

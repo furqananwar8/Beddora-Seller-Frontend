@@ -2,12 +2,15 @@
 
 import React from 'react'
 import { useRouter } from 'next/navigation'
+import { SelectionCheckbox } from '@/components/selection-checkbox/SelectionCheckbox'
 import { RowActionsMenu, type RowActionItem } from '@/components/row-actions-menu/RowActionsMenu'
 import { MarketplaceFlag } from '@/components/marketplace-flag/MarketPlaceFlag'
 import { StatusBadge, type StatusTone } from '@/components/status-badge/StatusBadge'
+import { cn } from '@/utils/cn'
 import { Spinner } from '@/design-system/loaders'
 import { Tooltip } from '@/design-system/tooltips'
 import { ChannelBadge } from '../shared/ChannelBadge'
+import { isSelectable, orderKey } from './bulk/bulkSelection'
 import { CarrierPageLink, TrackingNumber } from '../shared/TrackingNumber'
 import { bookingHref, bookOrderHref, draftHref, FULFILLMENT_META, money, shortDateTime, STATUS_TONE } from '../shippingMeta'
 import type { OrderListItem as ChannelOrderListItem } from '../types'
@@ -35,6 +38,8 @@ interface OrdersTableProps {
   scanLockedBy?: (row: ChannelOrderListItem) => string | null
   /** An invoice is being built (one at a time). */
   invoiceBusy: boolean
+  /** Ticking rows for the bulk actions; omitted when the user can't act on several orders. */
+  selection?: { keys: Set<string>; onToggle: (row: ChannelOrderListItem) => void; onTogglePage: (on: boolean) => void }
 }
 
 const HEAD = 'px-4 py-3 text-center align-middle text-xs font-medium uppercase tracking-wide text-text-muted'
@@ -93,8 +98,9 @@ function trackingOf(row: ChannelOrderListItem): TrackingView | null {
 }
 
 /** Channel orders: book the seller-fulfilled ones, follow the ones shipped on the channel. */
-export const OrdersTable: React.FC<OrdersTableProps> = ({ rows, isLoading, isError, filtered, canWrite, retrying, onRetrySync, onOpen, onPrintLabel, onDeleteDraft, onDownloadInvoice, onScanItems, scanLockedBy, invoiceBusy }) => {
+export const OrdersTable: React.FC<OrdersTableProps> = ({ rows, isLoading, isError, filtered, canWrite, retrying, onRetrySync, onOpen, onPrintLabel, onDeleteDraft, onDownloadInvoice, onScanItems, scanLockedBy, invoiceBusy, selection }) => {
   const router = useRouter()
+  const pageSelectable = rows.filter(isSelectable)
   if (isLoading)
     return (
       <div className="flex justify-center p-10">
@@ -157,6 +163,16 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ rows, isLoading, isErr
     <table className="w-full">
       <thead className="sticky top-0 z-10 bg-surface">
         <tr className="border-b border-border">
+          {selection && (
+            <th className={cn(HEAD, 'w-10')}>
+              <SelectionCheckbox
+                label="Select all orders on this page"
+                checked={pageSelectable.length > 0 && pageSelectable.every((row) => selection.keys.has(orderKey(row)))}
+                indeterminate={pageSelectable.some((row) => selection.keys.has(orderKey(row))) && !pageSelectable.every((row) => selection.keys.has(orderKey(row)))}
+                onChange={() => selection.onTogglePage(!pageSelectable.every((row) => selection.keys.has(orderKey(row))))}
+              />
+            </th>
+          )}
           <th className={HEAD}>Origin</th>
           <th className={HEAD}>Channel</th>
           <th className={HEAD}>Market</th>
@@ -180,6 +196,15 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ rows, isLoading, isErr
           const tracking = trackingOf(row)
           return (
             <tr key={`${row.channel}:${row.market}:${row.orderId}`} className="border-b border-border last:border-0 hover:bg-secondary-50">
+              {selection && (
+                <td className={CELL}>
+                  {isSelectable(row) ? (
+                    <SelectionCheckbox label={`Select order ${row.orderId}`} checked={selection.keys.has(orderKey(row))} onChange={() => selection.onToggle(row)} />
+                  ) : (
+                    <input type="checkbox" disabled aria-label={`Order ${row.orderId} can't be selected`} title="Nothing to book, print or track yet" className="h-4 w-4 cursor-not-allowed rounded border-gray-300 opacity-40" />
+                  )}
+                </td>
+              )}
               <td className={CELL}>
                 <StatusBadge label={row.origin === 'MANUAL' ? 'Manual' : 'Channel'} tone={row.origin === 'MANUAL' ? 'warning' : 'info'} />
               </td>

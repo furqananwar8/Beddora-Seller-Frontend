@@ -21,6 +21,8 @@ import { FULFILLMENT_META } from '../shippingMeta'
 import type { ChannelId, ChannelOrderRef, Fulfillment, OrderListItem, OrderOrigin } from '../types'
 import { PrintDialog } from '../print/PrintDialog'
 import { BookingDrawer } from './BookingDrawer'
+import { BulkSelectionBar } from './bulk/BulkSelectionBar'
+import { BULK_LIMIT, isSelectable, orderKey } from './bulk/bulkSelection'
 import { OrderDrawer } from './OrderDrawer'
 import { OrdersTable } from './OrdersTable'
 import { useOrderInvoiceDownload } from './useOrderInvoiceDownload'
@@ -48,6 +50,22 @@ const ORIGIN_OPTIONS: FilterOption<OrderOrigin>[] = [
   { value: 'CHANNEL', label: 'Channel orders' },
   { value: 'MANUAL', label: 'Manual shipments' },
 ]
+
+const csvParam = <T extends string>(value: string | null, allowed: readonly T[]): T[] => (value?.split(',').filter((item): item is T => (allowed as readonly string[]).includes(item)) ?? [])
+
+/** The list's starting filters from the address: the Overview's links open the list with the slice they counted. */
+function filtersFromAddress(params: URLSearchParams | ReturnType<typeof useSearchParams>): Filters {
+  const from = params.get('from')
+  const to = params.get('to')
+  return {
+    ...DEFAULT_FILTERS,
+    search: params.get('search') ?? '',
+    states: csvParam(params.get('states'), Object.keys(FULFILLMENT_META) as Fulfillment[]),
+    channels: csvParam(params.get('channels'), ['walmart', 'amazon', 'temu'] as const),
+    countries: csvParam(params.get('countries'), MARKETPLACES.map((marketplace) => marketplace.code)),
+    ordered: { startDate: from, endDate: to },
+  }
+}
 
 const day = (value: string | null) => (value ? value.slice(0, 10) : undefined)
 
@@ -85,8 +103,13 @@ export const OrdersScreen: React.FC = () => {
   const params = useSearchParams()
   const [page, setPage] = useState(1)
   const pageSize = usePageSize(PAGE_SIZE)
-  const [initial] = useState<Filters>(() => ({ ...DEFAULT_FILTERS, search: params.get('search') ?? '' }))
-  const filters = useStagedFilters(DEFAULT_FILTERS, () => setPage(1), initial)
+  const [initial] = useState<Filters>(() => filtersFromAddress(params))
+  // Ticked orders by key, kept across pages and cleared when the filters change (so nothing hidden is acted on)
+  const [selected, setSelected] = useState<Map<string, OrderListItem>>(new Map())
+  const filters = useStagedFilters(DEFAULT_FILTERS, () => {
+    setPage(1)
+    setSelected(new Map())
+  }, initial)
   const { draft, setDraft, applied, changed } = filters
   const [retrySync] = useRetryChannelSyncMutation()
   const [retrying, setRetrying] = useState<number | null>(null)
@@ -112,6 +135,25 @@ export const OrdersScreen: React.FC = () => {
     to: day(applied.ordered.endDate),
   })
 
+  const toggleOrder = (row: OrderListItem) =>
+    setSelected((current) => {
+      const next = new Map(current)
+      const key = orderKey(row)
+      if (next.has(key)) next.delete(key)
+      else if (next.size >= BULK_LIMIT) info(`Pick at most ${BULK_LIMIT} orders at a time`)
+      else next.set(key, row)
+      return next
+    })
+  const togglePage = (on: boolean) =>
+    setSelected((current) => {
+      const next = new Map(current)
+      for (const row of (data?.data ?? []).filter(isSelectable)) {
+        if (!on) next.delete(orderKey(row))
+        else if (next.size < BULK_LIMIT) next.set(orderKey(row), row)
+      }
+      return next
+    })
+
   const retry = async (bookingId: number) => {
     setRetrying(bookingId)
     try {
@@ -127,8 +169,7 @@ export const OrdersScreen: React.FC = () => {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-bold text-text-primary sm:text-2xl">Orders</h1>
+      <div className="flex flex-wrap items-center justify-end gap-3">
         <ExportExcelButton
           report="shipping-orders"
           noun="orders export"
@@ -193,6 +234,8 @@ export const OrdersScreen: React.FC = () => {
         </FilterBar>
       </div>
 
+      {selected.size > 0 && <BulkSelectionBar rows={[...selected.values()]} canWrite={canWrite} onClear={() => setSelected(new Map())} />}
+
       <div className={cn('overflow-hidden rounded-lg border border-border bg-surface shadow-sm', isFetching && 'opacity-70 transition-opacity')}>
         {/* Fitted to the window: the sideways scrollbar stays in view and the vertical one starts under the header */}
         <div ref={fit.ref} style={fit.style} className="max-h-[calc(100vh-320px)] min-h-[240px] overflow-auto">
@@ -211,6 +254,7 @@ export const OrdersScreen: React.FC = () => {
             onScanItems={canScan ? ({ channel, market, orderId }) => scanItems.open({ scenario: 'FBM_ORDER', sourceId: `${channel}:${market}:${orderId}` }) : undefined}
             scanLockedBy={({ origin, channel, market, orderId }) => (origin === 'MANUAL' ? null : scanItems.lockedBy({ scenario: 'FBM_ORDER', sourceId: `${channel}:${market}:${orderId}` }))}
             invoiceBusy={invoiceBusy}
+            selection={{ keys: new Set(selected.keys()), onToggle: toggleOrder, onTogglePage: togglePage }}
           />
         </div>
         {data && data.totalRecords > 0 && <PaginationFooter selectablePageSize page={data.page} pageSize={data.limit} totalItems={data.totalRecords} totalPages={data.totalPages} onPageChange={setPage} itemLabel="orders" />}

@@ -1,7 +1,7 @@
 import { Suspense } from 'react'
 import { Metadata } from 'next'
 import { Container } from '@/components/layout'
-import { OrdersScreen } from '@/features/shipping/orders/OrdersScreen'
+import { OrdersPage } from '@/features/shipping/orders/OrdersPage'
 
 export const metadata: Metadata = {
   title: 'Orders | Beddora',
@@ -11,13 +11,13 @@ export const metadata: Metadata = {
 /**
  * Shipping Orders Page
  *
- * Seller-fulfilled channel orders to book, and orders shipped on the channel. Suspense: the screen reads `?search=`.
+ * The Overview and the list of seller-fulfilled channel orders. Suspense: the screen reads `?tab=` and the list's filters.
  */
 export default function ShippingOrdersPage() {
   return (
     <Container size="full" className="py-4 sm:py-8">
       <Suspense>
-        <OrdersScreen />
+        <OrdersPage />
       </Suspense>
     </Container>
   )

@@ -9,7 +9,7 @@ import { Spinner } from '@/design-system/loaders'
 import { useApiFeedback } from '@/hooks/useApiFeedback'
 import { useAppAbility } from '@/hooks/useAppAbility'
 import { useDeleteShipmentDraftMutation, useGetShipFromOptionsQuery, useGetShipmentDraftQuery, useSaveShipmentDraftMutation } from '@/services/api/shipping.api'
-import { CHANNEL_LABEL, money, ORDERS_HREF } from '../shippingMeta'
+import { CHANNEL_LABEL, money, ORDERS_LIST_HREF } from '../shippingMeta'
 import type { ParcelShipmentDto } from '../types'
 import { AddressStep, defaultShipFrom } from './AddressStep'
 import { BookingConfirmed } from './BookingConfirmed'
@@ -122,7 +122,7 @@ export const CreateShipmentScreen: React.FC = () => {
       {leaveDialog}
       <WizardStepper steps={CREATE_STEPS} current={step} summaries={summaries} onGoTo={(index) => setStep(index as WizardStep)} />
 
-      {step === 0 && <AddressStep addresses={addresses} loadingAddresses={loadingAddresses} shipFrom={shipFrom} onCancel={() => router.push(ORDERS_HREF)} onContinue={() => void wizard.continueFromAddress()} showPlatform />}
+      {step === 0 && <AddressStep addresses={addresses} loadingAddresses={loadingAddresses} shipFrom={shipFrom} onCancel={() => router.push(ORDERS_LIST_HREF)} onContinue={() => void wizard.continueFromAddress()} showPlatform />}
       {step === 1 && (
         <ShipmentStep
           lane={crossBorder ? `${shipFrom?.countryCode} → ${values.shipTo.address.country}` : null}

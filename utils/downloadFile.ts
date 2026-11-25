@@ -22,12 +22,15 @@ export async function fetchApiBlob(path: string, mimeType?: string): Promise<Blo
   return mimeType ? new Blob([blob], { type: mimeType }) : blob
 }
 
-/** Fetches an API file with the session cookie and hands it to the browser as a download (PDFs, exports). */
-export async function downloadApiFile(path: string, fileName: string): Promise<void> {
-  const url = URL.createObjectURL(await fetchApiBlob(path))
+/** Hands a blob to the browser as a download. */
+export function downloadBlob(blob: Blob, fileName: string): void {
+  const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = url
   link.download = fileName
   link.click()
   URL.revokeObjectURL(url)
 }
+
+/** Fetches an API file with the session cookie and hands it to the browser as a download (PDFs, exports). */
+export const downloadApiFile = async (path: string, fileName: string): Promise<void> => downloadBlob(await fetchApiBlob(path), fileName)
