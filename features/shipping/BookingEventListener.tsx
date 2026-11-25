@@ -3,7 +3,7 @@
 import { useRealtime } from '@/components/realtime/RealtimeProvider'
 import { useAppDispatch } from '@/store/hooks'
 import { addNotification } from '@/store/ui.slice'
-import { bookedMessage, claimAnnouncement, failedMessage, SELF_HANDLED_CODES } from './bookingAnnounce'
+import { bookedMessage, bulkJobKeys, claimAnnouncement, failedMessage, SELF_HANDLED_CODES } from './bookingAnnounce'
 import type { BookingJobDto } from './types'
 
 /**
@@ -16,7 +16,7 @@ export const BookingEventListener: React.FC = () => {
   useRealtime('shipping.booking', (message) => {
     const job = message.data as unknown as BookingJobDto
     if (job.status === 'RUNNING' || (job.status === 'FAILED' && SELF_HANDLED_CODES.includes(job.error?.code ?? ''))) return
-    if (!claimAnnouncement(job)) return
+    if (bulkJobKeys.has(job.key) || !claimAnnouncement(job)) return
     dispatch(addNotification(job.status === 'SUCCEEDED' ? { message: bookedMessage(job), type: 'success' } : { message: failedMessage(job), type: 'error' }))
   })
 

@@ -20,3 +20,6 @@ export function claimAnnouncement(job: Pick<BookingJobDto, 'key' | 'status'>): b
 
 export const bookedMessage = (job: BookingJobDto) => `Booked ${job.bookingNo ?? 'the shipment'}${job.order ? ` for order ${job.order.orderId}` : ''}. The label is ready.`
 export const failedMessage = (job: BookingJobDto) => `${job.order ? `Order ${job.order.orderId}: ` : ''}${job.error?.message ?? 'The booking did not go through.'}`
+
+/** Jobs started by a bulk booking: its screen reports them together, so the realtime listener doesn't toast each one. */
+export const bulkJobKeys = new Set<string>()

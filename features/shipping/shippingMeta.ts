@@ -5,6 +5,10 @@ import type { ChannelId, ChannelOrderRef, Fulfillment, Handover, Incoterm, Parce
 export const SHIPPING_BASE = '/dashboard/shipping'
 export const CREATE_HREF = `${SHIPPING_BASE}/create`
 export const ORDERS_HREF = `${SHIPPING_BASE}/orders`
+/** The Orders tab (the list): where the booking screens send you back to. */
+export const ORDERS_LIST_HREF = `${ORDERS_HREF}?tab=orders`
+/** Get rates and book several To Book orders at once; the orders come from the Orders list's selection. */
+export const BULK_BOOK_HREF = `${ORDERS_HREF}/bulk`
 /** Where a marketplace SKU is bound to one of our products. */
 export const SKU_MAPPER_HREF = '/dashboard/inventory/sku-mapping'
 /** Rates › Booking for one channel order. */

@@ -4,6 +4,8 @@ import type {
   ChannelInfo,
   ChannelOrderDetail,
   OrderListItem,
+  OrdersOverview,
+  OrdersOverviewParams,
   ChannelOrderListParams,
   ChannelOrderRef,
   HsCodeOption,
@@ -108,12 +110,12 @@ export const shippingApi = baseApi.injectEndpoints({
     cancelShipment: builder.mutation<ParcelShipmentDto, number>({
       query: (id) => ({ url: `/shipping/shipments/${id}/cancel`, method: 'POST' }),
       transformResponse: (response: Envelope<ParcelShipmentDto>) => unwrap(response),
-      invalidatesTags: ['ShippingShipments'],
+      invalidatesTags: ['ShippingShipments', 'ShippingChannelOrders'],
     }),
     refreshTracking: builder.mutation<ParcelShipmentDto, number>({
       query: (id) => ({ url: `/shipping/shipments/${id}/tracking/refresh`, method: 'POST' }),
       transformResponse: (response: Envelope<ParcelShipmentDto>) => unwrap(response),
-      invalidatesTags: ['ShippingShipments'],
+      invalidatesTags: ['ShippingShipments', 'ShippingChannelOrders'],
     }),
     /** Retries marking the shipment's channel order shipped. */
     retryChannelSync: builder.mutation<ParcelShipmentDto, number>({
@@ -132,6 +134,11 @@ export const shippingApi = baseApi.injectEndpoints({
         params: { ...params, search: search || undefined, channels: csv(channels), countries: csv(countries), states: csv(states) },
       }),
       providesTags: ['ShippingChannelOrders'],
+    }),
+    getOrdersOverview: builder.query<OrdersOverview, OrdersOverviewParams>({
+      query: ({ channels, countries, ...params }) => ({ url: '/shipping/channel-orders/overview', params: { ...params, channels: csv(channels), countries: csv(countries) } }),
+      transformResponse: (response: Envelope<OrdersOverview>) => unwrap(response),
+      providesTags: ['ShippingChannelOrders', 'ShippingShipments'],
     }),
     getChannelOrder: builder.query<ChannelOrderDetail, ChannelOrderRef>({
       query: ({ channel, market, orderId }) => `/shipping/channel-orders/${channel}/${encodeURIComponent(market)}/${encodeURIComponent(orderId)}`,
@@ -162,5 +169,8 @@ export const {
   useRetryChannelSyncMutation,
   useGetOrderChannelsQuery,
   useGetChannelOrdersQuery,
+  useGetOrdersOverviewQuery,
   useGetChannelOrderQuery,
+  useLazyGetChannelOrderQuery,
+  useLazyGetShipmentQuery,
 } = shippingApi

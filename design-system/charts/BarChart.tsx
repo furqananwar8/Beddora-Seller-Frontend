@@ -17,6 +17,8 @@ export interface BarChartProps {
   yKeys: Array<{ key: string; name: string; color?: string }>
   height?: number
   className?: string
+  /** Stack the series in one bar per x instead of side by side. */
+  stacked?: boolean
 }
 
 export const BarChart: React.FC<BarChartProps> = ({
@@ -25,6 +27,7 @@ export const BarChart: React.FC<BarChartProps> = ({
   yKeys,
   height = 300,
   className,
+  stacked = false,
 }) => {
   return (
     <div className={className}>
@@ -41,6 +44,7 @@ export const BarChart: React.FC<BarChartProps> = ({
               dataKey={yKey.key}
               name={yKey.name}
               fill={yKey.color || '#0ea5e9'}
+              stackId={stacked ? 'stack' : undefined}
             />
           ))}
         </RechartsBarChart>
