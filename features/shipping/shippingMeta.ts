@@ -3,8 +3,10 @@ import type { StatusTone } from '@/components/status-badge/StatusBadge'
 import type { ChannelId, ChannelOrderRef, Fulfillment, Handover, Incoterm, ParcelStatus, PriceBreakdown, ProviderId, Rate } from './types'
 
 export const SHIPPING_BASE = '/dashboard/shipping'
-export const CREATE_HREF = `${SHIPPING_BASE}/create`
 export const ORDERS_HREF = `${SHIPPING_BASE}/orders`
+/** The Shipment tab (create a manual shipment) of the Orders screen. */
+export const CREATE_HREF = `${ORDERS_HREF}?tab=shipment`
+export const FBM_DASHBOARD_HREF = `${SHIPPING_BASE}/fbm-dashboard`
 /** The Orders tab (the list): where the booking screens send you back to. */
 export const ORDERS_LIST_HREF = `${ORDERS_HREF}?tab=orders`
 /** Get rates and book several To Book orders at once; the orders come from the Orders list's selection. */
@@ -18,7 +20,7 @@ export const orderSearchHref = (orderId: string) => `${ORDERS_HREF}?${new URLSea
 /** The Orders list opens this shipment's booking drawer. */
 export const bookingHref = (id: number) => `${ORDERS_HREF}?shipment=${id}`
 /** Create shipment, resuming a saved draft. */
-export const draftHref = (id: number) => `${CREATE_HREF}?draft=${id}`
+export const draftHref = (id: number) => `${CREATE_HREF}&draft=${id}`
 
 export const PROVIDER_LABEL: Record<ProviderId, string> = { stallion: 'Stallion Express', shippo: 'Shippo', uniuni: 'UniUni', fedex: 'FedEx' }
 export const PROVIDERS = Object.keys(PROVIDER_LABEL) as ProviderId[]

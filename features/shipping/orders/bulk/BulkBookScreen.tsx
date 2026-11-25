@@ -53,8 +53,8 @@ const Lane: React.FC<{ row: BulkRow }> = ({ row }) => {
   return <span>{address ? `${address.city}, ${address.province}` : '—'}</span>
 }
 
-const OrderCell: React.FC<{ row: BulkRow }> = ({ row }) => (
-  <span className="flex items-center justify-center gap-2 whitespace-nowrap">
+const OrderCell: React.FC<{ row: BulkRow; left?: boolean }> = ({ row, left }) => (
+  <span className={`flex items-center ${left ? 'justify-start' : 'justify-center'} gap-2 whitespace-nowrap`}>
     <ChannelBadge channel={row.ref.channel} />
     <b className="text-text-primary">{row.ref.orderId}</b>
   </span>
@@ -118,8 +118,8 @@ const ReviewStep: React.FC<{ bulk: BulkBook; onNext: () => void }> = ({ bulk, on
         <table className="w-full">
           <thead>
             <tr className="border-b border-border">
-              {['Order', 'Ship to', 'Ship-to', 'Products mapped', 'Package', 'Customs', 'Status', ''].map((title) => (
-                <th key={title} className={HEAD}>
+              {['Order', 'Ship to', 'Ship-to', 'Products mapped', 'Package', 'Customs', 'Status', ''].map((title, index) => (
+                <th key={title} className={index < 2 ? `${HEAD} !text-left` : HEAD}>
                   {title}
                 </th>
               ))}
@@ -130,10 +130,10 @@ const ReviewStep: React.FC<{ bulk: BulkBook; onNext: () => void }> = ({ bulk, on
               const checks = row.prepared?.checks
               return (
                 <tr key={row.key} className="border-b border-border last:border-0">
-                  <td className={CELL}>
-                    <OrderCell row={row} />
+                  <td className={`${CELL} !text-left`}>
+                    <OrderCell row={row} left />
                   </td>
-                  <td className={CELL}>
+                  <td className={`${CELL} !text-left`}>
                     <Lane row={row} />
                   </td>
                   {row.loadError ? (

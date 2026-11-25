@@ -109,7 +109,7 @@ export const CreateShipmentScreen: React.FC = () => {
   return (
     <FormProvider {...form}>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-bold text-text-primary sm:text-2xl">Create shipment</h1>
+        <h2 className="text-lg font-semibold text-text-primary">Create shipment</h2>
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={() => void saveAsDraft()} disabled={!unsaved && !draftId}>
             Save draft

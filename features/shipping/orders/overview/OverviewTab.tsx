@@ -25,9 +25,9 @@ const MARKETPLACE_OPTIONS: FilterOption<string>[] = MARKETPLACES.map((marketplac
 const day = (value: string | null) => (value ? value.slice(0, 10) : undefined)
 
 /**
- * Shipping › Orders › Overview: what to do next (orders to book, things that need a person), where orders and
+ * Shipping › FBM Dashboard: what to do next (orders to book, things that need a person), where orders and
  * parcels stand, and what shipping costs, for the channel / marketplace / date range picked. Figures and cards are
- * links into the Orders tab with the same slice applied. One request feeds every card, so they always agree.
+ * links into the Orders screen with the same slice applied. One request feeds every card, so they always agree.
  */
 export const OverviewTab: React.FC = () => {
   const filters = useStagedFilters(DEFAULT_FILTERS, () => undefined)

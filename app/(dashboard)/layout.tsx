@@ -12,7 +12,6 @@ import { useAppAbility } from '@/hooks/useAppAbility'
 import { LIVE_REPORT_TABS, liveReportSubject } from '@/features/profit/channel-report/config/tabs'
 import { AiAssistant } from '@/components/ai-assistant'
 import { BarcodeScannerProvider } from '@/features/barcode/BarcodeScannerProvider'
-import { MANUAL_SHIPMENT_FLOW } from '@/features/shipping/shippingFlags'
 import { SYSTEM_EMAIL_ROUTE, SYSTEM_MENU_LABEL } from '@/features/system/email/routes'
 import { useGetEmailAccessQuery } from '@/services/api/systemEmail.api'
 
@@ -298,8 +297,8 @@ export default function DashboardLayout({
             href: '/dashboard/shipping/orders',
             icon: NavIcons.shipping,
             children: [
+              { label: 'FBM Dashboard', subject: 'shipping:fbm-dashboard', action: 'read', href: '/dashboard/shipping/fbm-dashboard' },
               { label: 'Orders', subject: 'shipping:orders', action: 'read', href: '/dashboard/shipping/orders' },
-              ...(MANUAL_SHIPMENT_FLOW ? [{ label: 'Create shipment', subject: 'shipping:orders', action: 'write' as const, href: '/dashboard/shipping/create' }] : []),
             ],
           },
           {

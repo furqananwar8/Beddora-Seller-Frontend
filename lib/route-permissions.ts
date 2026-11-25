@@ -53,6 +53,7 @@ export const ROUTE_PERMISSIONS: RoutePermission[] = [
   { pattern: '/dashboard/procurement', subject: 'procurement' },
 
   // Shipping
+  { pattern: '/dashboard/shipping/fbm-dashboard', subject: 'shipping:fbm-dashboard' },
   { pattern: '/dashboard/shipping/orders', subject: 'shipping:orders' },
   { pattern: '/dashboard/shipping/create', subject: 'shipping:orders' },
   { pattern: '/dashboard/shipping/bookings', subject: 'shipping:orders' },
@@ -104,6 +105,7 @@ export const SUBJECT_ROUTE_MAP: Record<string, string> = {
   'inventory:planner': '/dashboard/inventory/planner',
   'finance:payment-request': '/dashboard/finance/payment-request',
   'procurement:products': '/dashboard/procurement/products',
+  'shipping:fbm-dashboard': '/dashboard/shipping/fbm-dashboard',
   'shipping:orders': '/dashboard/shipping/orders',
   'breakeven-analysis:period-analysis': '/breakeven-analysis/period-analysis',
   'breakeven-analysis:amazon': '/breakeven-analysis/amazon',

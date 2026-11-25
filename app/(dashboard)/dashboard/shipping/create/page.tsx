@@ -1,21 +1,8 @@
-import { Metadata } from 'next'
-import { Container } from '@/components/layout'
-import { CreateShipmentScreen } from '@/features/shipping/create/CreateShipmentScreen'
+import { redirect } from 'next/navigation'
+import { CREATE_HREF } from '@/features/shipping/shippingMeta'
 
-export const metadata: Metadata = {
-  title: 'Create shipment | Beddora',
-  description: 'Rate and book a parcel with Stallion, Shippo or UniUni',
-}
-
-/**
- * Create Shipment Page
- *
- * Address, parcel and customs, live rates from every provider, then book and print the label.
- */
-export default function CreateShipmentPage() {
-  return (
-    <Container size="full" className="py-4 sm:py-8">
-      <CreateShipmentScreen />
-    </Container>
-  )
+/** Create shipment is now the Shipment tab of Orders; this keeps old links (and `?draft=`) working. */
+export default function CreateShipmentRedirect({ searchParams }: { searchParams: { draft?: string } }) {
+  const draft = Number(searchParams.draft)
+  redirect(Number.isInteger(draft) && draft > 0 ? `${CREATE_HREF}&draft=${draft}` : CREATE_HREF)
 }
