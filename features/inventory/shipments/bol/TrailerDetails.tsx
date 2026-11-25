@@ -4,6 +4,7 @@ import React, { useState } from 'react'
 import { cn } from '@/utils/cn'
 import { Input, Textarea } from '@/design-system/inputs'
 import { SingleDatePicker } from '@/components/single-date-picker/SingleDatePicker'
+import { SingleTimePicker } from '@/components/single-time-picker/SingleTimePicker'
 import type { BolLeg, BolOverrides, BolView } from '@/services/api/shipmentBols.api'
 import type { RowErrors, TrailerDraft, TrailerTextField } from './bolModel'
 
@@ -45,6 +46,12 @@ export const TrailerDetails: React.FC<TrailerDetailsProps> = ({ view, leg, draft
     />
   )
 
+  const timeField = (name: 'pickupTime' | 'deliveryTime', label: string, error?: string) => (
+    <div className="min-w-0">
+      <span className="ds-input-label">{label}</span>
+      <SingleTimePicker ariaLabel={label} value={draft[name]} error={error} disabled={disabled} onChange={(value) => onText(name, value)} />
+    </div>
+  )
   const carrierNote = step.editable ? '✎ Edit: whole FC or this trailer only' : '✎ Edit changes this trailer only'
   const carrierValue = (label: string, key: 'carrier' | 'pickupDate' | 'deliveryDate' | 'appointmentNo', value: string | null, extra?: { type?: 'date'; missing?: string }) => (
     <ShipmentValue
@@ -68,9 +75,9 @@ export const TrailerDetails: React.FC<TrailerDetailsProps> = ({ view, leg, draft
         {field('pickupNo', 'Pick-up #', { placeholder: "Carrier's booking number" })}
         {field('contact', 'Shipper contact', { maxLength: 120 })}
         {carrierValue('Pick-up date', 'pickupDate', step.pickupDate, { type: 'date' })}
-        {field('pickupTime', 'Pick-up time', { placeholder: '13:00 EDT', error: errors.pickupTime, maxLength: 20 })}
+        {timeField('pickupTime', 'Pick-up time', errors.pickupTime)}
         {carrierValue('Delivery date', 'deliveryDate', step.deliveryDate, { type: 'date' })}
-        {field('deliveryTime', 'Delivery time', { placeholder: '15:00 EDT', error: errors.deliveryTime, maxLength: 20 })}
+        {timeField('deliveryTime', 'Delivery time', errors.deliveryTime)}
       </Card>
 
       <Card title="Truck" cols="sm:grid-cols-2">
