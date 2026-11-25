@@ -63,6 +63,10 @@ export const poFormSchema = z
     destination: z.enum(['US', 'CA']),
     /** The brand the PO is for; its products are all of this platform. */
     platform: z.enum(['ECOMMERCE', 'RETAIL']),
+    /** Payment terms as typed: the advance %, what the balance is due on, and the balance % (the two add up to 100). */
+    advancePercent: z.string().trim(),
+    balanceTerm: z.string().min(1),
+    balancePercent: z.string().trim(),
     /** The delivery warehouse's id as a string; empty = none. */
     warehouseId: z.string(),
     currency: z.enum(['USD', 'CAD']),
@@ -86,6 +90,11 @@ export const poFormSchema = z
         }
       })
     })
+    const advance = Number(values.advancePercent === '' ? 0 : values.advancePercent)
+    const balance = Number(values.balancePercent === '' ? 0 : values.balancePercent)
+    if (!Number.isFinite(advance) || advance < 0 || advance > 100) ctx.addIssue({ code: 'custom', path: ['advancePercent'], message: 'Advance must be between 0 and 100' })
+    else if (!Number.isFinite(balance) || balance < 0 || balance > 100) ctx.addIssue({ code: 'custom', path: ['balancePercent'], message: 'Must be between 0 and 100' })
+    else if (Math.round((advance + balance) * 100) !== 10000) ctx.addIssue({ code: 'custom', path: ['balancePercent'], message: 'The advance and the balance must add up to 100%' })
     values.samples.forEach((sample, index) => {
       if (sample.fixed) return
       if (!/^\d+$/.test(sample.units) || Number(sample.units) < 1) ctx.addIssue({ code: 'custom', path: ['samples', index, 'units'], message: 'Enter at least 1 unit' })
@@ -116,6 +125,9 @@ export const emptyPoValues: PoFormValues = {
   paymentTerms: '',
   destination: 'US',
   platform: 'ECOMMERCE',
+  advancePercent: '0',
+  balanceTerm: 'Against B/L on sight',
+  balancePercent: '100',
   warehouseId: '',
   currency: 'USD',
   etd: '',
@@ -163,6 +175,9 @@ export function toPoBody(values: PoFormValues, extras: { sourcePurchaseOrderId?:
     paymentTerms: values.paymentTerms.trim() || null,
     destination: values.destination as PoDestination,
     platform: values.platform,
+    advancePercent: Number(values.advancePercent || 0),
+    balanceTerm: values.balanceTerm,
+    balancePercent: Number(values.balancePercent || 0),
     warehouseId: values.warehouseId ? Number(values.warehouseId) : null,
     currency: values.currency as PoCurrency,
     etd: values.etd,
@@ -191,6 +206,9 @@ export function fromDetail(po: PurchaseOrderDetail): PoFormValues {
     paymentTerms: po.paymentTerms ?? '',
     destination: po.destination,
     platform: po.platform,
+    advancePercent: String(po.advancePercent),
+    balanceTerm: po.balanceTerm,
+    balancePercent: String(po.balancePercent),
     warehouseId: po.warehouse ? String(po.warehouse.id) : '',
     currency: po.currency,
     etd: day(po.etd),

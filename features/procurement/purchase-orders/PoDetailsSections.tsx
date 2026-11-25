@@ -12,6 +12,7 @@ import { formatCalendarDay } from '@/utils/format'
 import { DESTINATION_OPTIONS } from '../shared/poMeta'
 import { SupplierSelect } from '../shared/SupplierSelect'
 import { WarehouseSelect, warehouseAddress } from '../shared/WarehouseSelect'
+import { PoPaymentTerms } from './PoPaymentTerms'
 import type { PoFormValues } from './poForm'
 
 const CURRENCIES: Array<{ value: PoCurrency; label: string }> = [
@@ -304,22 +305,7 @@ export const PoOrderDetailsSection: React.FC<OrderDetailsProps> = ({ form, readO
           />
         </FormField>
         <WarehouseField form={form} readOnly={readOnly} />
-        <FormField
-          label="Payment terms"
-          htmlFor="po-payment-terms"
-          className="sm:col-span-2 lg:col-span-3"
-          error={errors.paymentTerms?.message}
-          hint="Optional · up to 200 characters · replaces the supplier's term on the PDF"
-        >
-          <textarea
-            id="po-payment-terms"
-            rows={2}
-            maxLength={200}
-            readOnly={readOnly}
-            className={cn(fieldClass(errors.paymentTerms?.message), 'h-auto max-h-32 min-h-0 w-full resize-y overflow-y-auto py-2')}
-            {...form.register('paymentTerms')}
-          />
-        </FormField>
+        <PoPaymentTerms form={form} readOnly={readOnly} />
       </CardContent>
     </Card>
   )

@@ -351,6 +351,9 @@ export interface PurchaseOrderDetail {
   id: number
   /** The brand the PO is for: every product, batch and packaging list of it is of this platform. */
   platform: ProductPlatform
+  advancePercent: number
+  balanceTerm: string
+  balancePercent: number
   poNo: string
   /** The PO number from another system (the legacy sheet), when the PO came from there. */
   externalRef: string | null
@@ -412,6 +415,10 @@ export interface PurchaseOrderBody {
   destination: PoDestination
   /** Ecommerce or Retail; its products must all be of this platform. */
   platform: ProductPlatform
+  /** Payment terms: an advance, and the rest due on `balanceTerm`; the two add up to 100. */
+  advancePercent: number
+  balanceTerm: string
+  balancePercent: number
   /** The warehouse the goods go to; null leaves it unset. */
   warehouseId: number | null
   currency: PoCurrency

@@ -337,12 +337,30 @@ export interface PayableSample {
   amount: number
 }
 
+export interface PoTermsProgress {
+  advancePercent: number
+  balanceTerm: string
+  balancePercent: number
+  /** "10% Advance, 90% Against B/L on sight" */
+  text: string
+  advanceAmount: number
+  balanceAmount: number
+  advanceRequested: number
+  advancePaid: number
+  advanceRemaining: number
+  balanceRequested: number
+  balancePaid: number
+  balanceRemaining: number
+}
+
 export interface PayablePurchaseOrder extends PoRef {
   currency: string
   destination: 'US' | 'CA'
   etd: string
-  /** The terms typed on the PO; null when it has none. */
+  /** Older POs: the terms typed as text; null otherwise. */
   paymentTerms: string | null
+  /** The PO's terms: advance and balance, what each comes to, and how much of each is requested, paid and still to request. */
+  terms: PoTermsProgress
   units: number
   /** The PO's price and what further requests may still ask for, in its currency. */
   amount: number
