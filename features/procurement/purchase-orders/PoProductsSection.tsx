@@ -43,9 +43,6 @@ const units = (value: number) => value.toLocaleString('en-CA')
 const cbmPerUnit = (product: PoProduct): number | null =>
   product.cbm ?? (product.lengthCm !== null && product.widthCm !== null && product.heightCm !== null ? cbmOf(product.lengthCm, product.widthCm, product.heightCm, 'CM') : null)
 
-/** Cartons for the units ordered (a part-filled carton still counts as one); null without units per carton. */
-const cartonsOf = (unitsOrdered: number, unitsPerCarton: number | null): number | null => (unitsPerCarton ? Math.ceil(unitsOrdered / unitsPerCarton) : null)
-
 const PoBatchCard: React.FC<PoBatchCardProps> = ({ form, readOnly, fixedProducts, purchaseOrderId, batchIndex, batchCount, locked, onRemove }) => {
   const {
     control,
@@ -58,7 +55,7 @@ const PoBatchCard: React.FC<PoBatchCardProps> = ({ form, readOnly, fixedProducts
   const currency = useWatch({ control, name: 'currency' })
   const platform = useWatch({ control, name: 'platform' })
   const { isOpen, toggle } = useExpandedRows<number>()
-  const columns = readOnly ? 16 : 17
+  const columns = readOnly ? 15 : 16
   const productIds = lines.map((line) => line.product.id)
   const { data: lastPurchases } = useGetPurchaseOrderLastPurchasesQuery({ productIds, excludeId: purchaseOrderId }, { skip: productIds.length === 0 })
   const lastOf = (productId: number) => lastPurchases?.find((entry) => entry.productId === productId)
@@ -111,8 +108,7 @@ const PoBatchCard: React.FC<PoBatchCardProps> = ({ form, readOnly, fixedProducts
                   <th className={HEAD}>Brand</th>
                   <th className={HEAD}>Color</th>
                   <th className={HEAD}>L × W × H</th>
-                  <th className={HEAD} title="Unit L × W × H CBM × units per carton × cartons (units ordered ÷ units per carton)">CBM</th>
-                  <th className={HEAD}>Units / carton</th>
+                  <th className={HEAD} title="One unit's L × W × H CBM × units ordered">CBM</th>
                   <th className={HEAD}>Units ordered</th>
                   <th className={HEAD}>Unit rate ({currency})</th>
                   <th className={HEAD}>Amount ({currency})</th>
@@ -130,10 +126,6 @@ const PoBatchCard: React.FC<PoBatchCardProps> = ({ form, readOnly, fixedProducts
                   const remaining = (Number(line.unitsOrdered) || 0) - line.allocated
                   const unitCbm = cbmPerUnit(product)
                   const unitsOrdered = Number(line.unitsOrdered) || 0
-                  const cartons = cartonsOf(unitsOrdered, product.unitsPerCarton)
-                  // L × W × H is one unit: a carton is unit CBM × units per carton, the line is that × cartons
-                  const cartonCbm = unitCbm !== null && product.unitsPerCarton ? unitCbm * product.unitsPerCarton : null
-                  const lineCbm = cartonCbm !== null && cartons !== null ? cartonCbm * cartons : unitCbm !== null ? unitCbm * unitsOrdered : null
                   const expanded = isOpen(product.id)
                   return (
                     <React.Fragment key={field.fieldId}>
@@ -158,17 +150,9 @@ const PoBatchCard: React.FC<PoBatchCardProps> = ({ form, readOnly, fixedProducts
                         <td className={CELL}><PlatformBadge platform={product.platform} /></td>
                         <td className={CELL}>{product.color ?? '—'}</td>
                         <td className={cn(CELL, 'whitespace-nowrap')}>{formatDimensions(product.lengthCm, product.widthCm, product.heightCm, product.dimensionUnit)}</td>
-                        <td
-                          className={cn(CELL, 'whitespace-nowrap tabular-nums')}
-                          title={
-                            cartonCbm !== null && cartons !== null
-                              ? `${formatCbm(unitCbm)} × ${units(product.unitsPerCarton!)} per carton = ${formatCbm(cartonCbm)} × ${units(cartons)} cartons`
-                              : `${formatCbm(unitCbm)} × ${units(unitsOrdered)} units (no units per carton on the product)`
-                          }
-                        >
-                          {formatCbm(lineCbm)}
+                        <td className={cn(CELL, 'whitespace-nowrap tabular-nums')} title={`${formatCbm(unitCbm)} × ${units(unitsOrdered)} units`}>
+                          {formatCbm(unitCbm !== null ? unitCbm * unitsOrdered : null)}
                         </td>
-                        <td className={cn(CELL, 'tabular-nums')}>{product.unitsPerCarton !== null ? units(product.unitsPerCarton) : '—'}</td>
                         <td className={CELL}>
                           <CellField error={unitsError} hint={line.maxUnits !== undefined ? `max ${units(line.maxUnits)}` : undefined}>
                             <NumericInput
@@ -221,7 +205,7 @@ const PoBatchCard: React.FC<PoBatchCardProps> = ({ form, readOnly, fixedProducts
               </tbody>
               <tfoot>
                 <tr className="border-t border-border font-semibold">
-                  <td className={cn(CELL, 'text-left')} colSpan={10}>
+                  <td className={cn(CELL, 'text-left')} colSpan={9}>
                     Total · {fields.length} {fields.length === 1 ? 'product' : 'products'}
                   </td>
                   <td className={cn(CELL, 'tabular-nums')}>{units(products.ordered)}</td>
