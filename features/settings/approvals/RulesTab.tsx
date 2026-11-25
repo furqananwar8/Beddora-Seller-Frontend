@@ -13,6 +13,7 @@ import {
   useGetDepartmentsQuery,
   useSaveApprovalRuleMutation,
   type ApprovalRule,
+  type AssigneePlatform,
   type Completion,
   type Department,
   type PersonRef,
@@ -25,7 +26,7 @@ import { cn } from '@/utils/cn'
 
 // Same order as the design
 const GROUP_ORDER = ['Procurement', 'Finance']
-const ACTION_ORDER = ['procurement.po.submit.ecommerce', 'procurement.po.submit.retail', 'procurement.purchase-invoice.submit', 'procurement.price-analysis.approve', 'finance.payment-request.submit']
+const ACTION_ORDER = ['procurement.po.submit', 'procurement.purchase-invoice.submit', 'procurement.price-analysis.approve', 'finance.payment-request.submit']
 const rank = (list: string[], item: string) => (list.indexOf(item) + 1 || 99)
 
 const COMPLETIONS: Array<{ value: Completion; label: string }> = [
@@ -34,9 +35,11 @@ const COMPLETIONS: Array<{ value: Completion; label: string }> = [
   { value: 'PER_GROUP', label: 'One from each team' },
 ]
 
+const platformTag = z.enum(['ECOMMERCE', 'RETAIL']).nullish()
+
 const assigneeSchema = z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal('USER'), userId: z.number() }),
-  z.object({ kind: z.literal('DEPARTMENT'), departmentId: z.number() }),
+  z.object({ kind: z.literal('USER'), userId: z.number(), platform: platformTag }),
+  z.object({ kind: z.literal('DEPARTMENT'), departmentId: z.number(), platform: platformTag }),
   z.object({ kind: z.literal('PLATFORM') }),
 ])
 
@@ -48,14 +51,17 @@ const schema = z.object({
 type Values = z.infer<typeof schema>
 
 const nameOf = (person: PersonRef) => person.name ?? person.email
-const same = (a: RuleAssignee, b: RuleAssignee) => a.kind === b.kind && (a.kind === 'USER' ? a.userId === (b as typeof a).userId : a.kind === 'DEPARTMENT' ? a.departmentId === (b as typeof a).departmentId : true)
+const platformOf = (assignee: RuleAssignee): AssigneePlatform | null => (assignee.kind === 'PLATFORM' ? null : (assignee.platform ?? null))
+/** The same person (or department) under the same platform: someone may be in the Ecommerce list and the Retail list at once. */
+const same = (a: RuleAssignee, b: RuleAssignee) => a.kind === b.kind && platformOf(a) === platformOf(b) && (a.kind === 'USER' ? a.userId === (b as typeof a).userId : a.kind === 'DEPARTMENT' ? a.departmentId === (b as typeof a).departmentId : true)
+const PLATFORM_NAME: Record<AssigneePlatform, string> = { ECOMMERCE: 'Ecommerce', RETAIL: 'Retail' }
 
 const valuesOf = (rule: ApprovalRule): Values => ({
   isActive: rule.isActive,
   steps: rule.steps.map((step, index) => ({
     uid: `s${index}`,
     completion: step.completion,
-    assignees: step.assignees.map((a): RuleAssignee => (a.kind === 'USER' ? { kind: 'USER', userId: a.userId } : a.kind === 'DEPARTMENT' ? { kind: 'DEPARTMENT', departmentId: a.departmentId } : { kind: 'PLATFORM' })),
+    assignees: step.assignees.map((a): RuleAssignee => (a.kind === 'USER' ? { kind: 'USER', userId: a.userId, platform: a.platform ?? null } : a.kind === 'DEPARTMENT' ? { kind: 'DEPARTMENT', departmentId: a.departmentId, platform: a.platform ?? null } : { kind: 'PLATFORM' })),
   })),
 })
 
@@ -105,6 +111,9 @@ const RuleEditor: React.FC<EditorProps> = ({ guard, rule, lookups, readOnly, slo
   const steps = watch('steps')
   const dragFrom = useRef<number | null>(null)
   const dirty = formState.isDirty
+  // Steps that ask different people per brand (opened by the "Different people per brand" option, or because the rule already does)
+  const [split, setSplit] = useState<Record<string, boolean>>({})
+  const isSplit = (index: number) => split[steps[index].uid] ?? steps[index].assignees.some((assignee) => platformOf(assignee) !== null)
 
   const setAssignees = (index: number, next: RuleAssignee[]) => setValue(`steps.${index}.assignees`, next, { shouldDirty: true, shouldValidate: formState.isSubmitted })
   const addMany = (index: number, added: RuleAssignee[]) => setAssignees(index, [...steps[index].assignees, ...added.filter((assignee) => !steps[index].assignees.some((existing) => same(existing, assignee)))])
@@ -125,18 +134,19 @@ const RuleEditor: React.FC<EditorProps> = ({ guard, rule, lookups, readOnly, slo
   guard.current = { dirty, save: async () => { saved = false; await submit(); return saved } }
   useEffect(() => () => { guard.current = null }, [guard])
 
-  /** Everything that can still join a step: people, departments (their heads) and, where it applies, the product platform. */
-  const pickOptions = (index: number): Array<PickOption & { assignee: RuleAssignee }> => {
+  /** Everything that can still join a step: people and departments (their heads). `platform` = the brand list the picker belongs to. */
+  const pickOptions = (index: number, platform: AssigneePlatform | null): Array<PickOption & { assignee: RuleAssignee }> => {
     const current = steps[index].assignees
     const taken = (candidate: RuleAssignee) => current.some((existing) => same(existing, candidate))
     return [
-      ...(rule.supportsPlatform && !taken({ kind: 'PLATFORM' }) ? [{ key: 'platform', label: 'By product platform', hint: 'Retail / Ecommerce', assignee: { kind: 'PLATFORM' } as RuleAssignee }] : []),
       ...lookups.departments
-        .filter((department) => !taken({ kind: 'DEPARTMENT', departmentId: department.id }))
-        .map((department) => ({ key: `d${department.id}`, label: `${department.name} heads`, hint: headsOf(department).join(', ') || 'no head', assignee: { kind: 'DEPARTMENT', departmentId: department.id } as RuleAssignee })),
-      ...lookups.users.filter((user) => !taken({ kind: 'USER', userId: user.id })).map((user) => ({ key: `u${user.id}`, label: nameOf(user), hint: 'Person', assignee: { kind: 'USER', userId: user.id } as RuleAssignee })),
+        .filter((department) => !taken({ kind: 'DEPARTMENT', departmentId: department.id, platform }))
+        .map((department) => ({ key: `d${department.id}`, label: `${department.name} heads`, hint: headsOf(department).join(', ') || 'no head', assignee: { kind: 'DEPARTMENT', departmentId: department.id, platform } as RuleAssignee })),
+      ...lookups.users.filter((user) => !taken({ kind: 'USER', userId: user.id, platform })).map((user) => ({ key: `u${user.id}`, label: nameOf(user), hint: 'Person', assignee: { kind: 'USER', userId: user.id, platform } as RuleAssignee })),
     ]
   }
+
+  const addPicked = (index: number, picked: Array<PickOption & { assignee: RuleAssignee }>) => addMany(index, picked.map((option) => option.assignee))
 
   return (
     <form onSubmit={submit} noValidate>
@@ -169,16 +179,65 @@ const RuleEditor: React.FC<EditorProps> = ({ guard, rule, lookups, readOnly, slo
                 </span>
                 <span className="flex h-7 w-7 shrink-0 items-center justify-center ds-circle bg-blue-600 text-[13px] font-bold leading-none text-white">{index + 1}</span>
                 <span className="text-[13px] text-slate-600">Move on when</span>
-                <Controller control={control} name={`steps.${index}.completion`} render={({ field: completion }) => <Select options={COMPLETIONS} value={completion.value} onChange={completion.onChange} searchable={false} disabled={readOnly || saving} width="w-52" />} />
+                <Controller
+                  control={control}
+                  name={`steps.${index}.completion`}
+                  render={({ field: completion }) => (
+                    <Select<Completion | 'BRAND'>
+                      options={[...COMPLETIONS, ...(rule.supportsPlatform ? [{ value: 'BRAND' as const, label: 'Different people per brand' }] : [])]}
+                      value={isSplit(index) ? 'BRAND' : completion.value}
+                      onChange={(next) => {
+                        if (next === 'BRAND') {
+                          // Only the brand lists ask anyone now: people from the single list are dropped
+                          setAssignees(index, step.assignees.filter((assignee) => platformOf(assignee) !== null))
+                          completion.onChange('ANY') // one approver from the brand's list is enough
+                          return setSplit((current) => ({ ...current, [step.uid]: true }))
+                        }
+                        // Back to one list for every brand: the Ecommerce / Retail lists are dropped
+                        if (isSplit(index)) {
+                          setAssignees(index, step.assignees.filter((assignee) => platformOf(assignee) === null))
+                          setSplit((current) => ({ ...current, [step.uid]: false }))
+                        }
+                        completion.onChange(next)
+                      }}
+                      searchable={false}
+                      disabled={readOnly || saving}
+                      width="w-64"
+                    />
+                  )}
+                />
               </div>
-              <div className="mt-4 flex flex-wrap items-center gap-2">
-                {!readOnly && <AddPicker label="+ Add person or department head" options={pickOptions(index)} onAdd={(picked) => addMany(index, picked.map((option) => option.assignee))} empty="Everyone is already in this step." width="w-80" />}
-                {step.assignees.map((assignee, at) => (
-                  <Chip key={`${assignee.kind}-${at}`} teal={assignee.kind === 'PLATFORM'} onRemove={readOnly ? undefined : () => setAssignees(index, step.assignees.filter((_, position) => position !== at))}>
-                    {chipText(assignee, lookups)}
-                  </Chip>
-                ))}
-              </div>
+              {!isSplit(index) && (
+                <div className="mt-4 flex flex-wrap items-center gap-2">
+                  {!readOnly && <AddPicker label="+ Add person or department head" options={pickOptions(index, null)} onAdd={(picked) => addPicked(index, picked)} empty="Everyone is already in this step." width="w-80" />}
+                  {step.assignees.map((assignee, at) =>
+                    platformOf(assignee) === null ? (
+                      <Chip key={`${assignee.kind}-${at}`} teal={assignee.kind === 'PLATFORM'} onRemove={readOnly ? undefined : () => setAssignees(index, step.assignees.filter((_, position) => position !== at))}>
+                        {chipText(assignee, lookups)}
+                      </Chip>
+                    ) : null
+                  )}
+                </div>
+              )}
+              {rule.supportsPlatform && isSplit(index) && (
+                <div className="mt-3 flex flex-col gap-2" data-testid={`brand-split-${index}`}>
+                  <p className="text-xs text-slate-500">The PO&apos;s brand picks the list: only the people in that brand&apos;s list are asked and notified.</p>
+                  {(['ECOMMERCE', 'RETAIL'] as const).map((platform) => (
+                    <div key={platform} className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                      <span className="w-36 shrink-0 text-[13px] font-semibold text-slate-700">{PLATFORM_NAME[platform]} POs ask</span>
+                      {!readOnly && <AddPicker label="+ Add person or department head" options={pickOptions(index, platform)} onAdd={(picked) => addMany(index, picked.map((option) => ({ ...option.assignee, platform }) as RuleAssignee))} empty="Everyone is already in this list." width="w-72" />}
+                      {step.assignees.map((assignee, at) =>
+                        platformOf(assignee) === platform ? (
+                          <Chip key={`${platform}-${assignee.kind}-${at}`} onRemove={readOnly ? undefined : () => setAssignees(index, step.assignees.filter((_, position) => position !== at))}>
+                            {chipText(assignee, lookups)}
+                          </Chip>
+                        ) : null
+                      )}
+                      {step.assignees.every((assignee) => platformOf(assignee) !== platform) && <span className="text-xs text-slate-400">nobody yet</span>}
+                    </div>
+                  ))}
+                </div>
+              )}
               {step.assignees.some((assignee) => assignee.kind === 'PLATFORM') && (
                 <p className="mt-2 text-xs text-slate-500">Looks at the products on {rule.where}. Retail only: Retail team. Ecommerce only: Ecommerce team. Both: one from each.</p>
               )}

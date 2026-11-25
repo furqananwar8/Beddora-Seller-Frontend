@@ -40,9 +40,12 @@ export interface ApprovalActionSummary {
 /** ANY: the first approval moves on. ALL: everyone must approve. PER_GROUP: one person from each team. */
 export type Completion = 'ANY' | 'ALL' | 'PER_GROUP'
 
+/** Set on a person or department: asked only for records of that platform (an Ecommerce PO goes to its Ecommerce approvers). */
+export type AssigneePlatform = 'ECOMMERCE' | 'RETAIL'
+
 export type RuleAssignee =
-  | { kind: 'USER'; userId: number }
-  | { kind: 'DEPARTMENT'; departmentId: number }
+  | { kind: 'USER'; userId: number; platform?: AssigneePlatform | null }
+  | { kind: 'DEPARTMENT'; departmentId: number; platform?: AssigneePlatform | null }
   | { kind: 'PLATFORM' }
 
 export interface ApprovalRule {
