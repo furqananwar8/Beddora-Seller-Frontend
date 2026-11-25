@@ -163,7 +163,7 @@ export const ProductsScreen: React.FC = () => {
                 type="search"
                 value={draft.search}
                 onChange={(event) => setDraft('search', event.target.value)}
-                placeholder="Name, variant name or SKU"
+                placeholder="Name, variant name, SKU, UPC or ASIN"
                 className="ds-input ds-input-default rounded-lg"
               />
             </FormField>
