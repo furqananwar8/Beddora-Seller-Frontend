@@ -19,7 +19,7 @@ interface Props {
 }
 
 /** Words shown in capitals instead of title case, e.g. `sku-mapping` → "SKU Mapping". */
-const ACRONYMS = new Set(['sku', 'po', 'ppc', 'ip', 'invp'])
+const ACRONYMS = new Set(['sku', 'po', 'ppc', 'ip', 'invp', 'fbm'])
 
 /** Screens whose name is not their slug read out (`sku-landed` is the SKU Landed Cost screen). */
 const DISPLAY_NAMES: Record<string, string> = { 'sku-landed': 'SKU Landed Cost' }
