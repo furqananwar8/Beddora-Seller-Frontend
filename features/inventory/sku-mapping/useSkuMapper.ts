@@ -197,6 +197,18 @@ export function useSkuMapper() {
       const boundToSelected = selectedRow && componentsOf(draft, selectedRow).some((component) => component.productId === productId)
       dispatch(boundToSelected && selectedRow ? { type: 'unbind', row: selectedRow, productId } : { type: 'dismiss', productId, rows })
     },
+    /**
+     * The X on a channel SKU: while it has internal SKUs bound, unbinds them all (staged until Save, they stay on the
+     * graph); once it has none, takes it off the graph. Unsaved edits must be saved or discarded first.
+     */
+    dismissChannel: (rowKey: string) => {
+      const row = rows.find((item) => item.key === rowKey)
+      if (!row) return
+      const components = componentsOf(draft, row)
+      if (components.length > 0) components.forEach((component) => dispatch({ type: 'unbind', row, productId: component.productId }))
+      else if (locked.has(row.key)) info('Save or discard its changes first, then remove it from the graph.')
+      else removeKeys([row.key])
+    },
     discard: () => dispatch({ type: 'clearEdits' }),
     saveChanges,
   }

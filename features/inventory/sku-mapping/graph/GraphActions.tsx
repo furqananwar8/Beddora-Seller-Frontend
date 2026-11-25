@@ -11,6 +11,8 @@ export interface GraphActions {
   setQuantity: (row: ChannelSku, productId: number, quantity: number) => void
   /** The X on an internal SKU: unbinds it from the selected channel SKU, else removes it from the graph. */
   dismissInternal: (productId: number) => void
+  /** The X on a channel SKU: unbinds all its internal SKUs, then (once it has none) removes it from the graph. */
+  dismissChannel: (rowKey: string) => void
   readOnly: boolean
 }
 
