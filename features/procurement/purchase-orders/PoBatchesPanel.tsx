@@ -6,6 +6,7 @@ import { NumericInput } from '@/components/form-field/NumericInput'
 import { StatusBadge, type StatusTone } from '@/components/status-badge/StatusBadge'
 import { SingleDatePicker } from '@/components/single-date-picker/SingleDatePicker'
 import { Button } from '@/design-system/buttons'
+import { Modal } from '@/design-system/modals'
 import { Spinner } from '@/design-system/loaders'
 import { useApiFeedback } from '@/hooks/useApiFeedback'
 import {
@@ -34,6 +35,37 @@ const HEAD = 'px-3 py-2 text-center text-xs font-semibold uppercase tracking-wid
 const CELL = 'px-3 py-2 text-center align-middle'
 const units = (value: number) => value.toLocaleString('en-CA')
 
+const SKU_PREVIEW = 3
+
+/** The batch's SKUs: the first few inline, the rest behind "Show more" (a modal listing just the SKUs) so the row stays tidy. */
+const SkuCell: React.FC<{ batch: PoBatch }> = ({ batch }) => {
+  const [open, setOpen] = useState(false)
+  const extra = batch.lines.length - SKU_PREVIEW
+  return (
+    <>
+      <div className="flex flex-col gap-0.5">
+        {batch.lines.slice(0, SKU_PREVIEW).map((line) => (
+          <span key={line.id} className="whitespace-nowrap">
+            <span className="font-mono">{line.product.ref}</span> × {units(line.units)}
+          </span>
+        ))}
+        {extra > 0 && (
+          <button type="button" className="w-fit font-medium text-primary-600 hover:underline" onClick={() => setOpen(true)}>
+            Show {extra} more
+          </button>
+        )}
+      </div>
+      <Modal isOpen={open} onClose={() => setOpen(false)} title={`${batch.label} · SKUs (${batch.lines.length})`} size="sm" closeOnBackdropClick closeOnEscape>
+        <ul className="flex max-h-[60vh] flex-col gap-1 overflow-y-auto font-mono text-sm">
+          {batch.lines.map((line) => (
+            <li key={line.id}>{line.product.ref}</li>
+          ))}
+        </ul>
+      </Modal>
+    </>
+  )
+}
+
 const BatchRow: React.FC<{ po: PurchaseOrderDetail; batch: PoBatch }> = ({ po, batch }) => {
   const [setDate] = useSetPurchaseOrderBatchProductionDateMutation()
   return (
@@ -56,11 +88,7 @@ const BatchRow: React.FC<{ po: PurchaseOrderDetail; batch: PoBatch }> = ({ po, b
         <BatchStatusBadge status={batch.status} />
       </td>
       <td className={`${CELL} text-left text-xs`}>
-        {batch.lines.map((line) => (
-          <span key={line.id} className="mr-3 inline-block whitespace-nowrap">
-            <span className="font-mono">{line.product.ref}</span> × {units(line.units)}
-          </span>
-        ))}
+        <SkuCell batch={batch} />
       </td>
       <td className={`${CELL} tabular-nums`}>{units(batch.units)}</td>
       <td className={`${CELL} tabular-nums`}>{units(batch.packed)}</td>
@@ -159,6 +187,8 @@ export const PoBatchesPanel: React.FC<PoBatchesPanelProps> = ({ purchaseOrderId,
   const [adding, setAdding] = useState(false)
   if (isLoading) return <div className="flex justify-center py-4"><Spinner /></div>
   if (isError || !po) return <p className="py-3 text-center text-sm text-danger-600">Could not load the batches.</p>
+  // A new batch is only for units a finalized packaging list left behind (a later batch gets its own list and container)
+  const allPlsFinal = po.batches.every((batch) => batch.packagingList?.kind === 'FINAL')
   return (
     <div className="flex flex-col gap-3 text-left" data-testid={`batches-${po.id}`}>
       <div className="ds-scroll-x rounded-lg border border-border">
@@ -181,7 +211,7 @@ export const PoBatchesPanel: React.FC<PoBatchesPanelProps> = ({ purchaseOrderId,
           </tbody>
         </table>
       </div>
-      {withAdd && po.can.addBatch && (adding ? <AddBatchForm po={po} onDone={() => setAdding(false)} /> : (
+      {withAdd && po.can.addBatch && allPlsFinal && po.unbatched.length > 0 && (adding ? <AddBatchForm po={po} onDone={() => setAdding(false)} /> : (
         <div>
           <Button type="button" variant="outline" size="sm" onClick={() => setAdding(true)}>
             + Add batch

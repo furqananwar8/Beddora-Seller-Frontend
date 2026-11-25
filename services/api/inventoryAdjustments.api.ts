@@ -53,10 +53,43 @@ export interface AdjustQuantityResponse {
   changedBuckets: StockBucket[]
 }
 
+export interface AdjustmentHistoryEntry {
+  id: number
+  sku: string
+  description: string
+  /** Bucket the units left (null: they entered the warehouse) and bucket they went to (null: they left it). */
+  fromBucket: StockBucket | null
+  toBucket: StockBucket | null
+  quantity: number
+  note: string | null
+  user: { id: number; name: string | null } | null
+  createdAt: string
+}
+
+export interface AdjustmentHistoryParams {
+  /** One SKU's history; every SKU when absent. */
+  id?: string
+  page: number
+  limit: number
+}
+
+export interface AdjustmentHistoryPage {
+  data: AdjustmentHistoryEntry[]
+  totalRecords: number
+  page: number
+  limit: number
+  totalPages: number
+}
+
 export const inventoryAdjustmentsApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getAdjustments: builder.query<AdjustmentPage, AdjustmentListParams>({
       query: ({ search, page, limit }) => ({ url: '/inventory/adjustments', params: { search: search || undefined, page, limit } }),
+      providesTags: ['InventoryAdjustments'],
+    }),
+
+    getAdjustmentHistory: builder.query<AdjustmentHistoryPage, AdjustmentHistoryParams>({
+      query: ({ id, page, limit }) => ({ url: `/inventory/adjustments/${id ? `${id}/` : ''}history`, params: { page, limit } }),
       providesTags: ['InventoryAdjustments'],
     }),
 
@@ -72,4 +105,4 @@ export const inventoryAdjustmentsApi = baseApi.injectEndpoints({
   }),
 })
 
-export const { useGetAdjustmentsQuery, useAdjustQuantityMutation, useUpdateBoxDimensionsMutation } = inventoryAdjustmentsApi
+export const { useGetAdjustmentsQuery, useGetAdjustmentHistoryQuery, useAdjustQuantityMutation, useUpdateBoxDimensionsMutation } = inventoryAdjustmentsApi
