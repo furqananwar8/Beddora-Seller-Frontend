@@ -12,6 +12,7 @@ import { MarketplaceTags } from '../shared/MarketplaceTags'
 import { ProductPicker, productLabel } from '../shared/ProductPicker'
 import { ExpandToggle, ProductSpecs, useExpandedRows } from '../shared/ProductSpecs'
 import { ProductTagBadge } from '../shared/ProductTagBadge'
+import { PlatformBadge } from '../shared/platformMeta'
 import { cbmOf, formatCbm, formatDimensions } from '../shared/units'
 import { Button } from '@/design-system/buttons'
 import { allLines, lineAmount, newLine, summarize, type PoFormValues } from './poForm'
@@ -53,7 +54,7 @@ const PoBatchCard: React.FC<PoBatchCardProps> = ({ form, readOnly, fixedProducts
   const currency = useWatch({ control, name: 'currency' })
   const platform = useWatch({ control, name: 'platform' })
   const { isOpen, toggle } = useExpandedRows<number>()
-  const columns = readOnly ? 14 : 15
+  const columns = readOnly ? 15 : 16
   const productIds = lines.map((line) => line.product.id)
   const { data: lastPurchases } = useGetPurchaseOrderLastPurchasesQuery({ productIds, excludeId: purchaseOrderId }, { skip: productIds.length === 0 })
   const lastOf = (productId: number) => lastPurchases?.find((entry) => entry.productId === productId)
@@ -103,6 +104,7 @@ const PoBatchCard: React.FC<PoBatchCardProps> = ({ form, readOnly, fixedProducts
                   <th className={HEAD}>Last Purchase Price</th>
                   <th className={HEAD}>Purchase Date</th>
                   <th className={HEAD}>Tag</th>
+                  <th className={HEAD}>Brand</th>
                   <th className={HEAD}>Color</th>
                   <th className={HEAD}>L × W × H</th>
                   <th className={HEAD}>CBM</th>
@@ -142,6 +144,7 @@ const PoBatchCard: React.FC<PoBatchCardProps> = ({ form, readOnly, fixedProducts
                         <td className={CELL}>
                           <ProductTagBadge tag={product.tag} />
                         </td>
+                        <td className={CELL}><PlatformBadge platform={product.platform} /></td>
                         <td className={CELL}>{product.color ?? '—'}</td>
                         <td className={cn(CELL, 'whitespace-nowrap')}>{formatDimensions(product.lengthCm, product.widthCm, product.heightCm, product.dimensionUnit)}</td>
                         <td className={cn(CELL, 'whitespace-nowrap tabular-nums')}>{formatCbm(cbmPerUnit(product))}</td>

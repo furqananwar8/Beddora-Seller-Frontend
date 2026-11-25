@@ -5,7 +5,6 @@ import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { FormActions } from '@/components/form-actions/FormActions'
 import { FormField } from '@/components/form-field/FormField'
-import { SegmentedToggle } from '@/components/segmented-toggle/SegmentedToggle'
 import { Container } from '@/components/layout'
 import { StatusBadge } from '@/components/status-badge/StatusBadge'
 import { Button } from '@/design-system/buttons'
@@ -22,11 +21,10 @@ import {
   useGetProcurementPurchaseOrderQuery,
   useUpdatePackagingListMutation,
   type PackagingListBody,
-  type PoDestination,
 } from '@/services/api/procurement.api'
 import { serverIssues } from '@/utils/apiErrors'
 import { downloadApiFile } from '@/utils/downloadFile'
-import { DESTINATION_LABEL, DESTINATION_OPTIONS, containerLabel, supplierNames } from '../shared/poMeta'
+import { DESTINATION_LABEL, containerLabel, supplierNames } from '../shared/poMeta'
 import { PackableBatchSelect } from './PackableBatchSelect'
 import { computeLine, EMPTY_LINE, lineKey, newLine, savedLine, toLineBody, type LineValue } from './packingLine'
 import { PackingLinesTable } from './PackingLinesTable'
@@ -63,8 +61,6 @@ export const PackagingListFormScreen: React.FC<PackagingListFormScreenProps> = (
   const { data: fromPo } = useGetProcurementPurchaseOrderQuery(fromPoId ?? 0, { skip: !fromPoId })
 
   const [batchIds, setBatchIds] = useState<number[]>([])
-  /** Narrows the batches offered to one destination; '' is every destination. */
-  const [destinationFilter, setDestinationFilter] = useState<PoDestination | ''>('')
   const [values, setValues] = useState<Map<string, LineValue>>(new Map())
   const [closePoIds, setClosePoIds] = useState<Set<number>>(new Set())
   /** SKU lines taken off this list (by {@link lineKey}); their units stay in the batch. */
@@ -90,8 +86,6 @@ export const PackagingListFormScreen: React.FC<PackagingListFormScreenProps> = (
   const excludeListId = packagingListId
   // Any supplier's batches: one list may carry several suppliers' goods
   const { data: batchOptions = [], isFetching: loadingOptions } = useGetPackableBatchesQuery({ excludeListId }, { skip: readOnly })
-  // Batches already picked stay listed whatever the filter, so a pick never disappears from the box
-  const shownBatchOptions = useMemo(() => (destinationFilter ? batchOptions.filter((batch) => batch.destination === destinationFilter || batchIds.includes(batch.id)) : batchOptions), [batchOptions, destinationFilter, batchIds])
   const { data: groups = [], isFetching: loadingLines } = useGetPackableBatchLinesQuery({ batchIds, excludeListId }, { skip: batchIds.length === 0 })
 
   // New lines start with everything still available, in cartons the size of the product; typed values are kept when batches are added or removed
@@ -234,17 +228,6 @@ export const PackagingListFormScreen: React.FC<PackagingListFormScreenProps> = (
             <CardTitle>Batches</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-4 md:grid-cols-2">
-            {!existing && (
-              <FormField label="Destination" className="md:col-span-2">
-                <SegmentedToggle<PoDestination | ''>
-                  ariaLabel="Destination"
-                  value={destinationFilter}
-                  onChange={setDestinationFilter}
-                  options={[{ value: '', label: 'All' }, ...DESTINATION_OPTIONS]}
-                  className="w-fit"
-                />
-              </FormField>
-            )}
             <FormField
               label="Batch(es)"
               htmlFor="pl-batches"
@@ -258,7 +241,7 @@ export const PackagingListFormScreen: React.FC<PackagingListFormScreenProps> = (
                   <span className="text-text-muted"> · {supplierNames(existing.suppliers)}</span>
                 </p>
               ) : (
-                <PackableBatchSelect id="pl-batches" options={shownBatchOptions} value={batchIds} onChange={setBatchIds} loading={loadingOptions} />
+                <PackableBatchSelect id="pl-batches" options={batchOptions} value={batchIds} onChange={setBatchIds} loading={loadingOptions} />
               )}
             </FormField>
           </CardContent>
