@@ -19,6 +19,8 @@ import { SectionCard } from '../../shared/Card'
 import { Breakdown, TAG_CLASS } from '../../create/RateRow'
 import { tagRates, TAG_LABEL } from '../../create/rateRanking'
 import { CarrierLogo } from '../../shared/CarrierLogo'
+import { convertLength, convertWeight } from '@/features/procurement/shared/units'
+import type { LengthUnit, WeightUnit } from '@/services/api/procurement.api'
 import { UNITS } from '../../create/shipmentForm'
 import { WizardStepper } from '../../create/WizardStepper'
 import { bookOrderHref, INCOTERM_META, money, ORDERS_LIST_HREF, shortDay, SKU_MAPPER_HREF, transitDays } from '../../shippingMeta'
@@ -131,28 +133,68 @@ const OrderHeaderRow: React.FC<{ order: Pick<OrderRow, 'ref' | 'detail'>; colSpa
 
 const bookingNote = (row: BulkRow) => (row.count > 1 ? `Booking ${row.index} of ${row.count}` : 'Booking')
 
-/** Length, width, height and weight of one package. */
+/**
+ * Length, width, height and weight of one package. Each field has its own cm / in (kg / lb) choice, cm and kg to start;
+ * the package is kept in the booking's own unit system, so a value typed in the other unit is converted as it is typed.
+ */
 const SizeInputs: React.FC<{ pkg: PackageText; units: keyof typeof UNITS; name: string; onChange: (pkg: PackageText) => void }> = ({ pkg, units, name, onChange }) => {
   const unit = UNITS[units]
-  const field = (key: keyof PackageText, label: string, suffix: string) => (
-    <label className="flex items-center gap-1 text-xs text-text-muted">
-      {label}
-      <NumericInput
-        decimal
-        value={pkg[key]}
-        onChange={(event) => onChange({ ...pkg, [key]: event.target.value })}
-        aria-label={`${label} for ${name}`}
-        className="ds-input ds-input-default h-8 w-20 rounded-lg px-2 text-sm text-text-primary"
-      />
-      {suffix}
-    </label>
-  )
+  const [picked, setPicked] = useState<Partial<Record<keyof PackageText, string>>>({})
+  // What was typed in a field whose unit differs from the stored one, so typing "9." or "9.40" is not rewritten under the cursor
+  const [typed, setTyped] = useState<Partial<Record<keyof PackageText, string>>>({})
+  const convert = (key: keyof PackageText, value: number, from: string, to: string) =>
+    key === 'weight' ? convertWeight(value, from as WeightUnit, to as WeightUnit) : convertLength(value, from as LengthUnit, to as LengthUnit)
+  const field = (key: keyof PackageText, label: string) => {
+    const stored = key === 'weight' ? unit.weight : unit.length
+    const options = key === 'weight' ? ['KG', 'LB'] : ['CM', 'IN']
+    const shown = picked[key] ?? stored
+    const toStored = (text: string) => (Number.isFinite(Number(text)) && text.trim() !== '' ? String(convert(key, Number(text), shown, stored)) : '')
+    const value =
+      shown === stored
+        ? pkg[key]
+        : typed[key] !== undefined && toStored(typed[key]!) === pkg[key]
+          ? typed[key]!
+          : Number.isFinite(Number(pkg[key])) && pkg[key].trim() !== ''
+            ? String(convert(key, Number(pkg[key]), stored, shown))
+            : ''
+    return (
+      <label className="flex items-center gap-1 text-xs text-text-muted">
+        {label}
+        <NumericInput
+          decimal
+          value={value}
+          onChange={(event) => {
+            const text = event.target.value
+            if (shown !== stored) setTyped((current) => ({ ...current, [key]: text }))
+            onChange({ ...pkg, [key]: shown === stored ? text : toStored(text) })
+          }}
+          aria-label={`${label} for ${name}`}
+          className="ds-input ds-input-default h-8 w-20 rounded-lg px-2 text-sm text-text-primary"
+        />
+        <select
+          value={shown}
+          onChange={(event) => {
+            setPicked((current) => ({ ...current, [key]: event.target.value }))
+            setTyped((current) => ({ ...current, [key]: undefined }))
+          }}
+          aria-label={`${label} unit for ${name}`}
+          className="h-8 rounded-lg border border-border bg-surface px-1 text-xs text-text-secondary"
+        >
+          {options.map((option) => (
+            <option key={option} value={option}>
+              {option.toLowerCase()}
+            </option>
+          ))}
+        </select>
+      </label>
+    )
+  }
   return (
     <span className="flex shrink-0 items-center gap-3 whitespace-nowrap">
-      {field('length', 'L', unit.length.toLowerCase())}
-      {field('width', 'W', unit.length.toLowerCase())}
-      {field('height', 'H', unit.length.toLowerCase())}
-      {field('weight', 'Weight', unit.weight.toLowerCase())}
+      {field('length', 'L')}
+      {field('width', 'W')}
+      {field('height', 'H')}
+      {field('weight', 'Weight')}
     </span>
   )
 }
