@@ -97,6 +97,8 @@ export interface InboundShipmentItem {
   title: string
   imageUrl?: string
   quantity: number
+  /** Units actually scanned out and deducted from stock (what left, not what was booked); set once scanning has started. */
+  quantityScannedOut?: number
   /** Populated from the partner once the shipment is receiving. */
   quantityReceived?: number
   /** WFS: units Walmart's FC received damaged. */

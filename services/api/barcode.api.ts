@@ -83,6 +83,15 @@ export interface ScanSessionLine {
   state: ScanLineState
   /** Why this product can't be scanned right now (no FBA / WFS pool to take from): it shows read-only. */
   blocked?: string | null
+  /** Units allocated to take from (null when the record doesn't track it), and how many more this line still needs allocated. */
+  allocated?: number | null
+  allocationNeeded?: number
+}
+
+/** A booked channel SKU bound to no internal product: it can't be scanned until it is mapped. */
+export interface UnmappedLine {
+  channelSku: string
+  units: number
 }
 
 export interface ScanLineScans {
@@ -189,6 +198,8 @@ export interface ScanSession extends ScanSessionSummary {
   latest: ScanSessionScan[]
   applied: ScanAppliedLine[]
   unmatched: ScanUnmatched[]
+  /** Booked channel SKUs with no internal product bound: listed read-only. */
+  unmapped?: UnmappedLine[]
   /** Scans past the quantity a shipment or order holds, refused since the last read (reported once). */
   refused: Array<{ upc: string; sku: string; expected: number; at: number }>
   /** Scans still waiting to be matched. */

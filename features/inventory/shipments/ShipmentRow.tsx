@@ -731,7 +731,12 @@ See ${item.sku} on Channel Inventory`}
                                 )}
                               </div>
                             ) : (
-                              <span className="font-semibold">{formatUnits(item.quantity)}</span>
+                              <div className="flex flex-col items-end">
+                                <span className="font-semibold">{formatUnits(item.quantity)}</span>
+                                {item.quantityScannedOut !== undefined && item.quantityScannedOut !== item.quantity && (
+                                  <span className="text-[11px] text-warning-700">{formatUnits(item.quantityScannedOut)} scanned out</span>
+                                )}
+                              </div>
                             )}
                           </td>
                           {showReceived && (

@@ -269,7 +269,12 @@ export function ScanSessionModal({ sessionId, onClose }: Props) {
                         <td className="px-3 py-2.5 text-center align-middle">
                           <div className="font-mono text-xs text-text-primary">{line.sku}</div>
                           {line.channelSku && <div className="text-xs text-text-muted">{line.channelSku}</div>}
-                          {line.blocked && <div className="text-xs font-semibold text-danger-600">Not enough {poolName(session.channel)} pool</div>}
+                          {line.blocked && <div className="text-xs font-semibold text-danger-600">No {poolName(session.channel)} allocation. Allocate units in the Planner</div>}
+                          {!line.blocked && open && (line.allocationNeeded ?? 0) > 0 && (
+                            <div className="text-xs font-semibold text-warning-700">
+                              Only {line.allocated} {poolName(session.channel)} allocated: {line.allocationNeeded} more needed for the full {line.expected}
+                            </div>
+                          )}
                         </td>
                         <td className="px-3 py-2.5 font-mono text-xs text-center align-middle">{line.upc ?? (line.asin ? '-' : <Badge variant="warning" size="sm">No UPC</Badge>)}</td>
                         <td className="px-3 py-2.5 font-mono text-xs text-center align-middle">{line.asin ?? (line.upc ? '-' : <Badge variant="warning" size="sm">No ASIN</Badge>)}</td>
@@ -285,6 +290,19 @@ export function ScanSessionModal({ sessionId, onClose }: Props) {
                         </td>
                       </tr>
                     </Fragment>
+                  ))}
+                  {(session.unmapped ?? []).map((u) => (
+                    <tr key={`unmapped-${u.channelSku}`} className="border-t border-border bg-secondary-50 opacity-70" title="Not mapped to an internal SKU">
+                      <td className="px-3 py-2.5 text-center align-middle">
+                        <div className="font-mono text-xs text-text-primary">{u.channelSku}</div>
+                        <div className="text-xs font-semibold text-danger-600">Not mapped to an internal SKU. Bind it in SKU Mapping to scan it</div>
+                      </td>
+                      <td className="px-3 py-2.5 text-center align-middle">-</td>
+                      <td className="px-3 py-2.5 text-center align-middle">-</td>
+                      <td className="px-3 py-2.5 text-center align-middle">{u.units}</td>
+                      <td className="px-3 py-2.5 text-center align-middle">0</td>
+                      <td />
+                    </tr>
                   ))}
                   <tr className="border-t border-border bg-secondary-50 font-bold">
                     <td className="px-3 py-2 text-center align-middle">Total</td>
@@ -344,7 +362,7 @@ export function ScanSessionModal({ sessionId, onClose }: Props) {
                         </td>
                         <td className="px-3 py-2 text-text-secondary text-center align-middle">
                           {entry.reason === 'NOT_ENOUGH_POOL'
-                            ? `Not enough ${poolName(session.channel)} pool${entry.sku ? ` (${entry.sku})` : ''}`
+                            ? `Not enough ${poolName(session.channel)} allocation${entry.sku ? ` (${entry.sku})` : ''}`
                             : entry.reason === 'NOT_ON_RECORD'
                               ? `Not on this ${receipt ? 'receiving' : 'record'}${entry.sku ? ` (${entry.sku})` : ''}`
                               : 'UPC / ASIN not in catalog'}
