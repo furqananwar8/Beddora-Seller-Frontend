@@ -15,6 +15,7 @@ import { BarcodeScannerProvider } from '@/features/barcode/BarcodeScannerProvide
 import { SYSTEM_EMAIL_ROUTE, SYSTEM_MENU_LABEL } from '@/features/system/email/routes'
 import { MONITOR_ROUTE } from '@/features/system/monitor/monitorMeta'
 import { useGetEmailAccessQuery } from '@/services/api/systemEmail.api'
+import { useGetMonitorAccessQuery } from '@/services/api/systemMonitor.api'
 
 /** Routes whose content is shorter than the screen, so the layout sizes them below the header (`.ds-content-fit`). */
 const FIT_BELOW_HEADER_ROUTES = [
@@ -54,6 +55,8 @@ export default function DashboardLayout({
   // A few accounts only, picked by the server (not a permission, so it is not in the Users permission dialog)
   const { data: emailAccess } = useGetEmailAccessQuery()
   const canOpenEmail = Boolean(emailAccess?.allowed)
+  const { data: monitorAccess } = useGetMonitorAccessQuery()
+  const canOpenMonitor = Boolean(monitorAccess?.allowed)
   const canOpenLiveReport = LIVE_REPORT_TABS.some((tab) => ability.can('read', liveReportSubject(tab.id)))
 
   const rawNavSections = useMemo(
@@ -376,12 +379,12 @@ export default function DashboardLayout({
             label: SYSTEM_MENU_LABEL,
             subject: 'system',
             action: 'read',
-            allow: canOpenEmail,
-            href: SYSTEM_EMAIL_ROUTE,
+            allow: canOpenEmail || canOpenMonitor,
+            href: canOpenEmail ? SYSTEM_EMAIL_ROUTE : MONITOR_ROUTE,
             icon: NavIcons.bell,
             children: [
               { label: 'Email', subject: 'system:email', action: 'read', allow: canOpenEmail, href: SYSTEM_EMAIL_ROUTE },
-              { label: 'Jobs & Redis', subject: 'system:monitor', action: 'read', allow: canOpenEmail, href: MONITOR_ROUTE },
+              { label: 'Jobs & Redis', subject: 'system:monitor', action: 'read', allow: canOpenMonitor, href: MONITOR_ROUTE },
             ],
           },
           {
@@ -444,7 +447,7 @@ export default function DashboardLayout({
         ],
       },
     ],
-    [canOpenEmail, canOpenLiveReport]
+    [canOpenEmail, canOpenMonitor, canOpenLiveReport]
   )
 
   // Filter sidebar using EACH item's own action + subject

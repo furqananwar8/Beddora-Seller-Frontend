@@ -4,7 +4,7 @@ import React, { useState } from 'react'
 import { Container } from '@/components/layout'
 import { EmptyState } from '@/components/data-display/EmptyState'
 import { Tabs } from '@/design-system/tabs'
-import { useGetEmailAccessQuery } from '@/services/api/systemEmail.api'
+import { useGetMonitorAccessQuery } from '@/services/api/systemMonitor.api'
 import { JobsTab } from './JobsTab'
 import { RedisTab } from './RedisTab'
 
@@ -12,10 +12,10 @@ type MonitorTab = 'jobs' | 'redis'
 
 /**
  * System > Jobs & Redis: the background jobs and the fast short-term memory behind the app, in plain words, live.
- * Same few accounts as System > Email (the access check is shared), so the menu item and the API agree.
+ * Opened by the page permission `system.monitor.read` (write lets a person retry, remove, pause or clean). The menu item and the API ask the same question.
  */
 export const MonitorScreen: React.FC = () => {
-  const { data: access, isLoading } = useGetEmailAccessQuery()
+  const { data: access, isLoading } = useGetMonitorAccessQuery()
   const [tab, setTab] = useState<MonitorTab>('jobs')
 
   return (
