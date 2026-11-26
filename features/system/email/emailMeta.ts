@@ -20,7 +20,7 @@ export const sentLabel = (row: Pick<EmailRow, 'sendCount' | 'lastSentAt'>): stri
  */
 export function belongsToList(row: EmailRow, filters: Pick<EmailListParams, 'status' | 'search' | 'template' | 'from' | 'to'>): boolean {
   if (filters.status !== 'ALL' && row.status !== filters.status) return false
-  if (filters.template && row.template !== filters.template) return false
+  if (filters.template && !filters.template.split(',').includes(row.template)) return false
   const query = filters.search?.trim().toLowerCase()
   if (query && !`${row.toAddress} ${row.subject}`.toLowerCase().includes(query)) return false
   const day = format(new Date(row.createdAt), 'yyyy-MM-dd')

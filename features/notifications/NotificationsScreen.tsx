@@ -71,7 +71,7 @@ export const NotificationsScreen: React.FC = () => {
   const { data: options } = useGetNotificationFiltersQuery()
   const { data: unread = 0 } = useGetUnreadCountQuery()
   const bounds = useMemo(() => dateBounds(applied.dateRange), [applied.dateRange])
-  const { data, isLoading, isFetching, isError } = useGetNotificationsQuery({
+  const { data, isLoading, isFetching, isError, refetch } = useGetNotificationsQuery({
     page,
     limit: pageSize,
     search: applied.search.trim() || undefined,
@@ -84,9 +84,11 @@ export const NotificationsScreen: React.FC = () => {
   const [markAll] = useMarkAllNotificationsReadMutation()
 
   const apply = useCallback(() => {
+    // Searching the same thing again changes nothing in the query, so ask the server explicitly
+    if (JSON.stringify(pending) === JSON.stringify(applied) && page === 1) void refetch()
     setApplied(pending)
     setPage(1)
-  }, [pending])
+  }, [pending, applied, page, refetch])
   const reset = useCallback(() => {
     setPending(NO_FILTERS)
     setApplied(NO_FILTERS)

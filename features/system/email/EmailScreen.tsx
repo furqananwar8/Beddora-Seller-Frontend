@@ -10,7 +10,7 @@ import { EmptyState } from '@/components/data-display/EmptyState'
 import { PaginationFooter } from '@/components/pagination-footer/PaginationFooter'
 import { Button } from '@/design-system/buttons'
 import { FormField } from '@/components/form-field/FormField'
-import { SearchableSelect } from '@/components/searchable-select/SearchableSelect'
+import { FilterMultiSelect } from '@/components/filter-bar/FilterMultiSelect'
 import { KpiCard } from '@/design-system/kpi'
 import { Tabs } from '@/design-system/tabs'
 import { useApiFeedback } from '@/hooks/useApiFeedback'
@@ -78,7 +78,8 @@ const EmailWorkspace: React.FC = () => {
   const [page, setPage] = useState(1)
   const pageSize = usePageSize(PAGE_SIZE)
   const [search, setSearch] = useState('')
-  const [template, setTemplate] = useState('')
+  const [templateList, setTemplateList] = useState<string[]>([])
+  const template = templateList.join(',')
   const [range, setRange] = useState<DateRangeValue>(ANY_DATE)
   const [backlogFrom, setBacklogFrom] = useState(() => format(subDays(new Date(), BACKLOG_DEFAULT_DAYS), 'yyyy-MM-dd'))
   const { selected, toggle, setAll, clear } = useSelection<number>()
@@ -94,7 +95,7 @@ const EmailWorkspace: React.FC = () => {
   const { data: summary } = useGetEmailSummaryQuery()
   const { data: backlog, isLoading: backlogLoading, isError: backlogError } = useGetEmailBacklogQuery(backlogFrom)
   const { data: templates } = useGetEmailTemplatesQuery()
-  const eventOptions = useMemo(() => [{ value: '', label: 'All events' }, ...(templates ?? []).map((item) => ({ value: item.template, label: item.label }))], [templates])
+  const eventOptions = useMemo(() => (templates ?? []).map((item) => ({ value: item.template, label: item.label })), [templates])
   const { data, isLoading, isFetching, isError } = useGetEmailsQuery(listParams, { skip: tab === 'BACKLOG' })
   const [resend, { isLoading: resending }] = useResendEmailsMutation()
   const flashIds = useEmailLive(listParams)
@@ -170,14 +171,7 @@ const EmailWorkspace: React.FC = () => {
             <input type="search" value={search} onChange={(event) => refilter(() => setSearch(event.target.value))} placeholder="Search recipient or subject" aria-label="Search" className="ds-input ds-input-default w-full max-w-sm rounded-lg" />
             <div className="w-full sm:w-56">
               <FormField label="Event" htmlFor="email-event">
-                <SearchableSelect<{ value: string; label: string }>
-                  id="email-event"
-                  options={eventOptions}
-                  getKey={(option) => option.value}
-                  getLabel={(option) => option.label}
-                  value={eventOptions.find((option) => option.value === template) ?? eventOptions[0]}
-                  onChange={(option) => refilter(() => setTemplate(option.value))}
-                />
+                <FilterMultiSelect id="email-event" options={eventOptions} value={templateList} onChange={(next) => refilter(() => setTemplateList(next))} anyLabel="All events" />
               </FormField>
             </div>
             <ListDateFilter value={range} onApply={(next) => refilter(() => setRange(next))} />

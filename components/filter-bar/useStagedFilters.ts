@@ -36,7 +36,8 @@ export function useStagedFilters<T extends Record<string, unknown>>(defaults: T,
     setDraftState(defaults)
     setApplied(defaults)
     onApply?.(defaults)
-  }, [defaults, onApply])
+    dispatch(baseApi.util.invalidateTags([...tagTypes]))
+  }, [defaults, onApply, dispatch])
 
   return { draft, applied, setDraft, apply, reset, changed, pending: changed.size > 0, activeCount, appliedCount }
 }

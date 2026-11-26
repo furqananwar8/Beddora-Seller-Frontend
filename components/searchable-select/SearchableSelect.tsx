@@ -5,8 +5,8 @@ import { createPortal } from 'react-dom'
 import { useMenuPosition } from './useMenuPosition'
 import { cn } from '@/utils/cn'
 
-const Chevron: React.FC<{ className?: string }> = ({ className }) => (
-  <svg className={cn('h-4 w-4 shrink-0 text-text-muted', className)} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+const Chevron: React.FC<{ className?: string; open?: boolean }> = ({ className, open }) => (
+  <svg className={cn('h-4 w-4 shrink-0 text-text-muted transition-transform', open && 'rotate-180', className)} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
   </svg>
 )
@@ -207,7 +207,7 @@ export function SearchableSelect<T>(props: SearchableSelectProps<T>) {
         )}
       >
         <span className={cn(wrapValue ? 'min-w-0 whitespace-normal break-words' : 'truncate', triggerText === null && 'text-text-muted')}>{triggerText ?? placeholder}</span>
-        <Chevron className="ml-2" />
+        <Chevron className="ml-2" open={open} />
       </button>
 
       {open &&
