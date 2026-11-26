@@ -9,7 +9,8 @@ import type { DateRangeValue } from '@/components/date-range-picker/DateRangePic
 import { EmptyState } from '@/components/data-display/EmptyState'
 import { PaginationFooter } from '@/components/pagination-footer/PaginationFooter'
 import { Button } from '@/design-system/buttons'
-import { Select } from '@/design-system/inputs'
+import { FormField } from '@/components/form-field/FormField'
+import { SearchableSelect } from '@/components/searchable-select/SearchableSelect'
 import { KpiCard } from '@/design-system/kpi'
 import { Tabs } from '@/design-system/tabs'
 import { useApiFeedback } from '@/hooks/useApiFeedback'
@@ -93,6 +94,7 @@ const EmailWorkspace: React.FC = () => {
   const { data: summary } = useGetEmailSummaryQuery()
   const { data: backlog, isLoading: backlogLoading, isError: backlogError } = useGetEmailBacklogQuery(backlogFrom)
   const { data: templates } = useGetEmailTemplatesQuery()
+  const eventOptions = useMemo(() => [{ value: '', label: 'All events' }, ...(templates ?? []).map((item) => ({ value: item.template, label: item.label }))], [templates])
   const { data, isLoading, isFetching, isError } = useGetEmailsQuery(listParams, { skip: tab === 'BACKLOG' })
   const [resend, { isLoading: resending }] = useResendEmailsMutation()
   const flashIds = useEmailLive(listParams)
@@ -167,7 +169,16 @@ const EmailWorkspace: React.FC = () => {
           <div className="mb-4 flex flex-wrap items-end gap-3 rounded-lg border border-border bg-surface p-4 shadow-sm">
             <input type="search" value={search} onChange={(event) => refilter(() => setSearch(event.target.value))} placeholder="Search recipient or subject" aria-label="Search" className="ds-input ds-input-default w-full max-w-sm rounded-lg" />
             <div className="w-full sm:w-56">
-              <Select aria-label="Event" value={template} onChange={(event) => refilter(() => setTemplate(event.target.value))} options={[{ value: '', label: 'All events' }, ...(templates ?? []).map((item) => ({ value: item.template, label: item.label }))]} />
+              <FormField label="Event" htmlFor="email-event">
+                <SearchableSelect<{ value: string; label: string }>
+                  id="email-event"
+                  options={eventOptions}
+                  getKey={(option) => option.value}
+                  getLabel={(option) => option.label}
+                  value={eventOptions.find((option) => option.value === template) ?? eventOptions[0]}
+                  onChange={(option) => refilter(() => setTemplate(option.value))}
+                />
+              </FormField>
             </div>
             <ListDateFilter value={range} onApply={(next) => refilter(() => setRange(next))} />
           </div>
