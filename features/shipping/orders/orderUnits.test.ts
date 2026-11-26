@@ -46,3 +46,40 @@ describe('unitsLabel', () => {
     assert.equal(unitsLabel([1, 2]), 'Qty 1, 2')
   })
 })
+
+import { defaultPlan, planGroups, unitIsMapped, unitsSummary } from './orderUnits'
+
+// 2 x PACK50 (units 1, 2) and 1 x PACK200 (unit 3)
+const skus = [{ unitNo: 1, sku: 'PACK50' }, { unitNo: 2, sku: 'PACK50' }, { unitNo: 3, sku: 'PACK200' }]
+
+describe('planGroups', () => {
+  it('combines every SKU in one booking by default', () => assert.deepEqual(planGroups(defaultPlan(), skus, [1, 2, 3]), [[1, 2, 3]]))
+  it('books each SKU separately, its quantities together', () => assert.deepEqual(planGroups({ combine: false, skus: {} }, skus, [1, 2, 3]), [[1, 2], [3]]))
+  it('books a SKU one booking per quantity, the other together', () => assert.deepEqual(planGroups({ combine: false, skus: { PACK50: { each: true } } }, skus, [1, 2, 3]), [[1], [2], [3]]))
+  it('books only some of a SKU now and leaves the rest free', () => {
+    assert.deepEqual(planGroups({ combine: false, skus: { PACK50: { take: 1 } } }, skus, [1, 2, 3]), [[1], [3]])
+    assert.deepEqual(planGroups({ combine: true, skus: { PACK50: { take: 1 }, PACK200: { take: 0 } } }, skus, [1, 2, 3]), [[1]])
+  })
+  it('only plans the free quantities', () => assert.deepEqual(planGroups({ combine: false, skus: {} }, skus, [2, 3]), [[2], [3]]))
+  it('makes no booking when nothing is free', () => assert.deepEqual(planGroups(defaultPlan(), skus, []), []))
+  it('handles ten quantities of one SKU', () => {
+    const ten = Array.from({ length: 10 }, (_, index) => ({ unitNo: index + 1, sku: 'A' }))
+    const free = ten.map((unit) => unit.unitNo)
+    assert.equal(planGroups({ combine: false, skus: { A: { each: true } } }, ten, free).length, 10)
+    assert.equal(planGroups({ combine: false, skus: {} }, ten, free).length, 1)
+    assert.equal(planGroups({ combine: false, skus: { A: { take: 4 } } }, ten, free)[0].length, 4)
+  })
+})
+
+describe('unitsSummary', () => {
+  it('names a booking by SKU', () => assert.equal(unitsSummary(skus, [1, 2, 3]), '2 × PACK50, 1 × PACK200'))
+})
+
+describe('unitIsMapped', () => {
+  const product = { id: 1 }
+  const detail = { lines: [{ lineNumber: 'A', product }, { lineNumber: 'B', product: null }, { lineNumber: 'C', product }, { lineNumber: 'C', product: null }], units: [{ unitNo: 1, lineNumber: 'A' }, { unitNo: 2, lineNumber: 'B' }, { unitNo: 3, lineNumber: 'C' }, { unitNo: 4, lineNumber: 'Z' }] } as unknown as ChannelOrderDetail
+  it('is true when the SKU is mapped', () => assert.equal(unitIsMapped(detail, 1), true))
+  it('is false when it is not', () => assert.equal(unitIsMapped(detail, 2), false))
+  it('is false when a bundle has an unmapped part', () => assert.equal(unitIsMapped(detail, 3), false))
+  it('is false for a quantity with no line', () => assert.equal(unitIsMapped(detail, 4), false))
+})

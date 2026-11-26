@@ -19,6 +19,7 @@ interface ParcelDetailsDialogProps {
 export function parcelText(row: BulkRow): string | null {
   const values = row.prepared?.values
   if (!values) return null
+  if (row.packagesEach) return `${row.unitNos.length} packages`
   const { pkg, units } = values
   return `${pkg.length}×${pkg.width}×${pkg.height} ${UNITS[units].length.toLowerCase()} · ${pkg.weight} ${UNITS[units].weight.toLowerCase()}`
 }
@@ -57,6 +58,16 @@ export const ParcelDetailsDialog: React.FC<ParcelDetailsDialogProps> = ({ row, s
             </Block>
             <Block title="Package">
               <b>{parcelText(row)}</b>
+              {row.packagesEach &&
+                row.unitPackages &&
+                row.unitNos.map((unitNo) => {
+                  const one = row.unitPackages![unitNo]
+                  return (
+                    <span key={unitNo} className="block text-xs text-text-secondary">
+                      Qty {unitNo}: {one.length}×{one.width}×{one.height} {UNITS[values.units].length.toLowerCase()} · {one.weight} {UNITS[values.units].weight.toLowerCase()}
+                    </span>
+                  )
+                })}
               <br />
               <span className="text-text-muted">
                 Quantity {row.unitNos.length} · {values.products.length} SKU{values.products.length === 1 ? '' : 's'}

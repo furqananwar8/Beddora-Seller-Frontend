@@ -26,3 +26,46 @@ export function chunkUnits(unitNos: number[], size: number): number[][] {
 
 /** "Qty 3", "Qty 1, 2": which of the order's items a booking covers. */
 export const unitsLabel = (unitNos: number[]) => `Qty ${unitNos.join(', ')}`
+
+/** What the user chose for an order: its SKUs combined or separate, how many of each SKU to book now, and whether a SKU's quantities ship together or one booking each. */
+export interface BookingPlan {
+  /** One booking with every SKU in it (false: a separate booking for each SKU). */
+  combine: boolean
+  /** Per SKU: how many of its free quantities to book now (default all), and, when booked separately, one booking per quantity. */
+  skus: Record<string, { take?: number; each?: boolean }>
+}
+
+/** Everything in one booking: what an order is booked as until the user chooses otherwise. */
+export const defaultPlan = (): BookingPlan => ({ combine: true, skus: {} })
+
+/** The bookings (unit numbers in each) a plan makes of the free quantities; quantities not taken stay free for later. */
+export function planGroups(plan: BookingPlan, units: { unitNo: number; sku: string }[], free: number[]): number[][] {
+  const bySku = new Map<string, number[]>()
+  for (const unitNo of free) {
+    const sku = units.find((unit) => unit.unitNo === unitNo)?.sku ?? ''
+    bySku.set(sku, [...(bySku.get(sku) ?? []), unitNo])
+  }
+  const taken = [...bySku].map(([sku, list]) => ({ sku, list: list.slice(0, Math.max(0, plan.skus[sku]?.take ?? list.length)) }))
+  if (plan.combine) {
+    const all = taken.flatMap(({ list }) => list).sort((a, b) => a - b)
+    return all.length ? [all] : []
+  }
+  return taken.flatMap(({ sku, list }) => (plan.skus[sku]?.each ? list.map((unitNo) => [unitNo]) : list.length ? [list] : []))
+}
+
+/** "2 × HANGER-PACK50, 1 × HANGER-PACK200": what a set of quantities is, by SKU. */
+export function unitsSummary(units: { unitNo: number; sku: string }[], unitNos: number[]): string {
+  const counts = new Map<string, number>()
+  for (const unitNo of unitNos) {
+    const sku = units.find((unit) => unit.unitNo === unitNo)?.sku ?? '?'
+    counts.set(sku, (counts.get(sku) ?? 0) + 1)
+  }
+  return [...counts].map(([sku, count]) => `${count} × ${sku}`).join(', ')
+}
+
+/** A quantity can be booked once its SKU is mapped to one of our products (every product line of its channel line has one). */
+export function unitIsMapped(detail: ChannelOrderDetail, unitNo: number): boolean {
+  const lineNumber = detail.units.find((unit) => unit.unitNo === unitNo)?.lineNumber
+  const lines = detail.lines.filter((line) => line.lineNumber === lineNumber)
+  return lines.length > 0 && lines.every((line) => line.product !== null)
+}
