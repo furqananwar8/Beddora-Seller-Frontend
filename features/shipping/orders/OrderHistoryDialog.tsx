@@ -15,6 +15,7 @@ import { bookOrderHref, bookingHref, money, shortDateTime, STATUS_TONE } from '.
 import type { BookingJobDto, ChannelOrderRef, OrderBookingHistoryItem } from '../types'
 import { BulkPrintDialog } from './bulk/BulkPrintDialog'
 import { CancelShipmentDialog } from './CancelShipmentDialog'
+import { unitsLabel } from './orderUnits'
 
 interface OrderHistoryDialogProps {
   /** The order to show; null keeps the dialog closed. */
@@ -26,8 +27,8 @@ interface OrderHistoryDialogProps {
 const HEAD = 'px-3 py-2 text-left text-xs font-medium uppercase tracking-wide text-text-muted'
 const CELL = 'px-3 py-2 align-top text-sm'
 
-/** "Unit 3", "Units 1, 2", or "Whole order" for a booking made before orders were booked by unit. */
-const unitsText = (item: OrderBookingHistoryItem) => (item.wholeOrder ? 'Whole order' : item.unitNos.length === 1 ? `Unit ${item.unitNos[0]}` : `Units ${item.unitNos.join(', ')}`)
+/** "Qty 3", "Qty 1, 2", or "Whole order" for a booking made before orders were booked by quantity. */
+const unitsText = (item: OrderBookingHistoryItem) => (item.wholeOrder ? 'Whole order' : unitsLabel(item.unitNos))
 
 /**
  * Order History: every booking attempt on an order, newest first, failed and voided ones greyed. Follows the
@@ -63,7 +64,7 @@ export const OrderHistoryDialog: React.FC<OrderHistoryDialogProps> = ({ order, c
           <div className="space-y-4">
             <div className="flex flex-wrap items-center gap-3">
               <b className="text-sm">
-                {booked} of {total} unit{total === 1 ? '' : 's'} booked
+                {booked} of {total} quantity booked
               </b>
               <div className="h-2 w-48 overflow-hidden rounded-full bg-secondary-100">
                 <div className="h-full bg-success-600 transition-all" style={{ width: `${total ? Math.min(100, Math.round((booked / total) * 100)) : 0}%` }} />
@@ -71,7 +72,7 @@ export const OrderHistoryDialog: React.FC<OrderHistoryDialogProps> = ({ order, c
               <span className="text-xs text-text-muted">{money(spent)} spent</span>
               {canWrite && order && booked < total && (
                 <Link href={bookOrderHref(order)} className="ds-button ds-button-primary ds-button-sm ml-auto">
-                  Book remaining units ({total - booked})
+                  Book remaining quantity ({total - booked})
                 </Link>
               )}
             </div>
@@ -79,7 +80,7 @@ export const OrderHistoryDialog: React.FC<OrderHistoryDialogProps> = ({ order, c
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-border bg-secondary-50">
-                    {['Booked', 'Booking', 'Units', 'Carrier · service', 'Tracking / reason', 'Status', 'By', 'Cost', ''].map((title) => (
+                    {['Booked', 'Booking', 'Quantity', 'Carrier · service', 'Tracking / reason', 'Status', 'By', 'Cost', ''].map((title) => (
                       <th key={title} className={HEAD}>
                         {title}
                       </th>

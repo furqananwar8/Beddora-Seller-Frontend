@@ -9,6 +9,7 @@ import { SelectionCheckbox } from '@/components/selection-checkbox/SelectionChec
 import { useGetOrderBookingsQuery } from '@/services/api/shipping.api'
 import { CarrierLogo } from '../shared/CarrierLogo'
 import { shortDateTime, STATUS_TONE } from '../shippingMeta'
+import { unitsLabel } from './orderUnits'
 import type { ChannelOrderRef } from '../types'
 import { BulkPrintDialog } from './bulk/BulkPrintDialog'
 
@@ -67,7 +68,7 @@ export const LabelPickerDialog: React.FC<LabelPickerDialogProps> = ({ order, onC
                     <th className="w-10 px-3 py-2">
                       <SelectionCheckbox label="Select all labels" checked={all} indeterminate={some && !all} onChange={() => setTicked(all ? new Set() : new Set(labels.map((item) => item.id)))} />
                     </th>
-                    <th className="px-3 py-2">Units</th>
+                    <th className="px-3 py-2">Quantity</th>
                     <th className="px-3 py-2">Carrier</th>
                     <th className="px-3 py-2">Tracking</th>
                     <th className="px-3 py-2">Status</th>
@@ -80,7 +81,7 @@ export const LabelPickerDialog: React.FC<LabelPickerDialogProps> = ({ order, onC
                       <td className="px-3 py-2">
                         <SelectionCheckbox label={`Select label ${item.bookingNo}`} checked={ticked.has(item.id)} onChange={() => toggle(item.id)} />
                       </td>
-                      <td className="whitespace-nowrap px-3 py-2">{item.wholeOrder ? 'Whole order' : item.unitNos.length === 1 ? `Unit ${item.unitNos[0]}` : `Units ${item.unitNos.join(', ')}`}</td>
+                      <td className="whitespace-nowrap px-3 py-2">{item.wholeOrder ? 'Whole order' : unitsLabel(item.unitNos)}</td>
                       <td className="px-3 py-2">
                         <span className="flex items-center gap-2 whitespace-nowrap">
                           <CarrierLogo carrier={item.carrier} provider={item.provider} size="sm" />

@@ -15,7 +15,7 @@ import type { BookingJobDto, ChannelOrderDetail, ChannelOrderRef, Rate } from '.
 import { chunkUnits, detailForUnits, freeUnitNos } from '../orderUnits'
 import { loadBulkOrders, orderKey } from './bulkSelection'
 import { runPool } from './pool'
-import { prepareOrder, type PreparedOrder, type ShipmentDefaults } from './prepareOrder'
+import { prepareOrder, type PackageText, type PreparedOrder, type ShipmentDefaults } from './prepareOrder'
 
 /** Orders loaded, quoted and booked this many at a time. */
 const LOAD_AT_ONCE = 4
@@ -113,12 +113,14 @@ export function useBulkBook() {
   const [details, setDetails] = useState<Record<string, { detail?: ChannelOrderDetail; error?: string }>>({})
   const [work, setWork] = useState<Record<string, RowWork>>({})
   const [shipFromId, setShipFromId] = useState<string | null>(null)
-  const [defaults, setDefaults] = useState<ShipmentDefaults>({ incoterm: 'DDP', signature: false })
+  const [defaults, setDefaults] = useState<ShipmentDefaults>({ incoterm: 'DDP', signature: false, protection: false })
   const [rule, setRule] = useState<{ rule: PickRule; carrier: string }>({ rule: 'CHEAPEST', carrier: '' })
   /** Units per booking for every order (0 = all together), and each order's own override. */
   const [splitAll, setSplitAll] = useState(0)
   const [splitOf, setSplitOf] = useState<Record<string, number>>({})
   const [perUnit, setPerUnit] = useState<Record<string, boolean>>({})
+  /** Package sizes typed per booking, over the ones worked out from the products. */
+  const [pkgOf, setPkgOf] = useState<Record<string, PackageText>>({})
 
   const alive = useRef(true)
   const abort = useRef<AbortController | null>(null)
@@ -198,7 +200,7 @@ export function useBulkBook() {
           orderKey: order.key,
           ref: order.ref,
           detail: order.detail,
-          prepared: prepareOrder(detailForUnits(order.detail!, unitNos), shipFrom, defaults),
+          prepared: prepareOrder(detailForUnits(order.detail!, unitNos), shipFrom, defaults, pkgOf[`${order.key}#${index + 1}`]),
           unitNos,
           index: index + 1,
           count: bookings.length,
@@ -207,7 +209,7 @@ export function useBulkBook() {
       })
     }
     return list
-  }, [orders, shipFrom, defaults])
+  }, [orders, shipFrom, defaults, pkgOf])
 
   const prepared = useMemo(() => new Map(plan.map((booking) => [booking.key, booking.prepared as PreparedOrder])), [plan])
 
@@ -232,19 +234,34 @@ export function useBulkBook() {
 
   /** A different split makes the old quotes meaningless: they are dropped (the Review step precedes the rates). */
   const dropWork = useCallback((only?: string) => setWork((current) => (only ? Object.fromEntries(Object.entries(current).filter(([key]) => !key.startsWith(`${only}#`))) : {})), [])
+  /** Booking keys change with the split, so sizes typed for the old bookings are dropped with it. */
+  const dropPackages = useCallback((only?: string) => setPkgOf((current) => (only ? Object.fromEntries(Object.entries(current).filter(([key]) => !key.startsWith(`${only}#`))) : {})), [])
   const setSplitAllUnits = useCallback((size: number) => {
     setSplitAll(Math.max(0, size))
     setSplitOf({})
     dropWork()
-  }, [dropWork])
+    dropPackages()
+  }, [dropWork, dropPackages])
   const setSplitForOrder = useCallback((key: string, size: number) => {
     setSplitOf((current) => ({ ...current, [key]: Math.max(0, size) }))
     dropWork(key)
-  }, [dropWork])
+    dropPackages(key)
+  }, [dropWork, dropPackages])
   const setPerUnitLabels = useCallback((key: string, on: boolean) => {
     setPerUnit((current) => ({ ...current, [key]: on }))
     dropWork(key)
-  }, [dropWork])
+    dropPackages(key)
+  }, [dropWork, dropPackages])
+  /** Types a booking's package size (its rates are asked for again). */
+  const setPackage = useCallback((key: string, pkg: PackageText) => {
+    setPkgOf((current) => ({ ...current, [key]: pkg }))
+    setWork((current) => Object.fromEntries(Object.entries(current).filter(([workKey]) => workKey !== key)))
+  }, [])
+  /** Back to the size worked out from the products. */
+  const resetPackage = useCallback((key: string) => {
+    setPkgOf((current) => Object.fromEntries(Object.entries(current).filter(([pkgKey]) => pkgKey !== key)))
+    setWork((current) => Object.fromEntries(Object.entries(current).filter(([workKey]) => workKey !== key)))
+  }, [])
 
   const quoteBooking = useCallback(
     async (key: string, signal: AbortSignal) => {
@@ -432,6 +449,9 @@ export function useBulkBook() {
     setSplitAllUnits,
     setSplitForOrder,
     setPerUnitLabels,
+    pkgOf,
+    setPackage,
+    resetPackage,
     getRates,
     selectRate,
     book,

@@ -86,7 +86,7 @@ const OrderSummary: React.FC<{ order: ChannelOrderListItem }> = ({ order }) => {
       <Detail label="Market">{order.marketLabel}</Detail>
       <Detail label="Ordered">{shortDateTime(order.orderDate)}</Detail>
       <Detail label="Quantity">
-        {units} {units === 1 ? 'unit' : 'units'} · {order.lines.length} {order.lines.length === 1 ? 'SKU' : 'SKUs'}
+        Qty {units} · {order.lines.length} {order.lines.length === 1 ? 'SKU' : 'SKUs'}
       </Detail>
       <Detail label="Items">{money(amounts.items, currency)}</Detail>
       {amounts.shipping !== 0 && <Detail label="Shipping">{money(amounts.shipping, currency)}</Detail>}

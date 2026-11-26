@@ -24,5 +24,5 @@ export function chunkUnits(unitNos: number[], size: number): number[][] {
   return groups
 }
 
-/** "Unit 3", "Units 1, 2". */
-export const unitsLabel = (unitNos: number[]) => (unitNos.length === 1 ? `Unit ${unitNos[0]}` : `Units ${unitNos.join(', ')}`)
+/** "Qty 3", "Qty 1, 2": which of the order's items a booking covers. */
+export const unitsLabel = (unitNos: number[]) => `Qty ${unitNos.join(', ')}`

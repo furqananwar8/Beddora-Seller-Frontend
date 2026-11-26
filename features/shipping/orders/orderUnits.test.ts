@@ -42,7 +42,7 @@ describe('detailForUnits', () => {
 
 describe('unitsLabel', () => {
   it('names one or several units', () => {
-    assert.equal(unitsLabel([3]), 'Unit 3')
-    assert.equal(unitsLabel([1, 2]), 'Units 1, 2')
+    assert.equal(unitsLabel([3]), 'Qty 3')
+    assert.equal(unitsLabel([1, 2]), 'Qty 1, 2')
   })
 })

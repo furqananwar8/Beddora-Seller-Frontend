@@ -18,7 +18,7 @@ const TAG_CLASS = { CHEAPEST: 'bg-success-50 text-success-700', FASTEST: 'bg-sky
 const ROW = 'grid items-center gap-3 rounded-lg border px-3 py-3 sm:grid-cols-[40px_minmax(0,2.2fr)_minmax(0,1fr)_minmax(0,2fr)_minmax(0,1fr)_auto]'
 
 /** Base · surcharges, then duties and taxes: the second column of figures. */
-const Breakdown: React.FC<{ rate: Rate; incoterm: Incoterm }> = ({ rate, incoterm }) => {
+export const Breakdown: React.FC<{ rate: Rate; incoterm: Incoterm }> = ({ rate, incoterm }) => {
   const charges = [rate.baseRate !== null && `Base ${amount(rate.baseRate)}`, ...rate.surcharges.map((surcharge) => `${surcharge.label} ${amount(surcharge.amount)}`)].filter(Boolean)
   return (
     <div className="text-xs leading-5 text-text-muted">

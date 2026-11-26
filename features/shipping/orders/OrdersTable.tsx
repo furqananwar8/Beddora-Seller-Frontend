@@ -154,7 +154,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ rows, isLoading, isErr
           router.push(BULK_BOOK_HREF)
         } else router.push(bookOrderHref(row))
       }
-      items.push({ key: 'rates', label: row.unitsBooked > 0 ? `Book remaining units (${left})` : 'Get rates', onSelect: toBook })
+      items.push({ key: 'rates', label: row.unitsBooked > 0 ? `Book remaining quantity (${left})` : 'Get rates', onSelect: toBook })
     }
     if (row.unitsBooked > 0 || row.booking) items.push({ key: 'history', label: 'Order History', onSelect: () => onHistory(row) })
     items.push({ key: 'invoice', label: 'Download invoice', onSelect: () => onDownloadInvoice(row), disabled: invoiceBusy, disabledReason: 'An invoice is being prepared' })

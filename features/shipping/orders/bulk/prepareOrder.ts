@@ -4,9 +4,14 @@ import { shipmentSchema, type ShipmentFormValues } from '../../create/shipmentSc
 import type { ChannelOrderDetail, Incoterm, ShipFromOption, ShipmentRequest } from '../../types'
 import { unmappedLines, valuesFromOrder } from '../orderDraft'
 
+/** A booking's package as typed: length, width, height, weight. */
+export type PackageText = ShipmentFormValues['pkg']
+
 export interface ShipmentDefaults {
   incoterm: Incoterm
   signature: boolean
+  /** Protection (insurance): quoted and bought for the declared value of each booking's items. */
+  protection: boolean
 }
 
 /** What the Review step ticks off for an order. */
@@ -31,9 +36,12 @@ export interface PreparedOrder {
  * with the same schema. An order that fails any check is not quoted: it is listed with the reason instead.
  * The province check is left to the server (it needs the country's list).
  */
-export function prepareOrder(detail: ChannelOrderDetail, shipFrom: ShipFromOption | undefined, defaults: ShipmentDefaults): PreparedOrder {
+export function prepareOrder(detail: ChannelOrderDetail, shipFrom: ShipFromOption | undefined, defaults: ShipmentDefaults, pkg?: PackageText): PreparedOrder {
   const base = valuesFromOrder(detail, shipFrom?.id ?? '')
-  const values: ShipmentFormValues = { ...base, ...defaults, pkg: packageText(base.products, base.units) }
+  // shortcut: the declared value sums the customs lines as typed (CAD or USD alike); carriers other than Stallion read it as CAD, fix when mixed-currency orders matter
+  const declared = base.products.reduce((sum, { quantity, customs }) => sum + (Number(customs.unitValue) || 0) * (Number(quantity) || 0), 0)
+  const { protection, ...shipment } = defaults
+  const values: ShipmentFormValues = { ...base, ...shipment, insurance: protection && declared > 0 ? String(Math.round(declared * 100) / 100) : '', pkg: pkg ?? packageText(base.products, base.units) }
   const unmapped = unmappedLines(detail)
   const parsed = shipmentSchema({ crossBorder: isCrossBorder(values, shipFrom), toUs: values.shipTo.address.country === 'US', needsProvince: false }).safeParse(values)
   const issues = parsed.success ? [] : parsed.error.issues
