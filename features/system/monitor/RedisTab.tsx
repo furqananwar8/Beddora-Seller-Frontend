@@ -5,12 +5,15 @@ import { EmptyState } from '@/components/data-display/EmptyState'
 import { FilterMultiSelect } from '@/components/filter-bar/FilterMultiSelect'
 import { FormField } from '@/components/form-field/FormField'
 import { StatusBadge, type StatusTone } from '@/components/status-badge/StatusBadge'
+import { ConfirmDialog } from '@/components/confirm-dialog/ConfirmDialog'
+import { Button } from '@/design-system/buttons'
+import { useApiFeedback } from '@/hooks/useApiFeedback'
 import { KpiCard } from '@/design-system/kpi'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/design-system/tables'
-import { useGetRedisFamiliesQuery, useGetRedisOverviewQuery, type RedisFamily, type ScanLockRow, type SessionRow, type TokenRow } from '@/services/api/systemMonitor.api'
+import { useGetRedisFamiliesQuery, useGetRedisOverviewQuery, useRevokeSessionMutation, useGetKeySamplesQuery, useDeleteFamilyKeyMutation, type KeySample, type RedisFamily, type ScanLockRow, type SessionRow, type TokenRow } from '@/services/api/systemMonitor.api'
 import { cn } from '@/utils/cn'
 import { MiniBars, Ring, Sparkline } from './charts'
-import { ActivityFeed, Panel } from './Panel'
+import { ActivityFeed, Panel, ScrollArea } from './Panel'
 import { ago, formatBytes, formatCount, formatDuration, useNow } from './monitorMeta'
 import { useRedisLive } from './useRedisLive'
 
@@ -27,12 +30,40 @@ const leftText = (expiresAt: number | null, now: number): string => (expiresAt =
 
 export const RedisTab: React.FC = () => {
   const now = useNow(1000)
-  const { data, isLoading, isError } = useGetRedisOverviewQuery()
+  const { data, isLoading, isError } = useGetRedisOverviewQuery(undefined, { pollingInterval: 10_000 }) // safety net: catches up if a live event is missed
   const { data: families = [] } = useGetRedisFamiliesQuery(undefined, { pollingInterval: 30_000 })
   const { feed, ended, fresh, history } = useRedisLive()
   const [search, setSearch] = useState('')
   const [keySearch, setKeySearch] = useState('')
   const [types, setTypes] = useState<string[]>([])
+  const { success, failure } = useApiFeedback()
+  const [revokeSession, { isLoading: revoking }] = useRevokeSessionMutation()
+  const [toRevoke, setToRevoke] = useState<SessionRow | null>(null)
+  const [openFamily, setOpenFamily] = useState<string | null>(null)
+  const [toDelete, setToDelete] = useState<{ family: string; sample: KeySample } | null>(null)
+  const [deleteKey, { isLoading: deleting }] = useDeleteFamilyKeyMutation()
+  const confirmDelete = async () => {
+    if (!toDelete) return
+    try {
+      await deleteKey({ family: toDelete.family, key: toDelete.sample.key }).unwrap()
+      success('Entry deleted from Redis')
+    } catch (error) {
+      failure(error, 'Could not delete the entry')
+    } finally {
+      setToDelete(null)
+    }
+  }
+  const confirmRevoke = async () => {
+    if (!toRevoke) return
+    try {
+      await revokeSession({ key: toRevoke.key }).unwrap()
+      success(`${toRevoke.name} was signed out`)
+    } catch (error) {
+      failure(error, 'Could not revoke the session')
+    } finally {
+      setToRevoke(null)
+    }
+  }
 
   const sessions = data?.sessions ?? []
   const shownSessions = sessions.filter((row) => !search.trim() || `${row.name} ${row.email ?? ''} ${row.device} ${row.ip ?? ''}`.toLowerCase().includes(search.trim().toLowerCase()))
@@ -80,6 +111,7 @@ export const RedisTab: React.FC = () => {
         {shownSessions.length === 0 ? (
           <p className="py-4 text-sm text-text-muted">{sessions.length === 0 ? 'Nobody is logged in.' : 'No session matches.'}</p>
         ) : (
+          <ScrollArea>
           <Table>
             <TableHeader>
               <TableRow>
@@ -88,14 +120,16 @@ export const RedisTab: React.FC = () => {
                 <TableHead>Logged in</TableHead>
                 <TableHead>Last active</TableHead>
                 <TableHead>Session expires in</TableHead>
+                <TableHead>Action</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {shownSessions.map((row) => (
-                <SessionLine key={row.key} row={row} now={now} longest={longestLeft} ending={ended.has(row.key)} isNew={fresh.has(row.key)} />
+                <SessionLine key={row.key} row={row} now={now} longest={longestLeft} ending={ended.has(row.key)} isNew={fresh.has(row.key)} onRevoke={() => setToRevoke(row)} />
               ))}
             </TableBody>
           </Table>
+          </ScrollArea>
         )}
       </Panel>
 
@@ -103,11 +137,13 @@ export const RedisTab: React.FC = () => {
         {tokens.length === 0 ? (
           <p className="text-sm text-text-muted">No saved connections found.</p>
         ) : (
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {tokens.map((token) => (
-              <TokenCard key={token.key} token={token} now={now} isNew={fresh.has(token.key)} />
-            ))}
-          </div>
+          <ScrollArea>
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {tokens.map((token) => (
+                <TokenCard key={token.key} token={token} now={now} isNew={fresh.has(token.key)} />
+              ))}
+            </div>
+          </ScrollArea>
         )}
       </Panel>
 
@@ -115,11 +151,13 @@ export const RedisTab: React.FC = () => {
         {data.locks.length === 0 ? (
           <p className="text-sm text-text-muted">Nobody is scanning right now.</p>
         ) : (
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {data.locks.map((lock) => (
-              <LockCard key={lock.key} lock={lock} now={now} ending={ended.has(lock.key)} isNew={fresh.has(lock.key)} />
-            ))}
-          </div>
+          <ScrollArea>
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {data.locks.map((lock) => (
+                <LockCard key={lock.key} lock={lock} now={now} ending={ended.has(lock.key)} isNew={fresh.has(lock.key)} />
+              ))}
+            </div>
+          </ScrollArea>
         )}
       </Panel>
 
@@ -182,10 +220,13 @@ export const RedisTab: React.FC = () => {
             </FormField>
           </div>
         </div>
-        <ul className="divide-y divide-border rounded-lg border border-border">
+        <ul className="max-h-[32rem] divide-y divide-border overflow-y-auto rounded-lg border border-border">
           {shownFamilies.map((family) => (
             <li key={family.id}>
-              <details className="group">
+              <details className="group" onToggle={(event) => {
+                  const isOpen = event.currentTarget.open // read now: the event is gone by the time the updater runs
+                  setOpenFamily((id) => (isOpen ? family.id : id === family.id ? null : id))
+                }}>
                 <summary className="flex cursor-pointer flex-wrap items-center gap-3 px-3 py-2.5 hover:bg-secondary-50">
                   <StatusBadge label={family.type} tone={TYPE_TONE[family.type]} />
                   <span className="min-w-0 flex-1 break-all font-mono text-sm text-text-primary">{family.pattern}</span>
@@ -209,6 +250,7 @@ export const RedisTab: React.FC = () => {
                       ))}
                     </ul>
                   </div>
+                  {openFamily === family.id && <KeySamples family={family.id} onDelete={(sample) => setToDelete({ family: family.id, sample })} />}
                 </div>
               </details>
             </li>
@@ -216,6 +258,46 @@ export const RedisTab: React.FC = () => {
           {shownFamilies.length === 0 && <li className="p-4 text-sm text-text-muted">No key matches.</li>}
         </ul>
       </Panel>
+
+      <ConfirmDialog isOpen={toDelete !== null} title="Delete this entry?" confirmLabel="Delete it" tone="danger" busy={deleting} onConfirm={() => void confirmDelete()} onClose={() => setToDelete(null)}>
+        {toDelete ? `${toDelete.sample.key} is removed from Redis and cannot be brought back. Whatever relied on it will create it again if it can.` : ''}
+      </ConfirmDialog>
+
+      <ConfirmDialog isOpen={toRevoke !== null} title="Revoke this session?" confirmLabel="Revoke it" tone="danger" busy={revoking} onConfirm={() => void confirmRevoke()} onClose={() => setToRevoke(null)}>
+        {toRevoke ? `${toRevoke.name} (${toRevoke.device}) is signed out of that device straight away and has to log in again.` : ''}
+      </ConfirmDialog>
+    </div>
+  )
+}
+
+/** Real entries of a key family with the data each holds. Loaded only while the family is open; deletions arrive live. */
+const KeySamples: React.FC<{ family: string; onDelete: (sample: KeySample) => void }> = ({ family, onDelete }) => {
+  const { data = [], isLoading } = useGetKeySamplesQuery(family, { pollingInterval: 10_000 })
+  return (
+    <div>
+      <div className="mb-1 text-xs font-semibold text-text-muted">What it holds right now</div>
+      {isLoading ? (
+        <p className="text-text-muted">Loading…</p>
+      ) : data.length === 0 ? (
+        <p className="text-text-muted">No entries to show.</p>
+      ) : (
+        <ul className="max-h-80 space-y-2 overflow-y-auto">
+          {data.map((sample) => (
+            <li key={sample.key} className="rounded-lg border border-border bg-surface p-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="min-w-0 flex-1 break-all font-mono text-xs text-text-primary">{sample.key}</span>
+                <span className="text-xs text-text-muted">{sample.ttlMs === null ? 'no expiry' : `expires in ${formatDuration(sample.ttlMs)}`}</span>
+                {sample.deletable && (
+                  <Button type="button" size="sm" variant="outline" onClick={() => onDelete(sample)}>
+                    Delete
+                  </Button>
+                )}
+              </div>
+              {sample.hidden ? <p className="mt-1 text-xs text-text-muted">{sample.hidden}</p> : <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap break-all rounded bg-secondary-50 p-2 font-mono text-[11px] text-text-primary">{sample.value || '(empty)'}</pre>}
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   )
 }
@@ -227,7 +309,7 @@ const Detail: React.FC<{ label: string; value: string; mono?: boolean }> = ({ la
   </div>
 )
 
-const SessionLine: React.FC<{ row: SessionRow; now: number; longest: number; ending: boolean; isNew: boolean }> = ({ row, now, longest, ending, isNew }) => {
+const SessionLine: React.FC<{ row: SessionRow; now: number; longest: number; ending: boolean; isNew: boolean; onRevoke: () => void }> = ({ row, now, longest, ending, isNew, onRevoke }) => {
   const left = Math.max(0, row.expiresAt - now)
   return (
     <TableRow className={cn(ending && 'bg-danger-50 transition-all duration-500', isNew && 'monitor-enter')}>
@@ -257,6 +339,11 @@ const SessionLine: React.FC<{ row: SessionRow; now: number; longest: number; end
           </div>
           <span className="w-20 text-right font-mono text-xs text-text-muted">{formatDuration(left)}</span>
         </div>
+      </TableCell>
+      <TableCell>
+        <Button type="button" size="sm" variant="outline" onClick={onRevoke} disabled={ending}>
+          Revoke
+        </Button>
       </TableCell>
     </TableRow>
   )

@@ -134,6 +134,20 @@ export function useRedisLive(): RedisLive {
       return
     }
 
+    if (message.type === 'key.deleted') {
+      const { family, key } = data as { family: string; key: string }
+      // Every open screen drops the entry at once, and the key counts catch up
+      dispatch(
+        systemMonitorApi.util.updateQueryData('getKeySamples', family, (draft) => {
+          const at = draft.findIndex((sample) => sample.key === key)
+          if (at >= 0) draft.splice(at, 1)
+        })
+      )
+      dispatch(systemMonitorApi.util.invalidateTags([{ type: 'SystemMonitor', id: 'FAMILIES' }]))
+      say(message.type, 'Key deleted', 'danger', `${key} was deleted from Redis.`)
+      return
+    }
+
     if (message.type === 'token.renewed') {
       const token = { ...(data.token as TokenRow), expiresAt: (data.token as TokenRow).expiresInMs === null ? null : Date.now() + ((data.token as TokenRow).expiresInMs ?? 0) }
       dispatch(

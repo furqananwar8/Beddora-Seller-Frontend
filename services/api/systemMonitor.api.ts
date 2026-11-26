@@ -168,6 +168,15 @@ export interface QueueJobsParams {
 
 const PATH = '/system/monitor'
 
+export interface KeySample {
+  key: string
+  type: string
+  ttlMs: number | null
+  value: string
+  hidden: string | null
+  deletable: boolean
+}
+
 export const monitorTags = {
   jobsOverview: { type: 'SystemMonitor' as const, id: 'JOBS' },
   active: { type: 'SystemMonitor' as const, id: 'ACTIVE' },
@@ -230,7 +239,16 @@ export const systemMonitorApi = baseApi.injectEndpoints({
       invalidatesTags: [monitorTags.failed, monitorTags.list, monitorTags.jobsOverview],
     }),
     getRedisOverview: b.query<RedisOverview, void>({ query: () => `${PATH}/redis/overview`, transformResponse: (response: { data: RedisOverview }) => stampRedis(response.data), providesTags: [monitorTags.redis] }),
-    getRedisFamilies: b.query<RedisFamily[], void>({ query: () => `${PATH}/redis/families`, transformResponse: unwrap, keepUnusedDataFor: 30 }),
+    revokeSession: b.mutation<{ ok: true }, { key: string }>({
+      query: (body) => ({ url: `${PATH}/redis/sessions/revoke`, method: 'POST', body }),
+      transformResponse: unwrap,
+    }),
+    getKeySamples: b.query<KeySample[], string>({ query: (family) => `${PATH}/redis/families/${encodeURIComponent(family)}/samples`, transformResponse: unwrap, keepUnusedDataFor: 5 }),
+    deleteFamilyKey: b.mutation<{ ok: true }, { family: string; key: string }>({
+      query: ({ family, key }) => ({ url: `${PATH}/redis/families/${encodeURIComponent(family)}/keys`, method: 'DELETE', body: { key } }),
+      transformResponse: unwrap,
+    }),
+    getRedisFamilies: b.query<RedisFamily[], void>({ query: () => `${PATH}/redis/families`, transformResponse: unwrap, keepUnusedDataFor: 30, providesTags: [{ type: 'SystemMonitor' as const, id: 'FAMILIES' }] }),
   }),
 })
 
@@ -249,5 +267,8 @@ export const {
   useCleanQueueMutation,
   useRetryAllJobsMutation,
   useGetRedisOverviewQuery,
+  useRevokeSessionMutation,
+  useGetKeySamplesQuery,
+  useDeleteFamilyKeyMutation,
   useGetRedisFamiliesQuery,
 } = systemMonitorApi
