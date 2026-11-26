@@ -51,7 +51,7 @@ export function ManualReturnsList({ onAdd }: { onAdd?: () => void }) {
             <table className="w-full text-sm">
               <thead className="bg-secondary-100 text-xs text-secondary-600">
                 <tr>
-                  {['Date', 'Channel', 'Marketplace', 'Product', 'Units', 'Sellable', 'Damaged', 'Remarks', 'Entered by'].map((heading) => (
+                  {['Date', 'Channel', 'Marketplace', 'Product', 'SKU', 'Units', 'Sellable', 'Damaged', 'Remarks', 'Entered by'].map((heading) => (
                     <th key={heading} className="px-3 py-2.5 text-center font-semibold">
                       {heading}
                     </th>
@@ -66,8 +66,13 @@ export function ManualReturnsList({ onAdd }: { onAdd?: () => void }) {
                     <td className="px-3 py-3 text-center align-middle">{entry.marketplace}</td>
                     <td className="px-3 py-3 text-center align-middle">
                       <div className="font-medium text-text-primary">{entry.productName ?? entry.channelSku}</div>
-                      <div className="break-all font-mono text-xs text-text-muted">{entry.channelSku}</div>
                       {entry.orderId && <div className="break-all text-xs text-text-muted">FBM order {entry.orderId}</div>}
+                    </td>
+                    <td className="px-3 py-3 text-center align-middle font-mono text-xs">
+                      <div className="break-all text-text-primary">{entry.channelSku}</div>
+                      {entry.lines.map((line) => (
+                        <div key={line.sku} className="break-all text-text-muted">{line.sku}</div>
+                      ))}
                     </td>
                     <td className="px-3 py-3 text-center align-middle">{entry.units}</td>
                     <td className="px-3 py-3 text-center align-middle font-semibold text-success-700">{entry.sellableUnits}</td>
