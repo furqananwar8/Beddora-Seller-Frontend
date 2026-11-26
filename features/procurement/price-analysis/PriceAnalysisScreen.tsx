@@ -89,8 +89,6 @@ export const PriceAnalysisScreen: React.FC<{ productId: number }> = ({ productId
   const [serverErrors, setServerErrors] = useState<Map<string, RowErrors>>(new Map())
   const [basis, setBasis] = useState<RankBasis>('LANDED')
   const [view, setView] = useState<QuoteView>('RANKED')
-  /** Packaging shown in the table; empty = all packagings (so Polybag and Color Box are compared side by side). */
-  const [packagingFilter, setPackagingFilter] = useState('')
   const [formError, setFormError] = useState<string | null>(null)
   const [triedSave, setTriedSave] = useState(false)
   /** Set by a successful save so a Back button is offered; any further edit hides it again. */
@@ -154,15 +152,11 @@ export const PriceAnalysisScreen: React.FC<{ productId: number }> = ({ productId
   const history = useGetPriceFamilyHistoryQuery(rootId ?? 0, { skip: rootId === null })
   const switching = Boolean(data) && data!.product.id !== variantId
 
-  const packagings = useMemo(() => [...new Set(form.rows.map((row) => row.packagingOption.trim()).filter(Boolean))], [form.rows])
-  // A filter that no longer matches anything (its packaging was renamed or removed) shows everything again
-  const activeFilter = packagingFilter && packagings.includes(packagingFilter) ? packagingFilter : ''
-  const visibleRows = useMemo(() => (activeFilter ? form.rows.filter((row) => row.packagingOption.trim() === activeFilter) : form.rows), [form.rows, activeFilter])
   const ranked = useMemo(() => {
     // Rows carry their saved rejection so the table can show it next to the typed values
     const rejections = new Map((data?.analysis?.quotes ?? []).map((quote) => [quoteKey(quote.supplierName, quote.packagingOption), quote.rejection]))
-    return rankRows(visibleRows, settings, effectiveBasis).map((row) => ({ ...row, rejection: rejections.get(rowKey(row)) ?? null }))
-  }, [visibleRows, data, effectiveBasis, settings])
+    return rankRows(form.rows, settings, effectiveBasis).map((row) => ({ ...row, rejection: rejections.get(rowKey(row)) ?? null }))
+  }, [form.rows, data, effectiveBasis, settings])
   const errors = useMemo(() => {
     const merged = new Map<string, RowErrors>()
     const dupes = duplicateKeys(form.rows)
@@ -185,8 +179,7 @@ export const PriceAnalysisScreen: React.FC<{ productId: number }> = ({ productId
       return next
     })
   }
-  /** "+ Add Quote Line": a blank row, in the packaging being filtered on. */
-  const addLine = () => setRows([...form.rows, blankRow(activeFilter)])
+  const addLine = () => setRows([...form.rows, blankRow('')])
   /** Another quote from the same supplier (another packaging), right under its last row. */
   const addPackaging = (uid: string) => {
     const index = form.rows.findIndex((row) => row.uid === uid)
@@ -236,7 +229,6 @@ export const PriceAnalysisScreen: React.FC<{ productId: number }> = ({ productId
 
   const goToVariant = (id: number) => {
     setVariantId(id)
-    setPackagingFilter('')
     setJustSaved(false)
   }
   /** Moving to another variant with unsaved quotes asks first. */
@@ -343,7 +335,7 @@ export const PriceAnalysisScreen: React.FC<{ productId: number }> = ({ productId
           <div>
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-xl font-bold text-text-primary sm:text-2xl">Price analysis</h1>
-              <span className="rounded-md border border-primary-200 bg-primary-50 px-2 py-0.5 text-xs font-medium text-primary-700">Parent Family Mode</span>
+              <span className="rounded-md border border-primary-500 bg-primary-500 px-2 py-0.5 text-xs font-medium text-white">Parent Family Mode</span>
               {landedOn && <span className="rounded-md border border-success-500 bg-success-50 px-2 py-0.5 text-xs font-medium text-success-700">Landed Cost Enabled</span>}
             </div>
             <p className="mt-1 font-mono text-xs text-text-muted">{family ? `${family.root.ref} · ${family.root.name} (${family.variants.length} Child SKU${family.variants.length === 1 ? '' : 's'} Linked)` : 'Quotes per product variant, ranked by price'}</p>
@@ -363,12 +355,7 @@ export const PriceAnalysisScreen: React.FC<{ productId: number }> = ({ productId
               />
             </div>
             <SegmentedToggle<PoCurrency> ariaLabel="Currency" value={form.currency} onChange={(currency) => setForm((c) => ({ ...c, currency }))} options={CURRENCIES} disabled={readOnly} variant="primary" />
-            {!readOnly && (
-              <Button type="button" onClick={addLine}>
-                + Add Quote Line
-              </Button>
-            )}
-            <Link href={PRICE_ANALYSIS_LIST} className="ds-button ds-button-outline">
+            <Link href={PRICE_ANALYSIS_LIST} className="ds-button ds-button-outline ds-button-md">
               All price analyses
             </Link>
           </div>
@@ -402,7 +389,7 @@ export const PriceAnalysisScreen: React.FC<{ productId: number }> = ({ productId
               <LandedCostCard rootId={family.root.id} saved={data!.settings} draft={assumptions} onChange={setAssumptions} canWrite={canWrite} currency={form.currency} />
             </div>
 
-            <VariantFilters variants={family.variants} currentId={variantId} onPickVariant={requestVariant} packagings={packagings} packaging={activeFilter} onPackaging={setPackagingFilter} view={view} onView={setView} />
+            <VariantFilters variants={family.variants} currentId={variantId} onPickVariant={requestVariant} view={view} onView={setView} />
 
             {approval ? (
               <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-success-500 bg-success-50 px-3 py-2 text-sm text-success-700">
@@ -432,7 +419,7 @@ export const PriceAnalysisScreen: React.FC<{ productId: number }> = ({ productId
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <CardTitle>
                     Top suppliers by <span className="text-success-700">{effectiveBasis === 'LANDED' ? 'Landed Cost' : 'FOB Price'}</span>
-                    <span className="ml-2 rounded-md bg-secondary-100 px-2 py-0.5 text-xs font-medium text-text-secondary">{[variantText, activeFilter || 'All Packaging'].join(' · ')}</span>
+                    <span className="ml-2 rounded-md bg-secondary-100 px-2 py-0.5 text-xs font-medium text-text-secondary">{variantText}</span>
                   </CardTitle>
                   <span className="text-xs text-text-muted">
                     Lowest {effectiveBasis === 'LANDED' ? 'Landed Cost' : 'FOB Price'} first · {form.currency} per unit
@@ -446,14 +433,19 @@ export const PriceAnalysisScreen: React.FC<{ productId: number }> = ({ productId
 
             <Card>
               <CardHeader>
-                <div className="flex flex-wrap items-end justify-between gap-2">
-                  <div>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
                     <CardTitle>Supplier quotes &amp; landed cost breakdown</CardTitle>
                     <p className="mt-0.5 text-xs text-text-muted">Edit FOB Price, Unit CBM, or Duty % directly in any row to see the landed cost re-rank instantly.</p>
+                    <span className="mt-1 block text-xs text-text-muted">
+                      Showing <strong>{form.rows.length}</strong> matching quote line{form.rows.length === 1 ? '' : 's'}
+                    </span>
                   </div>
-                  <span className="text-xs text-text-muted">
-                    Showing <strong>{visibleRows.length}</strong> matching quote line{visibleRows.length === 1 ? '' : 's'}
-                  </span>
+                  {!readOnly && (
+                    <Button type="button" className="shrink-0" onClick={addLine}>
+                      + Add Quote Line
+                    </Button>
+                  )}
                 </div>
               </CardHeader>
               <CardContent className="flex flex-col gap-3">
@@ -507,7 +499,7 @@ export const PriceAnalysisScreen: React.FC<{ productId: number }> = ({ productId
               <FormActions>
                 {dirty && <span className="mr-auto text-xs text-text-muted">Unsaved changes on {variantText}</span>}
                 {justSaved && !dirty && (
-                  <Link href={PRICE_ANALYSIS_LIST} className="ds-button ds-button-outline">
+                  <Link href={PRICE_ANALYSIS_LIST} className="ds-button ds-button-outline ds-button-md">
                     Back to price analyses
                   </Link>
                 )}

@@ -145,15 +145,15 @@ export const QuotesTable: React.FC<QuotesTableProps> = ({ rows, variant, errors,
                         disabled={readOnly}
                       />
                       <FieldError message={show('supplierName')} />
-                      <div className="flex items-center gap-1.5">
-                        <span className="shrink-0 text-xs text-text-muted">POC</span>
+                      <div className="relative">
+                        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-text-muted">POC:</span>
                         <input
                           aria-label={`Point of contact at ${name}`}
                           autoComplete="off"
                           value={row.contactName}
                           placeholder="Contact name"
                           onChange={(event) => onChange(row.uid, { contactName: event.target.value })}
-                          className={fieldClass(rowErrors.contactName)}
+                          className={cn(fieldClass(rowErrors.contactName), 'pl-12')}
                           disabled={readOnly}
                         />
                       </div>
@@ -201,16 +201,16 @@ export const QuotesTable: React.FC<QuotesTableProps> = ({ rows, variant, errors,
                         className={cn(fieldClass(rowErrors.moq), 'text-right tabular-nums')}
                         disabled={readOnly}
                       />
-                      <div className="flex items-center gap-1">
+                      <div className="relative">
+                        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-text-muted">Days:</span>
                         <NumericInput
                           aria-label={`Lead time in days for ${name}`}
                           value={row.leadTimeDays}
-                          placeholder="Days"
+                          placeholder="0"
                           onChange={(event) => onChange(row.uid, { leadTimeDays: event.target.value })}
-                          className={cn(fieldClass(rowErrors.leadTimeDays), 'text-right tabular-nums')}
+                          className={cn(fieldClass(rowErrors.leadTimeDays), 'pl-14 text-right tabular-nums')}
                           disabled={readOnly}
                         />
-                        <span className="text-xs text-text-muted">days</span>
                       </div>
                     </div>
                     <FieldError message={rowErrors.moq ?? rowErrors.leadTimeDays} />

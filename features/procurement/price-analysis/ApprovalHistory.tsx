@@ -72,7 +72,7 @@ export const ApprovalOverview: React.FC<{ family: PriceFamily; currentId: number
         {family.variants.map((variant) => {
           const approved = variant.approved
           return (
-            <tr key={variant.id} className={cn('border-b border-border/60 last:border-0', variant.id === currentId && 'bg-primary-50/40')}>
+            <tr key={variant.id} className={cn('border-b border-border/60 last:border-0', variant.id === currentId && 'bg-secondary-100')}>
               <td className="py-2 pr-3">
                 <button type="button" onClick={() => (variant.id === currentId ? undefined : onPickVariant(variant.id))} className="text-left font-medium text-text-primary hover:underline">
                   {variantLabel(variant)}

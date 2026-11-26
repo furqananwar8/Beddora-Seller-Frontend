@@ -33,9 +33,9 @@ export const ParentFamilyCard: React.FC<ParentFamilyCardProps> = ({ family, prod
   return (
     <Card>
       <CardContent className="flex flex-col gap-3 pt-4">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-base font-semibold text-text-primary">
-            Parent family details <span className="ml-1 font-mono text-[11px] font-normal text-text-muted">{family.root.ref}</span>
+        <div className="flex flex-col gap-2">
+          <h2 className="flex flex-wrap items-baseline gap-x-2 text-base font-semibold text-text-primary">
+            Parent family details <span className="font-mono text-[11px] font-normal text-text-muted">{family.root.ref}</span>
           </h2>
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="mr-1 text-xs text-text-muted">Child SKUs:</span>
@@ -49,7 +49,7 @@ export const ParentFamilyCard: React.FC<ParentFamilyCardProps> = ({ family, prod
                   onClick={() => (current ? undefined : onPickVariant(variant.id))}
                   aria-current={current ? 'true' : undefined}
                   title={`${variant.ref} · ${dot.label}${variant.approved ? ` · ${variant.approved.supplierName}` : ''}`}
-                  className={cn('inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-xs font-medium transition-colors', current ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-border bg-surface text-text-secondary hover:bg-secondary-50')}
+                  className={cn('inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-xs font-medium transition-colors', current ? 'border-primary-500 bg-primary-500 text-white' : 'border-border bg-surface text-text-secondary hover:bg-secondary-50')}
                 >
                   <span className={cn('h-1.5 w-1.5 rounded-full', dot.className)} aria-hidden />
                   {variantLabel(variant)}
@@ -58,7 +58,7 @@ export const ParentFamilyCard: React.FC<ParentFamilyCardProps> = ({ family, prod
             })}
           </div>
         </div>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-3">
           <FormField label="Product family name">
             <div className={READ_ONLY}>
               <span className="truncate">{family.root.name}</span>
