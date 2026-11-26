@@ -8,7 +8,7 @@ import { useApiFeedback } from '@/hooks/useApiFeedback'
 import { useAppAbility } from '@/hooks/useAppAbility'
 import { useDeleteContainerMutation, type ContainerItem } from '@/services/api/procurement.api'
 import { downloadApiFile } from '@/utils/downloadFile'
-import { isDeliveredStage } from '../shared/poMeta'
+import { isLockedStatus } from '../shared/poMeta'
 import { PackagingListsModal } from './PackagingListsModal'
 import { ContainerFormModal } from './ContainerFormModal'
 import { CONTAINER_ROUTES } from './routes'
@@ -55,11 +55,11 @@ export function useContainerActions() {
   const actionsFor = (container: ContainerItem, { onPage = false } = {}): RowActionItem[] => {
     const { permissions } = container
     const lists = container.packagingLists
-    const delivered = isDeliveredStage(container.status)
+    const delivered = isLockedStatus(container.status)
     return [
       ...(onPage ? [] : [{ key: 'view', label: 'View container', onSelect: () => router.push(containerHref(container.id)) }]),
       ...(canWrite
-        ? [{ key: 'edit', label: container.needsDetails ? 'Add container details' : 'Edit container', onSelect: () => setEditing(container), disabled: delivered, disabledReason: 'Delivered containers cannot change' }]
+        ? [{ key: 'edit', label: container.needsDetails ? 'Add container details' : 'Edit container', onSelect: () => setEditing(container), disabled: delivered, disabledReason: 'A container delivered to the warehouse cannot change' }]
         : []),
       ...(canAssign
         ? [

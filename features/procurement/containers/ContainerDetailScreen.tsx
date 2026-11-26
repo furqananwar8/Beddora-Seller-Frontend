@@ -10,7 +10,7 @@ import { Spinner } from '@/design-system/loaders'
 import { formatCurrencyAmount } from '@/features/finance/shared/format'
 import { useGetContainerDetailQuery } from '@/services/api/procurement.api'
 import { formatCalendarDay } from '@/utils/format'
-import { CONTAINER_STATUS_META, ContainerStatusBadge, DESTINATION_LABEL, NeedsDetailsBadge, containerLabel, isShipping } from '../shared/poMeta'
+import { CONTAINER_STATUS_META, ContainerStatusBadge, DESTINATION_LABEL, NeedsDetailsBadge, containerLabel, isLockedStatus } from '../shared/poMeta'
 import { ContainerOverview } from './detail/ContainerOverview'
 import { Fact } from './detail/Panel'
 import { CONTAINER_ROUTES } from './routes'
@@ -43,11 +43,9 @@ export const ContainerDetailScreen: React.FC<{ containerId: number }> = ({ conta
   }
 
   const notice =
-    container.status === 'DELIVERED'
-      ? `Delivered${container.deliveredAt ? ` on ${formatCalendarDay(container.deliveredAt)}` : ''}: nothing on this container can change any more; documents can still be added.`
-      : isShipping(container.status)
-        ? `${CONTAINER_STATUS_META[container.status].label}: only the ETA and the shipping status can change until it is delivered. Documents can still be added.`
-        : null
+    isLockedStatus(container.status)
+      ? `${CONTAINER_STATUS_META[container.status].label}${container.deliveredAt ? ` on ${formatCalendarDay(container.deliveredAt)}` : ''}: nothing on this container can change any more; documents can still be added.`
+      : null
 
   return (
     <Container size="full" className="py-4 sm:py-8">
@@ -66,7 +64,7 @@ export const ContainerDetailScreen: React.FC<{ containerId: number }> = ({ conta
             <Link href={LIST} className="ds-button ds-button-outline ds-button-sm">
               All containers
             </Link>
-            {actions.canWrite && container.status !== 'DELIVERED' && (
+            {actions.canWrite && !isLockedStatus(container.status) && (
               <Button type="button" size="sm" onClick={() => actions.edit(container)}>
                 Edit container
               </Button>

@@ -766,10 +766,10 @@ export interface SkuLandedReport extends Page<SkuLandedRow> {
 /* ─────────────── Containers ─────────────── */
 
 /**
- * BOOKED: fully editable · IN_TRANSIT, ON_RAIL, ON_BOARD, ARRIVED_AT_PORT: only the ETA can change · DELIVERED ("Mark as
- * delivered" only) and DELIVERED_AT_WAREHOUSE (form): nothing else can change · GOODS_RECEIVED (Inbound Receiving only): final.
+ * Every status leaves the details editable except DELIVERED_AT_WAREHOUSE (waiting in Inbound Receiving): nothing can change there.
+ * GOODS_RECEIVED is set by Inbound Receiving only; DELIVERED_TO_AWD (Amazon AWD) and FLOOR_LOADED come from the form.
  */
-export type ContainerStatus = 'BOOKED' | 'IN_TRANSIT' | 'ON_RAIL' | 'ON_BOARD' | 'ARRIVED_AT_PORT' | 'CUSTOMS_CLEARED' | 'OUT_FOR_DELIVERY' | 'DELIVERED' | 'DELIVERED_AT_WAREHOUSE' | 'GOODS_RECEIVED'
+export type ContainerStatus = 'BOOKED' | 'IN_TRANSIT' | 'ON_RAIL' | 'ON_BOARD' | 'ARRIVED_AT_PORT' | 'CUSTOMS_CLEARED' | 'OUT_FOR_DELIVERY' | 'DELIVERED' | 'DELIVERED_AT_WAREHOUSE' | 'GOODS_RECEIVED' | 'FLOOR_LOADED' | 'DELIVERED_TO_AWD'
 
 /** Container form fields a status may lock. */
 export type ContainerField =

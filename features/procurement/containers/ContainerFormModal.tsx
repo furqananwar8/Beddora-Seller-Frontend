@@ -30,7 +30,7 @@ import {
 } from '@/services/api/procurement.api'
 import { applyServerIssues } from '@/utils/apiErrors'
 import { cn } from '@/utils/cn'
-import { CONTAINER_STATUS_META, CONTAINER_STATUSES, DESTINATION_LABEL, DESTINATION_OPTIONS, containerLabel, isShipping } from '../shared/poMeta'
+import { CONTAINER_STATUS_META, CONTAINER_STATUSES, DESTINATION_LABEL, DESTINATION_OPTIONS, containerLabel, isLockedStatus } from '../shared/poMeta'
 
 const CURRENCIES: Array<{ value: PoCurrency; label: string }> = [
   { value: 'USD', label: 'USD' },
@@ -143,7 +143,7 @@ interface ContainerFormModalProps {
 
 /**
  * "New container" / "Edit container". The packaging list is put in separately (from the list, or the container's
- * page). What can change depends on the status: everything while booked, only the ETA in transit, nothing delivered.
+ * page). Everything can be edited in any status except delivered to the warehouse, where the form is read-only.
  * The total cost is not asked when booking a container (it is unknown then); it is entered later by editing it.
  */
 export const ContainerFormModal: React.FC<ContainerFormModalProps> = ({ isOpen, onClose, container, preset, onSaved }) => {
@@ -152,8 +152,10 @@ export const ContainerFormModal: React.FC<ContainerFormModalProps> = ({ isOpen, 
   const [updateContainer, { isLoading: updating }] = useUpdateContainerMutation()
   const busy = creating || updating
 
+  // Delivered to the warehouse: every field is read-only, whatever the server's permissions say
+  const readOnly = Boolean(container && isLockedStatus(container.status))
   // A new container is fully editable; a saved one as far as its status allows
-  const editable = new Set<ContainerField>(container?.permissions.editableFields ?? (Object.keys(SERVER_FIELDS) as ContainerField[]))
+  const editable = new Set<ContainerField>(readOnly ? [] : (container?.permissions.editableFields ?? (Object.keys(SERVER_FIELDS) as ContainerField[])))
   const locked = (field: ContainerField) => !editable.has(field)
   const askCost = Boolean(container)
   // A new container is booked; a saved one moves as far as the server allows (reaching the warehouse is the delivery)
@@ -240,9 +242,9 @@ export const ContainerFormModal: React.FC<ContainerFormModalProps> = ({ isOpen, 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={container ? `Edit ${containerLabel(container)}` : 'New container'} size="xl" closeOnEscape={!busy} className="sm:overflow-visible">
       <form onSubmit={submit} noValidate className="flex flex-col gap-4">
-        {container && isShipping(container.status) && (
-          <p className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-800">
-            {CONTAINER_STATUS_META[container.status].label}: only the ETA, the shipped-on-board date and the shipping status can change until it is marked as delivered.
+        {container && readOnly && (
+          <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            {CONTAINER_STATUS_META[container.status].label}: this container has reached the warehouse, so its details can no longer be changed.
           </p>
         )}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -251,7 +253,7 @@ export const ContainerFormModal: React.FC<ContainerFormModalProps> = ({ isOpen, 
           </FormField>
           <FormField label="Status" htmlFor="ct-status" error={errors.status?.message} hint={container ? undefined : 'New containers start as booked'}>
             <div className="relative">
-              <select id="ct-status" className={selectClass(errors.status?.message)} disabled={!container?.permissions.canChangeStatus} {...register('status')}>
+              <select id="ct-status" className={selectClass(errors.status?.message)} disabled={readOnly || !container?.permissions.canChangeStatus} {...register('status')}>
                 {statusOptions.map((status: ContainerStatus) => (
                   <option key={status} value={status}>
                     {CONTAINER_STATUS_META[status].label}
@@ -421,11 +423,13 @@ export const ContainerFormModal: React.FC<ContainerFormModalProps> = ({ isOpen, 
 
         <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <Button type="button" variant="outline" onClick={onClose} disabled={busy}>
-            Cancel
+            {readOnly ? 'Close' : 'Cancel'}
           </Button>
-          <Button type="submit" isLoading={busy}>
-            {container ? 'Save container' : 'Create container'}
-          </Button>
+          {!readOnly && (
+            <Button type="submit" isLoading={busy}>
+              {container ? 'Save container' : 'Create container'}
+            </Button>
+          )}
         </div>
       </form>
     </Modal>

@@ -124,6 +124,7 @@ export type ContainerStage = 'booked' | 'shipping' | 'delivered' | 'atWarehouse'
 /** In lifecycle order. Which statuses the form may set comes from the server (`permissions.statuses`). */
 export const CONTAINER_STATUS_META: Record<ContainerStatus, { label: string; tone: StatusTone; stage: ContainerStage }> = {
   BOOKED: { label: 'BOOKED', tone: 'neutral', stage: 'booked' },
+  FLOOR_LOADED: { label: 'FLOOR LOADED', tone: 'info', stage: 'shipping' },
   IN_TRANSIT: { label: 'IN TRANSIT', tone: 'info', stage: 'shipping' },
   ON_RAIL: { label: 'ON RAIL', tone: 'info', stage: 'shipping' },
   ON_BOARD: { label: 'ON BOARD', tone: 'info', stage: 'shipping' },
@@ -132,11 +133,12 @@ export const CONTAINER_STATUS_META: Record<ContainerStatus, { label: string; ton
   OUT_FOR_DELIVERY: { label: 'OUT FOR DELIVERY', tone: 'info', stage: 'shipping' },
   DELIVERED: { label: 'DELIVERED', tone: 'success', stage: 'delivered' },
   DELIVERED_AT_WAREHOUSE: { label: 'DELIVERED TO WAREHOUSE', tone: 'warning', stage: 'atWarehouse' },
+  DELIVERED_TO_AWD: { label: 'DELIVERED TO AWD', tone: 'success', stage: 'received' },
   GOODS_RECEIVED: { label: 'GOODS RECEIVED', tone: 'success', stage: 'received' },
 }
 
-/** Statuses only Inbound Receiving can set: the container form never offers them. */
-export const isDeliveredStage = (status: ContainerStatus): boolean => ['delivered', 'atWarehouse', 'received'].includes(CONTAINER_STATUS_META[status].stage)
+/** Delivered to the warehouse (waiting in Inbound Receiving): nothing on the container can change. Every other status leaves its details editable. */
+export const isLockedStatus = (status: ContainerStatus): boolean => CONTAINER_STATUS_META[status].stage === 'atWarehouse'
 
 export const CONTAINER_STATUSES = Object.keys(CONTAINER_STATUS_META) as ContainerStatus[]
 
