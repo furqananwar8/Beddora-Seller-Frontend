@@ -32,7 +32,7 @@ import {
 import { cn } from '@/utils/cn'
 import { Sparkline, ThroughputChart } from './charts'
 import { JobInspector } from './JobInspector'
-import { ActivityFeed, Panel } from './Panel'
+import { ActivityFeed, Panel, ScrollArea } from './Panel'
 import { ago, firstSentence, formatCount, HEALTH_LABEL, HEALTH_TILE, HEALTH_TONE, queueHealth, STATE_LABEL, STATE_TONE, useNow } from './monitorMeta'
 import { useJobsLive } from './useJobsLive'
 
@@ -65,9 +65,10 @@ const FLOWS: Array<{ title: string; steps: Array<{ queue: string; title: string;
 export const JobsTab: React.FC = () => {
   const { success, failure, info } = useApiFeedback()
   const now = useNow(1000)
-  const { data: overview } = useGetJobsOverviewQuery(undefined, { pollingInterval: 60_000 })
-  const { data: active = [] } = useGetActiveJobsQuery()
-  const { data: failed = [] } = useGetFailedJobsQuery()
+  // Polling is the safety net: the screen still catches up if a live event is missed
+  const { data: overview } = useGetJobsOverviewQuery(undefined, { pollingInterval: 10_000 })
+  const { data: active = [] } = useGetActiveJobsQuery(undefined, { pollingInterval: 5_000 })
+  const { data: failed = [] } = useGetFailedJobsQuery(undefined, { pollingInterval: 15_000 })
   const { data: schedules = [] } = useGetSchedulesQuery()
   const { feed, leaving, fresh } = useJobsLive()
 
@@ -207,11 +208,13 @@ export const JobsTab: React.FC = () => {
         {queues.length === 0 ? (
           <EmptyState title="No queues found" description="Queues appear here once the first job has been added to them." />
         ) : (
-          <div className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-4">
-            {shownQueues.map((queue) => (
-              <QueueTile key={queue.name} queue={queue} selected={queue.name === selectedQueue} onSelect={() => { setSelectedQueue(queue.name); setStatus(queue.counts.failed > 0 ? 'failed' : 'active'); setPage(1) }} />
-            ))}
-          </div>
+          <ScrollArea className="p-0.5">
+            <div className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-4">
+              {shownQueues.map((queue) => (
+                <QueueTile key={queue.name} queue={queue} selected={queue.name === selectedQueue} onSelect={() => { setSelectedQueue(queue.name); setStatus(queue.counts.failed > 0 ? 'failed' : 'active'); setPage(1) }} />
+              ))}
+            </div>
+          </ScrollArea>
         )}
       </Panel>
 
@@ -253,7 +256,24 @@ export const JobsTab: React.FC = () => {
         </Panel>
       )}
 
+      {open && (
+        <Panel title="Job inspector" subtitle="Everything about one job, live">
+          <JobInspector
+            key={key(open)}
+            queue={open.queue}
+            id={open.id}
+            info={byName.get(open.queue) as QueueSummary | undefined}
+            onClose={() => setOpen(null)}
+            onRetry={(job) => void doRetry(job)}
+            onPromote={(job) => void promoteJob({ queue: job.queue, id: job.id }).unwrap().then(() => success('The task will run now')).catch((error) => failure(error, 'Could not run it early'))}
+            onRemove={(job) => setConfirm({ kind: 'remove', job })}
+          />
+        </Panel>
+      )}
+
+      {/* Constant height, so jobs starting and finishing never change the page length and move the scroll position. */}
       <Panel title="Running right now" subtitle="Live progress. A finished task slides away when the server reports it done. Select one to see every step.">
+        <ScrollArea className="h-72 max-h-none">
         {active.length === 0 ? (
           <p className="text-sm text-text-muted">Nothing is running right now.</p>
         ) : (
@@ -262,8 +282,8 @@ export const JobsTab: React.FC = () => {
               <li key={key(job)} className={cn('border-t border-border first:border-t-0', leaving.has(key(job)) && 'monitor-leave', fresh.has(key(job)) && 'monitor-enter')}>
                 <button type="button" onClick={() => setOpen({ queue: job.queue, id: job.id })} className={cn('flex w-full flex-wrap items-center gap-3 px-1 py-2.5 text-left hover:bg-secondary-50', open && key(open) === key(job) && 'bg-sky-50')}>
                   <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-medium text-text-primary">{job.trace ? `${job.name}: ${job.trace.steps[job.trace.step]?.name ?? ''}` : job.name}</div>
-                    <div className="truncate font-mono text-xs text-text-muted">
+                    <div className="break-words text-sm font-medium text-text-primary">{job.trace ? `${job.name}: ${job.trace.steps[job.trace.step]?.name ?? ''}` : job.name}</div>
+                    <div className="break-all font-mono text-xs text-text-muted">
                       {job.queue} · #{job.id}
                       {job.trace ? ` · ${job.trace.file}:${job.trace.line}` : ''}
                     </div>
@@ -279,22 +299,8 @@ export const JobsTab: React.FC = () => {
             ))}
           </ul>
         )}
+        </ScrollArea>
       </Panel>
-
-      {open && (
-        <Panel title="Job inspector" subtitle="Everything about one job, live">
-          <JobInspector
-            key={key(open)}
-            queue={open.queue}
-            id={open.id}
-            info={byName.get(open.queue) as QueueSummary | undefined}
-            onClose={() => setOpen(null)}
-            onRetry={(job) => void doRetry(job)}
-            onPromote={(job) => void promoteJob({ queue: job.queue, id: job.id }).unwrap().then(() => success('The task will run now')).catch((error) => failure(error, 'Could not run it early'))}
-            onRemove={(job) => setConfirm({ kind: 'remove', job })}
-          />
-        </Panel>
-      )}
 
       <Panel
         title="Failed tasks"
@@ -314,7 +320,7 @@ export const JobsTab: React.FC = () => {
           </div>
         </div>
         <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
-          <div>
+          <ScrollArea>
             {shownFailed.length === 0 ? (
               <p className="text-sm text-text-muted">{failed.length === 0 ? 'No failed tasks. Nice.' : 'No failed task matches.'}</p>
             ) : (
@@ -341,8 +347,8 @@ export const JobsTab: React.FC = () => {
                 ))}
               </ul>
             )}
-          </div>
-          <div className="space-y-3">
+          </ScrollArea>
+          <ScrollArea className="space-y-3">
             <h3 className="text-sm font-semibold text-text-primary">Why tasks fail</h3>
             {reasonCounts.length === 0 && <p className="text-sm text-text-muted">No failures to explain.</p>}
             {reasonCounts.map(([label, count]) => (
@@ -356,7 +362,7 @@ export const JobsTab: React.FC = () => {
                 </div>
               </div>
             ))}
-          </div>
+          </ScrollArea>
         </div>
       </Panel>
 
@@ -364,6 +370,7 @@ export const JobsTab: React.FC = () => {
         <div className="mb-3 max-w-full overflow-x-auto">
           <Tabs items={[{ id: 'all', label: `All ${schedules.length}` }, { id: 'bullmq', label: 'Schedulers' }, { id: 'cron', label: 'Timers (cron)' }]} activeTab={scheduleKind} onChange={(id) => setScheduleKind(id as typeof scheduleKind)} />
         </div>
+        <ScrollArea>
         <Table>
           <TableHeader>
             <TableRow>
@@ -387,6 +394,7 @@ export const JobsTab: React.FC = () => {
             ))}
           </TableBody>
         </Table>
+        </ScrollArea>
       </Panel>
 
       <Panel title="Live activity" subtitle="What this page just heard from the server, in plain words">

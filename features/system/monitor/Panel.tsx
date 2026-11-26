@@ -26,6 +26,9 @@ export const Panel: React.FC<{ title?: string; subtitle?: React.ReactNode; actio
   </section>
 )
 
+/** Caps a growing list at a fixed height and scrolls it vertically. Keep filter bars outside so their dropdowns are not clipped. */
+export const ScrollArea: React.FC<{ className?: string; children: React.ReactNode }> = ({ className, children }) => <div className={cn('max-h-96 overflow-y-auto', className)}>{children}</div>
+
 /** The live activity list both tabs end with. */
 export const ActivityFeed: React.FC<{ items: Array<{ id: number; at: number; kind: string; tone: StatusTone; text: string; topic: string; type: string }>; empty: string }> = ({ items, empty }) =>
   items.length === 0 ? (
