@@ -31,6 +31,16 @@ const WARM_UP_QUESTION = 'ready'
 
 const selectedText = () => window.getSelection()?.toString() ?? ''
 
+/** The everyday browser menu entries, in the browser's order. */
+const browserActions = (selection: string): Array<{ label: string; run: () => void; disabled?: boolean }> => [
+  { label: 'Back', run: () => window.history.back() },
+  { label: 'Forward', run: () => window.history.forward() },
+  { label: 'Reload', run: () => window.location.reload() },
+  { label: 'Copy', disabled: !selection, run: () => void navigator.clipboard?.writeText(selection) },
+  { label: 'Select all', run: () => window.getSelection()?.selectAllChildren(document.querySelector('.ds-content') ?? document.body) },
+  { label: 'Print…', run: () => window.print() },
+]
+
 /**
  * In-app "Ask AI" assistant: a floating bot button plus an "Ask AI" entry on
  * right click (hold Shift for the browser's own menu). Each question is sent
@@ -165,12 +175,19 @@ export function AiAssistant() {
       {menu && (
         <div
           role="menu"
-          className="fixed z-[60] min-w-[140px] rounded-lg border border-border bg-surface py-1 shadow-lg"
+          className="fixed z-[60] min-w-[180px] rounded-lg border border-border bg-surface py-1 shadow-lg"
           style={{
-            left: Math.min(menu.x, window.innerWidth - 160),
-            top: Math.min(menu.y, window.innerHeight - 50),
+            left: Math.min(menu.x, window.innerWidth - 200),
+            top: Math.min(menu.y, window.innerHeight - 290),
           }}
         >
+          {/* A page cannot add to the browser's own menu, so the everyday defaults are repeated here, with Ask AI last. Shift + right click still opens the browser menu. */}
+          {browserActions(menu.selection).map((item) => (
+            <button key={item.label} role="menuitem" disabled={item.disabled} className="flex w-full items-center px-3 py-1.5 text-sm text-text-primary hover:bg-secondary-100 disabled:cursor-default disabled:text-text-muted disabled:hover:bg-transparent" onClick={item.run}>
+              {item.label}
+            </button>
+          ))}
+          <div className="my-1 border-t border-border" role="separator" />
           <button
             role="menuitem"
             className="flex w-full items-center gap-2 px-3 py-2 text-sm text-text-primary hover:bg-secondary-100"
