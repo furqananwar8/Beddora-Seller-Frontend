@@ -12,10 +12,10 @@ import { bulkJobKeys } from '../../bookingAnnounce'
 import { sortRates, tagRates } from '../../create/rateRanking'
 import { streamRates } from '../../useRateStream'
 import type { BookingJobDto, ChannelOrderDetail, ChannelOrderRef, Rate } from '../../types'
-import { chunkUnits, detailForUnits, freeUnitNos } from '../orderUnits'
+import { chunkUnits, defaultPlan, detailForUnits, freeUnitNos, planGroups, unitIsMapped, type BookingPlan } from '../orderUnits'
 import { loadBulkOrders, orderKey } from './bulkSelection'
 import { runPool } from './pool'
-import { prepareOrder, type PreparedOrder, type ShipmentDefaults } from './prepareOrder'
+import { prepareOrder, unitPackage, type PackageText, type PreparedOrder, type ShipmentDefaults } from './prepareOrder'
 
 /** Orders loaded, quoted and booked this many at a time. */
 const LOAD_AT_ONCE = 4
@@ -59,11 +59,20 @@ export interface OrderRow {
   loadError: string | null
   /** The whole free part of the order, checked once (ship-to, mapped SKUs, package, customs). */
   prepared: PreparedOrder | null
-  /** Unit numbers no booking covers yet. */
+  /** Unit numbers no booking covers yet whose SKU is mapped: the quantities that can be booked. */
   free: number[]
-  /** Units per booking in effect (all free units = one booking). */
+  /** Free quantities whose SKU is not mapped: shown disabled, and left out of every booking until it is. */
+  blocked: number[]
+  /** Quantity per booking in effect when the bookings are not built by hand (all free = one booking). */
   split: number
-  perUnitLabels: boolean
+  /** The bookings: unit numbers in each, from the user's plan (`planned`), else cut by `split`. */
+  groups: number[][]
+  /** What the user chose: SKUs combined or separate, quantity to book now, one shipment or one booking each. */
+  plan: BookingPlan
+  /** The user has made a choice (otherwise everything is one booking). */
+  planned: boolean
+  /** Free quantities not in any booking: they stay free to book later. */
+  leftOut: number[]
   bookings: number
 }
 
@@ -81,6 +90,10 @@ export interface BulkRow {
   count: number
   /** Bookings made from one group of units (labels bought per unit) share it. */
   groupId: string
+  /** One package per quantity (each with its own size) rather than one for the booking. */
+  packagesEach: boolean
+  /** Each quantity's package, when `packagesEach`. */
+  unitPackages: Record<number, PackageText> | null
   work: RowWork
   rate: Rate | null
 }
@@ -113,12 +126,18 @@ export function useBulkBook() {
   const [details, setDetails] = useState<Record<string, { detail?: ChannelOrderDetail; error?: string }>>({})
   const [work, setWork] = useState<Record<string, RowWork>>({})
   const [shipFromId, setShipFromId] = useState<string | null>(null)
-  const [defaults, setDefaults] = useState<ShipmentDefaults>({ incoterm: 'DDP', signature: false })
+  const [defaults, setDefaults] = useState<ShipmentDefaults>({ incoterm: 'DDP', signature: false, protection: false })
   const [rule, setRule] = useState<{ rule: PickRule; carrier: string }>({ rule: 'CHEAPEST', carrier: '' })
   /** Units per booking for every order (0 = all together), and each order's own override. */
   const [splitAll, setSplitAll] = useState(0)
   const [splitOf, setSplitOf] = useState<Record<string, number>>({})
-  const [perUnit, setPerUnit] = useState<Record<string, boolean>>({})
+  /** What the user chose per order; an order without an entry is one booking. */
+  const [planOf, setPlanOf] = useState<Record<string, BookingPlan>>({})
+  /** Bookings that give each quantity its own package, and the sizes typed for them (`${booking key}:${unit number}`). */
+  const [eachPkg, setEachPkg] = useState<Record<string, boolean>>({})
+  const [unitPkg, setUnitPkg] = useState<Record<string, PackageText>>({})
+  /** Package sizes typed per booking, over the ones worked out from the products. */
+  const [pkgOf, setPkgOf] = useState<Record<string, PackageText>>({})
 
   const alive = useRef(true)
   const abort = useRef<AbortController | null>(null)
@@ -162,52 +181,61 @@ export function useBulkBook() {
       (refs ?? []).map((ref) => {
         const key = orderKey(ref)
         const detail = details[key]?.detail ?? null
-        const free = detail ? freeUnitNos(detail) : []
+        const allFree = detail ? freeUnitNos(detail) : []
+        const blocked = detail ? allFree.filter((unitNo) => !unitIsMapped(detail, unitNo)) : []
+        const free = allFree.filter((unitNo) => !blocked.includes(unitNo))
         const split = splitOf[key] ?? splitAll
-        const perUnitLabels = Boolean(perUnit[key])
-        const size = perUnitLabels ? 1 : split
+        // The user's plan wins; it only plans quantities that are still free (not booked elsewhere meanwhile)
+        const chosen = planOf[key]
+        const groups = chosen && detail ? planGroups(chosen, detail.units, free) : chunkUnits(free, split)
         return {
           key,
           ref,
           detail,
           loadError: details[key]?.error ?? null,
-          prepared: detail ? prepareOrder(detailForUnits(detail, free), shipFrom, defaults) : null,
+          // checked over what can be booked; an order with nothing mappable is checked as it is, so its problem is named
+          prepared: detail ? prepareOrder(detailForUnits(detail, free.length ? free : blocked), shipFrom, defaults) : null,
           free,
+          blocked,
           split,
-          perUnitLabels,
-          bookings: chunkUnits(free, size).length,
+          groups,
+          plan: chosen ?? defaultPlan(),
+          planned: Boolean(chosen),
+          leftOut: free.filter((unitNo) => !groups.some((group) => group.includes(unitNo))),
+          bookings: groups.length,
         }
       }),
-    [refs, details, splitOf, splitAll, perUnit, shipFrom, defaults]
+    [refs, details, splitOf, splitAll, planOf, shipFrom, defaults]
   )
 
-  /** Every booking: an order's free units cut into groups, each cut further into single units when labels are per unit. */
+  /** Every booking: the order's bookings as cut by the stepper or built by hand, each with one package or one per quantity. */
   const plan = useMemo(() => {
     const list: Omit<BulkRow, 'work' | 'rate'>[] = []
     for (const order of orders) {
-      if (!order.detail || order.free.length === 0) continue
-      const groups = chunkUnits(order.free, order.split)
-      const bookings = groups.flatMap((group, groupIndex) => {
-        const gid = `${order.key}#g${groupIndex + 1}`
+      if (!order.detail || order.groups.length === 0) continue
+      order.groups.forEach((unitNos, index) => {
+        const key = `${order.key}#${index + 1}`
+        const gid = `${order.key}#g${index + 1}`
         if (!groupIds.current.has(gid)) groupIds.current.set(gid, crypto.randomUUID())
-        return (order.perUnitLabels ? group.map((unitNo) => [unitNo]) : [group]).map((unitNos) => ({ unitNos, groupId: groupIds.current.get(gid)! }))
-      })
-      bookings.forEach(({ unitNos, groupId }, index) => {
+        const each = Boolean(eachPkg[key]) && unitNos.length > 1
+        const unitPackages = each ? Object.fromEntries(unitNos.map((unitNo) => [unitNo, unitPkg[`${key}:${unitNo}`] ?? unitPackage(order.detail!, unitNo)])) : null
         list.push({
-          key: `${order.key}#${index + 1}`,
+          key,
           orderKey: order.key,
           ref: order.ref,
           detail: order.detail,
-          prepared: prepareOrder(detailForUnits(order.detail!, unitNos), shipFrom, defaults),
+          prepared: prepareOrder(detailForUnits(order.detail!, unitNos), shipFrom, defaults, pkgOf[key], unitPackages ? unitNos.map((unitNo) => unitPackages[unitNo]) : undefined),
           unitNos,
           index: index + 1,
-          count: bookings.length,
-          groupId,
+          count: order.groups.length,
+          groupId: groupIds.current.get(gid)!,
+          packagesEach: each,
+          unitPackages,
         })
       })
     }
     return list
-  }, [orders, shipFrom, defaults])
+  }, [orders, shipFrom, defaults, pkgOf, eachPkg, unitPkg])
 
   const prepared = useMemo(() => new Map(plan.map((booking) => [booking.key, booking.prepared as PreparedOrder])), [plan])
 
@@ -232,19 +260,58 @@ export function useBulkBook() {
 
   /** A different split makes the old quotes meaningless: they are dropped (the Review step precedes the rates). */
   const dropWork = useCallback((only?: string) => setWork((current) => (only ? Object.fromEntries(Object.entries(current).filter(([key]) => !key.startsWith(`${only}#`))) : {})), [])
+  /** Booking keys change with the bookings, so sizes typed for the old ones are dropped with them. */
+  const dropPackages = useCallback((only?: string) => {
+    const keep = <T,>(current: Record<string, T>) => Object.fromEntries(Object.entries(current).filter(([key]) => (only ? !key.startsWith(`${only}#`) : false)))
+    setPkgOf(keep)
+    setEachPkg(keep)
+    setUnitPkg(keep)
+  }, [])
+  /** One booking's quote is stale once its packages change: it is dropped and asked for again. */
+  const forgetQuote = useCallback((key: string) => setWork((current) => Object.fromEntries(Object.entries(current).filter(([workKey]) => workKey !== key))), [])
   const setSplitAllUnits = useCallback((size: number) => {
     setSplitAll(Math.max(0, size))
     setSplitOf({})
+    setPlanOf({})
     dropWork()
-  }, [dropWork])
+    dropPackages()
+  }, [dropWork, dropPackages])
   const setSplitForOrder = useCallback((key: string, size: number) => {
     setSplitOf((current) => ({ ...current, [key]: Math.max(0, size) }))
+    setPlanOf((current) => Object.fromEntries(Object.entries(current).filter(([planKey]) => planKey !== key)))
     dropWork(key)
-  }, [dropWork])
-  const setPerUnitLabels = useCallback((key: string, on: boolean) => {
-    setPerUnit((current) => ({ ...current, [key]: on }))
+    dropPackages(key)
+  }, [dropWork, dropPackages])
+  /** Sets how an order is booked (its SKUs combined or separate, how many now, one shipment or one booking each). */
+  const setPlan = useCallback((key: string, plan: BookingPlan) => {
+    setPlanOf((current) => ({ ...current, [key]: plan }))
     dropWork(key)
-  }, [dropWork])
+    dropPackages(key)
+  }, [dropWork, dropPackages])
+  /** Types a booking's package size (its rates are asked for again). */
+  const setPackage = useCallback((key: string, pkg: PackageText) => {
+    setPkgOf((current) => ({ ...current, [key]: pkg }))
+    forgetQuote(key)
+  }, [forgetQuote])
+  /** Back to the size worked out from the products. */
+  const resetPackage = useCallback((key: string) => {
+    setPkgOf((current) => Object.fromEntries(Object.entries(current).filter(([pkgKey]) => pkgKey !== key)))
+    forgetQuote(key)
+  }, [forgetQuote])
+  /** One package for the booking, or one per quantity. */
+  const setPackagesEach = useCallback((key: string, each: boolean) => {
+    setEachPkg((current) => ({ ...current, [key]: each }))
+    forgetQuote(key)
+  }, [forgetQuote])
+  /** Types one quantity's package size. */
+  const setUnitPackage = useCallback((key: string, unitNo: number, pkg: PackageText) => {
+    setUnitPkg((current) => ({ ...current, [`${key}:${unitNo}`]: pkg }))
+    forgetQuote(key)
+  }, [forgetQuote])
+  const resetUnitPackage = useCallback((key: string, unitNo: number) => {
+    setUnitPkg((current) => Object.fromEntries(Object.entries(current).filter(([unitKey]) => unitKey !== `${key}:${unitNo}`)))
+    forgetQuote(key)
+  }, [forgetQuote])
 
   const quoteBooking = useCallback(
     async (key: string, signal: AbortSignal) => {
@@ -431,7 +498,14 @@ export function useBulkBook() {
     splitAll,
     setSplitAllUnits,
     setSplitForOrder,
-    setPerUnitLabels,
+    setPlan,
+    setPackagesEach,
+    setUnitPackage,
+    resetUnitPackage,
+    pkgOf,
+    unitPkg,
+    setPackage,
+    resetPackage,
     getRates,
     selectRate,
     book,

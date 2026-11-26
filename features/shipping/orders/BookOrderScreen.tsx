@@ -107,7 +107,7 @@ export const BookOrderScreen: React.FC = () => {
       <h1 className="mb-4 text-xl font-bold text-text-primary sm:text-2xl">Book order {detail.order.orderId}</h1>
       {partial && (
         <Alert variant="info" className="mb-4">
-          {fullDetail!.units.length - free.length} of {fullDetail!.units.length} units are already booked. This books the remaining {free.length}: unit{free.length === 1 ? '' : 's'} {free.join(', ')}.
+          {fullDetail!.units.length - free.length} of {fullDetail!.units.length} quantity is already booked. This books the remaining {free.length}: Qty {free.join(', ')}.
         </Alert>
       )}
       <WizardStepper

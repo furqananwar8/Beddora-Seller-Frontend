@@ -14,29 +14,37 @@ const MODE_META = {
   AIR: { label: 'Air', Icon: Plane, className: 'bg-sky-50 text-sky-700' },
 } as const
 
-const TAG_CLASS = { CHEAPEST: 'bg-success-50 text-success-700', FASTEST: 'bg-sky-50 text-sky-700', BEST_VALUE: 'bg-secondary-100 text-secondary-800' }
+export const TAG_CLASS = { CHEAPEST: 'bg-success-50 text-success-700', FASTEST: 'bg-sky-50 text-sky-700', BEST_VALUE: 'bg-secondary-100 text-secondary-800' }
 const ROW = 'grid items-center gap-3 rounded-lg border px-3 py-3 sm:grid-cols-[40px_minmax(0,2.2fr)_minmax(0,1fr)_minmax(0,2fr)_minmax(0,1fr)_auto]'
 
 /** Base · surcharges, then duties and taxes: the second column of figures. */
-const Breakdown: React.FC<{ rate: Rate; incoterm: Incoterm }> = ({ rate, incoterm }) => {
+export const Breakdown: React.FC<{ rate: Rate; incoterm: Incoterm }> = ({ rate, incoterm }) => {
+  const extras = [
+    rate.duties !== null ? (
+      <>
+        Duties ({incoterm}) <b className="text-text-primary">{amount(rate.duties)}</b>
+      </>
+    ) : rate.dutiesNote ? (
+      <>
+        Duties ({incoterm}) <b className="text-text-primary">{rate.dutiesNote.toLowerCase()}</b>
+      </>
+    ) : null,
+    rate.taxes !== null ? <>Taxes {amount(rate.taxes)}</> : null,
+  ].filter(Boolean)
   const charges = [rate.baseRate !== null && `Base ${amount(rate.baseRate)}`, ...rate.surcharges.map((surcharge) => `${surcharge.label} ${amount(surcharge.amount)}`)].filter(Boolean)
   return (
     <div className="text-xs leading-5 text-text-muted">
       {charges.length > 0 && <div>{charges.join(' · ')}</div>}
-      <div>
-        {rate.duties !== null ? (
-          <>
-            Duties ({incoterm}) <b className="text-text-primary">{amount(rate.duties)}</b>
-          </>
-        ) : (
-          rate.dutiesNote && (
-            <>
-              Duties ({incoterm}) <b className="text-text-primary">{rate.dutiesNote.toLowerCase()}</b>
-            </>
-          )
-        )}
-        {rate.taxes !== null && <> · Taxes {amount(rate.taxes)}</>}
-      </div>
+      {extras.length > 0 && (
+        <div>
+          {extras.map((part, index) => (
+            <React.Fragment key={index}>
+              {index > 0 && ' · '}
+              {part}
+            </React.Fragment>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

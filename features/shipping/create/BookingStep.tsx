@@ -159,7 +159,7 @@ export const BookingStep: React.FC<BookingStepProps> = ({ values, labelFormat: p
                       {pkg.length} × {pkg.width} × {pkg.height} {units.length.toLowerCase()} · {pkg.weight} {units.weight.toLowerCase()}
                     </b>
                     <span className="block text-xs text-text-muted">
-                      {unitCount} {unitCount === 1 ? 'unit' : 'units'} · {values.products.length} {values.products.length === 1 ? 'SKU' : 'SKUs'}
+                      Qty {unitCount} · {values.products.length} {values.products.length === 1 ? 'SKU' : 'SKUs'}
                       {declared > 0 && declaredCurrency && ` · declared ${money(declared, declaredCurrency)}`}
                     </span>
                   </span>
