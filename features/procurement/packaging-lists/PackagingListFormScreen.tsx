@@ -111,6 +111,18 @@ export const PackagingListFormScreen: React.FC<PackagingListFormScreenProps> = (
     })
   }, [groups, readOnly])
 
+  // SKUs of the saved list's batches that it does not hold were taken off earlier: keep them off (their units stay in the batch)
+  const pruned = useRef<number | null>(null)
+  useEffect(() => {
+    if (!existing || pruned.current === existing.id) return
+    const ownBatches = new Set(existing.batches.map((batch) => batch.id))
+    const loaded = groups.filter((group) => ownBatches.has(group.batch.id))
+    if (loaded.length < ownBatches.size) return
+    pruned.current = existing.id
+    const saved = new Set(existing.lines.map((line) => lineKey(line.batchId, line.product.id)))
+    setRemoved(new Set(loaded.flatMap((group) => group.lines.map((line) => lineKey(group.batch.id, line.product.id))).filter((key) => !saved.has(key))))
+  }, [existing, groups])
+
   const pickedGroups = useMemo(() => groups.filter((group) => batchIds.includes(group.batch.id)), [groups, batchIds])
   const shownGroups = useMemo(
     () => pickedGroups.map((group) => ({ ...group, lines: group.lines.filter((line) => !removed.has(lineKey(group.batch.id, line.product.id))) })).filter((group) => group.lines.length > 0),
