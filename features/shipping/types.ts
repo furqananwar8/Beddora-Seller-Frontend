@@ -220,6 +220,10 @@ export interface BookShipmentBody {
   order?: ChannelOrderRef
   /** A manual shipment: the platform and marketplace it is for (nothing is updated on the channel). */
   channel?: ShipmentChannelRef
+  /** The order's unit numbers this booking covers (default: every unit still free). */
+  units?: number[]
+  /** Bookings that belong together (labels bought per unit) share a group. */
+  bookingGroupId?: string
 }
 
 /** The platform and marketplace a shipment is for. */
@@ -411,6 +415,57 @@ export interface ChannelOrderListItem extends ChannelOrderRef {
   tracking: ChannelTracking[]
   bookingId: number | null
   booking: ChannelOrderBooking | null
+  /** Units of the order (non-cancelled quantity) and how many active bookings cover. */
+  unitsTotal: number
+  unitsBooked: number
+  /** Active parcels on the order: more than one means Get label asks which. */
+  liveBookingCount: number
+  /** The Status column; null for shipments created by hand. Fulfillment is separate. */
+  shipStatus: ShipStatus | null
+}
+
+export type ShipStatusCode = 'NONE' | 'PARTIAL' | 'SHIPPED' | 'SHIPPED_THROUGH'
+
+export interface ShipStatus {
+  code: ShipStatusCode
+  /** "2 / 3 booked", "SHIPPED", "SHIPPED_THROUGH_WALMART"; null when nothing has shipped. */
+  label: string | null
+}
+
+/** One unit of an order (units are numbered 1..N over its lines) and the booking that covers it, if any. */
+export interface OrderUnitDto {
+  unitNo: number
+  lineNumber: string
+  sku: string
+  booking: { id: number; bookingNo: string; carrier: string; serviceName: string; bookedAt: string } | null
+}
+
+/** One booking attempt on an order, for Order History (failed and voided ones included). */
+export interface OrderBookingHistoryItem {
+  id: number
+  bookingNo: string
+  bookingGroupId: string | null
+  status: ParcelStatus
+  statusLabel: string
+  /** Covers its units now; a failed or voided booking no longer does. */
+  live: boolean
+  provider: ProviderId
+  providerLabel: string
+  carrier: string
+  serviceName: string
+  trackingNumber: string | null
+  trackingUrl: string | null
+  unitNos: number[]
+  /** Made before orders were booked by unit: covers the whole order. */
+  wholeOrder: boolean
+  total: number
+  currency: string
+  failureReason: string | null
+  createdAt: string
+  createdBy: { id: number; name: string } | null
+  canCancel: boolean
+  hasLabel: boolean
+  channelSync: ChannelSync | null
 }
 
 /** Where a row of the orders list came from: a sales channel, or a shipment created by hand (Create shipment). */
@@ -463,6 +518,8 @@ export interface ChannelOrderDetail {
   shipToError: string | null
   /** A bundle SKU yields several entries with the same lineNumber. */
   lines: ChannelOrderDetailLine[]
+  /** The order's units, in booking order; booked ones carry their booking. */
+  units: OrderUnitDto[]
 }
 
 /** A booking running (or finished) in the background; its state lives on the server, so a refreshed page finds it. */
@@ -470,8 +527,12 @@ export interface BookingJobDto {
   key: string
   status: 'RUNNING' | 'SUCCEEDED' | 'FAILED'
   order: ChannelOrderRef | null
+  /** The order's unit numbers this booking covers, and its booking group. */
+  units: number[] | null
+  bookingGroupId: string | null
   shipmentId: number | null
   bookingNo: string | null
+  trackingNumber: string | null
   error: { message: string; status: number; code: string | null } | null
   startedAt: string
   finishedAt: string | null

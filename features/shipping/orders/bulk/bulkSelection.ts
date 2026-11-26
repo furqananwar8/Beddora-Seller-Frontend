@@ -28,7 +28,11 @@ export function loadBulkOrders(): ChannelOrderRef[] {
 /** A row's booking state, for what each bulk action can act on. */
 export const bookingOf = (row: OrderListItem) => row.booking
 
-export const canBulkBook = (row: OrderListItem) => row.origin === 'CHANNEL' && row.fulfillment === 'TO_BOOK'
+/** Units no booking covers yet (0 for a manual shipment or draft). */
+export const unitsLeft = (row: OrderListItem) => Math.max(0, row.unitsTotal - row.unitsBooked)
+
+/** An order is bookable while it is To Book, or while some of its units have no booking yet (Fulfillment reads Booked once any parcel exists). */
+export const canBulkBook = (row: OrderListItem) => row.origin === 'CHANNEL' && (row.fulfillment === 'TO_BOOK' || (row.fulfillment === 'BOOKED' && unitsLeft(row) > 0))
 /** A label exists to print: booked here and not voided. */
 export const canBulkPrint = (row: OrderListItem) => row.booking !== null && !['VOIDED', 'VOID_PENDING', 'FAILED', 'BOOKING'].includes(row.booking.status)
 export const canBulkTrack = (row: OrderListItem) => row.booking !== null && !['VOIDED', 'VOID_PENDING', 'FAILED', 'BOOKING', 'DELIVERED'].includes(row.booking.status)

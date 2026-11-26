@@ -15,6 +15,9 @@ import { useApiFeedback } from '@/hooks/useApiFeedback'
 import { useAppAbility } from '@/hooks/useAppAbility'
 import { useScanItems } from '@/features/barcode/session/useScanItems'
 import { useDeleteShipmentDraftMutation, useGetChannelOrdersQuery, useGetOrderChannelsQuery, useRetryChannelSyncMutation } from '@/services/api/shipping.api'
+import { baseApi } from '@/services/api/baseApi'
+import { useRealtime } from '@/components/realtime/RealtimeProvider'
+import { useAppDispatch } from '@/store/hooks'
 import { cn } from '@/utils/cn'
 import { MARKETPLACES } from '@/utils/marketplaces'
 import { FULFILLMENT_META } from '../shippingMeta'
@@ -23,7 +26,9 @@ import { PrintDialog } from '../print/PrintDialog'
 import { BookingDrawer } from './BookingDrawer'
 import { BulkSelectionBar } from './bulk/BulkSelectionBar'
 import { BULK_LIMIT, isSelectable, orderKey } from './bulk/bulkSelection'
+import { LabelPickerDialog } from './LabelPickerDialog'
 import { OrderDrawer } from './OrderDrawer'
+import { OrderHistoryDialog } from './OrderHistoryDialog'
 import { OrdersTable } from './OrdersTable'
 import { useOrderInvoiceDownload } from './useOrderInvoiceDownload'
 
@@ -111,10 +116,13 @@ export const OrdersScreen: React.FC = () => {
     setSelected(new Map())
   }, initial)
   const { draft, setDraft, applied, changed } = filters
+  const dispatch = useAppDispatch()
   const [retrySync] = useRetryChannelSyncMutation()
   const [retrying, setRetrying] = useState<number | null>(null)
   const [opened, setOpened] = useState<ChannelOrderRef | null>(null)
   const [printing, setPrinting] = useState<number | null>(null)
+  const [history, setHistory] = useState<OrderListItem | null>(null)
+  const [pickingLabel, setPickingLabel] = useState<ChannelOrderRef | null>(null)
   const { download: downloadInvoice, isExporting: invoiceBusy } = useOrderInvoiceDownload()
   const { openId: openShipmentId, open: openShipment } = useOpenShipment()
   const [deletingDraft, setDeletingDraft] = useState<OrderListItem | null>(null)
@@ -133,6 +141,11 @@ export const OrdersScreen: React.FC = () => {
     origin: applied.origins.length === 1 ? applied.origins[0] : 'ALL',
     from: day(applied.ordered.startDate),
     to: day(applied.ordered.endDate),
+  })
+
+  // A booking started, finished or failed (here or in another tab): the rows' Status and counts change without a reload
+  useRealtime('shipping.booking', () => {
+    dispatch(baseApi.util.invalidateTags(['ShippingChannelOrders', 'ShippingShipments']))
   })
 
   const toggleOrder = (row: OrderListItem) =>
@@ -249,6 +262,8 @@ export const OrdersScreen: React.FC = () => {
             onRetrySync={(id) => void retry(id)}
             onOpen={(row) => row.origin === 'CHANNEL' && setOpened({ channel: row.channel, market: row.market, orderId: row.orderId })}
             onPrintLabel={setPrinting}
+            onHistory={setHistory}
+            onPickLabel={(row) => setPickingLabel({ channel: row.channel as ChannelId, market: row.market, orderId: row.orderId })}
             onDeleteDraft={setDeletingDraft}
             onDownloadInvoice={(row) => row.origin === 'CHANNEL' && downloadInvoice(row)}
             onScanItems={canScan ? ({ channel, market, orderId }) => scanItems.open({ scenario: 'FBM_ORDER', sourceId: `${channel}:${market}:${orderId}` }) : undefined}
@@ -282,6 +297,8 @@ export const OrdersScreen: React.FC = () => {
       >
         <p>{deletingDraft?.orderId} and the customer details saved in it will be removed. This can&apos;t be undone.</p>
       </ConfirmDialog>
+      <OrderHistoryDialog order={history && history.origin === 'CHANNEL' ? { channel: history.channel, market: history.market, orderId: history.orderId, unitsTotal: history.unitsTotal, unitsBooked: history.unitsBooked } : null} canWrite={canWrite} onClose={() => setHistory(null)} />
+      <LabelPickerDialog order={pickingLabel} onClose={() => setPickingLabel(null)} />
       <PrintDialog shipmentId={printing} initialDocument="label" onClose={() => setPrinting(null)} />
     </div>
   )

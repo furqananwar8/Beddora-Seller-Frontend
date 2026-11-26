@@ -12,6 +12,7 @@ import { bulkJobKeys } from '../../bookingAnnounce'
 import { sortRates, tagRates } from '../../create/rateRanking'
 import { streamRates } from '../../useRateStream'
 import type { BookingJobDto, ChannelOrderDetail, ChannelOrderRef, Rate } from '../../types'
+import { chunkUnits, detailForUnits, freeUnitNos } from '../orderUnits'
 import { loadBulkOrders, orderKey } from './bulkSelection'
 import { runPool } from './pool'
 import { prepareOrder, type PreparedOrder, type ShipmentDefaults } from './prepareOrder'
@@ -30,11 +31,14 @@ interface Quote {
   expiresAt: string | null
   rates: Rate[]
   error: string | null
+  /** What carriers said while the rates streamed in ("FedEx: address not serviceable"), shown live under the row. */
+  notes: string[]
 }
 export interface BookResult {
   status: 'queued' | 'running' | 'booked' | 'failed'
   bookingNo?: string
   shipmentId?: number
+  trackingNumber?: string
   error?: string
 }
 interface RowWork {
@@ -44,20 +48,44 @@ interface RowWork {
   manual: boolean
   book: BookResult | null
 }
-const NO_QUOTE: Quote = { status: 'idle', quoteId: null, expiresAt: null, rates: [], error: null }
+const NO_QUOTE: Quote = { status: 'idle', quoteId: null, expiresAt: null, rates: [], error: null, notes: [] }
 const NO_WORK: RowWork = { quote: NO_QUOTE, rateId: null, manual: false, book: null }
 
-export interface BulkRow {
+/** One order as the Review step shows it: its checks, its free units and how it will be split. */
+export interface OrderRow {
   key: string
   ref: ChannelOrderRef
   detail: ChannelOrderDetail | null
   loadError: string | null
+  /** The whole free part of the order, checked once (ship-to, mapped SKUs, package, customs). */
   prepared: PreparedOrder | null
+  /** Unit numbers no booking covers yet. */
+  free: number[]
+  /** Units per booking in effect (all free units = one booking). */
+  split: number
+  perUnitLabels: boolean
+  bookings: number
+}
+
+/** One booking: some units of an order with their own package, rates, carrier and label(s). The row of every step after Review. */
+export interface BulkRow {
+  /** `${order key}#${n}` */
+  key: string
+  orderKey: string
+  ref: ChannelOrderRef
+  detail: ChannelOrderDetail | null
+  prepared: PreparedOrder | null
+  unitNos: number[]
+  /** This booking's place among the order's bookings (1-based) and how many there are. */
+  index: number
+  count: number
+  /** Bookings made from one group of units (labels bought per unit) share it. */
+  groupId: string
   work: RowWork
   rate: Rate | null
 }
 
-/** The rate a rule picks from one order's quote: the tagged one, else the cheapest. */
+/** The rate a rule picks from one booking's quote: the tagged one, else the cheapest. */
 export function pickRate(rates: Rate[], rule: PickRule, carrier: string): string | null {
   if (rates.length === 0) return null
   const cheapest = sortRates(rates, 'PRICE')[0]
@@ -67,9 +95,12 @@ export function pickRate(rates: Rate[], rule: PickRule, carrier: string): string
 }
 
 /**
- * Bulk booking of the orders ticked in the Orders list: each order is loaded and checked like the single-order flow
- * (see prepareOrder), quoted over the same rate stream, and booked as its own background job with its own
- * idempotency key, so a retry can't buy a label twice and one failure never stops the rest.
+ * Booking of the orders ticked in the Orders list, one booking at a time per group of units. An order with several
+ * units free can be split (units per booking, set for all or per order, and optionally one label per unit); each
+ * booking is checked like the single-order flow (see prepareOrder) for its own units, quoted over the same rate stream
+ * (rows fill in live as each carrier answers), and booked as its own background job with its own idempotency key, so
+ * a retry can't buy a label twice and one failure never stops the rest. The job's progress arrives on the realtime
+ * stream, with polling as the fallback.
  */
 export function useBulkBook() {
   const dispatch = useAppDispatch()
@@ -84,11 +115,16 @@ export function useBulkBook() {
   const [shipFromId, setShipFromId] = useState<string | null>(null)
   const [defaults, setDefaults] = useState<ShipmentDefaults>({ incoterm: 'DDP', signature: false })
   const [rule, setRule] = useState<{ rule: PickRule; carrier: string }>({ rule: 'CHEAPEST', carrier: '' })
+  /** Units per booking for every order (0 = all together), and each order's own override. */
+  const [splitAll, setSplitAll] = useState(0)
+  const [splitOf, setSplitOf] = useState<Record<string, number>>({})
+  const [perUnit, setPerUnit] = useState<Record<string, boolean>>({})
 
   const alive = useRef(true)
   const abort = useRef<AbortController | null>(null)
   const waiters = useRef(new Map<string, (job: BookingJobDto) => void>())
   const attempts = useRef(new Map<string, string>())
+  const groupIds = useRef(new Map<string, string>())
   useEffect(() => {
     alive.current = true
     return () => {
@@ -120,37 +156,112 @@ export function useBulkBook() {
 
   const shipFrom = addresses.find((address) => address.id === (shipFromId ?? defaultShipFrom(addresses)?.id))
 
-  const prepared = useMemo(() => {
-    const map = new Map<string, PreparedOrder>()
-    Object.entries(details).forEach(([key, { detail }]) => detail && map.set(key, prepareOrder(detail, shipFrom, defaults)))
-    return map
-  }, [details, shipFrom, defaults])
+  /** The Review step's rows: one per order, checked over all of its free units. */
+  const orders: OrderRow[] = useMemo(
+    () =>
+      (refs ?? []).map((ref) => {
+        const key = orderKey(ref)
+        const detail = details[key]?.detail ?? null
+        const free = detail ? freeUnitNos(detail) : []
+        const split = splitOf[key] ?? splitAll
+        const perUnitLabels = Boolean(perUnit[key])
+        const size = perUnitLabels ? 1 : split
+        return {
+          key,
+          ref,
+          detail,
+          loadError: details[key]?.error ?? null,
+          prepared: detail ? prepareOrder(detailForUnits(detail, free), shipFrom, defaults) : null,
+          free,
+          split,
+          perUnitLabels,
+          bookings: chunkUnits(free, size).length,
+        }
+      }),
+    [refs, details, splitOf, splitAll, perUnit, shipFrom, defaults]
+  )
 
-  const latest = useRef({ prepared, work, rule })
-  latest.current = { prepared, work, rule }
+  /** Every booking: an order's free units cut into groups, each cut further into single units when labels are per unit. */
+  const plan = useMemo(() => {
+    const list: Omit<BulkRow, 'work' | 'rate'>[] = []
+    for (const order of orders) {
+      if (!order.detail || order.free.length === 0) continue
+      const groups = chunkUnits(order.free, order.split)
+      const bookings = groups.flatMap((group, groupIndex) => {
+        const gid = `${order.key}#g${groupIndex + 1}`
+        if (!groupIds.current.has(gid)) groupIds.current.set(gid, crypto.randomUUID())
+        return (order.perUnitLabels ? group.map((unitNo) => [unitNo]) : [group]).map((unitNos) => ({ unitNos, groupId: groupIds.current.get(gid)! }))
+      })
+      bookings.forEach(({ unitNos, groupId }, index) => {
+        list.push({
+          key: `${order.key}#${index + 1}`,
+          orderKey: order.key,
+          ref: order.ref,
+          detail: order.detail,
+          prepared: prepareOrder(detailForUnits(order.detail!, unitNos), shipFrom, defaults),
+          unitNos,
+          index: index + 1,
+          count: bookings.length,
+          groupId,
+        })
+      })
+    }
+    return list
+  }, [orders, shipFrom, defaults])
+
+  const prepared = useMemo(() => new Map(plan.map((booking) => [booking.key, booking.prepared as PreparedOrder])), [plan])
+
+  const latest = useRef({ prepared, work, rule, plan, orders })
+  latest.current = { prepared, work, rule, plan, orders }
 
   const patch = useCallback((key: string, change: Partial<RowWork>) => setWork((current) => ({ ...current, [key]: { ...(current[key] ?? NO_WORK), ...change } })), [])
 
   const rows: BulkRow[] = useMemo(
     () =>
-      (refs ?? []).map((ref) => {
-        const key = orderKey(ref)
-        const rowWork = work[key] ?? NO_WORK
-        return { key, ref, detail: details[key]?.detail ?? null, loadError: details[key]?.error ?? null, prepared: prepared.get(key) ?? null, work: rowWork, rate: rowWork.quote.rates.find((rate) => rate.rateId === rowWork.rateId) ?? null }
+      plan.map((booking) => {
+        const rowWork = work[booking.key] ?? NO_WORK
+        return { ...booking, work: rowWork, rate: rowWork.quote.rates.find((rate) => rate.rateId === rowWork.rateId) ?? null }
       }),
-    [refs, details, prepared, work]
+    [plan, work]
   )
 
-  const loading = refs === null || loadingAddresses || rows.some((row) => !row.detail && !row.loadError)
+  const loading = refs === null || loadingAddresses || orders.some((order) => !order.detail && !order.loadError)
   /** Ready to be quoted: nothing blocks it. */
   const ready = rows.filter((row) => row.prepared && !row.prepared.problem)
+  const readyOrders = orders.filter((order) => order.prepared && !order.prepared.problem && order.free.length > 0)
 
-  const quoteOrder = useCallback(
+  /** A different split makes the old quotes meaningless: they are dropped (the Review step precedes the rates). */
+  const dropWork = useCallback((only?: string) => setWork((current) => (only ? Object.fromEntries(Object.entries(current).filter(([key]) => !key.startsWith(`${only}#`))) : {})), [])
+  const setSplitAllUnits = useCallback((size: number) => {
+    setSplitAll(Math.max(0, size))
+    setSplitOf({})
+    dropWork()
+  }, [dropWork])
+  const setSplitForOrder = useCallback((key: string, size: number) => {
+    setSplitOf((current) => ({ ...current, [key]: Math.max(0, size) }))
+    dropWork(key)
+  }, [dropWork])
+  const setPerUnitLabels = useCallback((key: string, on: boolean) => {
+    setPerUnit((current) => ({ ...current, [key]: on }))
+    dropWork(key)
+  }, [dropWork])
+
+  const quoteBooking = useCallback(
     async (key: string, signal: AbortSignal) => {
       const request = latest.current.prepared.get(key)?.request
       if (!request) return
       patch(key, { quote: { ...NO_QUOTE, status: 'loading' }, rateId: null, book: null })
-      const state: Quote = { ...NO_QUOTE, status: 'done' }
+      const state: Quote = { ...NO_QUOTE, status: 'loading', notes: [] }
+      /** Shows what has arrived so far: rates appear (and the rule's pick moves) as each carrier answers. */
+      const show = (status: Quote['status'] = 'loading') => {
+        if (signal.aborted) return
+        const manual = latest.current.work[key]?.manual && state.rates.some((rate) => rate.rateId === latest.current.work[key]?.rateId)
+        patch(key, {
+          quote: { ...state, rates: [...state.rates], notes: [...state.notes], status },
+          rateId: manual ? latest.current.work[key]?.rateId ?? null : pickRate(state.rates, latest.current.rule.rule, latest.current.rule.carrier),
+          manual: Boolean(manual),
+        })
+      }
       try {
         await streamRates(
           request,
@@ -159,8 +270,16 @@ export function useBulkBook() {
             if (frame.event === 'quote') {
               state.quoteId = frame.data.quoteId
               state.expiresAt = frame.data.expiresAt
-            } else if (frame.event === 'rate') state.rates = [...state.rates, frame.data]
-            else if (frame.event === 'done') state.quoteId = frame.data.quoteId
+            } else if (frame.event === 'rate') {
+              state.rates = [...state.rates, frame.data]
+              show()
+            } else if (frame.event === 'provider' && frame.data.status === 'error') {
+              state.notes = [...state.notes, `${frame.data.providerLabel}: ${frame.data.message ?? 'no answer'}`]
+              show()
+            } else if (frame.event === 'unavailable') {
+              state.notes = [...state.notes, `${frame.data.providerLabel ?? frame.data.provider}: ${frame.data.reason}`]
+              show()
+            } else if (frame.event === 'done') state.quoteId = frame.data.quoteId
           },
           (failure) => (state.error = failure.error)
         )
@@ -169,40 +288,36 @@ export function useBulkBook() {
         state.error = apiErrorMessage(error, 'Rates could not be loaded')
       }
       if (signal.aborted) return
-      const manual = latest.current.work[key]?.manual && state.rates.some((rate) => rate.rateId === latest.current.work[key]?.rateId)
-      patch(key, {
-        quote: { ...state, status: state.rates.length ? 'done' : 'error', error: state.rates.length ? null : state.error ?? 'No carrier returned a rate' },
-        rateId: pickRate(state.rates, latest.current.rule.rule, latest.current.rule.carrier),
-        manual: Boolean(manual),
-      })
+      state.error = state.rates.length ? null : state.error ?? 'No carrier returned a rate'
+      show(state.rates.length ? 'done' : 'error')
     },
     [patch]
   )
 
-  /** Quotes the given orders (default: every ready one), a few at a time; rows fill in as each answers. */
+  /** Quotes the given bookings (default: every ready one), a few at a time; rows fill in as each answers. */
   const getRates = useCallback(
     async (keys?: string[]) => {
       abort.current?.abort()
       const controller = new AbortController()
       abort.current = controller
       const targets = keys ?? ready.map((row) => row.key)
-      await runPool(targets, QUOTE_AT_ONCE, (key) => quoteOrder(key, controller.signal))
+      await runPool(targets, QUOTE_AT_ONCE, (key) => quoteBooking(key, controller.signal))
     },
-    [quoteOrder, ready]
+    [quoteBooking, ready]
   )
 
   const pickRule = useCallback(
     (next: PickRule, carrier = '') => {
       setRule({ rule: next, carrier })
       setWork((current) =>
-        Object.fromEntries(Object.entries(current).map(([key, row]) => [key, row.manual || row.quote.status !== 'done' ? row : { ...row, rateId: pickRate(row.quote.rates, next, carrier) }]))
+        Object.fromEntries(Object.entries(current).map(([key, row]) => [key, row.manual || row.quote.rates.length === 0 ? row : { ...row, rateId: pickRate(row.quote.rates, next, carrier) }]))
       )
     },
     []
   )
   const selectRate = useCallback((key: string, rateId: string) => patch(key, { rateId, manual: true }), [patch])
 
-  /** Orders with a picked rate whose quote is still good. */
+  /** Bookings with a picked rate whose quote is still good. */
   const priced = rows.filter((row) => row.rate)
   const expired = priced.filter((row) => !rateIsFresh(row.work.quote.expiresAt))
 
@@ -211,11 +326,13 @@ export function useBulkBook() {
   const syncOrders = (only?: ChannelOrderRef) => {
     clearTimeout(syncTimer.current)
     syncTimer.current = setTimeout(() => {
-      const { prepared: current, work: done } = latest.current
-      const stale = (refs ?? []).filter((ref) => {
-        const key = orderKey(ref)
-        return !done[key]?.book && (only ? orderKey(only) === key : Boolean(current.get(key)?.problem) || !current.has(key))
-      })
+      const { orders: current, work: done } = latest.current
+      const stale = current
+        .filter((order) => {
+          const started = latest.current.plan.some((booking) => booking.orderKey === order.key && done[booking.key]?.book)
+          return !started && (only ? orderKey(only) === order.key : Boolean(order.prepared?.problem) || !order.prepared)
+        })
+        .map((order) => order.ref)
       if (stale.length) void readOrders(stale)
     }, 600)
   }
@@ -248,6 +365,7 @@ export function useBulkBook() {
     [dispatch]
   )
 
+  // Each booking's outcome arrives on the realtime stream the moment its job finishes (polling above is only the fallback)
   useRealtime('shipping.booking', (message) => {
     const job = message.data as unknown as BookingJobDto
     waiters.current.get(job.key)?.(job)
@@ -258,15 +376,15 @@ export function useBulkBook() {
   useRealtime('inventory.sku-mapping', () => syncOrders())
   useRealtime('procurement.product', () => syncOrders())
 
-  const bookOrder = useCallback(
+  const bookOne = useCallback(
     async (key: string) => {
       const row = latest.current.work[key]
+      const booking = latest.current.plan.find((item) => item.key === key)
       const rate = row?.quote.rates.find((item) => item.rateId === row.rateId)
-      const ref = refs?.find((item) => orderKey(item) === key)
-      if (!row || !rate || !row.quote.quoteId || !ref) return
+      if (!row || !rate || !row.quote.quoteId || !booking) return
       patch(key, { book: { status: 'running' } })
       const labelFormat = config?.providers.find((provider) => provider.id === rate.provider)?.labelFormats[0]?.id ?? 'pdf_4x6'
-      const body = { quoteId: row.quote.quoteId, rateId: rate.rateId, labelFormat, order: ref }
+      const body = { quoteId: row.quote.quoteId, rateId: rate.rateId, labelFormat, order: booking.ref, units: booking.unitNos, bookingGroupId: booking.groupId }
       const signature = JSON.stringify(body)
       if (!attempts.current.has(signature)) attempts.current.set(signature, crypto.randomUUID())
       try {
@@ -274,30 +392,32 @@ export function useBulkBook() {
         bulkJobKeys.add(started.key)
         const job = await settle(started)
         if (!alive.current) return
-        if (job.status === 'SUCCEEDED') patch(key, { book: { status: 'booked', bookingNo: job.bookingNo ?? undefined, shipmentId: job.shipmentId ?? undefined } })
+        if (job.status === 'SUCCEEDED') patch(key, { book: { status: 'booked', bookingNo: job.bookingNo ?? undefined, shipmentId: job.shipmentId ?? undefined, trackingNumber: job.trackingNumber ?? undefined } })
         else patch(key, { book: { status: 'failed', error: job.error?.code === 'QUOTE_EXPIRED' ? 'The rate expired: refresh the rates and book again' : job.error?.message ?? 'The booking did not go through' } })
       } catch (error) {
         attempts.current.delete(signature)
         if (alive.current) patch(key, { book: { status: 'failed', error: apiErrorMessage(error, 'Could not start the booking') } })
       }
     },
-    [config, patch, refs, settle, startBooking]
+    [config, patch, settle, startBooking]
   )
 
-  /** Books the given orders (default: every priced one), a few at a time. */
+  /** Books the given bookings (default: every priced one), a few at a time. */
   const book = useCallback(
     async (keys?: string[]) => {
       const targets = keys ?? priced.map((row) => row.key)
       targets.forEach((key) => patch(key, { book: { status: 'queued' } }))
-      await runPool(targets, BOOK_AT_ONCE, bookOrder)
+      await runPool(targets, BOOK_AT_ONCE, bookOne)
       dispatch(baseApi.util.invalidateTags(['ShippingShipments', 'ShippingChannelOrders']))
     },
-    [bookOrder, dispatch, patch, priced]
+    [bookOne, dispatch, patch, priced]
   )
 
   return {
+    orders,
     rows,
     ready,
+    readyOrders,
     priced,
     expired,
     loading,
@@ -308,6 +428,10 @@ export function useBulkBook() {
     setDefaults,
     rule,
     pickRule,
+    splitAll,
+    setSplitAllUnits,
+    setSplitForOrder,
+    setPerUnitLabels,
     getRates,
     selectRate,
     book,

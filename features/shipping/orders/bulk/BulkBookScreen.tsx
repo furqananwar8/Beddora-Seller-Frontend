@@ -15,13 +15,14 @@ import { ChannelBadge } from '../../shared/ChannelBadge'
 import { SectionCard } from '../../shared/Card'
 import { WizardStepper } from '../../create/WizardStepper'
 import { bookOrderHref, INCOTERM_META, money, ORDERS_LIST_HREF, shortDay, SKU_MAPPER_HREF, transitDays } from '../../shippingMeta'
+import { unitsLabel } from '../orderUnits'
 import type { Incoterm, ShipFromOption } from '../../types'
 import { BulkPrintDialog } from './BulkPrintDialog'
-import { useBulkBook, type BulkBook, type BulkRow, type PickRule } from './useBulkBook'
+import { useBulkBook, type BulkBook, type BulkRow, type OrderRow, type PickRule } from './useBulkBook'
 
 const STEPS = [
-  { title: 'Review', hint: 'Check each order' },
-  { title: 'Rates', hint: 'Pick a rate per order' },
+  { title: 'Review', hint: 'Check each order, split it' },
+  { title: 'Rates', hint: 'Pick a rate per booking' },
   { title: 'Confirm', hint: 'Check, then book' },
   { title: 'Booking', hint: 'Labels are bought' },
 ]
@@ -48,21 +49,54 @@ const SIGNATURES = [
 
 const Mark: React.FC<{ ok: boolean }> = ({ ok }) => (ok ? <span className="font-bold text-success-600">✓</span> : <span className="font-bold text-danger-600">✕</span>)
 
-const Lane: React.FC<{ row: BulkRow }> = ({ row }) => {
+const Lane: React.FC<{ row: { detail: BulkRow['detail'] } }> = ({ row }) => {
   const address = row.detail?.shipTo
   return <span>{address ? `${address.city}, ${address.province}` : '—'}</span>
 }
 
-const OrderCell: React.FC<{ row: BulkRow; left?: boolean }> = ({ row, left }) => (
+const OrderCell: React.FC<{ row: { ref: BulkRow['ref'] }; left?: boolean }> = ({ row, left }) => (
   <span className={`flex items-center ${left ? 'justify-start' : 'justify-center'} gap-2 whitespace-nowrap`}>
     <ChannelBadge channel={row.ref.channel} />
     <b className="text-text-primary">{row.ref.orderId}</b>
   </span>
 )
 
-/** Step 1: one ship-from and the shipment defaults for all, then each order's readiness. */
+/** Units per booking: a number from 1 to the units free; the top (or 0) means all together. */
+const UnitsStepper: React.FC<{ value: number; max: number; onChange: (size: number) => void; label: string }> = ({ value, max, onChange, label }) => {
+  const shown = value > 0 && value < max ? value : max
+  const BUTTON = 'h-8 w-8 text-lg leading-none text-text-secondary hover:bg-secondary-50 disabled:cursor-not-allowed disabled:opacity-40'
+  return (
+    <span className="inline-flex items-center overflow-hidden rounded-lg border border-border bg-surface" role="group" aria-label={label}>
+      <button type="button" className={BUTTON} disabled={shown <= 1} onClick={() => onChange(shown - 1)} aria-label="Fewer units per booking">
+        −
+      </button>
+      <span className="min-w-[2.25rem] px-2 text-center text-sm font-semibold tabular-nums">{shown}</span>
+      <button type="button" className={BUTTON} disabled={shown >= max} onClick={() => onChange(shown + 1 >= max ? 0 : shown + 1)} aria-label="More units per booking">
+        +
+      </button>
+    </span>
+  )
+}
+
+/** A header row naming the order above its bookings. */
+const OrderHeaderRow: React.FC<{ order: Pick<OrderRow, 'ref' | 'detail'>; colSpan: number; note?: React.ReactNode }> = ({ order, colSpan, note }) => (
+  <tr className="border-b border-border bg-secondary-50">
+    <td className="px-3 py-2 text-left text-sm" colSpan={colSpan}>
+      <span className="flex flex-wrap items-center gap-2">
+        <OrderCell row={order} left />
+        <span className="text-text-muted">· <Lane row={order} /></span>
+        {note && <span className="ml-auto text-xs text-text-muted">{note}</span>}
+      </span>
+    </td>
+  </tr>
+)
+
+const bookingNote = (row: BulkRow) => (row.count > 1 ? `Booking ${row.index} of ${row.count}` : 'Booking')
+
+/** Step 1: one ship-from and the shipment defaults for all, how to split orders with several units, then each order's readiness. */
 const ReviewStep: React.FC<{ bulk: BulkBook; onNext: () => void }> = ({ bulk, onNext }) => {
   const { shipFrom, addresses, defaults } = bulk
+  const biggest = Math.max(0, ...bulk.orders.map((order) => order.free.length))
   return (
     <div className="space-y-4">
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
@@ -88,7 +122,7 @@ const ReviewStep: React.FC<{ bulk: BulkBook; onNext: () => void }> = ({ bulk, on
             </p>
           ) : null}
         </SectionCard>
-        <SectionCard title="Shipment defaults" subtitle="Package, products and customs come from each order and our products, as when booking one order">
+        <SectionCard title="Shipment defaults" subtitle="Package, products and customs come from each booking's units and our products, as when booking one order">
           <div className="grid gap-3 sm:grid-cols-2">
             <FormField label="Duties" htmlFor="bulk-incoterm">
               <SearchableSelect
@@ -114,11 +148,21 @@ const ReviewStep: React.FC<{ bulk: BulkBook; onNext: () => void }> = ({ bulk, on
         </SectionCard>
       </div>
 
+      {biggest > 1 && (
+        <SectionCard title="Split orders with several units" subtitle="Each booking gets its own package, rates, carrier and label. Change any order below to override.">
+          <div className="flex flex-wrap items-center gap-3 text-sm">
+            <span>Units per booking for every order with 2+ units</span>
+            <UnitsStepper value={bulk.splitAll} max={biggest} onChange={bulk.setSplitAllUnits} label="Units per booking for all orders" />
+            <span className="text-text-muted">{bulk.splitAll === 0 || bulk.splitAll >= biggest ? 'All together: one booking per order' : `Up to ${bulk.splitAll} unit${bulk.splitAll === 1 ? '' : 's'} per booking, the last one takes the rest`}</span>
+          </div>
+        </SectionCard>
+      )}
+
       <div className={TABLE}>
         <table className="w-full">
           <thead>
             <tr className="border-b border-border">
-              {['Order', 'Ship to', 'Ship-to', 'Products mapped', 'Package', 'Customs', 'Status', ''].map((title, index) => (
+              {['Order', 'Ship to', 'Units to book', 'Units per booking', 'Bookings', 'Ship-to', 'Products mapped', 'Package', 'Customs', 'Status', ''].map((title, index) => (
                 <th key={title} className={index < 2 ? `${HEAD} !text-left` : HEAD}>
                   {title}
                 </th>
@@ -126,26 +170,44 @@ const ReviewStep: React.FC<{ bulk: BulkBook; onNext: () => void }> = ({ bulk, on
             </tr>
           </thead>
           <tbody>
-            {bulk.rows.map((row) => {
-              const checks = row.prepared?.checks
+            {bulk.orders.map((order) => {
+              const checks = order.prepared?.checks
+              const many = order.free.length > 1
+              const left = order.detail ? order.detail.units.length - order.free.length : 0
               return (
-                <tr key={row.key} className="border-b border-border last:border-0">
+                <tr key={order.key} className="border-b border-border last:border-0">
                   <td className={`${CELL} !text-left`}>
-                    <OrderCell row={row} left />
+                    <OrderCell row={order} left />
+                    {left > 0 && <span className="mt-1 block text-xs text-text-muted">{left} of {order.detail?.units.length} units already booked</span>}
                   </td>
                   <td className={`${CELL} !text-left`}>
-                    <Lane row={row} />
+                    <Lane row={order} />
                   </td>
-                  {row.loadError ? (
-                    <td className={CELL} colSpan={4}>
-                      <span className="text-danger-600">{row.loadError}</span>
+                  {order.loadError ? (
+                    <td className={CELL} colSpan={9}>
+                      <span className="text-danger-600">{order.loadError}</span>
                     </td>
-                  ) : !checks ? (
-                    <td className={CELL} colSpan={4}>
+                  ) : !order.detail || !checks ? (
+                    <td className={CELL} colSpan={9}>
                       <Spinner size="sm" />
                     </td>
                   ) : (
                     <>
+                      <td className={`${CELL} tabular-nums`}>{order.free.length}</td>
+                      <td className={CELL}>
+                        {many ? (
+                          <div className="flex flex-col items-center gap-1">
+                            <UnitsStepper value={order.perUnitLabels ? 1 : order.split} max={order.free.length} onChange={(size) => bulk.setSplitForOrder(order.key, size)} label={`Units per booking for order ${order.ref.orderId}`} />
+                            <label className="flex items-center gap-1 text-xs text-text-muted">
+                              <input type="checkbox" checked={order.perUnitLabels} onChange={(event) => bulk.setPerUnitLabels(order.key, event.target.checked)} className="h-3.5 w-3.5 accent-primary-600" />
+                              One label per unit
+                            </label>
+                          </div>
+                        ) : (
+                          <span className="text-text-muted">{order.free.length === 1 ? 'single unit' : '—'}</span>
+                        )}
+                      </td>
+                      <td className={`${CELL} font-semibold tabular-nums`}>{order.bookings || '—'}</td>
                       <td className={CELL}>
                         <Mark ok={checks.shipTo} />
                       </td>
@@ -161,21 +223,25 @@ const ReviewStep: React.FC<{ bulk: BulkBook; onNext: () => void }> = ({ bulk, on
                     </>
                   )}
                   <td className={CELL}>
-                    {row.prepared &&
-                      (row.prepared.problem ? (
+                    {order.free.length === 0 && order.detail ? (
+                      <StatusBadge label="Nothing left to book" tone="neutral" />
+                    ) : (
+                      order.prepared &&
+                      (order.prepared.problem ? (
                         <>
                           <StatusBadge label="Needs fixing" tone="danger" />
-                          <span className="mx-auto mt-1 block max-w-[16rem] break-words text-xs text-text-muted">{row.prepared.problem}</span>
+                          <span className="mx-auto mt-1 block max-w-[16rem] break-words text-xs text-text-muted">{order.prepared.problem}</span>
                         </>
                       ) : (
                         <StatusBadge label="Ready" tone="success" />
-                      ))}
+                      ))
+                    )}
                   </td>
                   <td className={CELL}>
-                    {row.prepared?.problem && (
+                    {order.prepared?.problem && (
                       // New tab: this page stays open and updates itself when the fix is saved there (see useBulkBook)
-                      <Link target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-primary-600 underline" href={row.prepared.checks.mapped ? bookOrderHref(row.ref) : SKU_MAPPER_HREF}>
-                        {row.prepared.checks.mapped ? 'Fix' : 'Map SKU'}
+                      <Link target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-primary-600 underline" href={order.prepared.checks.mapped ? bookOrderHref(order.ref) : SKU_MAPPER_HREF}>
+                        {order.prepared.checks.mapped ? 'Fix' : 'Map SKU'}
                       </Link>
                     )}
                   </td>
@@ -186,7 +252,7 @@ const ReviewStep: React.FC<{ bulk: BulkBook; onNext: () => void }> = ({ bulk, on
         </table>
       </div>
 
-      {bulk.rows.some((row) => row.prepared?.problem) && <p className="text-xs text-text-muted">Fix and Map SKU open in a new tab. Save there and this page updates by itself: no reload needed.</p>}
+      {bulk.orders.some((order) => order.prepared?.problem) && <p className="text-xs text-text-muted">Fix and Map SKU open in a new tab. Save there and this page updates by itself: no reload needed.</p>}
 
       <Footer
         note={
@@ -194,8 +260,8 @@ const ReviewStep: React.FC<{ bulk: BulkBook; onNext: () => void }> = ({ bulk, on
             'Checking the orders…'
           ) : (
             <>
-              <b>{bulk.ready.length} ready</b>
-              {bulk.rows.length - bulk.ready.length > 0 && <> · {bulk.rows.length - bulk.ready.length} need fixing (left out unless fixed)</>}
+              <b>{bulk.readyOrders.length} order{bulk.readyOrders.length === 1 ? '' : 's'} ready</b> · <b>{bulk.ready.length} booking{bulk.ready.length === 1 ? '' : 's'}</b>
+              {bulk.orders.length - bulk.readyOrders.length > 0 && <> · {bulk.orders.length - bulk.readyOrders.length} need fixing or have nothing left (left out)</>}
             </>
           )
         }
@@ -204,7 +270,7 @@ const ReviewStep: React.FC<{ bulk: BulkBook; onNext: () => void }> = ({ bulk, on
           Cancel
         </Link>
         <Button disabled={bulk.ready.length === 0 || bulk.loading} onClick={onNext}>
-          Get rates for {bulk.ready.length} ready order{bulk.ready.length === 1 ? '' : 's'}
+          Get rates for {bulk.ready.length} booking{bulk.ready.length === 1 ? '' : 's'}
         </Button>
       </Footer>
     </div>
@@ -244,7 +310,7 @@ const RatesStep: React.FC<{ bulk: BulkBook; onBack: () => void; onNext: () => vo
         <table className="w-full">
           <thead>
             <tr className="border-b border-border">
-              {['Order', 'To', 'Rates', 'Selected rate', 'Price', 'Est. delivery'].map((title) => (
+              {['Booking', 'Units', 'Rates', 'Selected rate', 'Price', 'Est. delivery'].map((title) => (
                 <th key={title} className={HEAD}>
                   {title}
                 </th>
@@ -252,44 +318,63 @@ const RatesStep: React.FC<{ bulk: BulkBook; onBack: () => void; onNext: () => vo
             </tr>
           </thead>
           <tbody>
-            {bulk.ready.map((row) => {
-              const { quote } = row.work
-              return (
-                <tr key={row.key} className="border-b border-border last:border-0">
-                  <td className={CELL}>
-                    <OrderCell row={row} />
-                  </td>
-                  <td className={CELL}>
-                    <Lane row={row} />
-                  </td>
-                  <td className={CELL}>{quote.status === 'loading' ? <Spinner size="sm" /> : quote.status === 'error' ? <span className="text-danger-600">{quote.error}</span> : quote.status === 'done' ? `${quote.rates.length} rates` : '—'}</td>
-                  <td className={`${CELL} min-w-[18rem]`}>
-                    {quote.status === 'done' && (
-                      <SearchableSelect
-                        options={[...quote.rates].sort((a, b) => a.total - b.total)}
-                        value={row.rate}
-                        onChange={(rate) => bulk.selectRate(row.key, rate.rateId)}
-                        getKey={(rate) => rate.rateId}
-                        getLabel={(rate) => `${rate.carrier} · ${rate.serviceName}`}
-                        renderOption={(rate) => (
-                          <span className="flex justify-between gap-3 text-sm">
-                            <span>
-                              {rate.carrier} · {rate.serviceName}
-                              {transitDays(rate) && <span className="text-text-muted"> · {transitDays(rate)} d</span>}
+            {bulk.readyOrders.map((order) => (
+              <React.Fragment key={order.key}>
+                <OrderHeaderRow order={order} colSpan={6} note={`${order.bookings} booking${order.bookings === 1 ? '' : 's'}`} />
+                {bulk.ready
+                  .filter((row) => row.orderKey === order.key)
+                  .map((row) => {
+                    const { quote } = row.work
+                    return (
+                      <tr key={row.key} className="border-b border-border last:border-0">
+                        <td className={`${CELL} !text-left whitespace-nowrap`}>{bookingNote(row)}</td>
+                        <td className={`${CELL} whitespace-nowrap`}>{unitsLabel(row.unitNos)}</td>
+                        <td className={CELL}>
+                          {quote.status === 'error' ? (
+                            <span className="text-danger-600">{quote.error}</span>
+                          ) : quote.status === 'idle' ? (
+                            '—'
+                          ) : (
+                            <span className="inline-flex items-center gap-2">
+                              {quote.status === 'loading' && <Spinner size="sm" />}
+                              {quote.rates.length} rate{quote.rates.length === 1 ? '' : 's'}
                             </span>
-                            <b>{money(rate.total, rate.currency)}</b>
-                          </span>
-                        )}
-                        renderValue={(rate) => `${rate.carrier} · ${rate.serviceName}`}
-                        ariaLabel={`Rate for ${row.ref.orderId}`}
-                      />
-                    )}
-                  </td>
-                  <td className={`${CELL} font-semibold`}>{row.rate ? money(row.rate.total, row.rate.currency) : '—'}</td>
-                  <td className={CELL}>{row.rate?.estimatedDelivery ? shortDay(row.rate.estimatedDelivery) : '—'}</td>
-                </tr>
-              )
-            })}
+                          )}
+                          {quote.notes.length > 0 && (
+                            <span className="mt-1 block max-w-[14rem] text-xs text-warning-700" title={quote.notes.join('\n')}>
+                              {quote.notes[quote.notes.length - 1]}
+                            </span>
+                          )}
+                        </td>
+                        <td className={`${CELL} min-w-[18rem]`}>
+                          {quote.rates.length > 0 && (
+                            <SearchableSelect
+                              options={[...quote.rates].sort((a, b) => a.total - b.total)}
+                              value={row.rate}
+                              onChange={(rate) => bulk.selectRate(row.key, rate.rateId)}
+                              getKey={(rate) => rate.rateId}
+                              getLabel={(rate) => `${rate.carrier} · ${rate.serviceName}`}
+                              renderOption={(rate) => (
+                                <span className="flex justify-between gap-3 text-sm">
+                                  <span>
+                                    {rate.carrier} · {rate.serviceName}
+                                    {transitDays(rate) && <span className="text-text-muted"> · {transitDays(rate)} d</span>}
+                                  </span>
+                                  <b>{money(rate.total, rate.currency)}</b>
+                                </span>
+                              )}
+                              renderValue={(rate) => `${rate.carrier} · ${rate.serviceName}`}
+                              ariaLabel={`Rate for ${row.ref.orderId} ${unitsLabel(row.unitNos)}`}
+                            />
+                          )}
+                        </td>
+                        <td className={`${CELL} font-semibold`}>{row.rate ? money(row.rate.total, row.rate.currency) : '—'}</td>
+                        <td className={CELL}>{row.rate?.estimatedDelivery ? shortDay(row.rate.estimatedDelivery) : '—'}</td>
+                      </tr>
+                    )
+                  })}
+              </React.Fragment>
+            ))}
           </tbody>
         </table>
       </div>
@@ -322,7 +407,7 @@ const ConfirmStep: React.FC<{ bulk: BulkBook; onBack: () => void; onBook: () => 
         <table className="w-full">
           <thead>
             <tr className="border-b border-border">
-              {['Order', 'Ship to', 'Carrier · service', 'Transit', 'Est. delivery', 'Price'].map((title) => (
+              {['Booking', 'Units', 'Carrier · service', 'Transit', 'Est. delivery', 'Price'].map((title) => (
                 <th key={title} className={HEAD}>
                   {title}
                 </th>
@@ -330,27 +415,31 @@ const ConfirmStep: React.FC<{ bulk: BulkBook; onBack: () => void; onBook: () => 
             </tr>
           </thead>
           <tbody>
-            {bulk.priced.map(({ key, ref, rate, detail }) => (
-              <tr key={key} className="border-b border-border last:border-0">
-                <td className={CELL}>
-                  <span className="flex items-center justify-center gap-2 whitespace-nowrap">
-                    <ChannelBadge channel={ref.channel} />
-                    <b>{ref.orderId}</b>
-                  </span>
-                </td>
-                <td className={CELL}>{detail?.shipTo ? `${detail.shipTo.city}, ${detail.shipTo.province}` : '—'}</td>
-                <td className={CELL}>
-                  {rate?.carrier} · {rate?.serviceName}
-                </td>
-                <td className={CELL}>{rate && transitDays(rate) ? `${transitDays(rate)} d` : '—'}</td>
-                <td className={CELL}>{rate?.estimatedDelivery ? shortDay(rate.estimatedDelivery) : '—'}</td>
-                <td className={`${CELL} font-semibold`}>{rate ? money(rate.total, rate.currency) : '—'}</td>
-              </tr>
-            ))}
+            {bulk.orders
+              .filter((order) => bulk.priced.some((row) => row.orderKey === order.key))
+              .map((order) => (
+                <React.Fragment key={order.key}>
+                  <OrderHeaderRow order={order} colSpan={6} note={`${bulk.priced.filter((row) => row.orderKey === order.key).length} of ${order.bookings} booking${order.bookings === 1 ? '' : 's'} priced`} />
+                  {bulk.priced
+                    .filter((row) => row.orderKey === order.key)
+                    .map((row) => (
+                      <tr key={row.key} className="border-b border-border last:border-0">
+                        <td className={`${CELL} !text-left whitespace-nowrap`}>{bookingNote(row)}</td>
+                        <td className={`${CELL} whitespace-nowrap`}>{unitsLabel(row.unitNos)}</td>
+                        <td className={CELL}>
+                          {row.rate?.carrier} · {row.rate?.serviceName}
+                        </td>
+                        <td className={CELL}>{row.rate && transitDays(row.rate) ? `${transitDays(row.rate)} d` : '—'}</td>
+                        <td className={CELL}>{row.rate?.estimatedDelivery ? shortDay(row.rate.estimatedDelivery) : '—'}</td>
+                        <td className={`${CELL} font-semibold`}>{row.rate ? money(row.rate.total, row.rate.currency) : '—'}</td>
+                      </tr>
+                    ))}
+                </React.Fragment>
+              ))}
             <tr>
               <td className="px-3 py-3 text-right align-middle text-sm" colSpan={5}>
                 <b>
-                  Total ({bulk.priced.length} parcel{bulk.priced.length === 1 ? '' : 's'})
+                  Total ({bulk.priced.length} booking{bulk.priced.length === 1 ? '' : 's'} · {bulk.priced.reduce((sum, row) => sum + row.unitNos.length, 0)} unit{bulk.priced.reduce((sum, row) => sum + row.unitNos.length, 0) === 1 ? '' : 's'})
                 </b>
               </td>
               <td className={`${CELL} font-bold`}>{money(bulk.total)}</td>
@@ -406,7 +495,7 @@ const BookingStep: React.FC<{ bulk: BulkBook; onDone: () => void }> = ({ bulk, o
         <table className="w-full">
           <thead>
             <tr className="border-b border-border">
-              {['Order', 'Ship to', 'Carrier · service', 'Status', 'Booking / reason'].map((title) => (
+              {['Booking', 'Units', 'Carrier · service', 'Status', 'Tracking / reason'].map((title) => (
                 <th key={title} className={HEAD}>
                   {title}
                 </th>
@@ -414,30 +503,45 @@ const BookingStep: React.FC<{ bulk: BulkBook; onDone: () => void }> = ({ bulk, o
             </tr>
           </thead>
           <tbody>
-            {rows.map((row) => {
-              const result = row.work.book
-              return (
-                <tr key={row.key} className="border-b border-border last:border-0">
-                  <td className={CELL}>
-                    <OrderCell row={row} />
-                  </td>
-                  <td className={CELL}>
-                    <Lane row={row} />
-                  </td>
-                  <td className={CELL}>
-                    {row.rate?.carrier} · {row.rate?.serviceName}
-                  </td>
-                  <td className={CELL}>
-                    {result?.status === 'booked' ? <StatusBadge label="Booked" tone="success" /> : result?.status === 'failed' ? <StatusBadge label="Failed" tone="danger" /> : <StatusBadge label={result?.status === 'running' ? 'Booking…' : 'Queued'} tone="neutral" />}
-                  </td>
-                  <td className={CELL}>{result?.status === 'booked' ? <span className="font-mono text-xs">{result.bookingNo}</span> : result?.status === 'failed' ? <span className="text-danger-600">{result.error}</span> : '—'}</td>
-                </tr>
-              )
-            })}
+            {bulk.orders
+              .filter((order) => rows.some((row) => row.orderKey === order.key))
+              .map((order) => {
+                const mine = rows.filter((row) => row.orderKey === order.key)
+                const done = mine.filter((row) => row.work.book?.status === 'booked').length
+                return (
+                  <React.Fragment key={order.key}>
+                    <OrderHeaderRow order={order} colSpan={5} note={`${done} of ${mine.length} booked`} />
+                    {mine.map((row) => {
+                      const result = row.work.book
+                      return (
+                        <tr key={row.key} className="border-b border-border last:border-0">
+                          <td className={`${CELL} !text-left whitespace-nowrap`}>{bookingNote(row)}</td>
+                          <td className={`${CELL} whitespace-nowrap`}>{unitsLabel(row.unitNos)}</td>
+                          <td className={CELL}>
+                            {row.rate?.carrier} · {row.rate?.serviceName}
+                          </td>
+                          <td className={CELL}>
+                            {result?.status === 'booked' ? <StatusBadge label="Booked" tone="success" /> : result?.status === 'failed' ? <StatusBadge label="Failed" tone="danger" /> : <StatusBadge label={result?.status === 'running' ? 'Booking…' : 'Queued'} tone="neutral" />}
+                          </td>
+                          <td className={CELL}>
+                            {result?.status === 'booked' ? (
+                              <span className="font-mono text-xs">{result.trackingNumber ?? result.bookingNo}</span>
+                            ) : result?.status === 'failed' ? (
+                              <span className="text-danger-600">{result.error}</span>
+                            ) : (
+                              '—'
+                            )}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </React.Fragment>
+                )
+              })}
           </tbody>
         </table>
       </div>
-      <Footer note="Failed orders stay To Book in the Orders list, and nothing is charged for them.">
+      <Footer note="A failed booking gives its units back, and nothing is charged for it. Retry it alone, or book those units with another carrier from the Orders list.">
         <Button variant="outline" disabled={failed.length === 0 || running > 0} onClick={() => void bulk.book(failed.map((row) => row.key))}>
           Retry failed ({failed.length})
         </Button>
@@ -465,7 +569,7 @@ export const BulkBookScreen: React.FC = () => {
   const [phase, setPhase] = useState<Phase>(0)
 
   if (!canWrite) return <Alert variant="info">Booking orders needs the Shipping write permission.</Alert>
-  if (bulk.rows.length === 0 && !bulk.loading)
+  if (bulk.orders.length === 0 && !bulk.loading)
     return (
       <Alert variant="warning" className="flex flex-wrap items-center justify-between gap-2">
         No orders picked. Tick To Book orders in the Orders list, then choose Get rates.
@@ -483,11 +587,11 @@ export const BulkBookScreen: React.FC = () => {
 
   return (
     <>
-      <h1 className="mb-4 text-xl font-bold text-text-primary sm:text-2xl">Book {bulk.rows.length} orders</h1>
+      <h1 className="mb-4 text-xl font-bold text-text-primary sm:text-2xl">{bulk.orders.length === 1 ? `Book order ${bulk.orders[0].ref.orderId}` : `Book ${bulk.orders.length} orders`}</h1>
       <WizardStepper
         steps={STEPS}
         current={phase}
-        summaries={[`${bulk.ready.length} ready`, `${bulk.priced.length} priced`, `${money(bulk.total)}`, null]}
+        summaries={[`${bulk.ready.length} booking${bulk.ready.length === 1 ? '' : 's'} ready`, `${bulk.priced.length} priced`, `${money(bulk.total)}`, null]}
         onGoTo={(index) => phase < 3 && setPhase(index as Phase)}
       />
       {bulk.loading && phase === 0 && <div className="mb-4 flex items-center gap-2 text-sm text-text-muted"><Spinner size="sm" /> Loading the orders…</div>}

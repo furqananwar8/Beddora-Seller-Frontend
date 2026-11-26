@@ -19,6 +19,7 @@ import { ORDER_STEPS, WizardStepper } from '../create/WizardStepper'
 import { FULFILLMENT_META, money, ORDERS_LIST_HREF } from '../shippingMeta'
 import type { ChannelId, ChannelOrderRef, ParcelShipmentDto } from '../types'
 import { unmappedLines, valuesFromOrder } from './orderDraft'
+import { detailForUnits, freeUnitNos } from './orderUnits'
 import { OrderProductsCard } from './OrderProductsCard'
 import { OrderSummaryCard } from './OrderSummaryCard'
 
@@ -44,8 +45,12 @@ export const BookOrderScreen: React.FC = () => {
   const router = useRouter()
   const canWrite = useAppAbility().can('write', 'shipping:orders')
   const orderRef = useOrderRef()
-  const { data: detail, isLoading, isError } = useGetChannelOrderQuery(orderRef ?? { channel: 'walmart', market: '', orderId: '' }, { skip: !orderRef })
+  const { data: fullDetail, isLoading, isError } = useGetChannelOrderQuery(orderRef ?? { channel: 'walmart', market: '', orderId: '' }, { skip: !orderRef })
   const { data: addresses = [], isLoading: loadingAddresses } = useGetShipFromOptionsQuery()
+  // Only the units no booking covers yet are booked here: the rest already have a parcel
+  const free = fullDetail ? freeUnitNos(fullDetail) : []
+  const partial = fullDetail ? free.length < fullDetail.units.length : false
+  const detail = fullDetail ? detailForUnits(fullDetail, free) : fullDetail
   const wizard = useShipmentForm(addresses)
   const { load } = wizard
   const { form, values, step, setStep, shipFrom, crossBorder, rate, stream } = wizard
@@ -83,7 +88,8 @@ export const BookOrderScreen: React.FC = () => {
       </div>
     )
   if (isError || !detail) return <Alert variant="danger">Could not load order {orderRef.orderId}.</Alert>
-  if (detail.order.fulfillment !== 'TO_BOOK')
+  // To Book, or Booked with units left (an order we booked part of)
+  if (!(detail.order.fulfillment === 'TO_BOOK' || (detail.order.fulfillment === 'BOOKED' && free.length > 0)))
     return (
       <Alert variant="warning" className="flex flex-wrap items-center justify-between gap-2">
         Order {detail.order.orderId} is {FULFILLMENT_META[detail.order.fulfillment].label}: there is nothing to book.
@@ -99,6 +105,11 @@ export const BookOrderScreen: React.FC = () => {
   return (
     <FormProvider {...form}>
       <h1 className="mb-4 text-xl font-bold text-text-primary sm:text-2xl">Book order {detail.order.orderId}</h1>
+      {partial && (
+        <Alert variant="info" className="mb-4">
+          {fullDetail!.units.length - free.length} of {fullDetail!.units.length} units are already booked. This books the remaining {free.length}: unit{free.length === 1 ? '' : 's'} {free.join(', ')}.
+        </Alert>
+      )}
       <WizardStepper
         steps={ORDER_STEPS}
         current={stepperStep}
@@ -147,6 +158,7 @@ export const BookOrderScreen: React.FC = () => {
           rate={rate}
           quoteId={stream.quoteId}
           order={orderRef}
+          units={partial ? free : undefined}
           editable={false}
           onBooked={setBooked}
           onQuoteExpired={wizard.refetchRates}

@@ -48,7 +48,7 @@ export function prepareOrder(detail: ChannelOrderDetail, shipFrom: ShipFromOptio
     ? 'Pick a ship-from'
     : shipFrom.missing.length
       ? `Ship-from lacks ${shipFrom.missing.join(', ')}`
-      : detail.order.fulfillment !== 'TO_BOOK'
+      : !(detail.order.fulfillment === 'TO_BOOK' || (detail.order.fulfillment === 'BOOKED' && detail.units.some((unit) => !unit.booking)))
         ? 'No longer To Book'
         : !checks.mapped
           ? unmapped.length

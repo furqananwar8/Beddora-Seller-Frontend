@@ -36,6 +36,8 @@ interface BookingStepProps {
   order?: ChannelOrderRef
   /** A manual shipment: the platform and marketplace it is for. */
   channel?: ShipmentChannelRef
+  /** The order's unit numbers this booking covers; omitted = every unit still free. */
+  units?: number[]
   /** 409 ORDER_NOT_BOOKABLE: the order was booked, shipped or cancelled meanwhile. */
   onOrderNotBookable?: () => void
   /** Offer Edit links back to Address Info / Shipment Info (the manual flow has them). */
@@ -59,7 +61,7 @@ const ReviewItem: React.FC<{ label: string; onEdit?: () => void; children: React
 )
 
 /** Step 4: review, label format, price, and Book & buy label. */
-export const BookingStep: React.FC<BookingStepProps> = ({ values, labelFormat: picked, onLabelFormatChange, onGoTo, shipFrom, rate, quoteId, onBooked, onQuoteExpired, order, channel, onOrderNotBookable, editable = true }) => {
+export const BookingStep: React.FC<BookingStepProps> = ({ values, labelFormat: picked, onLabelFormatChange, onGoTo, shipFrom, rate, quoteId, onBooked, onQuoteExpired, order, channel, units: unitNos, onOrderNotBookable, editable = true }) => {
   const { failure, info, success } = useApiFeedback()
   // Booking buys postage, so the button only asks; the booking is started once it is confirmed in the dialog
   const [confirming, setConfirming] = useState(false)
@@ -101,7 +103,7 @@ export const BookingStep: React.FC<BookingStepProps> = ({ values, labelFormat: p
 
   const submit = async () => {
     if (!labelFormat) return
-    const body = { quoteId, rateId: rate.rateId, labelFormat, order, channel }
+    const body = { quoteId, rateId: rate.rateId, labelFormat, order, channel, units: unitNos }
     setFailed(null)
     try {
       await begin(body, idempotencyKey(JSON.stringify(body)))
