@@ -3,6 +3,7 @@ import type {
   BookShipmentBody,
   ChannelInfo,
   ChannelOrderDetail,
+  OrderBookingHistoryItem,
   OrderListItem,
   OrdersOverview,
   OrdersOverviewParams,
@@ -84,6 +85,13 @@ export const shippingApi = baseApi.injectEndpoints({
       query: ({ channel, market, orderId }) => `/shipping/shipments/jobs/by-order/${channel}/${encodeURIComponent(market)}/${encodeURIComponent(orderId)}`,
       transformResponse: (response: Envelope<{ job: BookingJobDto | null }>) => unwrap(response).job,
     }),
+    /** Every booking attempt on an order, newest first: Order History. */
+    getOrderBookings: builder.query<OrderBookingHistoryItem[], ChannelOrderRef>({
+      query: ({ channel, market, orderId }) => `/shipping/channel-orders/${channel}/${encodeURIComponent(market)}/${encodeURIComponent(orderId)}/bookings`,
+      transformResponse: (response: Envelope<OrderBookingHistoryItem[]>) => unwrap(response),
+      providesTags: ['ShippingChannelOrders', 'ShippingShipments'],
+      keepUnusedDataFor: 0,
+    }),
     getBookingJob: builder.query<BookingJobDto, string>({
       query: (key) => `/shipping/shipments/jobs/${encodeURIComponent(key)}`,
       transformResponse: (response: Envelope<BookingJobDto>) => unwrap(response),
@@ -164,6 +172,7 @@ export const {
   useDeleteShipmentDraftMutation,
   useGetOrderBookingJobQuery,
   useGetBookingJobQuery,
+  useGetOrderBookingsQuery,
   useCancelShipmentMutation,
   useRefreshTrackingMutation,
   useRetryChannelSyncMutation,

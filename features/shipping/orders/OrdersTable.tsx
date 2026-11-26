@@ -10,9 +10,9 @@ import { cn } from '@/utils/cn'
 import { Spinner } from '@/design-system/loaders'
 import { Tooltip } from '@/design-system/tooltips'
 import { ChannelBadge } from '../shared/ChannelBadge'
-import { isSelectable, orderKey } from './bulk/bulkSelection'
+import { canBulkBook, isSelectable, orderKey, saveBulkOrders, unitsLeft } from './bulk/bulkSelection'
 import { CarrierPageLink, TrackingNumber } from '../shared/TrackingNumber'
-import { bookingHref, bookOrderHref, draftHref, FULFILLMENT_META, money, shortDateTime, STATUS_TONE } from '../shippingMeta'
+import { bookingHref, bookOrderHref, BULK_BOOK_HREF, draftHref, FULFILLMENT_META, money, shortDateTime, STATUS_TONE } from '../shippingMeta'
 import type { OrderListItem as ChannelOrderListItem } from '../types'
 
 interface OrdersTableProps {
@@ -28,6 +28,10 @@ interface OrdersTableProps {
   onOpen: (row: ChannelOrderListItem) => void
   /** Opens the print dialog for a booking's label. */
   onPrintLabel: (bookingId: number) => void
+  /** Opens Order History: every booking attempt on the order. */
+  onHistory: (row: ChannelOrderListItem) => void
+  /** Opens the label picker (an order with several labels). */
+  onPickLabel: (row: ChannelOrderListItem) => void
   /** Asks to delete the saved draft behind a DRAFT row. */
   onDeleteDraft: (row: ChannelOrderListItem) => void
   /** Builds and downloads the order's tax invoice. */
@@ -97,8 +101,21 @@ function trackingOf(row: ChannelOrderListItem): TrackingView | null {
   }
 }
 
+/** The Status column: how much of the order we shipped (click opens its history), or that the platform did. Fulfillment is separate. */
+const ShipStatusCell: React.FC<{ row: ChannelOrderListItem; onHistory: (row: ChannelOrderListItem) => void }> = ({ row, onHistory }) => {
+  const status = row.shipStatus
+  if (!status?.label) return MUTED
+  const tone: StatusTone = status.code === 'SHIPPED' ? 'success' : status.code === 'PARTIAL' ? 'warning' : 'neutral'
+  if (status.code === 'SHIPPED_THROUGH') return <StatusBadge label={status.label} tone={tone} />
+  return (
+    <button type="button" onClick={() => onHistory(row)} title="Order History" className="rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500">
+      <StatusBadge label={status.label} tone={tone} />
+    </button>
+  )
+}
+
 /** Channel orders: book the seller-fulfilled ones, follow the ones shipped on the channel. */
-export const OrdersTable: React.FC<OrdersTableProps> = ({ rows, isLoading, isError, filtered, canWrite, retrying, onRetrySync, onOpen, onPrintLabel, onDeleteDraft, onDownloadInvoice, onScanItems, scanLockedBy, invoiceBusy, selection }) => {
+export const OrdersTable: React.FC<OrdersTableProps> = ({ rows, isLoading, isError, filtered, canWrite, retrying, onRetrySync, onOpen, onPrintLabel, onHistory, onPickLabel, onDeleteDraft, onDownloadInvoice, onScanItems, scanLockedBy, invoiceBusy, selection }) => {
   const router = useRouter()
   const pageSelectable = rows.filter(isSelectable)
   if (isLoading)
@@ -128,14 +145,25 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ rows, isLoading, isErr
       return manual
     }
     const items: RowActionItem[] = [{ key: 'details', label: 'Get details', onSelect: () => onOpen(row) }]
-    if (row.fulfillment === 'TO_BOOK' && canWrite) items.push({ key: 'rates', label: 'Get rates', onSelect: () => router.push(bookOrderHref(row)) })
+    if (canBulkBook(row) && canWrite) {
+      const left = unitsLeft(row)
+      // an order with several units left can be split into bookings: that is the multi-booking screen, here with this one order
+      const toBook = () => {
+        if (left > 1) {
+          saveBulkOrders([{ channel: row.channel, market: row.market, orderId: row.orderId }])
+          router.push(BULK_BOOK_HREF)
+        } else router.push(bookOrderHref(row))
+      }
+      items.push({ key: 'rates', label: row.unitsBooked > 0 ? `Book remaining units (${left})` : 'Get rates', onSelect: toBook })
+    }
+    if (row.unitsBooked > 0 || row.booking) items.push({ key: 'history', label: 'Order History', onSelect: () => onHistory(row) })
     items.push({ key: 'invoice', label: 'Download invoice', onSelect: () => onDownloadInvoice(row), disabled: invoiceBusy, disabledReason: 'An invoice is being prepared' })
     // labels exist for parcels booked here; one shipped on the channel prints from the channel's portal
     const labelFor = row.booking?.id ?? null
     items.push({
       key: 'label',
       label: 'Get label',
-      onSelect: () => labelFor !== null && onPrintLabel(labelFor),
+      onSelect: () => (row.liveBookingCount > 1 ? onPickLabel(row) : labelFor !== null && onPrintLabel(labelFor)),
       disabled: labelFor === null,
       disabledReason: row.fulfillment === 'SHIPPED_ON_CHANNEL' ? `Printed from ${row.channelLabel}: it was shipped there` : 'Book a parcel first',
     })
@@ -181,6 +209,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ rows, isLoading, isErr
           <th className={HEAD}>SKU</th>
           <th className={HEAD}>Qty</th>
           <th className={HEAD}>Fulfillment</th>
+          <th className={HEAD}>Status</th>
           <th className={HEAD}>Tracking status</th>
           <th className={HEAD}>Carrier</th>
           <th className={HEAD}>Tracking #</th>
@@ -235,6 +264,9 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ rows, isLoading, isErr
                     <StatusBadge label="Not marked shipped" tone="warning" className="mt-1" />
                   </Tooltip>
                 )}
+              </td>
+              <td className={CELL}>
+                <ShipStatusCell row={row} onHistory={onHistory} />
               </td>
               <td className={CELL}>
                 {tracking?.status ? (
