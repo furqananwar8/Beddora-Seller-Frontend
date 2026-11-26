@@ -50,7 +50,7 @@ const SkuCell: React.FC<{ batch: PoBatch }> = ({ batch }) => {
           </span>
         ))}
         {extra > 0 && (
-          <button type="button" className="w-fit font-medium text-primary-600 hover:underline" onClick={() => setOpen(true)}>
+          <button type="button" className="mx-auto w-fit font-medium text-primary-600 underline underline-offset-2 hover:text-primary-700" onClick={() => setOpen(true)}>
             Show {extra} more
           </button>
         )}
