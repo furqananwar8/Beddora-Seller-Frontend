@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
+import { ChevronDown, ChevronUp } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { FormField } from '@/components/form-field/FormField'
 import { SearchableSelect } from '@/components/searchable-select/SearchableSelect'
@@ -100,6 +101,20 @@ const RateOption: React.FC<{ rate: Rate; tags: RateTag[] }> = ({ rate, tags }) =
   )
 }
 
+/** Shows or hides an order's details: a down arrow while they are shown, an up arrow while they are hidden. */
+const DetailsToggle: React.FC<{ shown: boolean; onClick: () => void }> = ({ shown, onClick }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    aria-expanded={shown}
+    aria-label={shown ? 'Hide the order details' : 'Show the order details'}
+    title={shown ? 'Hide the order details' : 'Show the order details'}
+    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-text-secondary hover:bg-secondary-100"
+  >
+    {shown ? <ChevronDown className="h-4 w-4" aria-hidden /> : <ChevronUp className="h-4 w-4" aria-hidden />}
+  </button>
+)
+
 /** A header row naming the order above its bookings. */
 const OrderHeaderRow: React.FC<{ order: Pick<OrderRow, 'ref' | 'detail'>; colSpan: number; note?: React.ReactNode }> = ({ order, colSpan, note }) => (
   <tr className="border-b border-border bg-secondary-50">
@@ -169,6 +184,29 @@ const PackageEditor: React.FC<{ row: BulkRow; bulk: BulkBook }> = ({ row, bulk }
   )
 }
 
+/** Where the order ships to, in full: name, address, phone, and whether it is a home or a business; or why it is missing. */
+const ShipToDetails: React.FC<{ detail: NonNullable<OrderRow['detail']> }> = ({ detail }) => {
+  const to = detail.shipTo
+  return (
+    <div className="mb-3 text-sm leading-6">
+      <div className="text-xs font-medium uppercase tracking-wide text-text-muted">Ship to</div>
+      {to ? (
+        <>
+          <b className="text-text-primary">{to.name || 'No name'}</b>
+          {to.company && <> · {to.company}</>} · <span className="text-text-secondary">{to.residential ? 'residential' : 'business'}</span>
+          <br />
+          <span className="text-text-secondary">{[to.address1, to.address2, [to.city, to.province, to.postalCode].filter(Boolean).join(' '), to.country].filter(Boolean).join(', ')}</span>
+          {to.phone && <span className="text-text-muted"> · {to.phone}</span>}
+          {to.email && <span className="text-text-muted"> · {to.email}</span>}
+        </>
+      ) : (
+        <span className="text-danger-600">No ship-to address</span>
+      )}
+      {detail.shipToError && <span className="block text-xs text-warning-700">{detail.shipToError}</span>}
+    </div>
+  )
+}
+
 const CHOICE = 'rounded-lg border px-3 py-1.5 text-xs font-medium'
 const Choice: React.FC<{ active: boolean; onClick: () => void; children: React.ReactNode }> = ({ active, onClick, children }) => (
   <button type="button" aria-pressed={active} onClick={onClick} className={cn(CHOICE, active ? 'border-primary-600 bg-primary-600 text-white' : 'border-border bg-surface text-text-secondary')}>
@@ -228,6 +266,8 @@ const BookingsBuilder: React.FC<{ order: OrderRow; bulk: BulkBook }> = ({ order,
           This order has {skus.length + blockedSkus.length} SKU{skus.length + blockedSkus.length === 1 ? '' : 's'}
         </span>
       </div>
+
+      <ShipToDetails detail={detail} />
 
       <ul className="space-y-2">
         {skus.map(({ sku, count }) => {
@@ -405,8 +445,13 @@ const ReviewStep: React.FC<{ bulk: BulkBook; onNext: () => void }> = ({ bulk, on
                 <React.Fragment key={order.key}>
                 <tr className="border-b border-border last:border-0">
                   <td className={`${CELL} !text-left`}>
-                    <OrderCell row={order} left />
-                    {left > 0 && <span className="mt-1 block text-xs text-text-muted">{left} of {order.detail?.units.length} quantity already booked</span>}
+                    <div className="flex items-start gap-2">
+                      {order.detail && order.free.length + order.blocked.length > 0 ? <DetailsToggle shown={!folded.has(order.key)} onClick={() => toggleSizing(order.key)} /> : <span className="w-7 shrink-0" />}
+                      <div className="min-w-0">
+                        <OrderCell row={order} left />
+                        {left > 0 && <span className="mt-1 block text-xs text-text-muted">{left} of {order.detail?.units.length} quantity already booked</span>}
+                      </div>
+                    </div>
                   </td>
                   <td className={`${CELL} !text-left`}>
                     <Lane row={order} />
@@ -427,11 +472,6 @@ const ReviewStep: React.FC<{ bulk: BulkBook; onNext: () => void }> = ({ bulk, on
                       </td>
                       <td className={`${CELL} font-semibold tabular-nums`}>
                         {order.bookings || '—'}
-                        {order.free.length + order.blocked.length > 0 && (
-                          <button type="button" onClick={() => toggleSizing(order.key)} aria-expanded={!folded.has(order.key)} className="mt-1 block w-full text-xs font-normal text-primary-600 underline">
-                            {folded.has(order.key) ? 'Show bookings & sizes' : 'Hide bookings & sizes'}
-                          </button>
-                        )}
                       </td>
                       <td className={CELL}>
                         <Mark ok={checks.shipTo} />
