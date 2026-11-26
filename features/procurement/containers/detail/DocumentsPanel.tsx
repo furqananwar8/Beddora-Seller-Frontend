@@ -107,7 +107,7 @@ export const DocumentsPanel: React.FC<DocumentsPanelProps> = ({ container, canWr
 
       <Modal isOpen={uploading} onClose={close} title="Upload documents" size="md" closeOnEscape={!isLoading}>
         <div className="flex flex-col gap-4">
-          <FileDropzone files={files} onChange={setFiles} multiple hint="PDF, JPG or PNG, up to 10 MB each" />
+          <FileDropzone files={files} onChange={setFiles} multiple />
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={close} disabled={isLoading}>
               Cancel

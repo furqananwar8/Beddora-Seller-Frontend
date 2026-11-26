@@ -92,7 +92,7 @@ export const PhotoField: React.FC<PhotoFieldProps> = ({ productId, version = '',
 
   return (
     <div>
-      <FileDropzone files={[]} onChange={(files) => onFileChange(files[0] ?? null)} accept={IMAGE_TYPES} title="Drop an image or browse" hint="JPG or PNG, up to 10 MB" disabled={disabled} />
+      <FileDropzone files={[]} onChange={(files) => onFileChange(files[0] ?? null)} accept={IMAGE_TYPES} title="Drop an image or browse" disabled={disabled} />
       {removing && (
         <button type="button" className="mt-1 text-xs font-medium text-primary-600 hover:underline" onClick={() => onRemoveSaved(false)}>
           Undo remove

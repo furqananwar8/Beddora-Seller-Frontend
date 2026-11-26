@@ -106,7 +106,7 @@ const PopProofs: React.FC<{ docId: number; pop: Pop; index: number }> = ({ docId
           emptyText="No proof file attached yet"
           className="mb-2"
         />
-        <FileDropzone multiple files={files} onChange={setFiles} disabled={uploading} title="Upload proof of payment" hint="Bank confirmation / wire receipt · PDF or image" />
+        <FileDropzone multiple files={files} onChange={setFiles} disabled={uploading} title="Upload proof of payment" hint="Bank confirmation / wire receipt" />
         {files.length > 0 && (
           <div className="mt-2 flex justify-end">
             <Button type="button" size="sm" isLoading={uploading} onClick={() => void upload()}>

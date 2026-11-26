@@ -7,8 +7,14 @@ import { Tabs } from '@/design-system/tabs/Tabs'
 import { FilePreviewDialog, PreviewTarget } from '@/components/file-preview/FilePreviewDialog'
 import { cn } from '@/utils/cn'
 
-const DEFAULT_TYPES = ['application/pdf', 'image/jpeg', 'image/png']
-const EXTENSION: Record<string, string> = { 'application/pdf': 'PDF', 'image/jpeg': 'JPG', 'image/png': 'PNG' }
+const XLSX = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+const XLS = 'application/vnd.ms-excel'
+/** The image formats the server recognises; keep in step with its signature list. */
+const IMAGES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/bmp', 'image/svg+xml', 'image/heic', 'image/heif']
+/** Browsers often give HEIC/HEIF no type at all, so those are recognised by extension too. */
+const HEIF_EXTENSION = /\.(heic|heif)$/i
+const DEFAULT_TYPES = ['application/pdf', ...IMAGES, XLSX, XLS]
+const EXTENSION: Record<string, string> = { 'application/pdf': 'PDF', 'image/jpeg': 'JPG', 'image/png': 'PNG', 'image/gif': 'GIF', 'image/webp': 'WEBP', 'image/bmp': 'BMP', 'image/svg+xml': 'SVG', 'image/heic': 'HEIC', 'image/heif': 'HEIC', [XLSX]: 'XLSX', [XLS]: 'XLS' }
 const TAB_NAME_LENGTH = 22
 
 interface FileDropzoneProps {
@@ -56,14 +62,15 @@ export const FileDropzone: React.FC<FileDropzoneProps> = ({
   const [replaceIndex, setReplaceIndex] = useState(0)
   const [askingWhich, setAskingWhich] = useState(false)
   const [viewing, setViewing] = useState<number | null>(null)
-  const acceptLabel = accept.map((type) => EXTENSION[type] ?? type).join(', ')
+  // Every image format reads as one "Images" entry, both spreadsheet formats as "Excel"
+  const acceptLabel = [...new Set(accept.map((type) => (type === XLS || type === XLSX ? 'Excel' : type.startsWith('image/') && accept.filter((t) => t.startsWith('image/')).length > 2 ? 'Images' : (EXTENSION[type] ?? type))))].join(', ')
 
   /** Splits incoming files into usable ones and the first complaint about the rest. */
   const validate = (incoming: FileList | File[]) => {
     const problems: string[] = []
     const valid = [...incoming].filter((file) => {
-      if (!accept.includes(file.type)) {
-        problems.push(`${file.name}: only ${acceptLabel} files are allowed`)
+      if (!accept.includes(file.type) && !(!file.type && HEIF_EXTENSION.test(file.name) && accept.includes('image/heic'))) {
+        problems.push(`${file.name}: this file type is not allowed. Use ${acceptLabel}`)
         return false
       }
       if (file.size > maxSizeMB * 1024 * 1024) {
@@ -152,7 +159,7 @@ export const FileDropzone: React.FC<FileDropzoneProps> = ({
           </span>
           <span className="min-w-0">
             <span className="block text-sm font-semibold text-text-primary">{title}</span>
-            <span className="block text-xs text-text-muted">{hint ?? `${acceptLabel} · up to ${maxSizeMB} MB each${multiple ? ' · multiple files allowed' : ''}`}</span>
+            <span className="block text-xs text-text-muted">{[hint, `${acceptLabel} · up to ${maxSizeMB} MB each`, multiple && 'multiple files allowed'].filter(Boolean).join(' · ')}</span>
           </span>
         </label>
         <input
@@ -161,7 +168,7 @@ export const FileDropzone: React.FC<FileDropzoneProps> = ({
           type="file"
           className="sr-only"
           multiple={multiple}
-          accept={accept.join(',')}
+          accept={[...accept, ...(accept.includes('image/heic') ? ['.heic', '.heif'] : [])].join(',')}
           disabled={disabled}
           onChange={(event) => {
             if (event.target.files) take(event.target.files)
@@ -175,7 +182,7 @@ export const FileDropzone: React.FC<FileDropzoneProps> = ({
           className="sr-only"
           tabIndex={-1}
           aria-hidden
-          accept={accept.join(',')}
+          accept={[...accept, ...(accept.includes('image/heic') ? ['.heic', '.heif'] : [])].join(',')}
           onChange={(event) => {
             replaceWith(event.target.files)
             event.target.value = ''

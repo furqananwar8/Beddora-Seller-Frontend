@@ -145,7 +145,7 @@ const PopForm: React.FC<{ row: PaymentDocumentListItem; onClose: () => void }> =
           control={control}
           name="files"
           render={({ field }) => (
-            <FileDropzone multiple files={field.value} onChange={field.onChange} title="Upload proof of payment" hint="Optional · bank confirmation / wire receipt · PDF or image" />
+            <FileDropzone multiple files={field.value} onChange={field.onChange} title="Upload proof of payment" hint="Optional · bank confirmation / wire receipt" />
           )}
         />
       </FormField>

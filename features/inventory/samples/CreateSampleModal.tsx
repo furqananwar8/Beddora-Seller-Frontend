@@ -148,7 +148,7 @@ export const CreateSampleModal: React.FC<CreateSampleModalProps> = ({ isOpen, on
                 files={field.value}
                 onChange={field.onChange}
                 title="Upload sample documents"
-                hint="Optional · quotes, photos or spec sheets · PDF or image"
+                hint="Optional · quotes, photos or spec sheets"
                 error={errors.files?.message as string | undefined}
                 disabled={isLoading}
               />

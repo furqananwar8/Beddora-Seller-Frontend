@@ -74,7 +74,8 @@ function useTargetUrl(target: PreviewTarget | null) {
 /** Preview of an image or PDF (other types show their details) with caller supplied actions. */
 export const FilePreviewDialog: React.FC<FilePreviewDialogProps> = ({ target, onClose, footer, caption, header }) => {
   const { url, loading, failed } = useTargetUrl(target)
-  const isImage = target?.mimeType.startsWith('image/')
+  // Browsers cannot draw HEIC/HEIF, so those fall through to the details view
+  const isImage = target?.mimeType.startsWith('image/') && !/heic|heif/.test(target.mimeType)
   const isPdf = target?.mimeType === 'application/pdf'
 
   return (
