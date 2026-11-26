@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { ChevronDown, ChevronUp } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { FormField } from '@/components/form-field/FormField'
+import { NumericInput } from '@/components/form-field/NumericInput'
 import { SearchableSelect } from '@/components/searchable-select/SearchableSelect'
 import { SegmentedToggle } from '@/components/segmented-toggle/SegmentedToggle'
 import { StatusBadge } from '@/components/status-badge/StatusBadge'
@@ -136,8 +137,8 @@ const SizeInputs: React.FC<{ pkg: PackageText; units: keyof typeof UNITS; name: 
   const field = (key: keyof PackageText, label: string, suffix: string) => (
     <label className="flex items-center gap-1 text-xs text-text-muted">
       {label}
-      <input
-        inputMode="decimal"
+      <NumericInput
+        decimal
         value={pkg[key]}
         onChange={(event) => onChange({ ...pkg, [key]: event.target.value })}
         aria-label={`${label} for ${name}`}
@@ -169,40 +170,45 @@ const PackageEditor: React.FC<{ row: BulkRow; bulk: BulkBook }> = ({ row, bulk }
         </b>
         <span className="text-xs text-text-muted">{unitsSummary(row.detail.units, row.unitNos)}</span>
       </div>
-      <div className="flex items-center gap-3 text-sm">
-        <span className="min-w-0 flex-1 truncate font-medium text-text-primary">{several ? `Whole booking (${row.unitNos.length} quantity)` : unitsLabel(row.unitNos)}</span>
-        <SizeInputs pkg={values.pkg} units={values.units} name={`${bookingNote(row)} ${unitsLabel(row.unitNos)}`} onChange={(next) => bulk.setPackage(row.key, next)} />
-        {bulk.pkgOf[row.key] ? (
-          <button type="button" onClick={() => bulk.resetPackage(row.key)} className="shrink-0 whitespace-nowrap text-xs text-primary-600 underline">
-            Reset to the products&apos; size
-          </button>
-        ) : (
-          <span className="shrink-0 whitespace-nowrap text-xs text-text-muted">from the products</span>
-        )}
+      <div className="text-sm">
+        <p className="mb-2 font-medium text-text-primary">{several ? `Whole booking (${row.unitNos.length} quantity)` : unitsLabel(row.unitNos)}</p>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <SizeInputs pkg={values.pkg} units={values.units} name={`${bookingNote(row)} ${unitsLabel(row.unitNos)}`} onChange={(next) => bulk.setPackage(row.key, next)} />
+          {bulk.pkgOf[row.key] ? (
+            <button type="button" onClick={() => bulk.resetPackage(row.key)} className="whitespace-nowrap text-xs text-primary-600 underline">
+              Reset to the products&apos; size
+            </button>
+          ) : (
+            <span className="whitespace-nowrap text-xs text-text-muted">from the products</span>
+          )}
+        </div>
       </div>
     </div>
   )
 }
 
-/** Where the order ships to, in full: name, address, phone, and whether it is a home or a business; or why it is missing. */
-const ShipToDetails: React.FC<{ detail: NonNullable<OrderRow['detail']> }> = ({ detail }) => {
-  const to = detail.shipTo
+/** The Ship to column: the full address, not just the city (name, street, city, phone, home or business), or why it is missing. */
+const ShipToCell: React.FC<{ detail: OrderRow['detail'] }> = ({ detail }) => {
+  const to = detail?.shipTo
+  if (!detail) return <span className="text-text-muted">—</span>
   return (
-    <div className="mb-3 text-sm leading-6">
-      <div className="text-xs font-medium uppercase tracking-wide text-text-muted">Ship to</div>
+    <div className="min-w-[14rem] text-xs leading-5">
       {to ? (
         <>
-          <b className="text-text-primary">{to.name || 'No name'}</b>
-          {to.company && <> · {to.company}</>} · <span className="text-text-secondary">{to.residential ? 'residential' : 'business'}</span>
-          <br />
-          <span className="text-text-secondary">{[to.address1, to.address2, [to.city, to.province, to.postalCode].filter(Boolean).join(' '), to.country].filter(Boolean).join(', ')}</span>
-          {to.phone && <span className="text-text-muted"> · {to.phone}</span>}
-          {to.email && <span className="text-text-muted"> · {to.email}</span>}
+          <b className="block text-sm text-text-primary">{to.name || 'No name'}</b>
+          {to.company && <span className="block text-text-secondary">{to.company}</span>}
+          <span className="block text-text-secondary">{[to.address1, to.address2].filter(Boolean).join(', ')}</span>
+          <span className="block text-text-secondary">{[[to.city, to.province, to.postalCode].filter(Boolean).join(' '), to.country].filter(Boolean).join(', ')}</span>
+          <span className="block text-text-muted">
+            {to.residential ? 'Residential' : 'Business'}
+            {to.phone && <> · {to.phone}</>}
+            {to.email && <> · {to.email}</>}
+          </span>
         </>
       ) : (
         <span className="text-danger-600">No ship-to address</span>
       )}
-      {detail.shipToError && <span className="block text-xs text-warning-700">{detail.shipToError}</span>}
+      {detail.shipToError && <span className="block text-warning-700">{detail.shipToError}</span>}
     </div>
   )
 }
@@ -266,8 +272,6 @@ const BookingsBuilder: React.FC<{ order: OrderRow; bulk: BulkBook }> = ({ order,
           This order has {skus.length + blockedSkus.length} SKU{skus.length + blockedSkus.length === 1 ? '' : 's'}
         </span>
       </div>
-
-      <ShipToDetails detail={detail} />
 
       <ul className="space-y-2">
         {skus.map(({ sku, count }) => {
@@ -454,7 +458,7 @@ const ReviewStep: React.FC<{ bulk: BulkBook; onNext: () => void }> = ({ bulk, on
                     </div>
                   </td>
                   <td className={`${CELL} !text-left`}>
-                    <Lane row={order} />
+                    <ShipToCell detail={order.detail} />
                   </td>
                   {order.loadError ? (
                     <td className={CELL} colSpan={8}>
@@ -933,6 +937,15 @@ export const BulkBookScreen: React.FC = () => {
       </Alert>
     )
 
+  // Until the orders are in, the page is only a large spinner in the middle: no heading, no steps
+  if (bulk.loading && phase === 0) {
+    return (
+      <div className="flex min-h-[70vh] items-center justify-center" role="status" aria-label="Loading the orders">
+        <Spinner size="md" />
+      </div>
+    )
+  }
+
   const go = async (next: Phase) => {
     setPhase(next)
     if (next === 1) await bulk.getRates()
@@ -948,7 +961,6 @@ export const BulkBookScreen: React.FC = () => {
         summaries={[`${bulk.ready.length} booking${bulk.ready.length === 1 ? '' : 's'} ready`, `${bulk.priced.length} priced`, `${money(bulk.total)}`, null]}
         onGoTo={(index) => phase < 3 && setPhase(index as Phase)}
       />
-      {bulk.loading && phase === 0 && <div className="mb-4 flex items-center gap-2 text-sm text-text-muted"><Spinner size="sm" /> Loading the orders…</div>}
       {phase === 0 && <ReviewStep bulk={bulk} onNext={() => void go(1)} />}
       {phase === 1 && <RatesStep bulk={bulk} onBack={() => setPhase(0)} onNext={() => void go(2)} />}
       {phase === 2 && <ConfirmStep bulk={bulk} onBack={() => setPhase(1)} onBook={() => void go(3)} />}

@@ -46,6 +46,9 @@ interface OrdersTableProps {
   selection?: { keys: Set<string>; onToggle: (row: ChannelOrderListItem) => void; onTogglePage: (on: boolean) => void }
 }
 
+/** Get rates (and Book remaining quantity) in a row's Action menu is hidden for now; the selection bar's Get rates still opens the booking screen. */
+const SHOW_GET_RATES = false
+
 const HEAD = 'px-4 py-3 text-center align-middle text-xs font-medium uppercase tracking-wide text-text-muted'
 const CELL = 'px-4 py-3 text-center align-middle text-sm'
 const MUTED = <span className="text-text-muted">—</span>
@@ -145,7 +148,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ rows, isLoading, isErr
       return manual
     }
     const items: RowActionItem[] = [{ key: 'details', label: 'Get details', onSelect: () => onOpen(row) }]
-    if (canBulkBook(row) && canWrite) {
+    if (SHOW_GET_RATES && canBulkBook(row) && canWrite) {
       const left = unitsLeft(row)
       // an order with several units left can be split into bookings: that is the multi-booking screen, here with this one order
       const toBook = () => {
