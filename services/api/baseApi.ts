@@ -103,7 +103,8 @@ export const tagTypes = [
   'ShippingChannelOrders',
   'ShippingDrafts',
   'ShipmentBols',
-  'SystemEmail'
+  'SystemEmail',
+  'SystemMonitor'
 ] as const
 
 export type TagType = typeof tagTypes[number]

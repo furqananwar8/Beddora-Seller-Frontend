@@ -34,6 +34,10 @@ export const REALTIME_TOPICS: Record<string, TagType[]> = {
   'procurement.price-analysis': ['ProcurementPriceAnalysis'],
   /** Email sent / failed / queued: only the four accounts that may open System > Email receive it. `useEmailLive` patches the cache itself instead of refetching. */
   'system.email': [],
+  /** Background jobs and queues (System > Jobs & Redis): `useJobsLive` patches the cache itself, same accounts as Email. */
+  'system.jobs': [],
+  /** Redis health, logins, scan locks, tokens and traffic: `useRedisLive` patches the cache itself. */
+  'system.redis': [],
   /** A scan session's counts or status changed (one event per matched batch); `SessionDetailScreen` refetches only its own session. */
   'barcode.scan-session': [],
   /** Any stock movement (adjustment, scan, allocation, receipt): the planner, internal inventory and adjustments re-read. */
