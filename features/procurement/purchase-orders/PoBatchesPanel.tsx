@@ -35,7 +35,7 @@ const HEAD = 'px-3 py-2 text-center text-xs font-semibold uppercase tracking-wid
 const CELL = 'px-3 py-2 text-center align-middle'
 const units = (value: number) => value.toLocaleString('en-CA')
 
-const SKU_PREVIEW = 3
+const SKU_PREVIEW = 2
 
 /** The batch's SKUs: the first few inline, the rest behind "Show more" (a modal listing just the SKUs) so the row stays tidy. */
 const SkuCell: React.FC<{ batch: PoBatch }> = ({ batch }) => {
@@ -58,7 +58,9 @@ const SkuCell: React.FC<{ batch: PoBatch }> = ({ batch }) => {
       <Modal isOpen={open} onClose={() => setOpen(false)} title={`${batch.label} · SKUs (${batch.lines.length})`} size="sm" closeOnBackdropClick closeOnEscape>
         <ul className="flex max-h-[60vh] flex-col gap-1 overflow-y-auto font-mono text-sm">
           {batch.lines.map((line) => (
-            <li key={line.id}>{line.product.ref}</li>
+            <li key={line.id}>
+              {line.product.ref} × {units(line.units)}
+            </li>
           ))}
         </ul>
       </Modal>

@@ -58,6 +58,8 @@ export const PackagingListFormScreen: React.FC<PackagingListFormScreenProps> = (
   const converting = !isNew && params.get('convert') === '1' && canWrite && !locked && existing?.kind === 'TENTATIVE'
   const editing = !isNew && (params.get('edit') === '1' || converting) && canWrite && !locked
   const readOnly = !isNew && !editing
+  // Batches can be added or dropped until the list is converted to final
+  const batchesEditable = isNew || (editing && existing?.kind === 'TENTATIVE')
   // Units may exceed the batch, tentative or final: the supplier may pack more than planned
   const allowOver = true
   const { data: fromPo } = useGetProcurementPurchaseOrderQuery(fromPoId ?? 0, { skip: !fromPoId })
@@ -236,10 +238,10 @@ export const PackagingListFormScreen: React.FC<PackagingListFormScreenProps> = (
               label="Batch(es)"
               htmlFor="pl-batches"
               required
-              hint={isNew ? 'Batches IN PRODUCTION only. One batch, or several (any POs and suppliers) that ship to the same destination. A batch has one packaging list.' : 'The batches of a saved list are fixed'}
+              hint={batchesEditable ? 'Batches IN PRODUCTION only. One batch, or several (any POs and suppliers) that ship to the same destination. A batch has one packaging list.' : 'The batches of a final list are fixed'}
             >
-              {existing ? (
-                // A saved list's batches are fixed: shown as they are, with their suppliers
+              {!batchesEditable && existing ? (
+                // A final list's batches are fixed: shown as they are, with their suppliers
                 <p id="pl-batches" className="rounded-lg border border-border bg-secondary-50 px-3 py-2 text-sm text-text-primary">
                   <span className="font-mono font-semibold">{existing.batches.map((batch) => batch.label).join(', ')}</span>
                   <span className="text-text-muted"> · {supplierNames(existing.suppliers)}</span>
