@@ -4,11 +4,14 @@ import React, { useState } from 'react'
 import { ConfirmDialog } from '@/components/confirm-dialog/ConfirmDialog'
 import { SelectionCheckbox } from '@/components/selection-checkbox/SelectionCheckbox'
 import { Button } from '@/design-system/buttons'
+import { cn } from '@/utils/cn'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableStatusRow } from '@/design-system/tables'
 import { useApiFeedback } from '@/hooks/useApiFeedback'
 import { useSendBacklogEmailsMutation, type EmailBacklog } from '@/services/api/systemEmail.api'
 import { BulkLink, EmailBulkBar } from './EmailBulkBar'
 import { useSelection } from './useSelection'
+
+const CELL = 'text-center align-middle'
 
 const COLUMNS = ['Event', 'Records', 'Already emailed', 'Not yet', 'Emails to send']
 const COLUMN_COUNT = COLUMNS.length + 1
@@ -77,7 +80,7 @@ export const BacklogPanel: React.FC<BacklogPanelProps> = ({ backlog, loading, er
           <Table className="min-w-full" wrapperClassName="overflow-visible">
             <TableHeader className="bg-surface">
               <TableRow>
-                <TableHead className="w-10">
+                <TableHead className="w-10 text-center align-middle">
                   <SelectionCheckbox label="Select every event" checked={allChosen} indeterminate={chosen.length > 0 && !allChosen} onChange={() => setAll(events.map((event) => event.key), !allChosen)} />
                 </TableHead>
                 {COLUMNS.map((title) => (
@@ -99,14 +102,14 @@ export const BacklogPanel: React.FC<BacklogPanelProps> = ({ backlog, loading, er
               ) : (
                 events.map((event) => (
                   <TableRow key={event.key}>
-                    <TableCell>
+                    <TableCell className={CELL}>
                       <SelectionCheckbox label={`Select ${event.label}`} checked={selected.has(event.key)} onChange={() => toggle(event.key)} />
                     </TableCell>
-                    <TableCell>{event.label}</TableCell>
-                    <TableCell className="tabular-nums">{n(event.records)}</TableCell>
-                    <TableCell className="tabular-nums">{n(event.alreadyEmailed)}</TableCell>
-                    <TableCell className="tabular-nums font-semibold">{n(event.notYet)}</TableCell>
-                    <TableCell className="tabular-nums">{n(event.emailsToSend)}</TableCell>
+                    <TableCell className={CELL}>{event.label}</TableCell>
+                    <TableCell className={cn(CELL, "tabular-nums")}>{n(event.records)}</TableCell>
+                    <TableCell className={cn(CELL, "tabular-nums")}>{n(event.alreadyEmailed)}</TableCell>
+                    <TableCell className={cn(CELL, "tabular-nums font-semibold")}>{n(event.notYet)}</TableCell>
+                    <TableCell className={cn(CELL, "tabular-nums")}>{n(event.emailsToSend)}</TableCell>
                   </TableRow>
                 ))
               )}

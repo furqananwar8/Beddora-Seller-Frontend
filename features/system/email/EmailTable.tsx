@@ -10,6 +10,8 @@ import type { EmailRow } from '@/services/api/systemEmail.api'
 import { cn } from '@/utils/cn'
 import { sentLabel, stamp, STATUS_META } from './emailMeta'
 
+const CELL = 'text-center align-middle'
+
 const COLUMNS = ['Recipient', 'Subject', 'Event', 'Status', 'Sent', 'Last error', 'Created', 'Actions']
 const COLUMN_COUNT = COLUMNS.length + 1
 
@@ -39,7 +41,7 @@ export const EmailTable: React.FC<EmailTableProps> = ({ rows, loading, error, em
         <Table className="min-w-full" wrapperClassName="overflow-visible">
           <TableHeader className="sticky top-0 z-30 bg-surface shadow-sm">
             <TableRow>
-              <TableHead className="w-10">
+              <TableHead className="w-10 text-center align-middle">
                 <SelectionCheckbox label="Select all emails on this page" checked={rows.length > 0 && checked === rows.length} indeterminate={checked > 0 && checked < rows.length} onChange={() => onToggleAll(checked !== rows.length)} />
               </TableHead>
               {COLUMNS.map((title) => (
@@ -63,23 +65,23 @@ export const EmailTable: React.FC<EmailTableProps> = ({ rows, loading, error, em
                 const status = STATUS_META[row.status]
                 return (
                   <TableRow key={row.id} className={cn('transition-colors duration-700', flashIds.has(row.id) && 'bg-success-50')}>
-                    <TableCell>
+                    <TableCell className={CELL}>
                       <SelectionCheckbox label={`Select the email to ${row.toAddress}`} checked={isChecked(row)} onChange={() => onToggle(row)} />
                     </TableCell>
-                    <TableCell className="whitespace-nowrap">{row.toAddress}</TableCell>
-                    <TableCell className="max-w-xs truncate" title={row.subject}>
+                    <TableCell className={cn(CELL, "whitespace-nowrap")}>{row.toAddress}</TableCell>
+                    <TableCell className={cn(CELL, "max-w-xs truncate")} title={row.subject}>
                       {row.subject}
                     </TableCell>
-                    <TableCell className="whitespace-nowrap">{row.event}</TableCell>
-                    <TableCell>
+                    <TableCell className={cn(CELL, "whitespace-nowrap")}>{row.event}</TableCell>
+                    <TableCell className={CELL}>
                       <StatusBadge label={status.label} tone={status.tone} />
                     </TableCell>
-                    <TableCell className="whitespace-nowrap tabular-nums">{sentLabel(row)}</TableCell>
-                    <TableCell className="max-w-[12rem] truncate text-danger-600" title={row.lastError ?? undefined}>
+                    <TableCell className={cn(CELL, "whitespace-nowrap tabular-nums")}>{sentLabel(row)}</TableCell>
+                    <TableCell className={cn(CELL, "max-w-[12rem] truncate text-danger-600")} title={row.lastError ?? undefined}>
                       {row.lastError ?? <span className="text-text-muted">—</span>}
                     </TableCell>
-                    <TableCell className="whitespace-nowrap tabular-nums">{stamp(row.createdAt)}</TableCell>
-                    <TableCell>
+                    <TableCell className={cn(CELL, "whitespace-nowrap tabular-nums")}>{stamp(row.createdAt)}</TableCell>
+                    <TableCell className={CELL}>
                       <RowActionsMenu
                         label={`${row.event} to ${row.toAddress}`}
                         items={[

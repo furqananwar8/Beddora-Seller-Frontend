@@ -5,10 +5,13 @@ import { useRouter } from 'next/navigation'
 import { formatDistanceToNow } from 'date-fns'
 import { Container } from '@/components/layout'
 import { ListDateFilter } from '@/components/date-range-picker/ListDateFilter'
-import { MultiSelectInput } from '@/components/multi-select-input/MultiSelectInput'
+import { FilterBar, FilterItem } from '@/components/filter-bar/FilterBar'
+import { FilterMultiSelect } from '@/components/filter-bar/FilterMultiSelect'
+import { FormField } from '@/components/form-field/FormField'
 import { PaginationFooter } from '@/components/pagination-footer/PaginationFooter'
 import { Button } from '@/design-system/buttons'
 import { Spinner } from '@/design-system/loaders'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/design-system/tables'
 import {
   AppNotification,
   useGetNotificationFiltersQuery,
@@ -53,6 +56,10 @@ interface Filters {
 
 const NO_FILTERS: Filters = { search: '', categories: [], actorIds: [], unreadOnly: false, dateRange: ANY_DATE }
 
+/** Columns are centered both ways, like the other list screens. */
+const CELL = 'text-center align-middle'
+const COLUMNS = ['', 'Notification', 'Message', 'Type', 'Created by', 'When']
+
 /** Every notification the user has received, newest first, filterable by type, who triggered it, date and read state. */
 export const NotificationsScreen: React.FC = () => {
   const router = useRouter()
@@ -94,6 +101,9 @@ export const NotificationsScreen: React.FC = () => {
 
   const rows = data?.data ?? []
   const dirty = JSON.stringify(pending) !== JSON.stringify(applied)
+  const activeCount = (Object.keys(pending) as Array<keyof Filters>).filter((key) => JSON.stringify(pending[key]) !== JSON.stringify(NO_FILTERS[key])).length
+  const categoryOptions = useMemo(() => (options?.categories ?? []).map((category) => ({ value: category.id, label: category.name })), [options])
+  const actorOptions = useMemo(() => (options?.actors ?? []).map((actor) => ({ value: actor.id, label: actor.name })), [options])
 
   return (
     <Container size="full" className="py-4 sm:py-8">
@@ -108,51 +118,46 @@ export const NotificationsScreen: React.FC = () => {
       </div>
 
       <div className="mb-4 rounded-lg border border-border bg-surface p-3 shadow-sm sm:p-4">
-        <div className="flex flex-wrap items-end gap-2">
-          <div className="w-full min-w-0 sm:w-64">
-            <span className="ds-input-label">Search</span>
-            <input
-              type="search"
-              value={pending.search}
-              onChange={(event) => setPending((prev) => ({ ...prev, search: event.target.value }))}
-              placeholder="Title or message"
-              className="ds-input ds-input-default rounded-lg"
-              aria-label="Search notifications"
-            />
-          </div>
-          <MultiSelectInput
-            title="Type"
-            options={options?.categories ?? []}
-            value={pending.categories}
-            onChange={(categories) => setPending((prev) => ({ ...prev, categories }))}
-            placeholder="All types"
-          />
-          <MultiSelectInput
-            title="Created by"
-            options={options?.actors ?? []}
-            value={pending.actorIds}
-            onChange={(actorIds) => setPending((prev) => ({ ...prev, actorIds }))}
-            placeholder="All users"
-            allLabel="All users"
-          />
-          <MultiSelectInput
-            title="Status"
-            single
-            options={[{ id: 'unread', name: 'Unread only' }]}
-            value={pending.unreadOnly ? ['unread'] : []}
-            onChange={(value) => setPending((prev) => ({ ...prev, unreadOnly: value.includes('unread') }))}
-            placeholder="Read and unread"
-          />
-          <ListDateFilter value={pending.dateRange} onApply={(dateRange) => setPending((prev) => ({ ...prev, dateRange }))} />
-          <div className="ml-auto flex items-center gap-2">
-            <Button type="button" variant="outline" onClick={reset}>
-              Reset
-            </Button>
-            <Button type="button" variant="primary" disabled={!dirty} onClick={apply}>
-              Apply filters
-            </Button>
-          </div>
-        </div>
+        <FilterBar pendingCount={dirty ? 1 : 0} activeCount={activeCount} onApply={apply} onReset={reset}>
+          <FilterItem wide>
+            <FormField label="Search" htmlFor="notification-search">
+              <input
+                id="notification-search"
+                type="search"
+                value={pending.search}
+                onChange={(event) => setPending((prev) => ({ ...prev, search: event.target.value }))}
+                placeholder="Title or message"
+                className="ds-input ds-input-default rounded-lg"
+              />
+            </FormField>
+          </FilterItem>
+          <FilterItem>
+            <FormField label="Type" htmlFor="notification-type">
+              <FilterMultiSelect id="notification-type" options={categoryOptions} value={pending.categories} onChange={(categories) => setPending((prev) => ({ ...prev, categories }))} anyLabel="All types" />
+            </FormField>
+          </FilterItem>
+          <FilterItem>
+            <FormField label="Created by" htmlFor="notification-actor">
+              <FilterMultiSelect id="notification-actor" options={actorOptions} value={pending.actorIds} onChange={(actorIds) => setPending((prev) => ({ ...prev, actorIds }))} anyLabel="All users" />
+            </FormField>
+          </FilterItem>
+          <FilterItem>
+            <FormField label="Status" htmlFor="notification-status">
+              <FilterMultiSelect
+                id="notification-status"
+                options={[{ value: 'unread', label: 'Unread only' }]}
+                value={pending.unreadOnly ? ['unread'] : []}
+                onChange={(value) => setPending((prev) => ({ ...prev, unreadOnly: value.includes('unread') }))}
+                anyLabel="Read and unread"
+              />
+            </FormField>
+          </FilterItem>
+          <FilterItem>
+            <FormField label="Date">
+              <ListDateFilter value={pending.dateRange} onApply={(dateRange) => setPending((prev) => ({ ...prev, dateRange }))} />
+            </FormField>
+          </FilterItem>
+        </FilterBar>
       </div>
 
       <div className={cn('overflow-hidden rounded-lg border border-border bg-surface shadow-sm', isFetching && 'opacity-70 transition-opacity')}>
@@ -165,37 +170,41 @@ export const NotificationsScreen: React.FC = () => {
         ) : rows.length === 0 ? (
           <p className="py-16 text-center text-sm text-text-muted">No notifications match these filters.</p>
         ) : (
-          <ul>
-            {rows.map((notification) => (
-              <li key={notification.id}>
-                <button
-                  type="button"
-                  onClick={() => open(notification)}
-                  className={cn(
-                    'flex w-full items-center gap-3 border-b border-border px-4 py-2.5 text-left transition-colors last:border-b-0 hover:bg-secondary-50',
-                    !notification.readAt && 'bg-secondary-50/70'
-                  )}
-                >
-                  <span className={cn('h-2 w-2 shrink-0 rounded-full', notification.readAt ? 'bg-transparent' : 'bg-danger-500')} aria-label={notification.readAt ? 'Read' : 'Unread'} />
-                  <span className="min-w-0 flex-1">
-                    <span className="flex items-center gap-2">
-                      <span className={cn('truncate text-sm text-text-primary', notification.readAt ? 'font-medium' : 'font-semibold')}>{notification.title}</span>
-                      <span className={cn('shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium', categoryTone(notification.category))}>
-                        {notification.categoryLabel ?? notification.category}
-                      </span>
-                    </span>
-                    {notification.body && (
-                      <span className="mt-0.5 block truncate text-xs text-text-muted">{notification.body.split('\n').filter(Boolean).join('  ·  ')}</span>
-                    )}
-                  </span>
-                  <span className="shrink-0 text-right text-[11px] leading-tight text-text-subtle">
-                    <span className="block whitespace-nowrap">{formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}</span>
-                    {notification.actor && <span className="mt-0.5 block max-w-[140px] truncate">{notification.actor.name}</span>}
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
+          <div className="overflow-x-auto">
+            <Table className="min-w-full" wrapperClassName="overflow-visible">
+              <TableHeader>
+                <TableRow>
+                  {COLUMNS.map((title, index) => (
+                    <TableHead key={index} className={cn(CELL, index === 0 && 'w-8')}>
+                      {title}
+                    </TableHead>
+                  ))}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {rows.map((notification) => (
+                  <TableRow key={notification.id} onClick={() => open(notification)} className={cn('cursor-pointer hover:bg-secondary-50', !notification.readAt && 'bg-secondary-50/70')}>
+                    <TableCell className={CELL}>
+                      <span className={cn('inline-block h-2 w-2 rounded-full', notification.readAt ? 'bg-transparent' : 'bg-danger-500')} aria-label={notification.readAt ? 'Read' : 'Unread'} />
+                    </TableCell>
+                    <TableCell className={cn(CELL, 'max-w-xs')}>
+                      <button type="button" onClick={(event) => { event.stopPropagation(); open(notification) }} className={cn('max-w-full truncate text-sm text-text-primary hover:underline', notification.readAt ? 'font-medium' : 'font-semibold')} title={notification.title}>
+                        {notification.title}
+                      </button>
+                    </TableCell>
+                    <TableCell className={cn(CELL, 'max-w-sm truncate text-xs text-text-muted')} title={notification.body ?? undefined}>
+                      {notification.body ? notification.body.split('\n').filter(Boolean).join('  ·  ') : '—'}
+                    </TableCell>
+                    <TableCell className={CELL}>
+                      <span className={cn('inline-block whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-medium', categoryTone(notification.category))}>{notification.categoryLabel ?? notification.category}</span>
+                    </TableCell>
+                    <TableCell className={cn(CELL, 'whitespace-nowrap text-xs text-text-secondary')}>{notification.actor?.name ?? '—'}</TableCell>
+                    <TableCell className={cn(CELL, 'whitespace-nowrap text-xs text-text-subtle')}>{formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         )}
         {data && (
           <PaginationFooter selectablePageSize page={data.page} pageSize={pageSize} totalItems={data.totalRecords} totalPages={data.totalPages} onPageChange={setPage} itemLabel="notifications" />
