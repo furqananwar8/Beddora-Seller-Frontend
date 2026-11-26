@@ -603,3 +603,54 @@
   }
 }
 
+
+/* System > Jobs & Redis: moving dashes between pipeline steps, a row sliding in, and a row leaving */
+@keyframes monitor-march {
+  to {
+    background-position: 10px 0;
+  }
+}
+@keyframes monitor-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+@keyframes monitor-working {
+  0% {
+    left: -40%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+.monitor-arrow {
+  background: linear-gradient(90deg, var(--chart-primary) 50%, transparent 0);
+  background-size: 10px 2px;
+  animation: monitor-march 0.7s linear infinite;
+}
+.monitor-enter {
+  animation: monitor-enter 0.5s ease;
+}
+.monitor-leave {
+  opacity: 0;
+  transform: translateX(16px);
+  transition: all 0.4s ease;
+}
+.monitor-working::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 3px;
+  width: 40%;
+  background: var(--chart-primary);
+  animation: monitor-working 1.4s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .monitor-arrow,
+  .monitor-enter,
+  .monitor-working::after {
+    animation: none;
+  }
+}

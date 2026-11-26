@@ -13,6 +13,7 @@ import { LIVE_REPORT_TABS, liveReportSubject } from '@/features/profit/channel-r
 import { AiAssistant } from '@/components/ai-assistant'
 import { BarcodeScannerProvider } from '@/features/barcode/BarcodeScannerProvider'
 import { SYSTEM_EMAIL_ROUTE, SYSTEM_MENU_LABEL } from '@/features/system/email/routes'
+import { MONITOR_ROUTE } from '@/features/system/monitor/monitorMeta'
 import { useGetEmailAccessQuery } from '@/services/api/systemEmail.api'
 
 /** Routes whose content is shorter than the screen, so the layout sizes them below the header (`.ds-content-fit`). */
@@ -378,7 +379,10 @@ export default function DashboardLayout({
             allow: canOpenEmail,
             href: SYSTEM_EMAIL_ROUTE,
             icon: NavIcons.bell,
-            children: [{ label: 'Email', subject: 'system:email', action: 'read', allow: canOpenEmail, href: SYSTEM_EMAIL_ROUTE }],
+            children: [
+              { label: 'Email', subject: 'system:email', action: 'read', allow: canOpenEmail, href: SYSTEM_EMAIL_ROUTE },
+              { label: 'Jobs & Redis', subject: 'system:monitor', action: 'read', allow: canOpenEmail, href: MONITOR_ROUTE },
+            ],
           },
           {
             label: 'Settings',
