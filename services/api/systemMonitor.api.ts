@@ -186,6 +186,7 @@ export const stampRedis = (overview: RedisOverview): RedisOverview => ({
 
 export const systemMonitorApi = baseApi.injectEndpoints({
   endpoints: (b) => ({
+    getMonitorAccess: b.query<{ allowed: boolean }, void>({ query: () => `${PATH}/access`, transformResponse: unwrap, keepUnusedDataFor: 300 }),
     getJobsOverview: b.query<JobsOverview, void>({ query: () => `${PATH}/jobs/overview`, transformResponse: unwrap, providesTags: [monitorTags.jobsOverview] }),
     getActiveJobs: b.query<JobView[], void>({ query: () => `${PATH}/jobs/active`, transformResponse: unwrap, providesTags: [monitorTags.active] }),
     getFailedJobs: b.query<JobView[], void>({ query: () => `${PATH}/jobs/failed`, transformResponse: unwrap, providesTags: [monitorTags.failed] }),
@@ -234,6 +235,7 @@ export const systemMonitorApi = baseApi.injectEndpoints({
 })
 
 export const {
+  useGetMonitorAccessQuery,
   useGetJobsOverviewQuery,
   useGetActiveJobsQuery,
   useGetFailedJobsQuery,
