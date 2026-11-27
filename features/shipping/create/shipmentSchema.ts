@@ -23,8 +23,8 @@ export interface Lane {
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 /** 6–12 digits; dots allowed between them. */
-const HS_CODE = /^\d[\d.]*\d$/
-const hsDigits = (code: string) => code.replace(/\./g, '').length
+export const HS_CODE = /^\d[\d.]*\d$/
+export const hsDigits = (code: string) => code.replace(/\./g, '').length
 
 const required = (message: string) => z.string().trim().min(1, message)
 const positive = (message: string) => z.string().refine((value) => value.trim() !== '' && Number(value) > 0, message)

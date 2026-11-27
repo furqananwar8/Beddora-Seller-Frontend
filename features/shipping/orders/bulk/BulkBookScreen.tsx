@@ -5,7 +5,6 @@ import Link from 'next/link'
 import { ChevronDown, ChevronUp } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { FormField } from '@/components/form-field/FormField'
-import { NumericInput } from '@/components/form-field/NumericInput'
 import { SearchableSelect } from '@/components/searchable-select/SearchableSelect'
 import { SegmentedToggle } from '@/components/segmented-toggle/SegmentedToggle'
 import { StatusBadge } from '@/components/status-badge/StatusBadge'
@@ -19,16 +18,18 @@ import { SectionCard } from '../../shared/Card'
 import { Breakdown, TAG_CLASS } from '../../create/RateRow'
 import { tagRates, TAG_LABEL } from '../../create/rateRanking'
 import { CarrierLogo } from '../../shared/CarrierLogo'
-import { convertLength, convertWeight } from '@/features/procurement/shared/units'
-import type { LengthUnit, WeightUnit } from '@/services/api/procurement.api'
 import { UNITS } from '../../create/shipmentForm'
 import { WizardStepper } from '../../create/WizardStepper'
-import { bookOrderHref, INCOTERM_META, money, ORDERS_LIST_HREF, shortDay, SKU_MAPPER_HREF, transitDays } from '../../shippingMeta'
+import { INCOTERM_META, money, ORDERS_LIST_HREF, shortDay, SKU_MAPPER_HREF, transitDays } from '../../shippingMeta'
 import { cn } from '@/utils/cn'
 import { unitsLabel, unitsSummary, type BookingPlan } from '../orderUnits'
 import type { Incoterm, Rate, RateTag, ShipFromOption } from '../../types'
 import { BulkPrintDialog } from './BulkPrintDialog'
+import { CustomsFixModal } from './CustomsFixModal'
+import { PackageFixModal } from './PackageFixModal'
+import { ShipFromFixModal } from '../../shared/ShipFromFixModal'
 import { ShipToFixModal } from './ShipToFixModal'
+import { PackageWithCarton } from './SizeInputs'
 import { ParcelDetailsDialog, parcelText } from './ParcelDetailsDialog'
 import type { PackageText } from './prepareOrder'
 import { useBulkBook, type BulkBook, type BulkRow, type OrderRow, type PickRule } from './useBulkBook'
@@ -134,72 +135,6 @@ const OrderHeaderRow: React.FC<{ order: Pick<OrderRow, 'ref' | 'detail'>; colSpa
 
 const bookingNote = (row: BulkRow) => (row.count > 1 ? `Booking ${row.index} of ${row.count}` : 'Booking')
 
-/**
- * Length, width, height and weight of one package. Each field has its own cm / in (kg / lb) choice, cm and kg to start;
- * the package is kept in the booking's own unit system, so a value typed in the other unit is converted as it is typed.
- */
-const SizeInputs: React.FC<{ pkg: PackageText; units: keyof typeof UNITS; name: string; onChange: (pkg: PackageText) => void }> = ({ pkg, units, name, onChange }) => {
-  const unit = UNITS[units]
-  const [picked, setPicked] = useState<Partial<Record<keyof PackageText, string>>>({})
-  // What was typed in a field whose unit differs from the stored one, so typing "9." or "9.40" is not rewritten under the cursor
-  const [typed, setTyped] = useState<Partial<Record<keyof PackageText, string>>>({})
-  const convert = (key: keyof PackageText, value: number, from: string, to: string) =>
-    key === 'weight' ? convertWeight(value, from as WeightUnit, to as WeightUnit) : convertLength(value, from as LengthUnit, to as LengthUnit)
-  const field = (key: keyof PackageText, label: string) => {
-    const stored = key === 'weight' ? unit.weight : unit.length
-    const options = key === 'weight' ? ['KG', 'LB'] : ['CM', 'IN']
-    const shown = picked[key] ?? stored
-    const toStored = (text: string) => (Number.isFinite(Number(text)) && text.trim() !== '' ? String(convert(key, Number(text), shown, stored)) : '')
-    const value =
-      shown === stored
-        ? pkg[key]
-        : typed[key] !== undefined && toStored(typed[key]!) === pkg[key]
-          ? typed[key]!
-          : Number.isFinite(Number(pkg[key])) && pkg[key].trim() !== ''
-            ? String(convert(key, Number(pkg[key]), stored, shown))
-            : ''
-    return (
-      <label className="flex items-center gap-1 text-xs text-text-muted">
-        {label}
-        <NumericInput
-          decimal
-          value={value}
-          onChange={(event) => {
-            const text = event.target.value
-            if (shown !== stored) setTyped((current) => ({ ...current, [key]: text }))
-            onChange({ ...pkg, [key]: shown === stored ? text : toStored(text) })
-          }}
-          aria-label={`${label} for ${name}`}
-          className="ds-input ds-input-default h-8 w-20 rounded-lg px-2 text-sm text-text-primary"
-        />
-        <select
-          value={shown}
-          onChange={(event) => {
-            setPicked((current) => ({ ...current, [key]: event.target.value }))
-            setTyped((current) => ({ ...current, [key]: undefined }))
-          }}
-          aria-label={`${label} unit for ${name}`}
-          className="h-8 rounded-lg border border-border bg-surface px-1 text-xs text-text-secondary"
-        >
-          {options.map((option) => (
-            <option key={option} value={option}>
-              {option.toLowerCase()}
-            </option>
-          ))}
-        </select>
-      </label>
-    )
-  }
-  return (
-    <span className="flex shrink-0 items-center gap-3 whitespace-nowrap">
-      {field('length', 'L')}
-      {field('width', 'W')}
-      {field('height', 'H')}
-      {field('weight', 'Weight')}
-    </span>
-  )
-}
-
 /** One booking's package: its size starts from what the products work out to, and changing it asks for the booking's rates again. */
 const PackageEditor: React.FC<{ row: BulkRow; bulk: BulkBook }> = ({ row, bulk }) => {
   const values = row.prepared?.values
@@ -216,7 +151,7 @@ const PackageEditor: React.FC<{ row: BulkRow; bulk: BulkBook }> = ({ row, bulk }
       <div className="text-sm">
         <p className="mb-2 font-medium text-text-primary">{several ? `Whole booking (${row.unitNos.length} quantity)` : unitsLabel(row.unitNos)}</p>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <SizeInputs pkg={values.pkg} units={values.units} name={`${bookingNote(row)} ${unitsLabel(row.unitNos)}`} onChange={(next) => bulk.setPackage(row.key, next)} />
+          <PackageWithCarton pkg={values.pkg} units={values.units} name={`${bookingNote(row)} ${unitsLabel(row.unitNos)}`} onChange={(next) => bulk.setPackage(row.key, next)} />
           {bulk.pkgOf[row.key] ? (
             <button type="button" onClick={() => bulk.resetPackage(row.key)} className="whitespace-nowrap text-xs text-primary-600 underline">
               Reset to the products&apos; size
@@ -411,11 +346,26 @@ const QuantityCell: React.FC<{ row: BulkRow }> = ({ row }) => (
 )
 
 /** Step 1: one ship-from and the shipment defaults for all, how to split orders with several units, then each order's readiness. */
+type FixKind = 'shipFrom' | 'shipTo' | 'customs' | 'package'
+
+/**
+ * What can be filled in a dialog on this page, by the check that fails (the same order prepareOrder reports them in).
+ * Problems with nothing to fill (no longer To Book, no ship-from picked) have no Fix; an unmapped SKU goes to the SKU mapper.
+ */
+const inlineFix = ({ prepared, blocked, free }: OrderRow, shipFrom: ShipFromOption | undefined): FixKind | null => {
+  if (!prepared) return null
+  if (shipFrom?.missing.length) return shipFrom.fix.length ? 'shipFrom' : null
+  if (!prepared.checks.mapped || blocked.length > 0 || free.length === 0) return null
+  if (!prepared.checks.shipTo) return 'shipTo'
+  if (!prepared.checks.customs) return 'customs'
+  return !prepared.checks.pkg ? 'package' : null
+}
+
 const ReviewStep: React.FC<{ bulk: BulkBook; onNext: () => void }> = ({ bulk, onNext }) => {
   const { shipFrom, addresses, defaults } = bulk
   // Package sizes are shown under every order; this holds the ones the user folded away
   const [folded, setFolded] = useState<Set<string>>(new Set())
-  const [fixing, setFixing] = useState<OrderRow | null>(null)
+  const [fixing, setFixing] = useState<{ order: OrderRow; kind: FixKind } | null>(null)
   const toggleSizing = (key: string) =>
     setFolded((current) => {
       const next = new Set(current)
@@ -554,16 +504,16 @@ const ReviewStep: React.FC<{ bulk: BulkBook; onNext: () => void }> = ({ bulk, on
                     )}
                   </td>
                   <td className={CELL}>
-                    {order.prepared && !order.prepared.checks.shipTo && order.prepared.checks.mapped && order.blocked.length === 0 ? (
-                      // The customer's address is typed right here (nothing to reload, the order is checked again at once)
-                      <button type="button" className="text-sm font-medium text-primary-600 underline" onClick={() => setFixing(order)}>
+                    {inlineFix(order, bulk.shipFrom) ? (
+                      // Typed right here (nothing to reload, the order is checked again at once)
+                      <button type="button" className="text-sm font-medium text-primary-600 underline" onClick={() => setFixing({ order, kind: inlineFix(order, bulk.shipFrom)! })}>
                         Fix
                       </button>
                     ) : (
-                      (order.prepared?.problem || order.blocked.length > 0) && order.prepared && (
+                      (!order.prepared?.checks.mapped || order.blocked.length > 0) && order.prepared && (
                       // New tab: this page stays open and updates itself when the fix is saved there (see useBulkBook)
-                      <Link target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-primary-600 underline" href={order.prepared.checks.mapped && order.blocked.length === 0 ? bookOrderHref(order.ref) : SKU_MAPPER_HREF}>
-                        {order.prepared.checks.mapped && order.blocked.length === 0 ? 'Fix' : 'Map SKU'}
+                      <Link target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-primary-600 underline" href={SKU_MAPPER_HREF}>
+                        Map SKU
                       </Link>
                       )
                     )}
@@ -586,12 +536,19 @@ const ReviewStep: React.FC<{ bulk: BulkBook; onNext: () => void }> = ({ bulk, on
       </div>
 
       <ShipToFixModal
-        order={fixing && { orderId: fixing.ref.orderId, shipTo: fixing.detail?.shipTo ?? null, shipToError: fixing.detail?.shipToError ?? null }}
-        onSave={(address) => fixing && bulk.setShipTo(fixing.key, address)}
+        order={fixing?.kind === 'shipTo' ? { orderId: fixing.order.ref.orderId, shipTo: fixing.order.detail?.shipTo ?? null, shipToError: fixing.order.detail?.shipToError ?? null } : null}
+        onSave={(address) => fixing && bulk.setShipTo(fixing.order.key, address)}
+        onClose={() => setFixing(null)}
+      />
+      <PackageFixModal order={fixing?.kind === 'package' ? fixing.order : null} onSave={(pkg) => fixing && bulk.setOrderPackage(fixing.order.key, pkg)} onClose={() => setFixing(null)} />
+      <ShipFromFixModal address={fixing?.kind === 'shipFrom' ? bulk.shipFrom ?? null : null} onClose={() => setFixing(null)} />
+      <CustomsFixModal
+        order={fixing?.kind === 'customs' && fixing.order.detail ? { orderId: fixing.order.ref.orderId, detail: fixing.order.detail } : null}
+        onSave={(customs) => fixing && bulk.setCustoms(fixing.order.key, customs)}
         onClose={() => setFixing(null)}
       />
 
-      {bulk.orders.some((order) => order.prepared?.problem) && <p className="text-xs text-text-muted">Fix and Map SKU open in a new tab. Save there and this page updates by itself: no reload needed.</p>}
+      {bulk.orders.some((order) => order.prepared && (!order.prepared.checks.mapped || order.blocked.length > 0)) && <p className="text-xs text-text-muted">Map SKU opens in a new tab. Save there and this page updates by itself: no reload needed.</p>}
 
       <Footer
         note={

@@ -23,6 +23,21 @@ const QUOTE_AT_ONCE = 3
 const BOOK_AT_ONCE = 3
 const POLL_MS = 3_000
 
+/** An HS code and country of origin typed for a product. */
+export interface ProductCustoms {
+  hsCode: string
+  originCountry: string
+}
+
+/** The order as read, with the customer address and the customs details typed on this page laid over it. */
+function withFixes(detail: ChannelOrderDetail, shipTo?: ShipAddress, customs?: Record<number, ProductCustoms>): ChannelOrderDetail {
+  return {
+    ...detail,
+    ...(shipTo && { shipTo, shipToError: null }),
+    ...(customs && { lines: detail.lines.map((line) => (line.product && customs[line.product.id] ? { ...line, product: { ...line.product, ...customs[line.product.id] } } : line)) }),
+  }
+}
+
 export type PickRule = 'CHEAPEST' | 'FASTEST' | 'BEST_VALUE' | 'CARRIER'
 
 interface Quote {
@@ -140,6 +155,10 @@ export function useBulkBook() {
   const [pkgOf, setPkgOf] = useState<Record<string, PackageText>>({})
   /** Customer addresses typed here for orders the marketplace withheld them from; they win over what the order says. */
   const [shipToOf, setShipToOf] = useState<Record<string, ShipAddress>>({})
+  /** HS code and origin typed here for products that lack them, per order then product id; they win over the product's. */
+  /** A package typed for a whole order (its products lack a size); a booking's own size wins over it. */
+  const [pkgOfOrder, setPkgOfOrder] = useState<Record<string, PackageText>>({})
+  const [customsOf, setCustomsOf] = useState<Record<string, Record<number, ProductCustoms>>>({})
 
   const alive = useRef(true)
   const abort = useRef<AbortController | null>(null)
@@ -183,8 +202,7 @@ export function useBulkBook() {
       (refs ?? []).map((ref) => {
         const key = orderKey(ref)
         const loaded = details[key]?.detail ?? null
-        const typed = shipToOf[key]
-        const detail = loaded && typed ? { ...loaded, shipTo: typed, shipToError: null } : loaded
+        const detail = loaded && withFixes(loaded, shipToOf[key], customsOf[key])
         const allFree = detail ? freeUnitNos(detail) : []
         const blocked = detail ? allFree.filter((unitNo) => !unitIsMapped(detail, unitNo)) : []
         const free = allFree.filter((unitNo) => !blocked.includes(unitNo))
@@ -198,7 +216,7 @@ export function useBulkBook() {
           detail,
           loadError: details[key]?.error ?? null,
           // checked over what can be booked; an order with nothing mappable is checked as it is, so its problem is named
-          prepared: detail ? prepareOrder(detailForUnits(detail, free.length ? free : blocked), shipFrom, defaults) : null,
+          prepared: detail ? prepareOrder(detailForUnits(detail, free.length ? free : blocked), shipFrom, defaults, pkgOfOrder[key]) : null,
           free,
           blocked,
           split,
@@ -209,8 +227,20 @@ export function useBulkBook() {
           bookings: groups.length,
         }
       }),
-    [refs, details, shipToOf, splitOf, splitAll, planOf, shipFrom, defaults]
+    [refs, details, shipToOf, customsOf, pkgOfOrder, splitOf, splitAll, planOf, shipFrom, defaults]
   )
+
+  /** Uses this package for the order's bookings (their old quotes no longer match it). */
+  const setOrderPackage = useCallback((key: string, pkg: PackageText) => {
+    setPkgOfOrder((current) => ({ ...current, [key]: pkg }))
+    setWork((current) => Object.fromEntries(Object.entries(current).filter(([workKey]) => !workKey.startsWith(`${key}#`))))
+  }, [])
+
+  /** Uses these HS codes and origins for the order's products (its old quotes no longer match them). */
+  const setCustoms = useCallback((key: string, customs: Record<number, ProductCustoms>) => {
+    setCustomsOf((current) => ({ ...current, [key]: { ...current[key], ...customs } }))
+    setWork((current) => Object.fromEntries(Object.entries(current).filter(([workKey]) => !workKey.startsWith(`${key}#`))))
+  }, [])
 
   /** Uses this customer address for the order's bookings (their old quotes no longer match it). */
   const setShipTo = useCallback((key: string, address: ShipAddress) => {
@@ -234,7 +264,7 @@ export function useBulkBook() {
           orderKey: order.key,
           ref: order.ref,
           detail: order.detail,
-          prepared: prepareOrder(detailForUnits(order.detail!, unitNos), shipFrom, defaults, pkgOf[key], unitPackages ? unitNos.map((unitNo) => unitPackages[unitNo]) : undefined),
+          prepared: prepareOrder(detailForUnits(order.detail!, unitNos), shipFrom, defaults, pkgOf[key] ?? pkgOfOrder[order.key], unitPackages ? unitNos.map((unitNo) => unitPackages[unitNo]) : undefined),
           unitNos,
           index: index + 1,
           count: order.groups.length,
@@ -245,7 +275,7 @@ export function useBulkBook() {
       })
     }
     return list
-  }, [orders, shipFrom, defaults, pkgOf, eachPkg, unitPkg])
+  }, [orders, shipFrom, defaults, pkgOf, pkgOfOrder, eachPkg, unitPkg])
 
   const prepared = useMemo(() => new Map(plan.map((booking) => [booking.key, booking.prepared as PreparedOrder])), [plan])
 
@@ -517,6 +547,8 @@ export function useBulkBook() {
     setPackage,
     resetPackage,
     setShipTo,
+    setCustoms,
+    setOrderPackage,
     getRates,
     selectRate,
     book,

@@ -15,6 +15,8 @@ export const REALTIME_TOPICS: Record<string, TagType[]> = {
   'profit.settlement': [],
   /** A background booking finished (or failed); `useBookingJob` toasts it and hands over the shipment. */
   'shipping.booking': ['ShippingShipments', 'ShippingChannelOrders'],
+  /** The FBM Dashboard's numbers moved (any user's booking, a void, tracking): it re-reads, so the cards update by themselves. */
+  'shipping.overview': ['ShippingShipments', 'ShippingChannelOrders'],
   /** SKU bindings were saved: the bulk booking screen re-reads its orders so "SKU not mapped" clears itself. */
   'inventory.sku-mapping': [],
   /** A saved address, warehouse or the company name / phone changed (one event, whatever the field): ship-from options re-read, so a screen's "can't ship from here yet" clears itself. */
