@@ -56,7 +56,7 @@ const productLineSchema = (lane: Lane) =>
     customs: customsSchema(lane),
   })
 
-const shipToSchema = (lane: Lane) =>
+export const shipToSchema = (lane: Lane) =>
   z
     .object({
       name: required('Full name is required'),

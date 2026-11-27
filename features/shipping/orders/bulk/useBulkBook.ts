@@ -11,7 +11,7 @@ import { rateIsFresh } from './bulkRates'
 import { bulkJobKeys } from '../../bookingAnnounce'
 import { sortRates, tagRates } from '../../create/rateRanking'
 import { streamRates } from '../../useRateStream'
-import type { BookingJobDto, ChannelOrderDetail, ChannelOrderRef, Rate } from '../../types'
+import type { BookingJobDto, ChannelOrderDetail, ChannelOrderRef, Rate, ShipAddress } from '../../types'
 import { chunkUnits, defaultPlan, detailForUnits, freeUnitNos, planGroups, unitIsMapped, type BookingPlan } from '../orderUnits'
 import { loadBulkOrders, orderKey } from './bulkSelection'
 import { runPool } from './pool'
@@ -138,6 +138,8 @@ export function useBulkBook() {
   const [unitPkg, setUnitPkg] = useState<Record<string, PackageText>>({})
   /** Package sizes typed per booking, over the ones worked out from the products. */
   const [pkgOf, setPkgOf] = useState<Record<string, PackageText>>({})
+  /** Customer addresses typed here for orders the marketplace withheld them from; they win over what the order says. */
+  const [shipToOf, setShipToOf] = useState<Record<string, ShipAddress>>({})
 
   const alive = useRef(true)
   const abort = useRef<AbortController | null>(null)
@@ -180,7 +182,9 @@ export function useBulkBook() {
     () =>
       (refs ?? []).map((ref) => {
         const key = orderKey(ref)
-        const detail = details[key]?.detail ?? null
+        const loaded = details[key]?.detail ?? null
+        const typed = shipToOf[key]
+        const detail = loaded && typed ? { ...loaded, shipTo: typed, shipToError: null } : loaded
         const allFree = detail ? freeUnitNos(detail) : []
         const blocked = detail ? allFree.filter((unitNo) => !unitIsMapped(detail, unitNo)) : []
         const free = allFree.filter((unitNo) => !blocked.includes(unitNo))
@@ -205,8 +209,14 @@ export function useBulkBook() {
           bookings: groups.length,
         }
       }),
-    [refs, details, splitOf, splitAll, planOf, shipFrom, defaults]
+    [refs, details, shipToOf, splitOf, splitAll, planOf, shipFrom, defaults]
   )
+
+  /** Uses this customer address for the order's bookings (their old quotes no longer match it). */
+  const setShipTo = useCallback((key: string, address: ShipAddress) => {
+    setShipToOf((current) => ({ ...current, [key]: address }))
+    setWork((current) => Object.fromEntries(Object.entries(current).filter(([workKey]) => !workKey.startsWith(`${key}#`))))
+  }, [])
 
   /** Every booking: the order's bookings as cut by the stepper or built by hand, each with one package or one per quantity. */
   const plan = useMemo(() => {
@@ -506,6 +516,7 @@ export function useBulkBook() {
     unitPkg,
     setPackage,
     resetPackage,
+    setShipTo,
     getRates,
     selectRate,
     book,

@@ -4,7 +4,7 @@ import type { OrderLineSource, ShipmentFormValues } from '../create/shipmentSche
 import type { ChannelOrderDetail, ChannelOrderDetailLine, CustomsCurrency, ShipAddress } from '../types'
 
 /** Ship-to addresses are always residential: marketplace parcels go to the buyer's door. */
-const shipToFrom = (address: ShipAddress | null): ShipToValues =>
+export const shipToFrom = (address: ShipAddress | null): ShipToValues =>
   address
     ? {
         name: address.name,

@@ -1,7 +1,7 @@
 import type { FieldErrors } from 'react-hook-form'
 import { toInternational } from '@/components/phone-field/PhoneField'
 import { kgTo } from '@/features/procurement/shared/units'
-import type { CustomsLine, ShipFromOption, ShipmentRequest } from '../types'
+import type { CustomsLine, ShipAddress, ShipFromOption, ShipmentRequest } from '../types'
 import { numberOf, UNITS } from './shipmentForm'
 import type { ShipmentFormValues } from './shipmentSchema'
 
@@ -54,11 +54,27 @@ export function errorLabels(errors: FieldErrors | undefined, key = ''): string[]
   return [...new Set(labels)]
 }
 
+const blank = (value: string) => value.trim() || null
+
+/** The form's ship-to as an address. Call once it is valid. */
+export const addressOfShipTo = (shipTo: ShipmentFormValues['shipTo']): ShipAddress => ({
+  name: shipTo.name.trim(),
+  company: blank(shipTo.company),
+  phone: toInternational(shipTo.phone),
+  email: blank(shipTo.email),
+  address1: shipTo.address1.trim(),
+  address2: blank(shipTo.address2),
+  city: shipTo.address.city,
+  province: shipTo.address.province,
+  postalCode: shipTo.address.postalCode.trim(),
+  country: shipTo.address.country,
+  residential: shipTo.residential,
+})
+
 /** The form as the rate request. Call once it is valid. */
 export function toShipmentRequest(values: ShipmentFormValues): ShipmentRequest {
   const { shipTo } = values
   const units = UNITS[values.units]
-  const blank = (value: string) => value.trim() || null
   const items: CustomsLine[] = values.products.map(({ product, quantity, customs }) => ({
     productId: product.id,
     sku: product.sku,
@@ -72,19 +88,7 @@ export function toShipmentRequest(values: ShipmentFormValues): ShipmentRequest {
   }))
   return {
     shipFrom: values.shipFromId,
-    to: {
-      name: shipTo.name.trim(),
-      company: blank(shipTo.company),
-      phone: toInternational(shipTo.phone),
-      email: blank(shipTo.email),
-      address1: shipTo.address1.trim(),
-      address2: blank(shipTo.address2),
-      city: shipTo.address.city,
-      province: shipTo.address.province,
-      postalCode: shipTo.address.postalCode.trim(),
-      country: shipTo.address.country,
-      residential: shipTo.residential,
-    },
+    to: addressOfShipTo(shipTo),
     packages: [
       {
         length: numberOf(values.pkg.length) ?? 0,

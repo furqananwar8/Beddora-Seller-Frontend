@@ -28,6 +28,7 @@ import { cn } from '@/utils/cn'
 import { unitsLabel, unitsSummary, type BookingPlan } from '../orderUnits'
 import type { Incoterm, Rate, RateTag, ShipFromOption } from '../../types'
 import { BulkPrintDialog } from './BulkPrintDialog'
+import { ShipToFixModal } from './ShipToFixModal'
 import { ParcelDetailsDialog, parcelText } from './ParcelDetailsDialog'
 import type { PackageText } from './prepareOrder'
 import { useBulkBook, type BulkBook, type BulkRow, type OrderRow, type PickRule } from './useBulkBook'
@@ -414,6 +415,7 @@ const ReviewStep: React.FC<{ bulk: BulkBook; onNext: () => void }> = ({ bulk, on
   const { shipFrom, addresses, defaults } = bulk
   // Package sizes are shown under every order; this holds the ones the user folded away
   const [folded, setFolded] = useState<Set<string>>(new Set())
+  const [fixing, setFixing] = useState<OrderRow | null>(null)
   const toggleSizing = (key: string) =>
     setFolded((current) => {
       const next = new Set(current)
@@ -552,11 +554,18 @@ const ReviewStep: React.FC<{ bulk: BulkBook; onNext: () => void }> = ({ bulk, on
                     )}
                   </td>
                   <td className={CELL}>
-                    {(order.prepared?.problem || order.blocked.length > 0) && order.prepared && (
+                    {order.prepared && !order.prepared.checks.shipTo && order.prepared.checks.mapped && order.blocked.length === 0 ? (
+                      // The customer's address is typed right here (nothing to reload, the order is checked again at once)
+                      <button type="button" className="text-sm font-medium text-primary-600 underline" onClick={() => setFixing(order)}>
+                        Fix
+                      </button>
+                    ) : (
+                      (order.prepared?.problem || order.blocked.length > 0) && order.prepared && (
                       // New tab: this page stays open and updates itself when the fix is saved there (see useBulkBook)
                       <Link target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-primary-600 underline" href={order.prepared.checks.mapped && order.blocked.length === 0 ? bookOrderHref(order.ref) : SKU_MAPPER_HREF}>
                         {order.prepared.checks.mapped && order.blocked.length === 0 ? 'Fix' : 'Map SKU'}
                       </Link>
+                      )
                     )}
                   </td>
                 </tr>
@@ -575,6 +584,12 @@ const ReviewStep: React.FC<{ bulk: BulkBook; onNext: () => void }> = ({ bulk, on
           </tbody>
         </table>
       </div>
+
+      <ShipToFixModal
+        order={fixing && { orderId: fixing.ref.orderId, shipTo: fixing.detail?.shipTo ?? null, shipToError: fixing.detail?.shipToError ?? null }}
+        onSave={(address) => fixing && bulk.setShipTo(fixing.key, address)}
+        onClose={() => setFixing(null)}
+      />
 
       {bulk.orders.some((order) => order.prepared?.problem) && <p className="text-xs text-text-muted">Fix and Map SKU open in a new tab. Save there and this page updates by itself: no reload needed.</p>}
 
