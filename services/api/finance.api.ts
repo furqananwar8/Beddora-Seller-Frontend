@@ -428,15 +428,24 @@ export interface PaymentRequestListParams extends PageParams {
   purchaseOrderId?: number
   /** Only the requests raised against this purchase invoice. */
   purchaseInvoiceId?: number
-  costCenterId?: number
+  /** Only requests booked to any of these expenses. */
+  costCenterIds?: number[]
   /** Only the requests of this batch. */
   batchId?: number
-  /** Only requests raised in a batch (`yes`) or on their own (`no`). */
-  batched?: 'yes' | 'no'
+  /** Only requests raised in a batch (`yes`) or on their own (`no`); both means all. */
+  batched?: Array<'yes' | 'no'>
   dateFrom?: string
   dateTo?: string
   scope?: 'mine' | 'all'
 }
+
+/** List/summary query string: multi-value filters travel as comma lists, empty ones are left out. */
+const paymentRequestParams = ({ costCenterIds, batched, ...params }: Partial<Omit<PaymentRequestListParams, 'search'>>, search?: string) => ({
+  ...params,
+  search: search || undefined,
+  costCenterIds: costCenterIds?.length ? costCenterIds.join(',') : undefined,
+  batched: batched?.length ? batched.join(',') : undefined,
+})
 
 export interface PaymentRequestSummary {
   byStatus: Record<RequestStatus, number>
@@ -819,11 +828,11 @@ export const financeApi = baseApi.injectEndpoints({
 
     /* payment requests */
     getPaymentRequests: b.query<Page<PaymentRequestListItem>, PaymentRequestListParams>({
-      query: ({ search, ...params }) => ({ url: '/finance/payment-requests', params: { ...params, search: search || undefined } }),
+      query: ({ search, ...params }) => ({ url: '/finance/payment-requests', params: paymentRequestParams(params, search) }),
       providesTags: ['FinanceRequests'],
     }),
     getPaymentRequestSummary: b.query<PaymentRequestSummary, Omit<PaymentRequestListParams, 'page' | 'limit' | 'status'>>({
-      query: ({ search, ...params }) => ({ url: '/finance/payment-requests/summary', params: { ...params, search: search || undefined } }),
+      query: ({ search, ...params }) => ({ url: '/finance/payment-requests/summary', params: paymentRequestParams(params, search) }),
       transformResponse: unwrap,
       providesTags: ['FinanceRequests'],
     }),

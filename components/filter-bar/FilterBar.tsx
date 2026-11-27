@@ -43,13 +43,40 @@ export const FunnelIcon: React.FC<{ className?: string }> = ({ className = 'h-4 
   </svg>
 )
 
+const ENTER_INPUT_TYPES = new Set(['text', 'search', 'number', 'email', 'tel', 'url', 'date', 'time', 'datetime-local', 'month', 'week'])
+
+/**
+ * True when Enter was pressed in a plain typing box that sits inside the bar itself. Menus and pickers render in
+ * portals: their events still bubble here through React but their DOM is outside, so they never count.
+ */
+export function isEnterToApply(event: React.KeyboardEvent<HTMLElement>): boolean {
+  const { target } = event
+  return (
+    event.key === 'Enter' &&
+    !event.defaultPrevented &&
+    !event.nativeEvent.isComposing &&
+    target instanceof HTMLInputElement &&
+    ENTER_INPUT_TYPES.has(target.type) &&
+    event.currentTarget.contains(target)
+  )
+}
+
+/** Props that make Enter in a typing box apply the filters; spread on any filter container that is not a {@link FilterBar}. */
+export const applyOnEnter = (onApply: () => void) => ({
+  onKeyDown: (event: React.KeyboardEvent<HTMLElement>) => {
+    if (!isEnterToApply(event)) return
+    event.preventDefault()
+    onApply()
+  },
+})
+
 /**
  * Filter boxes (wrap each in {@link FilterItem}) on a grid of equal columns that spans the full width:
  * as many columns as fit, every box the same width, a short last row keeps that width instead of stretching.
  * Below, on their own row, the "n filters changed · not applied yet" hint and Reset / Apply filters.
  */
 export const FilterBar: React.FC<FilterBarProps> = ({ children, pendingCount, activeCount, onApply, onReset, applyLabel = 'Apply filters', applyIcon }) => (
-  <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-[repeat(auto-fill,minmax(11rem,1fr))]">
+  <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-[repeat(auto-fill,minmax(11rem,1fr))]" {...applyOnEnter(onApply)}>
     {children}
     <div className="col-span-full flex flex-wrap items-center justify-end gap-2">
       {pendingCount > 0 && (

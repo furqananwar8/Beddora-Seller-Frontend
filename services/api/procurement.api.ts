@@ -6,6 +6,11 @@ interface Envelope<T> {
   data: T
 }
 
+export interface NotifiedPerson {
+  id: number
+  name: string
+}
+
 const unwrap = <T,>(response: Envelope<T>): T => response.data
 
 /* ─────────────── Products ─────────────── */
@@ -1002,6 +1007,7 @@ export interface SkuCostRow {
   color: string | null
   /** Brand: Ecommerce is Beddora, Retail is Northern Linen. */
   platform: ProductPlatform
+  upc?: string | null
   units: number
   cartons: number
   carton: { lengthCm: number | null; widthCm: number | null; heightCm: number | null }
@@ -1715,10 +1721,16 @@ export const procurementApi = baseApi.injectEndpoints({
       invalidatesTags: ['ProcurementContainers'],
     }),
     /** A packaging list asks for a container: a placeholder takes the list and the container team is notified. */
-    requestContainer: b.mutation<ContainerItem, { packagingListId: number }>({
+    requestContainer: b.mutation<ContainerItem & { notified: NotifiedPerson[] }, { packagingListId: number }>({
       query: (body) => ({ url: '/procurement/containers/request', method: 'POST', body }),
       transformResponse: unwrap,
       invalidatesTags: ['ProcurementContainers', 'ProcurementPackagingLists', 'ProcurementPurchaseOrders'],
+    }),
+    /** Who Request container will tell (the Approvals > Notifications rule, minus the asker). */
+    getContainerRequestRecipients: b.query<NotifiedPerson[], void>({
+      query: () => '/procurement/containers/request/recipients',
+      transformResponse: unwrap,
+      providesTags: ['ProcurementContainers'],
     }),
     /** Puts one more packaging list in a booked container. */
     addContainerPackagingList: b.mutation<ContainerItem, { id: number; packagingListId: number }>({
@@ -1892,6 +1904,7 @@ export const {
   useCreateContainerMutation,
   useUpdateContainerMutation,
   useRequestContainerMutation,
+  useGetContainerRequestRecipientsQuery,
   useAddContainerPackagingListMutation,
   useRemoveContainerPackagingListMutation,
   useGetPriceAnalysesQuery,

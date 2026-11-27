@@ -69,7 +69,7 @@ export const WarehouseInventoryScreen: React.FC = () => {
                 value={draft.search}
                 onChange={(event) => setDraft('search', event.target.value)}
                 onKeyDown={(event) => event.key === 'Enter' && filters.apply()}
-                placeholder="SKU, channel SKU, UPC or product name"
+                placeholder="SKU, channel SKU, UPC, ASIN or product name"
                 className={cn('ds-input ds-input-default rounded-lg', changed.has('search') && 'border-primary-500 ring-1 ring-primary-500')}
               />
             </FormField>

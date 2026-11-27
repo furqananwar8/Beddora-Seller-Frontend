@@ -55,7 +55,7 @@ export const ContainerFilterBar: React.FC<{ state: ContainerListState; idPrefix:
               type="search"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Container #, CID, BOL, PL #, PO # or SKU"
+              placeholder="Container #, CID, BOL, PL #, PO #, SKU, UPC or ASIN"
               className="ds-input ds-input-default rounded-lg"
             />
           </FormField>

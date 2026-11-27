@@ -370,7 +370,7 @@ export const InventoryPlannerScreen: React.FC<{ initialSearch?: string }> = ({ i
                 </svg>
                 <input
                   type="text"
-                  placeholder="Search"
+                  placeholder="Search SKU, UPC, ASIN or product name"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleApplyFilters()}

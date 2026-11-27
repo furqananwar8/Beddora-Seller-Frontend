@@ -17,5 +17,6 @@ export function useApiFeedback() {
   const error = useCallback((message: string) => dispatch(addNotification({ message, type: 'error' })), [dispatch])
   /** Neutral heads-up, e.g. "someone else just approved this". */
   const info = useCallback((message: string) => dispatch(addNotification({ message, type: 'info' })), [dispatch])
-  return { success, failure, error, info }
+  const warning = useCallback((message: string) => dispatch(addNotification({ message, type: 'warning' })), [dispatch])
+  return { success, failure, error, info, warning }
 }

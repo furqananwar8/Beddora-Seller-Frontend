@@ -7,6 +7,8 @@ import { DateRangeFilter } from '@/components/filters'
 import { ChartFilters, ChartPeriod } from '@/services/api/charts.api'
 import { Button } from '@/design-system/buttons'
 
+import { applyOnEnter } from '@/components/filter-bar/FilterBar'
+
 export interface FilterPanelProps {
   filters: ChartFilters
   onFiltersChange: (filters: ChartFilters) => void
@@ -48,7 +50,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
         <CardTitle>Trend Filters</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="space-y-4">
+        <div className="space-y-4" {...applyOnEnter(handleApplyFilters)}>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <Input
               label="SKU"

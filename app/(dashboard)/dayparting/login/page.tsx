@@ -6,13 +6,14 @@ import { Loader2 } from "lucide-react";
 import Image from "next/image";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
+import { useApiFeedback } from "@/hooks/useApiFeedback";
 import { useAmazonAuth } from "@/hooks/user-amazon-auth";
 
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const hasShownToast = useRef(false);
   const router = useRouter();
+  const toast = useApiFeedback();
   const searchParams = useSearchParams();
   const { isConnected } = useAmazonAuth();
 
@@ -82,37 +83,22 @@ export default function LoginPage() {
 
       switch (error) {
         case 'NOT_INVITED':
-          toast.error('Access Denied', {
-            description: message ? decodeURIComponent(message) : 'Your email is not invited. Please contact your admin.',
-            duration: 6000,
-          });
+          toast.error(`Access Denied: ${message ? decodeURIComponent(message) : 'Your email is not invited. Please contact your admin.'}`);
           break;
         case 'STATE_MISMATCH':
-          toast.error('Security Error', {
-            description: message ? decodeURIComponent(message) : 'Request validation failed. Please try again.',
-            duration: 4000,
-          });
+          toast.error(`Security Error: ${message ? decodeURIComponent(message) : 'Request validation failed. Please try again.'}`);
           break;
         case 'SESSION_EXPIRED':
-          toast.warning('Session Expired', {
-            description: 'Your session expired. Please try logging in again.',
-            duration: 4000,
-          });
+          toast.warning('Session Expired: Your session expired. Please try logging in again.');
           break;
         case 'INVALID_STATE':
-          toast.error('Security Error', {
-            description: 'Invalid request. Please try again.',
-            duration: 4000,
-          });
+          toast.error('Security Error: Invalid request. Please try again.');
           break;
         default:
-          toast.error('Authentication Failed', {
-            description: message ? decodeURIComponent(message) : 'Something went wrong. Please try again.',
-            duration: 4000,
-          });
+          toast.error(`Authentication Failed: ${message ? decodeURIComponent(message) : 'Something went wrong. Please try again.'}`);
       }
     }
-  }, [searchParams]);
+  }, [searchParams, toast]);
 
   const handleLoginWithAmazon = async () => {
     setLoading(true);
