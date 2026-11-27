@@ -85,6 +85,7 @@ export const variationSchema = z.object({
   material: z.string().trim().max(120, 'Too long'),
   packaging: z.string().trim().max(120, 'Too long'),
   sizeName: z.string().trim().max(60, 'Too long'),
+  construction: z.string().trim().max(60, 'Too long'),
   /** Starts from the master's HS code (see useHsCodeSync) and may be changed per SKU. */
   hsCode: hsCodeField,
   description: z.string().trim().max(2000, 'Description is too long'),
@@ -210,6 +211,7 @@ export function newVariation(
     material: master.material,
     packaging: master.packaging,
     sizeName: '',
+    construction: '',
     skus: [],
     // A new variation starts from the master's HS code
     hsCode: master.hsCode,
@@ -230,8 +232,8 @@ export function newVariation(
 /* ─────────────── Derived values ─────────────── */
 
 /** `Folding Side Table-Black-Medium`, built the same way the server builds it. */
-export const variantNameOf = (name: string, color: string, sizeName: string): string =>
-  [name, color, sizeName].map((part) => part.trim()).filter(Boolean).join('-')
+export const variantNameOf = (name: string, color: string, sizeName: string, construction = ''): string =>
+  [name, color, sizeName, construction].map((part) => part.trim()).filter(Boolean).join('-')
 
 /** The CBM to show: the user's override, else L×W×H in the current unit, else blank. */
 export function derivedCbm(values: { dimensions: string; cbm: string; cbmTouched: boolean }, unit: LengthUnit): string {
@@ -283,6 +285,7 @@ export function toProductBody(values: ProductFormValues, expectedUpdatedAt?: str
     material: text(variation.material),
     packaging: text(variation.packaging),
     sizeName: text(variation.sizeName),
+    construction: text(variation.construction),
     hsCode: text(variation.hsCode),
     description: text(variation.description),
     upc: text(variation.upc),
@@ -355,7 +358,7 @@ export function fromFamily(family: PoProductFamily, asCopy = false): ProductForm
     variations: family.variations.map((variation) => ({
       clientKey: crypto.randomUUID(),
       ...(asCopy ? {} : { id: variation.id }),
-      variantName: variation.variantName ?? variantNameOf(family.name, variation.color ?? '', variation.sizeName ?? ''),
+      variantName: variation.variantName ?? variantNameOf(family.name, variation.color ?? '', variation.sizeName ?? '', variation.construction ?? ''),
       skus: skusFrom(variation, asCopy),
       color: variation.color ?? '',
       platform: variation.platform,
@@ -363,6 +366,7 @@ export function fromFamily(family: PoProductFamily, asCopy = false): ProductForm
       material: variation.material ?? '',
       packaging: variation.packaging ?? '',
       sizeName: variation.sizeName ?? '',
+      construction: variation.construction ?? '',
       hsCode: variation.hsCode ?? '',
       description: variation.description ?? '',
       // A barcode identifies one item, so a copy starts without it (as with the SKU)

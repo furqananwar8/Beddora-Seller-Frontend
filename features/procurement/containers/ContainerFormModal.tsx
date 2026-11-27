@@ -18,13 +18,11 @@ import {
   useGetContainerPortsQuery,
   useGetContainerWarehousesQuery,
   type ContainerWarehouse,
-  useGetPackablePurchaseOrdersQuery,
   useUpdateContainerMutation,
   type ContainerBody,
   type ContainerField,
   type ContainerItem,
   type ContainerStatus,
-  type PackablePurchaseOrder,
   type PoCurrency,
   type PoDestination,
 } from '@/services/api/procurement.api'
@@ -52,8 +50,6 @@ const schema = z
     etd: z.string(),
     eta: z.string(),
     destination: z.enum(['US', 'CA']),
-    /** A new container takes its destination country from this purchase order; never sent, only picks the country. */
-    purchaseOrderId: z.number().nullable(),
     city: z.custom<GeoCity | null>(),
     portOfArrival: z.string().nullable(),
     /** The day it was shipped on board (yyyy-MM-dd), entered by hand. */
@@ -104,7 +100,6 @@ function valuesOf(container: ContainerItem | null | undefined, preset?: { destin
       etd: '',
       eta: '',
       destination: preset?.destination ?? 'US',
-      purchaseOrderId: null,
       city: null,
       portOfArrival: null,
       shippedOnBoardAt: '',
@@ -121,7 +116,6 @@ function valuesOf(container: ContainerItem | null | undefined, preset?: { destin
     etd: day(container.etd),
     eta: day(container.eta),
     destination: container.destination,
-    purchaseOrderId: null,
     city: container.destinationCity ? { name: container.destinationCity, provinceCode: container.destinationProvince ?? '' } : null,
     portOfArrival: container.portOfArrival,
     shippedOnBoardAt: day(container.shippedOnBoardAt),
@@ -178,27 +172,10 @@ export const ContainerFormModal: React.FC<ContainerFormModalProps> = ({ isOpen, 
   }, [isOpen, container?.id])
 
   const destination = useWatch({ control, name: 'destination' })
-  const purchaseOrderId = useWatch({ control, name: 'purchaseOrderId' })
   const etd = useWatch({ control, name: 'etd' })
   const cities = useCitySearch(destination)
   const { data: ports = [], isFetching: loadingPorts } = useGetContainerPortsQuery(destination, { skip: !isOpen })
   const { data: warehouses = [], isFetching: loadingWarehouses } = useGetContainerWarehousesQuery(undefined, { skip: !isOpen })
-
-  // A new container's country comes from its purchase order (or the packaging list it was opened from): read-only
-  const countryFromOrder = !container && !preset
-  const { data: poOptions = [], isFetching: loadingPos } = useGetPackablePurchaseOrdersQuery({}, { skip: !isOpen || !countryFromOrder })
-  const countryKnown = !countryFromOrder || purchaseOrderId !== null
-
-  /** Picking the purchase order sets the country (and the currency of it); city and port are then picked for that country. */
-  const pickPurchaseOrder = (po: PackablePurchaseOrder) => {
-    setValue('purchaseOrderId', po.id, { shouldValidate: true })
-    if (po.destination !== destination) {
-      setValue('destination', po.destination)
-      setValue('currency', po.destination === 'CA' ? 'CAD' : 'USD')
-    }
-    setValue('city', null)
-    setValue('portOfArrival', null)
-  }
 
   /** A container ships to one country: its city and port belong to that country. */
   const changeDestination = (next: PoDestination) => {
@@ -210,7 +187,6 @@ export const ContainerFormModal: React.FC<ContainerFormModalProps> = ({ isOpen, 
   }
 
   const submit = handleSubmit(async (values) => {
-    if (countryFromOrder && values.purchaseOrderId === null) return setError('purchaseOrderId', { message: 'Pick the purchase order this container carries' })
     const body: ContainerBody = {
       containerNumber: nullable(values.containerNumber.replace(/\s+/g, '').toUpperCase()),
       billOfLading: nullable(values.billOfLading),
@@ -292,41 +268,10 @@ export const ContainerFormModal: React.FC<ContainerFormModalProps> = ({ isOpen, 
             />
           </FormField>
 
-          {countryFromOrder && (
-            <FormField label="Purchase order" htmlFor="ct-po" required error={errors.purchaseOrderId?.message} hint="Its destination sets the country of this container">
-              <Controller
-                control={control}
-                name="purchaseOrderId"
-                render={({ field }) => (
-                  <SearchableSelect<PackablePurchaseOrder>
-                    id="ct-po"
-                    value={poOptions.find((po) => po.id === field.value) ?? null}
-                    onChange={pickPurchaseOrder}
-                    options={poOptions}
-                    getKey={(po) => po.id}
-                    getLabel={(po) => `${po.poNo} ${po.supplier.name}`}
-                    renderOption={(po) => (
-                      <span className="flex items-center justify-between gap-3">
-                        <span className="font-medium">
-                          {po.poNo} <span className="font-normal text-text-secondary">· {po.supplier.name}</span>
-                        </span>
-                        <span className="text-xs text-text-muted">{DESTINATION_LABEL[po.destination]}</span>
-                      </span>
-                    )}
-                    loading={loadingPos}
-                    placeholder="Select the purchase order"
-                    searchPlaceholder="PO number or supplier..."
-                    emptyText="No purchase order to ship."
-                    error={errors.purchaseOrderId?.message}
-                  />
-                )}
-              />
-            </FormField>
-          )}
-          <FormField label="Destination country" error={errors.destination?.message} hint={countryFromOrder ? 'From the purchase order; it cannot be changed here' : preset && !container ? 'The packaging list ships here' : undefined}>
-            {countryFromOrder || (Boolean(preset) && !container) ? (
-              // Taken from the purchase order (or the packaging list): shown, never typed
-              <input readOnly tabIndex={-1} aria-label="Destination country" value={countryKnown ? DESTINATION_LABEL[destination] : ''} placeholder="Set by the purchase order" className={cn(fieldClass(errors.destination?.message), 'cursor-not-allowed bg-secondary-50')} />
+          <FormField label="Destination country" error={errors.destination?.message} hint={preset && !container ? 'The packaging list ships here' : undefined}>
+            {Boolean(preset) && !container ? (
+              // Taken from the packaging list: shown, never typed
+              <input readOnly tabIndex={-1} aria-label="Destination country" value={DESTINATION_LABEL[destination]} className={cn(fieldClass(errors.destination?.message), 'cursor-not-allowed bg-secondary-50')} />
             ) : (
               <SegmentedToggle<PoDestination> ariaLabel="Destination country" value={destination} onChange={changeDestination} options={DESTINATION_OPTIONS} disabled={locked('destination')} />
             )}
@@ -351,7 +296,7 @@ export const ContainerFormModal: React.FC<ContainerFormModalProps> = ({ isOpen, 
                   searchPlaceholder="Search cities..."
                   emptyText="No city by that name here."
                   error={errors.city?.message}
-                  disabled={locked('destinationCity') || !countryKnown}
+                  disabled={locked('destinationCity')}
                 />
               )}
             />
@@ -373,7 +318,7 @@ export const ContainerFormModal: React.FC<ContainerFormModalProps> = ({ isOpen, 
                   placeholder="Select port"
                   searchPlaceholder="Search ports..."
                   error={errors.portOfArrival?.message}
-                  disabled={locked('portOfArrival') || !countryKnown}
+                  disabled={locked('portOfArrival')}
                 />
               )}
             />

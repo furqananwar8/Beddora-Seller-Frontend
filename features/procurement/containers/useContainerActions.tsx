@@ -9,6 +9,7 @@ import { useAppAbility } from '@/hooks/useAppAbility'
 import { useDeleteContainerMutation, type ContainerItem } from '@/services/api/procurement.api'
 import { downloadApiFile } from '@/utils/downloadFile'
 import { isLockedStatus } from '../shared/poMeta'
+import { MarkFinalModal } from './MarkFinalModal'
 import { PackagingListsModal } from './PackagingListsModal'
 import { ContainerFormModal } from './ContainerFormModal'
 import { CONTAINER_ROUTES } from './routes'
@@ -44,6 +45,7 @@ export function useContainerActions() {
   const [creating, setCreating] = useState(false)
   const [editing, setEditing] = useState<ContainerItem | null>(null)
   const [changingList, setChangingList] = useState<ContainerItem | null>(null)
+  const [finishing, setFinishing] = useState<ContainerItem | null>(null)
   const downloadList = async (list: { id: number; plNo: string }) => {
     try {
       await downloadApiFile(`/procurement/packaging-lists/${list.id}/pdf`, `${list.plNo.replace('#', '')}.pdf`)
@@ -61,6 +63,8 @@ export function useContainerActions() {
       ...(canWrite
         ? [{ key: 'edit', label: container.needsDetails ? 'Add container details' : 'Edit container', onSelect: () => setEditing(container), disabled: delivered, disabledReason: 'A container delivered to the warehouse cannot change' }]
         : []),
+      // Opens the delivery choice; a container missing details or a packaging list is asked to fill them in first
+      ...(canWrite ? [{ key: 'final', label: 'Mark as final', onSelect: () => setFinishing(container), disabled: !permissions.canMarkFinal, disabledReason: 'This container is already final' }] : []),
       ...(canAssign
         ? [
             {
@@ -84,6 +88,7 @@ export function useContainerActions() {
     <>
       <ContainerFormModal isOpen={creating || editing !== null} container={editing} onClose={() => (setCreating(false), setEditing(null))} />
       <PackagingListsModal container={changingList} onClose={() => setChangingList(null)} />
+      <MarkFinalModal container={finishing} onClose={() => setFinishing(null)} onFillIn={setEditing} />
       <ConfirmDialog isOpen={deleting !== null} title={`Delete ${deleting?.container.containerNo ?? 'container'}?`} confirmLabel="Delete container" tone="danger" busy={deleteState.isLoading} onConfirm={confirmDelete} onClose={() => setDeleting(null)}>
         The booking is deleted for good. A container with packaging lists or payment requests, or one already on its way, cannot be deleted.
       </ConfirmDialog>

@@ -179,12 +179,14 @@ const AddBatchForm: React.FC<{ po: PurchaseOrderDetail; onDone: () => void }> = 
 
 interface PoBatchesPanelProps {
   purchaseOrderId: number
-  /** Offers "Add batch" (the PO detail); the list's expanded row only shows the batches. */
+  /** Offers "Add batch" (the PO detail and the list's expanded row). */
   withAdd?: boolean
+  /** The PO's production date under the table; the PO detail shows it elsewhere. */
+  showProductionDate?: boolean
 }
 
 /** The batches of an approved PO: production date, status, units, packing list. */
-export const PoBatchesPanel: React.FC<PoBatchesPanelProps> = ({ purchaseOrderId, withAdd }) => {
+export const PoBatchesPanel: React.FC<PoBatchesPanelProps> = ({ purchaseOrderId, withAdd, showProductionDate = !withAdd }) => {
   const { data: po, isLoading, isError } = useGetProcurementPurchaseOrderQuery(purchaseOrderId)
   const [adding, setAdding] = useState(false)
   if (isLoading) return <div className="flex justify-center py-4"><Spinner /></div>
@@ -220,7 +222,7 @@ export const PoBatchesPanel: React.FC<PoBatchesPanelProps> = ({ purchaseOrderId,
           </Button>
         </div>
       ))}
-      {!withAdd && po.productionDate && <p className="text-xs text-text-muted">PO production date: {formatCalendarDay(po.productionDate)} (the earliest batch)</p>}
+      {showProductionDate && po.productionDate && <p className="text-xs text-text-muted">PO production date: {formatCalendarDay(po.productionDate)} (the earliest batch)</p>}
     </div>
   )
 }

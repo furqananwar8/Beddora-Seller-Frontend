@@ -56,6 +56,7 @@ export const ProductSpecs: React.FC<{ product: PoProduct; className?: string }> 
       <Spec label="Color">{product.color}</Spec>
       <Spec label="Material">{product.material}</Spec>
       <Spec label="Size">{product.sizeName}</Spec>
+      <Spec label="Construction">{product.construction}</Spec>
       <Spec label="Packaging">{product.packaging}</Spec>
       <Spec label="Category">{product.category?.name}</Spec>
       <Spec label="Weight">{formatWeight(product.weightKg, product.weightUnit)}</Spec>

@@ -17,6 +17,7 @@ import { useReportExport } from '@/hooks/useReportExport'
 import { formatCbmPerPiece } from '@/utils/cartonMetrics'
 import { useGetSkuLandedQuery, type InboundChannel, type LandedAmounts, type OpexCountry, type SkuLandedRow } from '@/services/api/procurement.api'
 import { cn } from '@/utils/cn'
+import { PlatformBadge } from '../../shared/platformMeta'
 import { OpexMappingModal } from './OpexMappingModal'
 import { WarehouseOverheadModal } from './WarehouseOverheadModal'
 import { defaultSkuLandedFilters, todayDay } from './skuLandedFilters'
@@ -56,6 +57,7 @@ const columnsFor = (shipmentCurrency: string, opexCurrency: string): TreeColumn<
       </div>
     ),
   },
+  { key: 'brand', header: 'Brand', render: (row) => <PlatformBadge platform={row.product.platform} /> },
   { key: 'landedCad', header: 'Landed Cost (CAD)', render: landed('CAD') },
   { key: 'landedUsd', header: 'Landed Cost (USA)', render: landed('USD') },
   ...SHIPMENT_COLUMNS.map(({ channel, header }): TreeColumn<SkuLandedRow> => ({

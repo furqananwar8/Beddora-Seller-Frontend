@@ -184,10 +184,13 @@ export const VariationsSection: React.FC<VariationsSectionProps> = ({ form, prod
                     <Field label="Size" error={err?.sizeName?.message}>
                       <input aria-label="Size" placeholder="e.g. Large" className={input(err?.sizeName?.message)} disabled={readOnly} {...register(`variations.${index}.sizeName`)} />
                     </Field>
+                    <Field label="Construction" error={err?.construction?.message}>
+                      <input aria-label="Construction" placeholder="e.g. Knit" className={input(err?.construction?.message)} disabled={readOnly} {...register(`variations.${index}.construction`)} />
+                    </Field>
                     <Field label="Dimensions" error={err?.productDimensions?.message} note="The product itself (e.g. the sheet); packed dimensions are below">
                       <input aria-label="Dimensions" autoComplete="off" placeholder="e.g. 90 x 100 in" className={input(err?.productDimensions?.message)} disabled={readOnly} {...register(`variations.${index}.productDimensions`)} />
                     </Field>
-                    <Field label="Platform *" error={err?.platform?.message} note="Containers show it as their Brand">
+                    <Field label="Brand *" error={err?.platform?.message} note="Beddora (Ecommerce) or Northern Linen (Retail)">
                       <Controller control={control} name={`variations.${index}.platform`} render={({ field: p }) => <PlatformRadio id={`variation-${index}-platform`} value={p.value} onChange={p.onChange} disabled={readOnly} />} />
                     </Field>
                     <Field label="Material" error={err?.material?.message}>
