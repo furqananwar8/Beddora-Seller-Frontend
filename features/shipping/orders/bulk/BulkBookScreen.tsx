@@ -165,8 +165,14 @@ const PackageEditor: React.FC<{ row: BulkRow; bulk: BulkBook }> = ({ row, bulk }
   )
 }
 
-/** The Ship to column: the full address, not just the city (name, street, city, phone, home or business), or why it is missing. */
-const ShipToCell: React.FC<{ detail: OrderRow['detail'] }> = ({ detail }) => {
+const EditLink: React.FC<{ onClick: () => void; label?: string }> = ({ onClick, label = 'Edit' }) => (
+  <button type="button" className="text-xs font-medium text-primary-600 underline" onClick={onClick}>
+    {label}
+  </button>
+)
+
+/** The Ship to column: the full address, not just the city (name, street, city, phone, home or business), or why it is missing. `onEdit` opens the address dialog. */
+const ShipToCell: React.FC<{ detail: OrderRow['detail']; onEdit?: () => void }> = ({ detail, onEdit }) => {
   const to = detail?.shipTo
   if (!detail) return <span className="text-text-muted">—</span>
   return (
@@ -187,6 +193,7 @@ const ShipToCell: React.FC<{ detail: OrderRow['detail'] }> = ({ detail }) => {
         <span className="text-danger-600">No ship-to address</span>
       )}
       {detail.shipToError && <span className="block text-warning-700">{detail.shipToError}</span>}
+      {onEdit && <EditLink onClick={onEdit} label="Edit address" />}
     </div>
   )
 }
@@ -452,7 +459,7 @@ const ReviewStep: React.FC<{ bulk: BulkBook; onNext: () => void }> = ({ bulk, on
                     </div>
                   </td>
                   <td className={`${CELL} !text-left`}>
-                    <ShipToCell detail={order.detail} />
+                    <ShipToCell detail={order.detail} onEdit={order.free.length > 0 ? () => setFixing({ order, kind: 'shipTo' }) : undefined} />
                   </td>
                   {order.loadError ? (
                     <td className={CELL} colSpan={8}>
@@ -482,6 +489,11 @@ const ReviewStep: React.FC<{ bulk: BulkBook; onNext: () => void }> = ({ bulk, on
                       </td>
                       <td className={CELL}>
                         <Mark ok={checks.customs} />
+                        {order.free.length > 0 && order.detail.lines.some((line) => line.product) && (
+                          <span className="mt-1 block">
+                            <EditLink onClick={() => setFixing({ order, kind: 'customs' })} />
+                          </span>
+                        )}
                       </td>
                     </>
                   )}
