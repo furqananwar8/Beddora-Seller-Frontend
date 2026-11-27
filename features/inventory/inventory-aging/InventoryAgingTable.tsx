@@ -7,8 +7,19 @@ import { MarketplaceFlag } from '@/components/marketplace-flag/MarketPlaceFlag'
 import { Table, TABLE_STATUS_VIEWPORT, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow, TableStatusRow } from '@/design-system/tables'
 import type { AgingSortColumn, InventoryAgingReport, InventoryAgingRow, SortOrder } from '@/services/api/inventoryAging.api'
 import { cn } from '@/utils/cn'
+import { amazonProductUrl } from '@/utils/marketplaces'
 import { useColumnResize } from '@/hooks/useColumnResize'
 import { ColumnResizeHandle, columnWidthStyle, fillRemainingWidth } from '@/components/column-resize-handle/ColumnResizeHandle'
+
+/** Opens the listing's Amazon product page in a new tab; plain text when the row has no ASIN. */
+const ProductLink: React.FC<{ row: InventoryAgingRow; children: React.ReactNode }> = ({ row, children }) =>
+  row.asin ? (
+    <a href={amazonProductUrl(row.asin, row.marketplace)} target="_blank" rel="noopener noreferrer" className="hover:text-primary-600 hover:underline">
+      {children}
+    </a>
+  ) : (
+    <>{children}</>
+  )
 
 /** Every body cell is centred both ways. */
 const CELL = 'text-center align-middle'
@@ -121,12 +132,14 @@ export const InventoryAgingTable: React.FC<InventoryAgingTableProps> = ({ report
                     <div className="flex w-0 min-w-full items-start gap-2">
                       <MarketplaceFlag marketplace={row.marketplace} />
                       <div className="min-w-0 flex-1 overflow-hidden">
-                        <p className="truncate font-mono text-xs font-semibold text-text-primary" title={row.sellerSku}>{row.sellerSku}</p>
+                        <p className="truncate font-mono text-xs font-semibold text-text-primary" title={row.sellerSku}>
+                          <ProductLink row={row}>{row.sellerSku}</ProductLink>
+                        </p>
                         {row.productName && <p className="line-clamp-2 break-words text-xs text-text-secondary">{row.productName}</p>}
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell className={cn(CELL, 'font-mono text-xs')}>{row.asin || '—'}</TableCell>
+                  <TableCell className={cn(CELL, 'font-mono text-xs')}><ProductLink row={row}>{row.asin || '—'}</ProductLink></TableCell>
                   <TableCell className={cn(NUM, 'font-semibold')}>{row.available.toLocaleString()}</TableCell>
                   <TableCell className={NUM}>{units(row.reserved)}</TableCell>
                   {buckets.map((bucket) => {
