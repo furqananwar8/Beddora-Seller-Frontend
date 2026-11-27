@@ -120,8 +120,6 @@ export default function ReportSyncManagementPage() {
         </p>
       </div>
 
-      <TiktokConnectionCard />
-
       <SyncManagementTable
         isBusy={isBusy}
         busyText={busyText}
@@ -137,7 +135,10 @@ export default function ReportSyncManagementPage() {
             onDateChange: (key, range) => (key === CAMPAIGN_SYNC_KEY ? campaign.updateRowDate(key, range) : amazon.updateRowDate(key, range)),
             isLoading: amazon.isLoading,
           },
-          ...channels.map(({ config, sync }) => toChannelSyncGroup(config, sync)),
+          ...channels.map(({ config, sync }) => ({
+            ...toChannelSyncGroup(config, sync),
+            header: config === CHANNEL_SYNC_GROUPS.tiktok ? <TiktokConnectionCard /> : undefined,
+          })),
         ]}
       />
 
