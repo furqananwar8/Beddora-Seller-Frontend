@@ -255,7 +255,7 @@ const EventEditor: React.FC<EditorProps> = ({ event, tabs, users, departments, r
                       onAdd={(picked) => set({ users: [...who.users, ...picked.map((option) => Number(option.key))] })}
                       empty="Everyone is already picked."
                       disabled={off}
-                      width="w-64"
+                      width="w-80"
                     />
                   )}
                   {who.users.map((id) => {

@@ -183,9 +183,10 @@ export function AddPicker<T extends PickOption>({ label, options, onAdd, disable
         onChange={setPicked}
         renderValue={(value) => `${label.replace(/^\+\s*/, '')} · ${value.length} selected`}
         renderOption={(option) => (
-          <span className="flex min-w-0 flex-1 items-center justify-between gap-2">
-            <span className="truncate">{option.label}</span>
-            {option.hint && <span className="shrink-0 text-xs text-slate-500">{option.hint}</span>}
+          // Name on the first line, whole; the hint (an email) under it, so a long name is never cut off
+          <span className="flex min-w-0 flex-1 flex-col">
+            <span className="break-words">{option.label}</span>
+            {option.hint && <span className="break-all text-xs text-slate-500">{option.hint}</span>}
           </span>
         )}
         // Closing the menu (Done, Escape or a click outside) adds what was ticked
