@@ -21,6 +21,8 @@ import {
   useGetEmailSummaryQuery,
   useGetEmailTemplatesQuery,
   useResendEmailsMutation,
+  useDeleteEmailsMutation,
+  type DeleteEmailsBody,
   type EmailListParams,
   type EmailRow,
   type EmailStatus,
@@ -87,6 +89,9 @@ const EmailWorkspace: React.FC = () => {
   const [allFailed, setAllFailed] = useState(false)
   const [historyId, setHistoryId] = useState<number | null>(null)
   const [confirming, setConfirming] = useState<{ target: ResendBody; sent: number } | null>(null)
+  /** "Select all N in this view": every email the filters show, also on other pages (for Delete). */
+  const [allMatching, setAllMatching] = useState(false)
+  const [deleting, setDeleting] = useState<{ target: DeleteEmailsBody; count: number } | null>(null)
 
   const listParams = useMemo<EmailListParams>(
     () => ({ page, limit: pageSize, status: tab === 'BACKLOG' ? 'ALL' : tab, search: search.trim() || undefined, template: template || undefined, from: range.startDate || undefined, to: range.endDate || undefined }),
@@ -98,16 +103,18 @@ const EmailWorkspace: React.FC = () => {
   const eventOptions = useMemo(() => (templates ?? []).map((item) => ({ value: item.template, label: item.label })), [templates])
   const { data, isLoading, isFetching, isError } = useGetEmailsQuery(listParams, { skip: tab === 'BACKLOG' })
   const [resend, { isLoading: resending }] = useResendEmailsMutation()
+  const [deleteEmails, { isLoading: removing }] = useDeleteEmailsMutation()
   const flashIds = useEmailLive(listParams)
 
   const rows = useMemo(() => data?.data ?? [], [data])
   const selectedRows = rows.filter((row) => selected.has(row.id))
-  const selectedCount = allFailed ? (summary?.failed ?? 0) : selected.size
+  const selectedCount = allMatching ? (data?.totalRecords ?? 0) : allFailed ? (summary?.failed ?? 0) : selected.size
   const sentSelected = allFailed ? 0 : selectedRows.filter((row) => row.status === 'SENT').length
 
   const clearSelection = () => {
     clear()
     setAllFailed(false)
+    setAllMatching(false)
   }
   /** Changing what the list shows starts it again from page one with nothing ticked. */
   const refilter = (change: () => void) => {
@@ -127,6 +134,26 @@ const EmailWorkspace: React.FC = () => {
       setConfirming(null)
     }
   }
+  /** What Delete takes: the ticked emails, or everything the filters show. */
+  const deleteTarget = (): DeleteEmailsBody =>
+    allMatching
+      ? { matching: { status: listParams.status, search: listParams.search, template: listParams.template, from: listParams.from, to: listParams.to } }
+      : allFailed
+        ? { matching: { status: 'FAILED' } }
+        : { ids: [...selected] }
+  const confirmDelete = async () => {
+    if (!deleting) return
+    try {
+      const result = await deleteEmails(deleting.target).unwrap()
+      success(`${result.deleted.toLocaleString('en-CA')} email${result.deleted === 1 ? '' : 's'} deleted${result.skippedQueued ? `. ${result.skippedQueued} still queued were left alone` : ''}`)
+      clearSelection()
+    } catch (error) {
+      failure(error, 'Could not delete the emails')
+    } finally {
+      setDeleting(null)
+    }
+  }
+
   /** Emails already delivered ask first, since the person gets them twice. */
   const requestResend = (target: ResendBody, sent: number) => (sent > 0 ? setConfirming({ target, sent }) : void run(target))
 
@@ -179,13 +206,29 @@ const EmailWorkspace: React.FC = () => {
 
           {selectedCount > 0 && (
             <EmailBulkBar summary={`${selectedCount.toLocaleString('en-CA')} selected`} note={sentSelected > 0 ? `${sentSelected} sent email${sentSelected === 1 ? '' : 's'} in the selection will ask for confirmation` : 'Resend sends the email again, even if it was sent before'}>
-              <Button type="button" size="sm" variant="outline" className="bg-white" isLoading={resending} onClick={() => requestResend(allFailed ? { allFailed: true } : { ids: [...selected] }, sentSelected)}>
-                Resend selected
+              {!allMatching && (
+                <Button type="button" size="sm" variant="outline" className="bg-white" isLoading={resending} onClick={() => requestResend(allFailed ? { allFailed: true } : { ids: [...selected] }, sentSelected)}>
+                  Resend selected
+                </Button>
+              )}
+              <Button type="button" size="sm" variant="outline" className="bg-white text-danger-600" onClick={() => setDeleting({ target: deleteTarget(), count: selectedCount })}>
+                Delete selected
               </Button>
+              {!allMatching && !allFailed && (data?.totalRecords ?? 0) > rows.length && (
+                <BulkLink
+                  onClick={() => {
+                    clear()
+                    setAllMatching(true)
+                  }}
+                >
+                  Select all {data?.totalRecords.toLocaleString('en-CA')} in this view
+                </BulkLink>
+              )}
               {!allFailed && (summary?.failed ?? 0) > 0 && (
                 <BulkLink
                   onClick={() => {
                     clear()
+                    setAllMatching(false)
                     setAllFailed(true)
                   }}
                 >
@@ -202,18 +245,20 @@ const EmailWorkspace: React.FC = () => {
               loading={isLoading}
               error={isError}
               emptyText={filtered || status ? 'No email matches.' : 'No email has been sent yet.'}
-              isChecked={(row) => (allFailed ? row.status === 'FAILED' : selected.has(row.id))}
+              isChecked={(row) => (allMatching ? true : allFailed ? row.status === 'FAILED' : selected.has(row.id))}
               onToggle={(row) => {
-                if (allFailed) clearSelection()
+                if (allFailed || allMatching) clearSelection()
                 toggle(row.id)
               }}
               onToggleAll={(on) => {
                 setAllFailed(false)
+                setAllMatching(false)
                 setAll(rows.map((row) => row.id), on)
               }}
               flashIds={flashIds}
               onHistory={(row) => setHistoryId(row.id)}
               onResend={(row) => requestResend({ ids: [row.id] }, row.status === 'SENT' ? 1 : 0)}
+              onDelete={(row) => setDeleting({ target: { ids: [row.id] }, count: 1 })}
               onCopy={copyRecipient}
             />
             {data && data.totalRecords > 0 && (
@@ -234,6 +279,10 @@ const EmailWorkspace: React.FC = () => {
       )}
 
       <EmailHistoryDialog emailId={historyId} busy={resending} onResend={(id, emailStatus) => requestResend({ ids: [id] }, emailStatus === 'SENT' ? 1 : 0)} onClose={() => setHistoryId(null)} />
+
+      <ConfirmDialog isOpen={deleting !== null} title={`Delete ${deleting?.count === 1 ? 'this email' : `${deleting?.count.toLocaleString('en-CA')} emails`}?`} confirmLabel="Delete" tone="danger" busy={removing} onConfirm={() => void confirmDelete()} onClose={() => setDeleting(null)}>
+        The {deleting?.count === 1 ? 'email is' : 'emails are'} removed from this list for good, with their delivery history. Nothing is sent or recalled: a delivered email stays delivered. Emails still queued are left alone.
+      </ConfirmDialog>
 
       <ConfirmDialog isOpen={confirming !== null} title="Send these emails again?" confirmLabel="Resend anyway" busy={resending} onConfirm={() => confirming && run({ ...confirming.target, includeSent: true })} onClose={() => setConfirming(null)}>
         {confirming?.sent === 1 ? 'This email was already delivered.' : `${confirming?.sent} of these emails were already delivered.`} Sending again means the person gets it twice. Every send is kept in its delivery history.

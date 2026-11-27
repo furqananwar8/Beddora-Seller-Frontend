@@ -10,7 +10,6 @@ import DateRangePicker, { DateRangePreset, DateRangeValue } from '@/components/d
 import { PaginationFooter } from '@/components/pagination-footer/PaginationFooter'
 import { Button } from '@/design-system/buttons'
 import { ExportExcelButton } from '@/components/export-button/ExportExcelButton'
-import { Tabs } from '@/design-system/tabs'
 import { FilterBar, FilterItem, FILL_PICKER } from '@/components/filter-bar/FilterBar'
 import { FilterMultiSelect } from '@/components/filter-bar/FilterMultiSelect'
 import { useStagedFilters } from '@/components/filter-bar/useStagedFilters'
@@ -37,23 +36,15 @@ import { useRequestActions } from './useRequestActions'
 import { usePageSize } from '@/hooks/usePageSize'
 const PAGE_SIZE = 10
 
-/** A status, or approved requests split by whether their payment is marked paid. */
-type TabId = RequestStatus | RequestPaymentFilter | 'ALL'
+/** The Status filter's choices: a status, or approved requests split by whether their payment is marked paid. */
+const PAYMENT_CHOICES: ReadonlySet<string> = new Set<RequestPaymentFilter>(['PAID', 'UNPAID'])
+const STATUS_CHOICES: ReadonlySet<string> = new Set<RequestStatus>(['PENDING_APPROVAL', 'APPROVED', 'REJECTED', 'DRAFT'])
 
-const PAYMENT_TABS: ReadonlySet<TabId> = new Set<RequestPaymentFilter>(['PAID', 'UNPAID'])
-
-/** Tabs a link may open (`?tab=`). */
-const TAB_IDS: ReadonlySet<TabId> = new Set<TabId>(['PENDING_APPROVAL', 'APPROVED', 'PAID', 'UNPAID', 'REJECTED', 'ALL', 'DRAFT'])
+/** A link may open the list on one choice (`?tab=`); ALL (or anything else) leaves the filter empty. */
+const choicesFromTab = (tab: string | null): string[] => (tab && (PAYMENT_CHOICES.has(tab) || STATUS_CHOICES.has(tab)) ? [tab] : [])
 
 /** No date range: every request, whenever it was raised. */
 const ANY_DATE: DateRangeValue = { startDate: null, endDate: null, presetId: null }
-
-/** The list filters a tab stands for. */
-const tabFilters = (tab: TabId): Pick<PaymentRequestListParams, 'status' | 'payment' | 'scope'> => {
-  if (tab === 'ALL') return {}
-  if (PAYMENT_TABS.has(tab)) return { payment: tab as RequestPaymentFilter }
-  return { status: tab as RequestStatus, scope: tab === 'DRAFT' ? 'mine' : undefined }
-}
 
 const FILTER_PRESETS: DateRangePreset[] = [
   {
@@ -86,12 +77,14 @@ function rangeFor(range: DateRangeValue): { dateFrom?: string; dateTo?: string }
 /** The boxes of the filter bar; ids of the multi-selects are strings. */
 interface ListFilters extends Record<string, unknown> {
   search: string
+  /** Status and payment choices; empty is ALL. */
+  statuses: string[]
   costCenterIds: string[]
   batched: string[]
   dateRange: DateRangeValue
 }
 
-const DEFAULT_FILTERS: ListFilters = { search: '', costCenterIds: [], batched: [], dateRange: THIS_MONTH }
+const DEFAULT_FILTERS: ListFilters = { search: '', statuses: [], costCenterIds: [], batched: [], dateRange: THIS_MONTH }
 
 const BATCH_OPTIONS = [
   { value: 'yes', label: 'Batched' },
@@ -111,7 +104,7 @@ export const PaymentRequestScreen: React.FC = () => {
   // A link to one request (`?highlight=`): its row is marked and scrolled to, on the tab the link names, whenever it was raised
   const highlightParam = Number(searchParams.get('highlight'))
   const highlightId = Number.isInteger(highlightParam) && highlightParam > 0 ? highlightParam : null
-  const tabParam = searchParams.get('tab') as TabId | null
+  const tabParam = searchParams.get('tab')
   // "View payment requests" on a purchase order opens this list narrowed to that PO
   const poParam = Number(searchParams.get('purchaseOrderId'))
   const purchaseOrderId = Number.isInteger(poParam) && poParam > 0 ? poParam : null
@@ -141,20 +134,18 @@ export const PaymentRequestScreen: React.FC = () => {
   const pickerIsCustom = !pickerRange.presetId || pickerRange.presetId === 'custom'
   const [page, setPage] = useState(1)
   const pageSize = usePageSize(PAGE_SIZE)
-  const [chosenTab, setChosenTab] = useState<TabId | null>(() => (tabParam && TAB_IDS.has(tabParam) ? tabParam : highlightId ? 'ALL' : null))
   const [rejectId, setRejectId] = useState<number | null>(null)
   const [deleteId, setDeleteId] = useState<number | null>(null)
   const [busyId, setBusyId] = useState<number | null>(null)
   const [showTypes, setShowTypes] = useState(false)
 
   // A link can start the list filtered, e.g. a container's page opens its container number here
-  const initialFilters = useMemo<ListFilters>(() => ({ ...DEFAULT_FILTERS, search: searchParams.get('search') ?? '', dateRange: startRange }), []) // eslint-disable-line react-hooks/exhaustive-deps
-  // Search, expense, batch and date only reach the lists on Apply filters (the status tabs stay instant)
+  const initialFilters = useMemo<ListFilters>(() => ({ ...DEFAULT_FILTERS, search: searchParams.get('search') ?? '', statuses: choicesFromTab(tabParam), dateRange: startRange }), []) // eslint-disable-line react-hooks/exhaustive-deps
+  // Search, status, expense, batch and date only reach the lists on Apply filters
   const staged = useStagedFilters(DEFAULT_FILTERS, () => setPage(1), initialFilters)
   const { draft, applied, setDraft, changed } = staged
   const box = (key: keyof ListFilters) => changed.has(key)
 
-  const tab: TabId = chosenTab ?? 'ALL'
   const actions = useRequestActions()
   const { data: costCenters } = useGetLeafCostCentersQuery()
 
@@ -171,7 +162,8 @@ export const PaymentRequestScreen: React.FC = () => {
     ...filters,
     page,
     limit: pageSize,
-    ...tabFilters(tab),
+    statuses: applied.statuses.filter((one) => STATUS_CHOICES.has(one)) as RequestStatus[],
+    payments: applied.statuses.filter((one) => PAYMENT_CHOICES.has(one)) as RequestPaymentFilter[],
   }
 
   const { data, isLoading, isFetching, isError } = useGetPaymentRequestsQuery(listParams)
@@ -179,14 +171,13 @@ export const PaymentRequestScreen: React.FC = () => {
   const rows = data?.data ?? []
 
   const count = (value?: number) => (value === undefined ? '' : ` ${value}`)
-  const tabs = [
-    { id: 'ALL', label: `ALL${count(summary?.all)}` },
-    { id: 'PENDING_APPROVAL', label: `PENDING FOR APPROVAL${count(summary?.byStatus.PENDING_APPROVAL)}` },
-    { id: 'APPROVED', label: `APPROVED${count(summary?.byStatus.APPROVED)}` },
-    { id: 'PAID', label: `PAID${count(summary?.byPayment.PAID)}` },
-    { id: 'UNPAID', label: `UNPAID${count(summary?.byPayment.UNPAID)}` },
-    { id: 'REJECTED', label: `REJECTED${count(summary?.byStatus.REJECTED)}` },
-    { id: 'DRAFT', label: `DRAFT${count(summary?.byStatus.DRAFT)}` },
+  const statusOptions = [
+    { value: 'PENDING_APPROVAL', label: `PENDING FOR APPROVAL${count(summary?.byStatus.PENDING_APPROVAL)}` },
+    { value: 'APPROVED', label: `APPROVED${count(summary?.byStatus.APPROVED)}` },
+    { value: 'PAID', label: `PAID${count(summary?.byPayment.PAID)}` },
+    { value: 'UNPAID', label: `UNPAID${count(summary?.byPayment.UNPAID)}` },
+    { value: 'REJECTED', label: `REJECTED${count(summary?.byStatus.REJECTED)}` },
+    { value: 'DRAFT', label: `DRAFT${count(summary?.byStatus.DRAFT)}` },
   ]
 
   const setOpen = (id: number | null) => {
@@ -230,7 +221,7 @@ export const PaymentRequestScreen: React.FC = () => {
           )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <ExportExcelButton report="payment-requests" filters={{ ...filters, ...tabFilters(tab) }} noun="payment requests export" />
+          <ExportExcelButton report="payment-requests" filters={{ ...filters, statuses: listParams.statuses, payments: listParams.payments }} noun="payment requests export" />
           {canManageExpenseTypes && (
             <Button variant="secondary" size="sm" onClick={() => setShowTypes(true)}>
               Expense types
@@ -242,17 +233,6 @@ export const PaymentRequestScreen: React.FC = () => {
             </Link>
           )}
         </div>
-      </div>
-
-      <div className="mb-4 max-w-full overflow-x-auto">
-        <Tabs
-          items={tabs}
-          activeTab={tab}
-          onChange={(id) => {
-            setChosenTab(id as TabId)
-            setPage(1)
-          }}
-        />
       </div>
 
       <div className="mb-4 rounded-lg border border-border bg-surface p-3 shadow-sm sm:p-4">
@@ -270,10 +250,15 @@ export const PaymentRequestScreen: React.FC = () => {
             </FormField>
           </FilterItem>
           <FilterItem>
+            <FormField label="Status" htmlFor="pr-status">
+              <FilterMultiSelect id="pr-status" options={statusOptions} value={draft.statuses} onChange={(value) => setDraft('statuses', value)} anyLabel={`ALL${count(summary?.all)}`} highlighted={box('statuses')} />
+            </FormField>
+          </FilterItem>
+          <FilterItem>
             <FormField label="Expense" htmlFor="pr-expense">
               <FilterMultiSelect
                 id="pr-expense"
-                options={(costCenters ?? []).map((option) => ({ value: String(option.id), label: option.path }))}
+                options={(costCenters ?? []).map((option) => ({ value: String(option.id), label: option.name }))}
                 value={draft.costCenterIds}
                 onChange={(value) => setDraft('costCenterIds', value)}
                 anyLabel="All expenses"

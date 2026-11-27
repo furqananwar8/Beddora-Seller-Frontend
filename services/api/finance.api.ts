@@ -424,6 +424,9 @@ export type RequestPaymentFilter = 'PAID' | 'UNPAID'
 export interface PaymentRequestListParams extends PageParams {
   status?: RequestStatus
   payment?: RequestPaymentFilter
+  /** Any of these statuses and/or payment states (a request matching any one is listed). */
+  statuses?: RequestStatus[]
+  payments?: RequestPaymentFilter[]
   /** Only requests paying this purchase order. */
   purchaseOrderId?: number
   /** Only the requests raised against this purchase invoice. */
@@ -440,11 +443,13 @@ export interface PaymentRequestListParams extends PageParams {
 }
 
 /** List/summary query string: multi-value filters travel as comma lists, empty ones are left out. */
-const paymentRequestParams = ({ costCenterIds, batched, ...params }: Partial<Omit<PaymentRequestListParams, 'search'>>, search?: string) => ({
+const paymentRequestParams = ({ costCenterIds, batched, statuses, payments, ...params }: Partial<Omit<PaymentRequestListParams, 'search'>>, search?: string) => ({
   ...params,
   search: search || undefined,
   costCenterIds: costCenterIds?.length ? costCenterIds.join(',') : undefined,
   batched: batched?.length ? batched.join(',') : undefined,
+  statuses: statuses?.length ? statuses.join(',') : undefined,
+  payments: payments?.length ? payments.join(',') : undefined,
 })
 
 export interface PaymentRequestSummary {
@@ -831,7 +836,7 @@ export const financeApi = baseApi.injectEndpoints({
       query: ({ search, ...params }) => ({ url: '/finance/payment-requests', params: paymentRequestParams(params, search) }),
       providesTags: ['FinanceRequests'],
     }),
-    getPaymentRequestSummary: b.query<PaymentRequestSummary, Omit<PaymentRequestListParams, 'page' | 'limit' | 'status'>>({
+    getPaymentRequestSummary: b.query<PaymentRequestSummary, Omit<PaymentRequestListParams, 'page' | 'limit' | 'status' | 'statuses' | 'payments'>>({
       query: ({ search, ...params }) => ({ url: '/finance/payment-requests/summary', params: paymentRequestParams(params, search) }),
       transformResponse: unwrap,
       providesTags: ['FinanceRequests'],

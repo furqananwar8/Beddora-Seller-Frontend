@@ -71,6 +71,18 @@ export interface ResendBody {
   includeSent?: boolean
 }
 
+/** Delete the chosen emails, or every email the list shows for these filters. */
+export interface DeleteEmailsBody {
+  ids?: number[]
+  matching?: Pick<EmailListParams, 'status' | 'search' | 'template' | 'from' | 'to'>
+}
+
+export interface DeleteEmailsResult {
+  deleted: number
+  /** Emails still queued are left alone: a job may be sending them. */
+  skippedQueued: number
+}
+
 export interface ResendResult {
   resent: number
   skippedSent: number
@@ -150,6 +162,11 @@ export const systemEmailApi = baseApi.injectEndpoints({
       transformResponse: unwrap,
       invalidatesTags: (_result, _error, body) => [emailTags.list, emailTags.summary, ...(body.ids ?? []).map(emailTags.history)],
     }),
+    deleteEmails: b.mutation<DeleteEmailsResult, DeleteEmailsBody>({
+      query: (body) => ({ url: `${PATH}/delete`, method: 'POST', body }),
+      transformResponse: unwrap,
+      invalidatesTags: (_result, _error, body) => [emailTags.list, emailTags.summary, emailTags.backlog, ...(body.ids ?? []).map(emailTags.history)],
+    }),
     getEmailBacklog: b.query<EmailBacklog, string>({
       query: (from) => ({ url: `${PATH}/backlog`, params: { from } }),
       transformResponse: unwrap,
@@ -170,6 +187,7 @@ export const {
   useGetEmailsQuery,
   useGetEmailHistoryQuery,
   useResendEmailsMutation,
+  useDeleteEmailsMutation,
   useGetEmailBacklogQuery,
   useSendBacklogEmailsMutation,
 } = systemEmailApi

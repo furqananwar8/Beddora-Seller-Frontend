@@ -27,11 +27,12 @@ interface EmailTableProps {
   flashIds: ReadonlySet<number>
   onHistory: (row: EmailRow) => void
   onResend: (row: EmailRow) => void
+  onDelete: (row: EmailRow) => void
   onCopy: (row: EmailRow) => void
 }
 
 /** The emails of the page, one per row, with a box to tick each and an Actions menu. */
-export const EmailTable: React.FC<EmailTableProps> = ({ rows, loading, error, emptyText, isChecked, onToggle, onToggleAll, flashIds, onHistory, onResend, onCopy }) => {
+export const EmailTable: React.FC<EmailTableProps> = ({ rows, loading, error, emptyText, isChecked, onToggle, onToggleAll, flashIds, onHistory, onResend, onDelete, onCopy }) => {
   const fit = useFitToViewport<HTMLDivElement>()
   const checked = rows.filter(isChecked).length
 
@@ -88,6 +89,7 @@ export const EmailTable: React.FC<EmailTableProps> = ({ rows, loading, error, em
                           { key: 'history', label: 'Delivery history', onSelect: () => onHistory(row) },
                           { key: 'resend', label: 'Resend', onSelect: () => onResend(row) },
                           { key: 'copy', label: 'Copy recipient', onSelect: () => onCopy(row) },
+                          { key: 'delete', label: 'Delete', tone: 'danger', disabled: row.status === 'QUEUED', onSelect: () => onDelete(row) },
                         ]}
                       />
                     </TableCell>
