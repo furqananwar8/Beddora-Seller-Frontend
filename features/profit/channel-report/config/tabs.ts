@@ -6,6 +6,7 @@ export const LIVE_REPORT_TABS: Array<{ id: ChannelId; label: string }> = [
   { id: 'walmart', label: 'Walmart' },
   { id: 'shopify', label: 'Shopify' },
   { id: 'temu', label: 'Temu' },
+  { id: 'tiktok', label: 'TikTok Shop' },
 ]
 
 export const liveReportSubject = (channel: ChannelId) => `profit:channel-report.${channel}`
