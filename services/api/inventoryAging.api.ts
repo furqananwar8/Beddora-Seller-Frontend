@@ -14,6 +14,8 @@ export interface InventoryAgingRow {
   fnSku: string | null
   asin: string
   productName: string | null
+  /** The catalogue product with this SKU, for its page in the app; null when it is not in the catalogue. */
+  productId: number | null
   available: number
   /** Held for orders, FC transfers or processing: in the age buckets but not in `available`. Null on older snapshots. */
   reserved: number | null

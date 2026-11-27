@@ -7,16 +7,16 @@ import { MarketplaceFlag } from '@/components/marketplace-flag/MarketPlaceFlag'
 import { Table, TABLE_STATUS_VIEWPORT, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow, TableStatusRow } from '@/design-system/tables'
 import type { AgingSortColumn, InventoryAgingReport, InventoryAgingRow, SortOrder } from '@/services/api/inventoryAging.api'
 import { cn } from '@/utils/cn'
-import { amazonProductUrl } from '@/utils/marketplaces'
+import { NewTabLink } from '@/components/new-tab-link/NewTabLink'
 import { useColumnResize } from '@/hooks/useColumnResize'
 import { ColumnResizeHandle, columnWidthStyle, fillRemainingWidth } from '@/components/column-resize-handle/ColumnResizeHandle'
 
-/** Opens the listing's Amazon product page in a new tab; plain text when the row has no ASIN. */
+/** Opens the product's page in the app in a new tab; plain text when the SKU is not in the catalogue. */
 const ProductLink: React.FC<{ row: InventoryAgingRow; children: React.ReactNode }> = ({ row, children }) =>
-  row.asin ? (
-    <a href={amazonProductUrl(row.asin, row.marketplace)} target="_blank" rel="noopener noreferrer" className="hover:text-primary-600 hover:underline">
+  row.productId ? (
+    <NewTabLink href={`/dashboard/procurement/products/${row.productId}`} title="Open this product in a new tab" className="text-inherit hover:text-primary-600">
       {children}
-    </a>
+    </NewTabLink>
   ) : (
     <>{children}</>
   )
