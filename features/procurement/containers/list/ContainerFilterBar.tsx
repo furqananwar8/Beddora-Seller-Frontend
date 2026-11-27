@@ -3,43 +3,14 @@
 import React from 'react'
 import { FilterBar, FilterItem } from '@/components/filter-bar/FilterBar'
 import { FormField } from '@/components/form-field/FormField'
-import { SearchableSelect } from '@/components/searchable-select/SearchableSelect'
+import { FilterMultiSelect } from '@/components/filter-bar/FilterMultiSelect'
 import { CONTAINER_STATUS_META, CONTAINER_STATUSES, DESTINATION_LABEL } from '../../shared/poMeta'
 import { PLATFORM_META, PLATFORMS } from '../../shared/platformMeta'
-import type { BrandFilter, ContainerListState, CountryFilter, StatusFilter } from './useContainerListState'
+import type { ContainerListState } from './useContainerListState'
 
-type Option<T> = { value: T; label: string }
-
-const STATUS_OPTIONS: Array<Option<StatusFilter>> = [{ value: 'ALL', label: 'All statuses' }, ...CONTAINER_STATUSES.map((value) => ({ value, label: CONTAINER_STATUS_META[value].label }))]
-const COUNTRY_OPTIONS: Array<Option<CountryFilter>> = [
-  { value: 'ALL', label: 'All countries' },
-  { value: 'US', label: DESTINATION_LABEL.US },
-  { value: 'CA', label: DESTINATION_LABEL.CA },
-]
-const BRAND_OPTIONS: Array<Option<BrandFilter>> = [{ value: 'ALL', label: 'All brands' }, ...PLATFORMS.map((value) => ({ value, label: PLATFORM_META[value].label }))]
-
-interface FilterSelectProps<T extends string> {
-  id: string
-  options: Array<Option<T>>
-  value: T
-  onChange: (value: T) => void
-  highlighted: boolean
-}
-
-/** One-of-a-fixed-list filter on the shared select. */
-function FilterSelect<T extends string>({ id, options, value, onChange, highlighted }: FilterSelectProps<T>) {
-  return (
-    <SearchableSelect<Option<T>>
-      id={id}
-      value={options.find((option) => option.value === value) ?? options[0]}
-      onChange={(option) => onChange(option.value)}
-      options={options}
-      getKey={(option) => option.value}
-      getLabel={(option) => option.label}
-      highlighted={highlighted}
-    />
-  )
-}
+const STATUS_OPTIONS = CONTAINER_STATUSES.map((value) => ({ value, label: CONTAINER_STATUS_META[value].label }))
+const COUNTRY_OPTIONS = (['US', 'CA'] as const).map((value) => ({ value, label: DESTINATION_LABEL[value] }))
+const BRAND_OPTIONS = PLATFORMS.map((value) => ({ value, label: PLATFORM_META[value].label }))
 
 /** Search, status, country and brand over a containers listing. */
 export const ContainerFilterBar: React.FC<{ state: ContainerListState; idPrefix: string }> = ({ state, idPrefix }) => {
@@ -62,17 +33,17 @@ export const ContainerFilterBar: React.FC<{ state: ContainerListState; idPrefix:
         </FilterItem>
         <FilterItem>
           <FormField label="Status" htmlFor={`${idPrefix}-status`}>
-            <FilterSelect id={`${idPrefix}-status`} options={STATUS_OPTIONS} value={draft.status} onChange={(v) => setDraft('status', v)} highlighted={changed.has('status')} />
+            <FilterMultiSelect id={`${idPrefix}-status`} options={STATUS_OPTIONS} value={draft.status} onChange={(v) => setDraft('status', v)} anyLabel="All statuses" highlighted={changed.has('status')} />
           </FormField>
         </FilterItem>
         <FilterItem>
           <FormField label="Country" htmlFor={`${idPrefix}-country`}>
-            <FilterSelect id={`${idPrefix}-country`} options={COUNTRY_OPTIONS} value={draft.destination} onChange={(v) => setDraft('destination', v)} highlighted={changed.has('destination')} />
+            <FilterMultiSelect id={`${idPrefix}-country`} options={COUNTRY_OPTIONS} value={draft.destination} onChange={(v) => setDraft('destination', v)} anyLabel="All countries" highlighted={changed.has('destination')} />
           </FormField>
         </FilterItem>
         <FilterItem>
           <FormField label="Brand" htmlFor={`${idPrefix}-brand`}>
-            <FilterSelect id={`${idPrefix}-brand`} options={BRAND_OPTIONS} value={draft.brand} onChange={(v) => setDraft('brand', v)} highlighted={changed.has('brand')} />
+            <FilterMultiSelect id={`${idPrefix}-brand`} options={BRAND_OPTIONS} value={draft.brand} onChange={(v) => setDraft('brand', v)} anyLabel="All brands" highlighted={changed.has('brand')} />
           </FormField>
         </FilterItem>
       </FilterBar>

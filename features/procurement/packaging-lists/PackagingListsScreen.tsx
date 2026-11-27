@@ -25,7 +25,8 @@ import { cn } from '@/utils/cn'
 import { downloadApiFile } from '@/utils/downloadFile'
 import { CONTAINER_ROUTES } from '../containers/routes'
 import { AttachContainerModal } from './AttachContainerModal'
-import { containerLabel, formatPoNo, newPackagingListHref, supplierNames } from '../shared/poMeta'
+import { NamesPreview } from '../shared/NamesPreview'
+import { containerLabel, formatPoNo, newPackagingListHref } from '../shared/poMeta'
 
 const BASE = '/dashboard/procurement/packaging-lists'
 import { usePageSize } from '@/hooks/usePageSize'
@@ -247,8 +248,12 @@ export const PackagingListsScreen: React.FC = () => {
                 rows.map((row) => (
                   <TableRow key={row.id} className="hover:bg-secondary-50">
                     <TableCell className={cn(CELL, 'whitespace-nowrap font-semibold text-text-primary')}>{row.plNo}</TableCell>
-                    <TableCell className={CELL}>{supplierNames(row.suppliers)}</TableCell>
-                    <TableCell className={cn(CELL, 'font-mono text-xs')}>{row.purchaseOrders.map((po) => po.poNo).join(', ')}</TableCell>
+                    <TableCell className={CELL}>
+                      <NamesPreview items={row.suppliers.map((supplier) => ({ label: supplier.name, href: `/dashboard/finance/partner-profile/${supplier.id}` }))} title={`${row.plNo} · Suppliers`} />
+                    </TableCell>
+                    <TableCell className={cn(CELL, 'text-xs')}>
+                      <NamesPreview items={row.purchaseOrders.map((po) => ({ label: po.poNo, href: `/dashboard/procurement/purchase-orders/${po.id}` }))} title={`${row.plNo} · Purchase orders`} itemClassName="font-mono" />
+                    </TableCell>
                     <TableCell className={cn(CELL, 'tabular-nums')}>{row.skuCount}</TableCell>
                     <TableCell className={cn(CELL, 'tabular-nums')}>{qty(row.units)}</TableCell>
                     <TableCell className={cn(CELL, 'tabular-nums')}>{qty(row.cartons)}</TableCell>

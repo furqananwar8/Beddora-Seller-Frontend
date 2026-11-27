@@ -8,18 +8,15 @@ import type { ContainerParams, ContainerSortColumn, ContainerStatus, PoDestinati
 import { usePageSize } from '@/hooks/usePageSize'
 const PAGE_SIZE = 20
 
-export type StatusFilter = 'ALL' | ContainerStatus
-export type CountryFilter = 'ALL' | PoDestination
-export type BrandFilter = 'ALL' | ProductPlatform
-
 export interface ContainerFilters extends Record<string, unknown> {
   search: string
-  status: StatusFilter
-  destination: CountryFilter
-  brand: BrandFilter
+  /** Empty means all, for each of these three. */
+  status: ContainerStatus[]
+  destination: PoDestination[]
+  brand: ProductPlatform[]
 }
 
-const DEFAULT_FILTERS: ContainerFilters = { search: '', status: 'ALL', destination: 'ALL', brand: 'ALL' }
+const DEFAULT_FILTERS: ContainerFilters = { search: '', status: [], destination: [], brand: [] }
 
 /**
  * Search, staged filters and page of a containers listing, and the query params they make; shared by every containers screen.
@@ -45,9 +42,9 @@ export function useContainerListState(initialSearch = '') {
     search: debouncedSearch,
     sortBy: sort?.column,
     sortOrder: sort?.order,
-    status: applied.status === 'ALL' ? undefined : applied.status,
-    destination: applied.destination === 'ALL' ? undefined : applied.destination,
-    platform: applied.brand === 'ALL' ? undefined : applied.brand,
+    status: applied.status,
+    destination: applied.destination,
+    platform: applied.brand,
   }
 
   const setSearch = (value: string) => filters.setDraft('search', value)

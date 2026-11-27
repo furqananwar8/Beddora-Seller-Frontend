@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useMemo, useState } from 'react'
+import Link from 'next/link'
 import { FilterBar, FilterItem } from '@/components/filter-bar/FilterBar'
 import { useStagedFilters } from '@/components/filter-bar/useStagedFilters'
 import { FormField } from '@/components/form-field/FormField'
@@ -18,6 +19,7 @@ import { formatCbmPerPiece } from '@/utils/cartonMetrics'
 import { useGetSkuLandedQuery, type InboundChannel, type LandedAmounts, type OpexCountry, type SkuLandedRow } from '@/services/api/procurement.api'
 import { cn } from '@/utils/cn'
 import { PlatformBadge } from '../../shared/platformMeta'
+import { LandedHistoryModal, type LandedHistoryTarget } from './LandedHistoryModal'
 import { OpexMappingModal } from './OpexMappingModal'
 import { WarehouseOverheadModal } from './WarehouseOverheadModal'
 import { defaultSkuLandedFilters, todayDay } from './skuLandedFilters'
@@ -28,7 +30,15 @@ const muted = <span className="text-text-muted">—</span>
 /** A country's warehouse cost / the CBM of its containers, read as a percentage (9,900 / 129.9 CBM = 76.21 %). */
 const formatRate = (rate: number | null) => (rate === null ? '—' : `${rate.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} %`)
 const money = (currency: string, value: number) => <span className="whitespace-nowrap tabular-nums">{formatCurrencyAmount(currency, value)}</span>
-const landed = (currency: keyof LandedAmounts) => (row: SkuLandedRow) => (row.landedCost[currency] > 0 ? money(currency, row.landedCost[currency]) : muted)
+/** A landed cost opens its history; one that was never costed has none to show. */
+const landed = (currency: keyof LandedAmounts, open: (target: LandedHistoryTarget) => void) => (row: SkuLandedRow) =>
+  row.landedCost[currency] > 0 ? (
+    <button type="button" title="See how this cost changed" className="underline-offset-2 hover:text-primary-700 hover:underline" onClick={() => open({ productId: row.product.id, sku: row.product.sku, currency, current: row.landedCost[currency] })}>
+      {money(currency, row.landedCost[currency])}
+    </button>
+  ) : (
+    muted
+  )
 
 /** Shipment cost columns, in screen order, under one "Shipment" heading. */
 const SHIPMENT_COLUMNS: Array<{ channel: InboundChannel; header: string }> = [
@@ -42,14 +52,16 @@ const OVERHEAD_COLUMNS: Array<{ country: OpexCountry; header: string }> = [
   { country: 'US', header: 'USA' },
 ]
 
-const columnsFor = (shipmentCurrency: string, opexCurrency: string): TreeColumn<SkuLandedRow>[] => [
+const columnsFor = (shipmentCurrency: string, opexCurrency: string, openHistory: (target: LandedHistoryTarget) => void): TreeColumn<SkuLandedRow>[] => [
   {
     key: 'sku',
     header: 'SKU',
     className: 'min-w-[220px] text-left',
     render: (row) => (
       <div>
-        <div className="font-semibold text-text-primary">{row.product.sku}</div>
+        <Link href={`/dashboard/procurement/products/${row.product.id}`} target="_blank" rel="noopener noreferrer" className="font-semibold text-primary-600 underline-offset-2 hover:underline">
+          {row.product.sku}
+        </Link>
         <div className="text-xs text-text-muted">
           {row.product.name}
           {row.cbmPerPiece !== null && ` · ${formatCbmPerPiece(row.cbmPerPiece)} CBM / piece`}
@@ -58,8 +70,8 @@ const columnsFor = (shipmentCurrency: string, opexCurrency: string): TreeColumn<
     ),
   },
   { key: 'brand', header: 'Brand', render: (row) => <PlatformBadge platform={row.product.platform} /> },
-  { key: 'landedCad', header: 'Landed Cost (CAD)', render: landed('CAD') },
-  { key: 'landedUsd', header: 'Landed Cost (USA)', render: landed('USD') },
+  { key: 'landedCad', header: 'Landed Cost (CAD)', render: landed('CAD', openHistory) },
+  { key: 'landedUsd', header: 'Landed Cost (USA)', render: landed('USD', openHistory) },
   ...SHIPMENT_COLUMNS.map(({ channel, header }): TreeColumn<SkuLandedRow> => ({
     key: `shipment-${channel}`,
     header,
@@ -92,6 +104,7 @@ export const SkuLandedScreen: React.FC = () => {
   const opex = data?.opex
   const canWrite = useAppAbility().can('write', 'containers:sku-landed')
   const [dialog, setDialog] = useState<'overhead' | 'mapping' | null>(null)
+  const [history, setHistory] = useState<LandedHistoryTarget | null>(null)
   const { start: startExport, isExporting } = useReportExport('sku-landed')
 
   return (
@@ -157,7 +170,7 @@ export const SkuLandedScreen: React.FC = () => {
         <div ref={fit.ref} style={fit.style} className="max-h-[calc(100vh-300px)] overflow-auto">
           <TreeTable<SkuLandedRow>
             wrapperClassName="overflow-visible"
-            columns={columnsFor(data?.shipmentCurrency ?? 'CAD', data?.opex.currency ?? 'CAD')}
+            columns={columnsFor(data?.shipmentCurrency ?? 'CAD', data?.opex.currency ?? 'CAD', setHistory)}
             rows={data?.data ?? []}
             getKey={(row) => row.product.id}
             isLoading={isLoading}
@@ -172,6 +185,7 @@ export const SkuLandedScreen: React.FC = () => {
 
       <WarehouseOverheadModal open={dialog === 'overhead'} onClose={() => setDialog(null)} canEdit={canWrite} />
       <OpexMappingModal open={dialog === 'mapping'} onClose={() => setDialog(null)} />
+      <LandedHistoryModal target={history} onClose={() => setHistory(null)} />
     </Container>
   )
 }

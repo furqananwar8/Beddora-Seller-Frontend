@@ -24,7 +24,7 @@ export const AttachContainerModal: React.FC<AttachContainerModalProps> = ({ list
   const [open, setOpen] = useState(false)
   const debounced = useDebounce(search.trim(), 250)
   const [addList, { isLoading }] = useAddContainerPackagingListMutation()
-  const { data, isFetching } = useGetContainersQuery({ page: 1, limit: 50, status: 'BOOKED', destination: list?.destination, search: debounced }, { skip: !list || !open })
+  const { data, isFetching } = useGetContainersQuery({ page: 1, limit: 50, status: ['BOOKED'], destination: list ? [list.destination] : undefined, search: debounced }, { skip: !list || !open })
 
   useEffect(() => {
     setPicked(null)

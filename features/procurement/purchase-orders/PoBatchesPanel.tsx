@@ -1,6 +1,9 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
+import { Controller, useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 import Link from 'next/link'
 import { NumericInput } from '@/components/form-field/NumericInput'
 import { StatusBadge, type StatusTone } from '@/components/status-badge/StatusBadge'
@@ -18,6 +21,7 @@ import {
   type PurchaseOrderDetail,
 } from '@/services/api/procurement.api'
 import { formatCalendarDay } from '@/utils/format'
+import { NamesPreview } from '../shared/NamesPreview'
 import { PoDateCell, toDay } from './PoDateCell'
 
 const BATCH_STATUS: Record<PoBatchStatus, { label: string; tone: StatusTone }> = {
@@ -35,38 +39,8 @@ const HEAD = 'px-3 py-2 text-center text-xs font-semibold uppercase tracking-wid
 const CELL = 'px-3 py-2 text-center align-middle'
 const units = (value: number) => value.toLocaleString('en-CA')
 
-const SKU_PREVIEW = 2
-
-/** The batch's SKUs: the first few inline, the rest behind "Show more" (a modal listing just the SKUs) so the row stays tidy. */
-const SkuCell: React.FC<{ batch: PoBatch }> = ({ batch }) => {
-  const [open, setOpen] = useState(false)
-  const extra = batch.lines.length - SKU_PREVIEW
-  return (
-    <>
-      <div className="flex flex-col gap-0.5">
-        {batch.lines.slice(0, SKU_PREVIEW).map((line) => (
-          <span key={line.id} className="whitespace-nowrap">
-            <span className="font-mono">{line.product.ref}</span> × {units(line.units)}
-          </span>
-        ))}
-        {extra > 0 && (
-          <button type="button" className="mx-auto w-fit font-medium text-primary-600 underline underline-offset-2 hover:text-primary-700" onClick={() => setOpen(true)}>
-            Show {extra} more
-          </button>
-        )}
-      </div>
-      <Modal isOpen={open} onClose={() => setOpen(false)} title={`${batch.label} · SKUs (${batch.lines.length})`} size="sm" closeOnBackdropClick closeOnEscape>
-        <ul className="flex max-h-[60vh] flex-col gap-1 overflow-y-auto font-mono text-sm">
-          {batch.lines.map((line) => (
-            <li key={line.id}>
-              {line.product.ref} × {units(line.units)}
-            </li>
-          ))}
-        </ul>
-      </Modal>
-    </>
-  )
-}
+/** The batch's SKUs: the first few inline, the rest behind "Show more" so the row stays tidy. */
+const SkuCell: React.FC<{ batch: PoBatch }> = ({ batch }) => <NamesPreview items={batch.lines.map((line) => ({ label: `${line.product.ref} × ${units(line.units)}` }))} title={`${batch.label} · SKUs`} max={2} itemClassName="font-mono whitespace-nowrap" />
 
 const BatchRow: React.FC<{ po: PurchaseOrderDetail; batch: PoBatch }> = ({ po, batch }) => {
   const [setDate] = useSetPurchaseOrderBatchProductionDateMutation()
@@ -108,72 +82,109 @@ const BatchRow: React.FC<{ po: PurchaseOrderDetail; batch: PoBatch }> = ({ po, b
   )
 }
 
+interface NewBatchValues {
+  date: string
+  lines: Array<{ productId: number; units: string }>
+}
+
 /** A new batch of an approved PO: units of SKUs no batch holds (what a short packaging list left behind). No approval needed. */
-const AddBatchForm: React.FC<{ po: PurchaseOrderDetail; onDone: () => void }> = ({ po, onDone }) => {
+const AddBatchModal: React.FC<{ po: PurchaseOrderDetail; isOpen: boolean; onClose: () => void }> = ({ po, isOpen, onClose }) => {
   const [addBatch, { isLoading }] = useAddPurchaseOrderBatchMutation()
   const { success, failure } = useApiFeedback()
-  const [typed, setTyped] = useState<Record<number, string>>({})
-  const [date, setDate] = useState('')
-  const lines = po.unbatched.map((item) => ({ ...item, value: typed[item.product.id] ?? '' })).filter((item) => item.value !== '')
-  const invalid = lines.some((item) => !/^\d+$/.test(item.value) || Number(item.value) < 1 || Number(item.value) > item.units)
+  const schema = useMemo(
+    () =>
+      z.object({
+        date: z.string(),
+        lines: z
+          .array(
+            z.object({
+              productId: z.number(),
+              units: z.string().trim(),
+            })
+          )
+          .superRefine((lines, ctx) => {
+            lines.forEach((line, index) => {
+              const left = po.unbatched[index]?.units ?? 0
+              if (line.units !== '' && (!/^\d+$/.test(line.units) || Number(line.units) < 1 || Number(line.units) > left)) ctx.addIssue({ code: 'custom', path: [index, 'units'], message: `Only ${units(left)} left` })
+            })
+            if (lines.every((line) => line.units === '')) ctx.addIssue({ code: 'custom', message: 'Enter the units of at least one SKU' })
+          }),
+      }),
+    [po.unbatched]
+  )
+  const {
+    control,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<NewBatchValues>({ resolver: zodResolver(schema), defaultValues: { date: '', lines: [] } })
 
-  const submit = async () => {
+  // Start empty each time it opens: one row per SKU still left to batch
+  useEffect(() => {
+    if (isOpen) reset({ date: '', lines: po.unbatched.map((item) => ({ productId: item.product.id, units: '' })) })
+  }, [isOpen, po.unbatched, reset])
+
+  const submit = handleSubmit(async (values) => {
     try {
-      const saved = await addBatch({ id: po.id, body: { ...(date && { productionDate: date }), lines: lines.map((item) => ({ productId: item.product.id, units: Number(item.value) })) } }).unwrap()
+      const saved = await addBatch({
+        id: po.id,
+        body: { ...(values.date && { productionDate: values.date }), lines: values.lines.filter((line) => line.units !== '').map((line) => ({ productId: line.productId, units: Number(line.units) })) },
+      }).unwrap()
       success(`${saved.poNo} batch ${saved.batches.length} added`)
-      onDone()
+      onClose()
     } catch (error) {
       failure(error, 'Could not add the batch')
     }
-  }
+  })
 
-  if (po.unbatched.length === 0) {
-    return <p className="rounded-lg border border-border bg-secondary-50 px-3 py-2 text-sm text-text-secondary">Every unit is in a batch. When a packaging list takes fewer units than its batch, the units left can go in a new batch.</p>
-  }
   return (
-    <div className="flex flex-col gap-3 rounded-lg border border-border p-3" data-testid="add-batch-form">
-      <p className="text-sm text-text-secondary">Units not in any batch (for example what a short packaging list left behind). A batch cannot take more than this.</p>
-      <table className="text-sm">
-        <thead>
-          <tr>
-            <th className={HEAD}>SKU</th>
-            <th className={HEAD}>Left to batch</th>
-            <th className={HEAD}>Units in the new batch</th>
-          </tr>
-        </thead>
-        <tbody>
-          {po.unbatched.map((item) => (
-            <tr key={item.product.id} className="border-t border-border">
-              <td className={`${CELL} font-mono text-xs`}>{item.product.ref}</td>
-              <td className={`${CELL} tabular-nums`}>{units(item.units)}</td>
-              <td className={CELL}>
-                <NumericInput
-                  aria-label={`Units of ${item.product.ref} in the new batch`}
-                  className="ds-input mx-auto h-9 w-28 py-1 text-right tabular-nums"
-                  value={typed[item.product.id] ?? ''}
-                  onChange={(event) => setTyped((current) => ({ ...current, [item.product.id]: event.target.value }))}
-                />
-                {typed[item.product.id] && Number(typed[item.product.id]) > item.units && <p className="mt-1 text-xs text-danger-600">Only {units(item.units)} left</p>}
-              </td>
+    <Modal isOpen={isOpen} onClose={isLoading ? () => undefined : onClose} title={`Add batch · ${po.poNo}`} size="md">
+      <form onSubmit={submit} noValidate className="flex flex-col gap-4">
+        <p className="text-sm text-text-secondary">Units not in any batch (for example what a short packaging list left behind). A batch cannot take more than this.</p>
+        <table className="text-sm">
+          <thead>
+            <tr>
+              <th className={HEAD}>SKU</th>
+              <th className={HEAD}>Left to batch</th>
+              <th className={HEAD}>Units in the new batch</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
-      <div className="flex flex-wrap items-center gap-3">
-        <label className="text-sm text-text-secondary" htmlFor="new-batch-production">
-          Production date (optional)
-        </label>
-        <SingleDatePicker id="new-batch-production" value={date} onChange={setDate} placeholder="Select Date" className="min-w-[9.5rem]" />
-        <div className="ml-auto flex gap-2">
-          <Button type="button" variant="outline" onClick={onDone} disabled={isLoading}>
+          </thead>
+          <tbody>
+            {po.unbatched.map((item, index) => (
+              <tr key={item.product.id} className="border-t border-border">
+                <td className={`${CELL} font-mono text-xs`}>{item.product.ref}</td>
+                <td className={`${CELL} tabular-nums`}>{units(item.units)}</td>
+                <td className={CELL}>
+                  <Controller
+                    control={control}
+                    name={`lines.${index}.units`}
+                    render={({ field }) => (
+                      <NumericInput aria-label={`Units of ${item.product.ref} in the new batch`} className="ds-input mx-auto h-9 w-28 py-1 text-right tabular-nums" value={field.value ?? ''} onChange={(event) => field.onChange(event.target.value)} onBlur={field.onBlur} />
+                    )}
+                  />
+                  {errors.lines?.[index]?.units?.message && <p className="mt-1 text-xs text-danger-600">{errors.lines[index]?.units?.message}</p>}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {errors.lines?.root?.message && <p className="text-xs text-danger-600">{errors.lines.root.message}</p>}
+        <div className="flex items-center gap-3">
+          <label className="text-sm text-text-secondary" htmlFor="new-batch-production">
+            Production date (optional)
+          </label>
+          <Controller control={control} name="date" render={({ field }) => <SingleDatePicker id="new-batch-production" value={field.value} onChange={field.onChange} placeholder="Select Date" className="w-44" />} />
+        </div>
+        <div className="flex justify-end gap-2 border-t border-border pt-4">
+          <Button type="button" variant="outline" onClick={onClose} disabled={isLoading}>
             Cancel
           </Button>
-          <Button type="button" onClick={() => void submit()} isLoading={isLoading} disabled={lines.length === 0 || invalid}>
+          <Button type="submit" isLoading={isLoading}>
             Save batch
           </Button>
         </div>
-      </div>
-    </div>
+      </form>
+    </Modal>
   )
 }
 
@@ -215,13 +226,14 @@ export const PoBatchesPanel: React.FC<PoBatchesPanelProps> = ({ purchaseOrderId,
           </tbody>
         </table>
       </div>
-      {withAdd && po.can.addBatch && allPlsFinal && po.unbatched.length > 0 && (adding ? <AddBatchForm po={po} onDone={() => setAdding(false)} /> : (
+      {withAdd && po.can.addBatch && allPlsFinal && po.unbatched.length > 0 && (
         <div>
           <Button type="button" variant="outline" size="sm" onClick={() => setAdding(true)}>
             + Add batch
           </Button>
+          <AddBatchModal po={po} isOpen={adding} onClose={() => setAdding(false)} />
         </div>
-      ))}
+      )}
       {showProductionDate && po.productionDate && <p className="text-xs text-text-muted">PO production date: {formatCalendarDay(po.productionDate)} (the earliest batch)</p>}
     </div>
   )

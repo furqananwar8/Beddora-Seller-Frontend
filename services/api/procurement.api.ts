@@ -748,6 +748,15 @@ export interface SkuLandedRow {
   containerCount: number
 }
 
+/** How a SKU's landed cost in one currency moved: each day it took a new value, and the containers behind it. */
+export interface SkuLandedHistory {
+  product: { id: number; sku: string; name: string }
+  currency: keyof LandedAmounts
+  /** Oldest first; the days between two entries carried the earlier value forward. */
+  entries: Array<{ day: string; previous: number | null; value: number; containers: Array<{ id: number; containerNumber: string | null }> }>
+  lastSnapshotDay: string | null
+}
+
 export type OpexColumnKey = 'thirdPartyLogistics'
 
 /** One month's opex: warehouse overhead plus the 3PL payments, in `currency`. */
@@ -933,10 +942,11 @@ export interface ContainerDetail extends ContainerItem {
 export type ContainerSortColumn = 'etd' | 'eta'
 
 export interface ContainerParams extends PageParams {
-  status?: ContainerStatus
-  destination?: PoDestination
-  /** Containers packing at least one SKU of this platform (brand). */
-  platform?: ProductPlatform
+  /** Any of these (a container matching one is listed); empty or missing means all. */
+  status?: ContainerStatus[]
+  destination?: PoDestination[]
+  /** Containers packing at least one SKU of any of these platforms (brands). */
+  platform?: ProductPlatform[]
   sortBy?: ContainerSortColumn
   sortOrder?: 'asc' | 'desc'
 }
@@ -1631,11 +1641,11 @@ export const procurementApi = baseApi.injectEndpoints({
 
     /* containers */
     getContainers: b.query<Page<ContainerItem>, ContainerParams>({
-      query: ({ search, ...params }) => ({ url: '/procurement/containers', params: { ...params, search: search || undefined } }),
+      query: ({ search, status, destination, platform, ...params }) => ({ url: '/procurement/containers', params: { ...params, status: csv(status), destination: csv(destination), platform: csv(platform), search: search || undefined } }),
       providesTags: ['ProcurementContainers'],
     }),
     getContainerCosts: b.query<Page<ContainerCostItem>, ContainerParams>({
-      query: ({ search, ...params }) => ({ url: '/procurement/containers/cost-analysis', params: { ...params, search: search || undefined } }),
+      query: ({ search, status, destination, platform, ...params }) => ({ url: '/procurement/containers/cost-analysis', params: { ...params, status: csv(status), destination: csv(destination), platform: csv(platform), search: search || undefined } }),
       providesTags: ['ProcurementContainers', 'FinanceRequests'],
     }),
     getContainerCostDetail: b.query<ContainerCostDetail, number>({
@@ -1645,6 +1655,11 @@ export const procurementApi = baseApi.injectEndpoints({
     }),
     getSkuLanded: b.query<SkuLandedReport, PageParams & { asOf?: string }>({
       query: ({ search, asOf, ...params }) => ({ url: '/procurement/containers/sku-landed', params: { ...params, search: search || undefined, asOf: asOf || undefined } }),
+      providesTags: ['ProcurementContainers', 'FinanceRequests'],
+    }),
+    getSkuLandedHistory: b.query<SkuLandedHistory, { productId: number; currency: keyof LandedAmounts }>({
+      query: ({ productId, currency }) => ({ url: `/procurement/containers/sku-landed/${productId}/history`, params: { currency } }),
+      transformResponse: unwrap,
       providesTags: ['ProcurementContainers', 'FinanceRequests'],
     }),
     getSkuLandedOpex: b.query<MonthlyOpex, string>({
@@ -1837,6 +1852,7 @@ export const procurementApi = baseApi.injectEndpoints({
 
 export const {
   useGetSkuLandedQuery,
+  useGetSkuLandedHistoryQuery,
   useGetSkuLandedOpexQuery,
   useSetWarehouseOverheadMutation,
   useGetSkuLandedMappingQuery,
