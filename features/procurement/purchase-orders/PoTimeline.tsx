@@ -35,7 +35,7 @@ export const PoTimeline: React.FC<{ events: PoEvent[] }> = ({ events }) =>
         <CardTitle>History</CardTitle>
       </CardHeader>
       <CardContent>
-        <ol className="flex flex-col gap-3">
+        <ol className="flex max-h-96 flex-col gap-3 overflow-y-auto pr-2">
           {events.map((event) => (
             <li key={event.id} className="flex gap-3 text-sm">
               <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-secondary-400" aria-hidden />
