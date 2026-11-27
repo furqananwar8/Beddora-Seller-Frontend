@@ -15,6 +15,7 @@ import { formatNumber } from '@/utils/format'
 import { SplitTable, ColumnDef, PaginationConfig } from '@/components/split-table/SplitTable'
 import { useMinLoading } from '@/hooks/user-min-loading'
 import { useReportExport } from '@/hooks/useReportExport'
+import { usePageSize } from '@/hooks/usePageSize'
 import { RowActionsMenu } from '@/components/row-actions-menu/RowActionsMenu'
 import { MultiSelectInput } from '@/components/multi-select-input/MultiSelectInput'
 
@@ -57,7 +58,7 @@ export const ProductsScreen: React.FC = () => {
   const [committedCOGS, setCommittedCOGS] = useState<Record<string, number>>({})
 
   const effectiveAccountId = profitFilters.accountId || accountsData?.[0]?.id
-  const limit = 10
+  const limit = usePageSize(10)
 
   // Reset pagination to page 1 whenever applied filters change
   useEffect(() => {
@@ -432,6 +433,7 @@ export const ProductsScreen: React.FC = () => {
     totalPages,
     onPageChange: setPage,
     itemLabel: 'products',
+    selectablePageSize: true,
   }
 
   return (

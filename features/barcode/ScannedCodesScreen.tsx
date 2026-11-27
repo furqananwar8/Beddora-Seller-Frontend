@@ -1,10 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import { Button } from '@/design-system/buttons'
 import { Card, CardContent } from '@/design-system/cards'
 import { Input } from '@/design-system/inputs'
 import { Spinner } from '@/design-system/loaders'
+import { PaginationFooter } from '@/components/pagination-footer/PaginationFooter'
+import { usePageSize } from '@/hooks/usePageSize'
 import { useGetBarcodeScansQuery } from '@/services/api/barcode.api'
 import { HandheldScanField } from './HandheldScanField'
 import { ScanCard } from './ScanCard'
@@ -17,9 +18,10 @@ const REFRESH_MS = 10_000
 
 export function ScannedCodesScreen() {
   const [page, setPage] = useState(1)
+  const pageSize = usePageSize(PAGE_SIZE)
   const [search, setSearch] = useState('')
   const { data, isFetching } = useGetBarcodeScansQuery(
-    { page, limit: PAGE_SIZE, search: search.trim() || undefined },
+    { page, limit: pageSize, search: search.trim() || undefined },
     { pollingInterval: REFRESH_MS }
   )
 
@@ -64,23 +66,7 @@ export function ScannedCodesScreen() {
             ))}
           </div>
 
-          <div className="flex items-center justify-between text-sm text-text-muted">
-            <span>
-              {data.totalRecords} scan{data.totalRecords === 1 ? '' : 's'}
-              {isFetching ? ' · updating…' : ''}
-            </span>
-            <div className="flex items-center gap-2">
-              <Button variant="secondary" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
-                Previous
-              </Button>
-              <span>
-                Page {data.page} of {Math.max(data.totalPages, 1)}
-              </span>
-              <Button variant="secondary" disabled={page >= data.totalPages} onClick={() => setPage((p) => p + 1)}>
-                Next
-              </Button>
-            </div>
-          </div>
+          <PaginationFooter selectablePageSize page={data.page} pageSize={data.limit} totalItems={data.totalRecords} totalPages={data.totalPages} onPageChange={setPage} itemLabel="scans" />
         </>
       )}
     </div>

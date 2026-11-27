@@ -28,6 +28,7 @@ export interface PaginationConfig {
   totalPages: number
   onPageChange: (page: number) => void
   itemLabel?: string
+  selectablePageSize?: boolean
 }
 
 /* ────────────────────────────────────────────────────────────────
@@ -380,6 +381,7 @@ export function SplitTable<T = any>(props: GenericProps<T> | SimpleProps): React
             totalPages={pagination.totalPages}
             onPageChange={pagination.onPageChange}
             itemLabel={pagination.itemLabel || 'items'}
+            selectablePageSize={pagination.selectablePageSize}
           />
         </div>
       )}
