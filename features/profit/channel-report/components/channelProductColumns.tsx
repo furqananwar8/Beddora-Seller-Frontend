@@ -8,7 +8,8 @@ import { cn } from '@/utils/cn'
 import { formatNumber } from '@/utils/format'
 
 import type { ListingBucketId } from '../channelReport.types'
-import { amountTone, formatMargin, formatMoney } from '../lib/format'
+import { amountTone, formatMargin } from '../lib/format'
+import { useMoney } from '../lib/money'
 import type { ProductRow } from '../lib/productRows'
 import { ChannelDots, ChannelLabel } from './ChannelBadges'
 
@@ -64,8 +65,12 @@ const ProductCell: React.FC<{
   </div>
 )
 
+const Money: React.FC<{ amount: number | null; className?: string }> = ({ amount, className }) => (
+  <span className={className}>{useMoney()(amount)}</span>
+)
+
 const Cost: React.FC<{ amount: number | null }> = ({ amount }) => (
-  <span className={amount === 0 ? 'text-text-primary' : amountTone(amount)}>{formatMoney(amount)}</span>
+  <Money amount={amount} className={amount === 0 ? 'text-text-primary' : amountTone(amount)} />
 )
 
 const costColumn = (id: ListingBucketId, header: string): ProductTableColumn<ProductRow> => ({
@@ -123,7 +128,7 @@ export const buildChannelProductColumns = ({
     align: 'center',
     header: 'Sales',
     sortValue: (row) => row.amounts.sales ?? 0,
-    render: (row) => <span className="font-semibold">{formatMoney(row.amounts.sales)}</span>,
+    render: (row) => <Money amount={row.amounts.sales} className="font-semibold" />,
   },
   costColumn('ads', 'Ads'),
   costColumn('cogs', 'COGS'),

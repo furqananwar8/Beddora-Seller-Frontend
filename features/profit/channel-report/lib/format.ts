@@ -1,11 +1,11 @@
-import { formatNumber, formatPercentage } from '@/utils/format'
+import { formatCurrency, formatNumber, formatPercentage } from '@/utils/format'
 
 /** Text shown for a cost the channel does not report. */
 export const NOT_REPORTED = 'n/a'
 
-/** Money as a plain 2-decimal amount (the header shows the currency); `null` (not reported) becomes "n/a". */
-export const formatMoney = (amount: number | null | undefined) =>
-  amount === null || amount === undefined ? NOT_REPORTED : formatNumber(amount, 2)
+/** Money with the currency symbol ("$1,234.50", like the Amazon cards); `null` (not reported) becomes "n/a". Without a currency: a plain 2-decimal amount. */
+export const formatMoney = (amount: number | null | undefined, currency?: string) =>
+  amount === null || amount === undefined ? NOT_REPORTED : currency ? formatCurrency(amount, currency) : formatNumber(amount, 2)
 
 export const formatMargin = (value: number | null) => (value === null ? NOT_REPORTED : formatPercentage(value, 1))
 

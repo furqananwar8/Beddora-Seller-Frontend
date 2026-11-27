@@ -6,7 +6,7 @@ import { cn } from '@/utils/cn'
 
 import { getChannel } from '../config/channels'
 import type { ChannelShare } from '../lib/aggregate'
-import { formatMoney } from '../lib/format'
+import { useMoney } from '../lib/money'
 import { ChannelDot } from './ChannelBadges'
 
 interface ChannelShareBarProps {
@@ -25,6 +25,7 @@ export const ChannelShareBar: React.FC<ChannelShareBarProps> = ({
   tone = 'light',
   className,
 }) => {
+  const formatMoney = useMoney()
   if (shares.length < 2) return null
 
   const label = shares.map((share) => `${getChannel(share.channel).name} ${Math.round(share.pct)}%`).join(', ')

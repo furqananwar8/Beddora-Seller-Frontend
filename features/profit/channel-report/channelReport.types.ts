@@ -91,6 +91,8 @@ export interface ChannelListing {
   /** Marketplace code (CA, US, MX) when the channel sells in several. */
   marketplace?: string | null
   productId: string | null
+  /** The channel's own picture, used when no master product has one. */
+  imageUrl?: string | null
   orders: number
   units: number
   refunds: number

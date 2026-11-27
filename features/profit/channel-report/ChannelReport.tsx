@@ -32,6 +32,7 @@ import { ChannelShareBar } from './components/ChannelShareBar'
 import { useChannelConnections, useChannelListings, useChannelReportSummary } from './data/useChannelReportData'
 import { combinePeriod, type CombinedPeriod } from './lib/aggregate'
 import { formatMoney, NOT_REPORTED } from './lib/format'
+import { ReportCurrencyContext } from './lib/money'
 import { buildProductRows, countUnlinked, rowBreakdown, type ProductRow } from './lib/productRows'
 
 const STORAGE_KEY = 'profit-channel-report-preset'
@@ -206,6 +207,7 @@ export const ChannelReport: React.FC<{ channel: ChannelId }> = ({ channel }) => 
   }, [listings, tableChannels, appliedChannels, onlyUnlinked, debouncedSearch, debouncedTableSearch, groupListings, multiChannel])
 
   const unlinkedCount = countUnlinked(rows)
+  const money = useCallback((amount: number | null) => formatMoney(amount, appliedCurrency), [appliedCurrency])
 
   // ──────────────────────────────
   // Breakdown modal (tiles and table rows share it)
@@ -265,6 +267,7 @@ export const ChannelReport: React.FC<{ channel: ChannelId }> = ({ channel }) => 
   // ──────────────────────────────
 
   return (
+    <ReportCurrencyContext.Provider value={appliedCurrency}>
     <div className="w-full">
       <Container size="full">
         {bannerFetching && !bannerPeriod && (
@@ -284,7 +287,7 @@ export const ChannelReport: React.FC<{ channel: ChannelId }> = ({ channel }) => 
             totalRevenue={bannerPeriod.sales}
             totalOrders={bannerPeriod.orders}
             totalUnits={bannerPeriod.units}
-            formatAmount={formatMoney}
+            formatAmount={money}
           >
             <ChannelShareBar
               shares={bannerPeriod.shares}
@@ -351,7 +354,7 @@ export const ChannelReport: React.FC<{ channel: ChannelId }> = ({ channel }) => 
                       ordersUnitCount: formatNumber(data?.units ?? 0, 0),
                       margin: data?.margin ?? 0,
                     }}
-                    formatAmount={formatMoney}
+                    formatAmount={money}
                     showTooltips={false}
                     salesChange={data?.salesChangePct ?? null}
                     salesFooter={
@@ -359,7 +362,7 @@ export const ChannelReport: React.FC<{ channel: ChannelId }> = ({ channel }) => 
                         <ChannelShareBar shares={data.shares} className="mt-2" />
                       )
                     }
-                    advertisingDisplay={ads === null ? NOT_REPORTED : formatMoney(ads)}
+                    advertisingDisplay={ads === null ? NOT_REPORTED : money(ads)}
                     hiddenMetrics={HIDDEN_TILE_METRICS}
                     showNetProfit={false}
                     moreLabel="See breakdown"
@@ -461,6 +464,7 @@ export const ChannelReport: React.FC<{ channel: ChannelId }> = ({ channel }) => 
         )}
       </Container>
     </div>
+    </ReportCurrencyContext.Provider>
   )
 }
 

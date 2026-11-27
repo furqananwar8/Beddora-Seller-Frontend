@@ -78,7 +78,7 @@ const listingRow = (
     sku: listing.channelSku,
     // Only an Amazon item ID is an ASIN (it links to the Amazon product page)
     asin: getChannel(listing.channel).itemIdLabel === 'ASIN' ? listing.channelItemId || null : null,
-    imageUrl: product?.imageUrl ?? null,
+    imageUrl: product?.imageUrl ?? listing.imageUrl ?? null,
     marketplace: listing.marketplace ?? null,
     channels: [listing.channel],
     listing,

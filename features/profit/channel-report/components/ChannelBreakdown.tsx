@@ -9,7 +9,8 @@ import type { BucketId, ChannelBucket, ChannelId } from '../channelReport.types'
 import { COST_BUCKETS, type BucketDefinition } from '../config/buckets'
 import { getChannel } from '../config/channels'
 import type { CombinedBucket, CombinedPeriod } from '../lib/aggregate'
-import { formatMargin, formatMoney } from '../lib/format'
+import { formatMargin } from '../lib/format'
+import { useMoney } from '../lib/money'
 import { ChannelDot } from './ChannelBadges'
 
 /**
@@ -48,19 +49,22 @@ const NESTED_ROW = 'pl-4 py-1.5'
 const BucketLines: React.FC<{ bucket: ChannelBucket; nested?: boolean }> = ({
   bucket,
   nested = false,
-}) => (
-  <>
-    {bucket.lines.map((line) => (
-      <DetailRow
-        key={line.label}
-        label={line.label}
-        value={line.amount}
-        formatValue={formatMoney}
-        className={nested ? NESTED_ROW : undefined}
-      />
-    ))}
-  </>
-)
+}) => {
+  const formatMoney = useMoney()
+  return (
+    <>
+      {bucket.lines.map((line) => (
+        <DetailRow
+          key={line.label}
+          label={line.label}
+          value={line.amount}
+          formatValue={formatMoney}
+          className={nested ? NESTED_ROW : undefined}
+        />
+      ))}
+    </>
+  )
+}
 
 /** A bold heading row with its total, then its child rows indented under a guide line so they read as its children. */
 const NestedGroup: React.FC<{
@@ -90,22 +94,25 @@ const ChannelGroup: React.FC<{
   amount: number | null
   note?: string
   children?: React.ReactNode
-}> = ({ channel, heading, amount, note, children }) => (
-  <NestedGroup
-    label={
-      <>
-        <ChannelDot channel={channel} />
-        <span>{getChannel(channel).name}</span>
-        <span>· {heading}</span>
-        {note && <span className="font-normal italic text-text-muted">· {note}</span>}
-      </>
-    }
-    value={amount ?? 0}
-    formatValue={(value) => (amount === null ? 'n/a' : formatMoney(value))}
-  >
-    {children}
-  </NestedGroup>
-)
+}> = ({ channel, heading, amount, note, children }) => {
+  const formatMoney = useMoney()
+  return (
+    <NestedGroup
+      label={
+        <>
+          <ChannelDot channel={channel} />
+          <span>{getChannel(channel).name}</span>
+          <span>· {heading}</span>
+          {note && <span className="font-normal italic text-text-muted">· {note}</span>}
+        </>
+      }
+      value={amount ?? 0}
+      formatValue={(value) => (amount === null ? 'n/a' : formatMoney(value))}
+    >
+      {children}
+    </NestedGroup>
+  )
+}
 
 /**
  * A section's count (e.g. refund count): a bold total, then one nested line per channel when several are combined.
@@ -172,6 +179,7 @@ const SectionDetails: React.FC<{
 }
 
 export const ChannelBreakdown: React.FC<ChannelBreakdownProps> = ({ period, sections = COST_BUCKETS }) => {
+  const formatMoney = useMoney()
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
   const single = period.channels.length === 1
   const toggle = (key: string) => setExpanded((previous) => ({ ...previous, [key]: !previous[key] }))
