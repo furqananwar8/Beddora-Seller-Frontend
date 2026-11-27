@@ -4,6 +4,7 @@ import React, { useEffect, useMemo } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { FormField } from '@/components/form-field/FormField'
 import { Button } from '@/design-system/buttons'
 import { Modal } from '@/design-system/modals'
 import { hsDigits, HS_CODE } from '../../create/shipmentSchema'
@@ -80,16 +81,20 @@ export const CustomsFixModal: React.FC<CustomsFixModalProps> = ({ order, onSave,
         {lines.map((line, index) => (
           <div key={line.productId} className="grid gap-3 sm:grid-cols-2">
             <p className="font-mono text-xs sm:col-span-2">{line.sku}</p>
-            <Controller
-              control={control}
-              name={`lines.${index}.hsCode`}
-              render={({ field }) => <HsCodeSelect id={`fix-hs-${line.productId}`} ariaLabel="HS code" value={field.value} onChange={field.onChange} error={errors.lines?.[index]?.hsCode?.message} prefilled={Boolean(line.hsCode)} />}
-            />
-            <Controller
-              control={control}
-              name={`lines.${index}.originCountry`}
-              render={({ field }) => <OriginCountrySelect id={`fix-origin-${line.productId}`} ariaLabel="Country of origin" value={field.value} onChange={field.onChange} error={errors.lines?.[index]?.originCountry?.message} prefilled={Boolean(line.originCountry)} />}
-            />
+            <FormField label="HS code" htmlFor={`fix-hs-${line.productId}`} required hint={toUs ? 'Full 10-digit HTS code for the US' : undefined}>
+              <Controller
+                control={control}
+                name={`lines.${index}.hsCode`}
+                render={({ field }) => <HsCodeSelect id={`fix-hs-${line.productId}`} ariaLabel="HS code" value={field.value} onChange={field.onChange} error={errors.lines?.[index]?.hsCode?.message} prefilled={Boolean(line.hsCode)} />}
+              />
+            </FormField>
+            <FormField label="Country of origin" htmlFor={`fix-origin-${line.productId}`} required hint="Where the product was made, not where it ships to">
+              <Controller
+                control={control}
+                name={`lines.${index}.originCountry`}
+                render={({ field }) => <OriginCountrySelect id={`fix-origin-${line.productId}`} ariaLabel="Country of origin" value={field.value} onChange={field.onChange} error={errors.lines?.[index]?.originCountry?.message} prefilled={Boolean(line.originCountry)} />}
+              />
+            </FormField>
           </div>
         ))}
         <div className="flex justify-end gap-2 border-t border-border pt-4">
