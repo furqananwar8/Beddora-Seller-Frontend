@@ -18,6 +18,7 @@ import { useTilePeriodFilters } from '@/features/profit/dashboard/hooks/useTileP
 import { SellerboardProductsTable } from '@/features/profit/dashboard/SellerboardProductsTable'
 import SummaryTiles, { SUMMARY_TILE_GRID, type SummaryTileMetric } from '@/features/profit/dashboard/SummaryTiles'
 import { useDebounce } from '@/utils/debounce'
+import { currencyForMarketplaceSelection } from '@/utils/marketplaceCurrency'
 import { formatNumber } from '@/utils/format'
 import { formatDateRangePST, nowInPST, type CurrencyCode } from '@/utils/profitDashboard.util'
 
@@ -101,6 +102,16 @@ export const ChannelReport: React.FC<{ channel: ChannelId }> = ({ channel }) => 
     !sameSet(draftChannels, appliedChannels) ||
     !sameSet(draftMarketplaces, appliedMarketplaces) ||
     draftCurrency !== appliedCurrency
+
+  // Picking one marketplace switches the currency to its own, as on the Settlement Report; the user can still change it
+  const changeMarketplaces = useCallback(
+    (value: string[]) => {
+      setDraftMarketplaces(value)
+      const currency = currencyForMarketplaceSelection(value, draftCurrency)
+      if (CURRENCY_OPTIONS.some((option) => option.value === currency)) setDraftCurrency(currency as CurrencyCode)
+    },
+    [draftCurrency],
+  )
 
   const applyFilters = useCallback(() => {
     period.apply()
@@ -309,7 +320,7 @@ export const ChannelReport: React.FC<{ channel: ChannelId }> = ({ channel }) => 
           onDateRangeChange={period.onDateRangeChange}
           datePickerKey={period.datePickerKey}
           marketplaces={draftMarketplaces}
-          onMarketplacesChange={setDraftMarketplaces}
+          onMarketplacesChange={changeMarketplaces}
           currency={draftCurrency}
           onCurrencyChange={(value) => setDraftCurrency(value as CurrencyCode)}
           currencyOptions={CURRENCY_OPTIONS}

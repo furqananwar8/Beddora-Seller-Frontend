@@ -1,11 +1,20 @@
-import { formatCurrency, formatNumber, formatPercentage } from '@/utils/format'
+import { formatNumber, formatPercentage } from '@/utils/format'
 
 /** Text shown for a cost the channel does not report. */
 export const NOT_REPORTED = 'n/a'
 
-/** Money with the currency symbol ("$1,234.50", like the Amazon cards); `null` (not reported) becomes "n/a". Without a currency: a plain 2-decimal amount. */
+const currencyFormats = new Map<string, Intl.NumberFormat>()
+
+/** The bare symbol ("$1,234.50", never "CA$" or "US$"): the currency picker already says which currency it is. */
+const formatWithSymbol = (amount: number, currency: string) => {
+  let format = currencyFormats.get(currency)
+  if (!format) currencyFormats.set(currency, (format = new Intl.NumberFormat('en-US', { style: 'currency', currency, currencyDisplay: 'narrowSymbol' })))
+  return format.format(amount)
+}
+
+/** Money with the currency symbol; `null` (not reported) becomes "n/a". Without a currency: a plain 2-decimal amount. */
 export const formatMoney = (amount: number | null | undefined, currency?: string) =>
-  amount === null || amount === undefined ? NOT_REPORTED : currency ? formatCurrency(amount, currency) : formatNumber(amount, 2)
+  amount === null || amount === undefined ? NOT_REPORTED : currency ? formatWithSymbol(amount, currency) : formatNumber(amount, 2)
 
 export const formatMargin = (value: number | null) => (value === null ? NOT_REPORTED : formatPercentage(value, 1))
 
