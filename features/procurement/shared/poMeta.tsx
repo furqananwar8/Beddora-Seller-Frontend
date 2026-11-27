@@ -1,6 +1,6 @@
 import React from 'react'
 import { StatusBadge, type StatusTone } from '@/components/status-badge/StatusBadge'
-import type { ContainerStatus, EtdAlert, PaymentState, PoDestination, PoPayment, PoStatus, PurchaseInvoicePdfStatus, PurchaseInvoiceStatus } from '@/services/api/procurement.api'
+import type { ContainerStatus, EtdAlert, FinalContainerStatus, PaymentState, PoDestination, PoPayment, PoStatus, PurchaseInvoicePdfStatus, PurchaseInvoiceStatus } from '@/services/api/procurement.api'
 import { cn } from '@/utils/cn'
 import { formatCalendarDay } from '@/utils/format'
 
@@ -124,7 +124,6 @@ export type ContainerStage = 'booked' | 'shipping' | 'delivered' | 'atWarehouse'
 /** In lifecycle order. Which statuses the form may set comes from the server (`permissions.statuses`). */
 export const CONTAINER_STATUS_META: Record<ContainerStatus, { label: string; tone: StatusTone; stage: ContainerStage }> = {
   BOOKED: { label: 'BOOKED', tone: 'neutral', stage: 'booked' },
-  FLOOR_LOADED: { label: 'FLOOR LOADED', tone: 'info', stage: 'shipping' },
   IN_TRANSIT: { label: 'IN TRANSIT', tone: 'info', stage: 'shipping' },
   ON_RAIL: { label: 'ON RAIL', tone: 'info', stage: 'shipping' },
   ON_BOARD: { label: 'ON BOARD', tone: 'info', stage: 'shipping' },
@@ -133,12 +132,20 @@ export const CONTAINER_STATUS_META: Record<ContainerStatus, { label: string; ton
   OUT_FOR_DELIVERY: { label: 'OUT FOR DELIVERY', tone: 'info', stage: 'shipping' },
   DELIVERED: { label: 'DELIVERED', tone: 'success', stage: 'delivered' },
   DELIVERED_AT_WAREHOUSE: { label: 'DELIVERED TO WAREHOUSE', tone: 'warning', stage: 'atWarehouse' },
+  DELIVERED_TO_AMAZON: { label: 'DELIVERED TO AMAZON', tone: 'success', stage: 'received' },
   DELIVERED_TO_AWD: { label: 'DELIVERED TO AWD', tone: 'success', stage: 'received' },
   GOODS_RECEIVED: { label: 'GOODS RECEIVED', tone: 'success', stage: 'received' },
 }
 
 /** Delivered to the warehouse (waiting in Inbound Receiving): nothing on the container can change. Every other status leaves its details editable. */
 export const isLockedStatus = (status: ContainerStatus): boolean => CONTAINER_STATUS_META[status].stage === 'atWarehouse'
+
+/** The three places "Mark as final" offers, in the order shown. */
+export const FINAL_STATUS_OPTIONS: Array<{ status: FinalContainerStatus; label: string; hint: string }> = [
+  { status: 'DELIVERED_AT_WAREHOUSE', label: 'Delivered to warehouse', hint: 'Goes to Inbound Receiving' },
+  { status: 'DELIVERED_TO_AMAZON', label: 'Delivered to Amazon (floor loaded)', hint: 'No receiving step' },
+  { status: 'DELIVERED_TO_AWD', label: 'Delivered to AWD', hint: 'No receiving step' },
+]
 
 export const CONTAINER_STATUSES = Object.keys(CONTAINER_STATUS_META) as ContainerStatus[]
 

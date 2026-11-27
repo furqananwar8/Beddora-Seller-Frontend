@@ -47,6 +47,8 @@ export interface PoProduct {
   packaging: string | null
   /** Free text such as "Medium" or "750 ml". */
   sizeName: string | null
+  /** Third variant option, free text such as "Knit". */
+  construction: string | null
   /** Variations only: the product's own dimensions as typed, apart from the packed ones. */
   productDimensions: string | null
   /** Customs tariff code; a variation starts from its master's and may differ per SKU. */
@@ -128,6 +130,7 @@ interface VariantInput {
   material: string | null
   packaging: string | null
   sizeName: string | null
+  construction?: string | null
   hsCode: string | null
   description: string | null
 }
@@ -729,7 +732,7 @@ export type InboundChannel = 'AMAZON_FBA' | 'WALMART_WFS'
 export type OpexCountry = 'CA' | 'US'
 
 export interface SkuLandedRow {
-  product: { id: number; sku: string; name: string }
+  product: { id: number; sku: string; name: string; platform: ProductPlatform }
   landedCost: LandedAmounts
   /** Per unit and channel, from approved shipment payment requests; null while none of its shipments there is paid. */
   shipmentCost: Record<InboundChannel, number | null>
@@ -767,9 +770,12 @@ export interface SkuLandedReport extends Page<SkuLandedRow> {
 
 /**
  * Every status leaves the details editable except DELIVERED_AT_WAREHOUSE (waiting in Inbound Receiving): nothing can change there.
- * GOODS_RECEIVED is set by Inbound Receiving only; DELIVERED_TO_AWD (Amazon AWD) and FLOOR_LOADED come from the form.
+ * GOODS_RECEIVED is set by Inbound Receiving only; DELIVERED_AT_WAREHOUSE, DELIVERED_TO_AMAZON (floor loaded) and DELIVERED_TO_AWD come from "Mark as final" and never change after.
  */
-export type ContainerStatus = 'BOOKED' | 'IN_TRANSIT' | 'ON_RAIL' | 'ON_BOARD' | 'ARRIVED_AT_PORT' | 'CUSTOMS_CLEARED' | 'OUT_FOR_DELIVERY' | 'DELIVERED' | 'DELIVERED_AT_WAREHOUSE' | 'GOODS_RECEIVED' | 'FLOOR_LOADED' | 'DELIVERED_TO_AWD'
+export type ContainerStatus = 'BOOKED' | 'IN_TRANSIT' | 'ON_RAIL' | 'ON_BOARD' | 'ARRIVED_AT_PORT' | 'CUSTOMS_CLEARED' | 'OUT_FOR_DELIVERY' | 'DELIVERED' | 'DELIVERED_AT_WAREHOUSE' | 'GOODS_RECEIVED' | 'DELIVERED_TO_AWD' | 'DELIVERED_TO_AMAZON'
+
+/** Where "Mark as final" can put a container; its status is fixed after. */
+export type FinalContainerStatus = Extract<ContainerStatus, 'DELIVERED_AT_WAREHOUSE' | 'DELIVERED_TO_AMAZON' | 'DELIVERED_TO_AWD'>
 
 /** Container form fields a status may lock. */
 export type ContainerField =
@@ -795,6 +801,8 @@ export interface ContainerPermissions {
   /** The statuses the form may set, its current one included; the server decides them. */
   statuses: ContainerStatus[]
   canChangeStatus: boolean
+  /** Booked or shipping: "Mark as final" is still open to it. */
+  canMarkFinal: boolean
 }
 
 export interface ContainerRef {
@@ -864,6 +872,8 @@ export interface ContainerItem {
   /** Cartons short and damaged on arrival; null until Inbound Receiving is confirmed. */
   receiving: { shortageCartons: number; damagedCartons: number } | null
   permissions: ContainerPermissions
+  /** What is still missing before "Mark as final" is allowed; empty when it is ready. */
+  finalBlockers: string[]
   /** A placeholder made from a packaging list's request: no container number, bill of lading or ETD yet. */
   needsDetails: boolean
   /** The packaging lists it carries (several; each list in one container only). */
@@ -1088,6 +1098,7 @@ export type PriceAnalysisProduct = Pick<
   | 'material'
   | 'packaging'
   | 'sizeName'
+  | 'construction'
   | 'weightKg'
   | 'weightUnit'
   | 'lengthCm'
@@ -1714,6 +1725,12 @@ export const procurementApi = baseApi.injectEndpoints({
       transformResponse: unwrap,
       invalidatesTags: ['ProcurementContainers'],
     }),
+    /** Fixes where the container was delivered; the server refuses (and lists what is missing) until its details and a packaging list are in. */
+    markContainerFinal: b.mutation<ContainerItem, { id: number; status: FinalContainerStatus }>({
+      query: ({ id, status }) => ({ url: `/procurement/containers/${id}/final`, method: 'POST', body: { status } }),
+      transformResponse: unwrap,
+      invalidatesTags: ['ProcurementContainers', 'ProcurementPackagingLists', 'ProcurementPurchaseOrders', 'InboundReceiving'],
+    }),
     /** A packaging list asks for a container: a placeholder takes the list and the container team is notified. */
     requestContainer: b.mutation<ContainerItem, { packagingListId: number }>({
       query: (body) => ({ url: '/procurement/containers/request', method: 'POST', body }),
@@ -1892,6 +1909,7 @@ export const {
   useCreateContainerMutation,
   useUpdateContainerMutation,
   useRequestContainerMutation,
+  useMarkContainerFinalMutation,
   useAddContainerPackagingListMutation,
   useRemoveContainerPackagingListMutation,
   useGetPriceAnalysesQuery,

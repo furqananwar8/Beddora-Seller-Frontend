@@ -22,6 +22,7 @@ import { useDeletePackagingListMutation, useGetPackagingListsQuery, useGetPackag
 import { cn } from '@/utils/cn'
 import { downloadApiFile } from '@/utils/downloadFile'
 import { CONTAINER_ROUTES } from '../containers/routes'
+import { AttachContainerModal } from './AttachContainerModal'
 import { containerLabel, formatPoNo, newPackagingListHref, supplierNames } from '../shared/poMeta'
 
 const BASE = '/dashboard/procurement/packaging-lists'
@@ -79,6 +80,7 @@ export const PackagingListsScreen: React.FC = () => {
   const { data: summary } = useGetPackagingListSummaryQuery()
 
   const [requesting, setRequesting] = useState<PackagingListItem | null>(null)
+  const [attaching, setAttaching] = useState<PackagingListItem | null>(null)
   const [requestContainer, { isLoading: requestBusy }] = useRequestContainerMutation()
   const [deleting, setDeleting] = useState<PackagingListItem | null>(null)
   const [deleteList, { isLoading: deletingBusy }] = useDeletePackagingListMutation()
@@ -115,16 +117,17 @@ export const PackagingListsScreen: React.FC = () => {
 
   const actionsFor = (row: PackagingListItem): RowActionItem[] => {
     // A list in a container has shipped: its lines stay as they are until it is taken out
-    const shipped = row.container ? `In ${containerLabel(row.container)}; its quantities are locked` : undefined
+    // (a tentative list keeps changing while its container is booked, and the container follows)
+    const shipped = row.container && (row.kind === 'FINAL' || row.container.status !== 'BOOKED') ? `In ${containerLabel(row.container)}; its quantities are locked` : undefined
     return [
       { key: 'view', label: 'View packaging list', onSelect: () => router.push(`${BASE}/${row.id}`) },
       ...(canWrite && row.kind === 'TENTATIVE' ? [{ key: 'convert', label: 'Convert to final', onSelect: () => router.push(`${BASE}/${row.id}?convert=1`) }] : []),
       ...(canWrite ? [{ key: 'edit', label: 'Edit quantities', onSelect: () => router.push(`${BASE}/${row.id}?edit=1`), disabled: Boolean(shipped), disabledReason: shipped }] : []),
       // Containers are booked on the Containers screen: a list only asks for one, and stays in it once there
-      ...(canAssign && row.kind === 'FINAL' && !row.container ? [{ key: 'request', label: 'Request container', onSelect: () => setRequesting(row) }] : []),
+      ...(canAssign && !row.container ? [{ key: 'attach', label: 'Add to container', onSelect: () => setAttaching(row) }, { key: 'request', label: 'Request container', onSelect: () => setRequesting(row) }] : []),
       ...(row.container ? [{ key: 'container', label: `Open ${containerLabel(row.container)}`, onSelect: () => router.push(CONTAINER_ROUTES.detail(row.container!.id)) }] : []),
       { key: 'pdf', label: 'Download PDF', onSelect: () => void download(row) },
-      ...(canWrite ? [{ key: 'delete', label: 'Delete list', tone: 'danger' as const, onSelect: () => setDeleting(row), disabled: Boolean(shipped), disabledReason: shipped }] : []),
+      ...(canWrite ? [{ key: 'delete', label: 'Delete list', tone: 'danger' as const, onSelect: () => setDeleting(row), disabled: Boolean(row.container), disabledReason: row.container ? `In ${containerLabel(row.container)}; take it out of the container first` : undefined }] : []),
     ]
   }
 
@@ -258,6 +261,8 @@ export const PackagingListsScreen: React.FC = () => {
         </div>
         {data && <PaginationFooter selectablePageSize page={data.page} pageSize={data.limit} totalItems={data.totalRecords} totalPages={data.totalPages} onPageChange={setPage} itemLabel="packaging lists" />}
       </div>
+
+      <AttachContainerModal list={attaching} onClose={() => setAttaching(null)} />
 
       <ConfirmDialog
         isOpen={requesting !== null}

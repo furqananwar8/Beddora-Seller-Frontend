@@ -25,6 +25,7 @@ import {
 import { serverIssues } from '@/utils/apiErrors'
 import { downloadApiFile } from '@/utils/downloadFile'
 import { DESTINATION_LABEL, containerLabel, supplierNames } from '../shared/poMeta'
+import { AttachContainerModal } from './AttachContainerModal'
 import { PackableBatchSelect } from './PackableBatchSelect'
 import { computeLine, EMPTY_LINE, lineKey, newLine, savedLine, toLineBody, type LineValue } from './packingLine'
 import { PackingLinesTable } from './PackingLinesTable'
@@ -43,6 +44,8 @@ export const PackagingListFormScreen: React.FC<PackagingListFormScreenProps> = (
   const params = useSearchParams()
   const ability = useAppAbility()
   const canWrite = ability.can('write', 'procurement:packaging-lists')
+  const canAssign = canWrite || ability.can('write', 'containers:containers')
+  const [attaching, setAttaching] = useState(false)
   const { success, failure } = useApiFeedback()
 
   const isNew = packagingListId === undefined
@@ -359,6 +362,11 @@ export const PackagingListFormScreen: React.FC<PackagingListFormScreenProps> = (
               Download PDF
             </Button>
           )}
+          {readOnly && canAssign && existing && !existing.container && (
+            <Button type="button" variant="outline" onClick={() => setAttaching(true)}>
+              Add to container
+            </Button>
+          )}
           {readOnly && canWrite && existing && !locked && (
             <Button type="button" variant={existing.kind === 'TENTATIVE' ? 'outline' : 'primary'} onClick={() => router.push(`${LIST}/${existing.id}?edit=1`)}>
               Edit quantities
@@ -376,6 +384,7 @@ export const PackagingListFormScreen: React.FC<PackagingListFormScreenProps> = (
           )}
         </FormActions>
       </div>
+      <AttachContainerModal list={attaching && existing ? existing : null} onClose={() => setAttaching(false)} />
     </Container>
   )
 }

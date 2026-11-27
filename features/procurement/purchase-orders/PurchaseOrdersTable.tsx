@@ -234,7 +234,7 @@ export const PurchaseOrdersTable: React.FC<PurchaseOrdersTableProps> = ({ rows, 
             <TableRow className="bg-secondary-50/60">
               <TableCell />
               <TableCell colSpan={COLUMNS - 1} className="py-3">
-                <PoBatchesPanel purchaseOrderId={row.id} />
+                <PoBatchesPanel purchaseOrderId={row.id} withAdd showProductionDate />
               </TableCell>
             </TableRow>
           )}

@@ -14,7 +14,7 @@ interface PlatformRadioProps {
 
 /** Ecommerce (Beddora, blue) or Retail (Northern Linen, red): two radio buttons, the chosen one filled with its colour. */
 export const PlatformRadio: React.FC<PlatformRadioProps> = ({ id, value, onChange, disabled }) => (
-  <div role="radiogroup" aria-label="Platform" className="grid grid-cols-2 gap-2">
+  <div role="radiogroup" aria-label="Brand" className="grid grid-cols-2 gap-2">
     {PLATFORMS.map((platform) => {
       const meta = PLATFORM_META[platform]
       const checked = value === platform
