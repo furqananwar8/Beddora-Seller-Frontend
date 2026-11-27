@@ -217,7 +217,7 @@ const EventEditor: React.FC<EditorProps> = ({ event, tabs, users, departments, r
                       onAdd={(picked) => set({ tabs: [...who.tabs, ...picked.map((option) => option.key)] })}
                       empty="Every screen is already picked."
                       disabled={off}
-                      width="w-64"
+                      width="w-80"
                     />
                   )}
                   {who.tabs.map((page) => (
@@ -236,7 +236,7 @@ const EventEditor: React.FC<EditorProps> = ({ event, tabs, users, departments, r
                       onAdd={(picked) => set({ departments: [...who.departments, ...picked.map((option) => Number(option.key))] })}
                       empty="Every department is already picked."
                       disabled={off}
-                      width="w-64"
+                      width="w-80"
                     />
                   )}
                   {who.departments.map((id) => (
