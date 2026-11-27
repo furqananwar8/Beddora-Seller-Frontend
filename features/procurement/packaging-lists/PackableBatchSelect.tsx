@@ -18,11 +18,10 @@ interface PackableBatchSelectProps {
   error?: string
 }
 
-/** Why a batch cannot join the current selection, mirroring the server: one destination and one brand per list. */
+/** Why a batch cannot join the current selection, mirroring the server: one destination per list (Ecommerce and Retail may be mixed). */
 export function unpackableReason(batch: PackableBatch, selected: PackableBatch[]): string | null {
   if (selected.length === 0 || selected.some((item) => item.id === batch.id)) return null
   if (selected[0].destination !== batch.destination) return `Ships to ${DESTINATION_LABEL[batch.destination]}`
-  if (selected[0].platform !== batch.platform) return `${PLATFORM_NAME[batch.platform]} batch · a list is for one brand`
   return null
 }
 
