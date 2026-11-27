@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { SignaturePad } from '@/components/signature-pad/SignaturePad'
 import { Button } from '@/design-system/buttons'
 import { Modal } from '@/design-system/modals'
@@ -9,24 +9,34 @@ import { useReportExport } from '@/hooks/useReportExport'
 interface ReceivingPdfModalProps {
   /** The container to print; the dialog is closed when null. */
   container: { id: number; containerNo: string } | null
-  /** A signature already saved with the receipt: the pad starts with it, and it can be redrawn. */
-  savedSignature?: string
+  /** The receipt is already signed: the server prints the saved signature, so nobody signs again. */
+  signed?: boolean
   onClose: () => void
 }
 
 /**
- * "Download PDF": the receiver signs (or redraws) the sheet, then the server builds it in the background and the
- * file downloads by itself when the server announces it over SSE, with a toast, like every other PDF.
+ * "Download PDF": a signed receipt downloads straight away with its saved signature; otherwise the receiver signs first.
+ * Either way the server builds it in the background and the file downloads by itself when the server announces it over
+ * SSE, with a toast, like every other PDF.
  */
-export const ReceivingPdfModal: React.FC<ReceivingPdfModalProps> = ({ container, savedSignature = '', onClose }) => {
+export const ReceivingPdfModal: React.FC<ReceivingPdfModalProps> = ({ container, signed = false, onClose }) => {
   const { start, isExporting } = useReportExport('inbound-receiving-pdf', { noun: 'PDF' })
-  const [signature, setSignature] = useState(savedSignature)
+  const [signature, setSignature] = useState('')
   const [touched, setTouched] = useState(false)
+  const autoStarted = useRef<number | null>(null)
 
   useEffect(() => {
-    setSignature(savedSignature)
+    setSignature('')
     setTouched(false)
-  }, [container?.id, savedSignature])
+  }, [container?.id])
+
+  useEffect(() => {
+    if (!container) return void (autoStarted.current = null)
+    if (!signed || autoStarted.current === container.id) return
+    autoStarted.current = container.id
+    void start('pdf', { containerId: container.id }).finally(onClose)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fire once per opened container
+  }, [container, signed])
 
   const submit = async () => {
     if (!container) return
@@ -36,9 +46,8 @@ export const ReceivingPdfModal: React.FC<ReceivingPdfModalProps> = ({ container,
   }
 
   return (
-    <Modal isOpen={container !== null} onClose={isExporting ? () => undefined : onClose} title={container ? `Download PDF · ${container.containerNo}` : undefined} size="md" closeOnEscape={!isExporting}>
-      {/* Remounted per container so the pad redraws its saved signature */}
-      <p className="mb-3 text-sm text-text-secondary">Sign the receiving sheet. Reset to sign again before downloading.</p>
+    <Modal isOpen={container !== null && !signed} onClose={isExporting ? () => undefined : onClose} title={container ? `Download PDF · ${container.containerNo}` : undefined} size="md" closeOnEscape={!isExporting}>
+      <p className="mb-3 text-sm text-text-secondary">Sign the receiving sheet before downloading.</p>
       {container && (
         <SignaturePad
           key={container.id}

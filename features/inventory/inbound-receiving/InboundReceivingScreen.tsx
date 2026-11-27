@@ -212,7 +212,7 @@ export const InboundReceivingScreen: React.FC = () => {
         )}
       </div>
 
-      <ReceivingPdfModal container={printing} onClose={() => setPrinting(null)} />
+      <ReceivingPdfModal container={printing} signed={printing?.status === 'GOODS_RECEIVED'} onClose={() => setPrinting(null)} />
       {scanItems.dialog}
     </Container>
   )

@@ -295,7 +295,7 @@ const ReceivingForm: React.FC<{ detail: ReceivingDetail }> = ({ detail }) => {
         </p>
       </ConfirmDialog>
 
-      <ReceivingPdfModal container={printing ? { id: detail.id, containerNo: detail.containerNo } : null} savedSignature={detail.receipt?.signature} onClose={() => setPrinting(false)} />
+      <ReceivingPdfModal container={printing ? { id: detail.id, containerNo: detail.containerNo } : null} signed={received} onClose={() => setPrinting(false)} />
     </form>
   )
 }
