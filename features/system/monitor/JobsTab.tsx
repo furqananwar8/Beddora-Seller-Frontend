@@ -5,6 +5,7 @@ import { ConfirmDialog } from '@/components/confirm-dialog/ConfirmDialog'
 import { EmptyState } from '@/components/data-display/EmptyState'
 import { FilterMultiSelect } from '@/components/filter-bar/FilterMultiSelect'
 import { FormField } from '@/components/form-field/FormField'
+import { SelectionCheckbox } from '@/components/selection-checkbox/SelectionCheckbox'
 import { PaginationFooter } from '@/components/pagination-footer/PaginationFooter'
 import { StatusBadge } from '@/components/status-badge/StatusBadge'
 import { Button } from '@/design-system/buttons'
@@ -12,8 +13,11 @@ import { KpiCard } from '@/design-system/kpi'
 import { Tabs } from '@/design-system/tabs'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/design-system/tables'
 import { useApiFeedback } from '@/hooks/useApiFeedback'
+import { useRowSelection } from '@/hooks/useRowSelection'
 import {
+  useBulkJobsMutation,
   useCleanQueueMutation,
+  useGetFailedSyncsQuery,
   useGetActiveJobsQuery,
   useGetFailedJobsQuery,
   useGetJobsOverviewQuery,
@@ -24,15 +28,19 @@ import {
   useRemoveJobMutation,
   useRetryAllJobsMutation,
   useRetryJobMutation,
+  type BulkJobAction,
   type JobDetail,
+  type JobRef,
   type JobStateName,
   type JobView,
   type QueueSummary,
 } from '@/services/api/systemMonitor.api'
 import { cn } from '@/utils/cn'
+import { BulkBar } from './BulkBar'
 import { Sparkline, ThroughputChart } from './charts'
 import { JobInspector } from './JobInspector'
 import { ActivityFeed, Panel, ScrollArea } from './Panel'
+import { SyncFailuresPanel } from './SyncFailuresPanel'
 import { ago, firstSentence, formatCount, HEALTH_LABEL, HEALTH_TILE, HEALTH_TONE, queueHealth, STATE_LABEL, STATE_TONE, useNow } from './monitorMeta'
 import { useJobsLive } from './useJobsLive'
 
@@ -40,6 +48,8 @@ const FILTER_BOX = 'mb-4 flex flex-wrap items-end gap-3 rounded-lg border border
 const SEARCH_INPUT = 'ds-input ds-input-default w-full max-w-sm rounded-lg'
 const STATES: JobStateName[] = ['active', 'waiting', 'delayed', 'failed', 'completed']
 const key = (job: Pick<JobView, 'queue' | 'id'>) => `${job.queue}:${job.id}`
+/** Job ids never contain ':' but queue names may, so the split is at the last one. */
+const refOf = (jobKey: string): JobRef => ({ queue: jobKey.slice(0, jobKey.lastIndexOf(':')), id: jobKey.slice(jobKey.lastIndexOf(':') + 1) })
 
 /** The two Amazon pipelines as boxes joined by moving dashes. A queue missing from Redis simply shows zero. */
 const FLOWS: Array<{ title: string; steps: Array<{ queue: string; title: string; note: string }> }> = [
@@ -70,6 +80,7 @@ export const JobsTab: React.FC = () => {
   const { data: active = [] } = useGetActiveJobsQuery(undefined, { pollingInterval: 5_000 })
   const { data: failed = [] } = useGetFailedJobsQuery(undefined, { pollingInterval: 15_000 })
   const { data: schedules = [] } = useGetSchedulesQuery()
+  const { data: syncs = [] } = useGetFailedSyncsQuery(undefined, { pollingInterval: 15_000 })
   const { feed, leaving, fresh } = useJobsLive()
 
   const [selectedQueue, setSelectedQueue] = useState<string | null>(null)
@@ -81,7 +92,7 @@ export const JobsTab: React.FC = () => {
   const [failSearch, setFailSearch] = useState('')
   const [failReasons, setFailReasons] = useState<string[]>([])
   const [scheduleKind, setScheduleKind] = useState<'all' | 'bullmq' | 'cron'>('all')
-  const [confirm, setConfirm] = useState<{ kind: 'retry-all'; queue?: string } | { kind: 'remove'; job: JobDetail } | null>(null)
+  const [confirm, setConfirm] = useState<{ kind: 'retry-all'; queue?: string } | { kind: 'remove'; job: JobDetail } | { kind: 'bulk-remove'; jobs: JobRef[] } | null>(null)
 
   const [retryJob] = useRetryJobMutation()
   const [promoteJob] = usePromoteJobMutation()
@@ -89,6 +100,7 @@ export const JobsTab: React.FC = () => {
   const [pauseQueue] = usePauseQueueMutation()
   const [cleanQueue] = useCleanQueueMutation()
   const [retryAll, { isLoading: retryingAll }] = useRetryAllJobsMutation()
+  const [bulkJobs, { isLoading: bulking }] = useBulkJobsMutation()
 
   const queues = useMemo(() => overview?.queues ?? [], [overview])
   const byName = useMemo(() => new Map(queues.map((queue) => [queue.name, queue])), [queues])
@@ -112,6 +124,7 @@ export const JobsTab: React.FC = () => {
 
   const reasonOptions = useMemo(() => [...new Set(failed.map((job) => job.failure?.label ?? 'Unknown'))].sort().map((label) => ({ value: label, label })), [failed])
   const shownFailed = failed.filter((job) => (failReasons.length === 0 || failReasons.includes(job.failure?.label ?? 'Unknown')) && (!failSearch.trim() || `${job.queue} ${job.name} ${job.id}`.toLowerCase().includes(failSearch.trim().toLowerCase())))
+  const failedSel = useRowSelection(useMemo(() => shownFailed.map(key), [shownFailed]))
   const reasonCounts = useMemo(() => {
     const counts = new Map<string, number>()
     failed.forEach((job) => counts.set(job.failure?.label ?? 'Unknown', (counts.get(job.failure?.label ?? 'Unknown') ?? 0) + 1))
@@ -119,6 +132,7 @@ export const JobsTab: React.FC = () => {
   }, [failed])
   const retryable = failed.filter((job) => job.failure?.retryable).length
 
+  const queueSel = useRowSelection(useMemo(() => (jobsPage?.data ?? []).map(key), [jobsPage]))
   const shownSchedules = schedules.filter((item) => scheduleKind === 'all' || item.source === scheduleKind)
 
   const doRetry = async (job: Pick<JobView, 'queue' | 'id'>) => {
@@ -129,12 +143,24 @@ export const JobsTab: React.FC = () => {
       failure(error, 'Could not retry the task')
     }
   }
+  const doBulk = async (action: BulkJobAction, jobs: JobRef[]) => {
+    try {
+      const result = await bulkJobs({ action, jobs }).unwrap()
+      success(`${result.done} task${result.done === 1 ? '' : 's'} ${action === 'retry' ? 'put back in line' : 'deleted'}${result.skipped ? `. ${result.skipped} skipped (already gone, or running now)` : ''}`)
+      failedSel.clear()
+      queueSel.clear()
+    } catch (error) {
+      failure(error, 'That did not work')
+    }
+  }
   const runConfirmed = async () => {
     if (!confirm) return
     try {
       if (confirm.kind === 'retry-all') {
         const result = await retryAll({ queue: confirm.queue }).unwrap()
         success(`${result.retried} task${result.retried === 1 ? '' : 's'} put back in line${result.skipped ? `. ${result.skipped} left alone because retrying will not help` : ''}`)
+      } else if (confirm.kind === 'bulk-remove') {
+        await doBulk('remove', confirm.jobs)
       } else {
         await removeJob({ queue: confirm.job.queue, id: confirm.job.id }).unwrap()
         success('Task removed')
@@ -225,13 +251,13 @@ export const JobsTab: React.FC = () => {
           actions={
             <>
               <StatusBadge label={HEALTH_LABEL[queueHealth(current)]} tone={HEALTH_TONE[queueHealth(current)]} />
-              <Button type="button" size="sm" variant="outline" onClick={() => void pauseQueue({ queue: current.name, paused: !current.paused }).unwrap().catch((error) => failure(error, 'Could not change the queue'))}>
+              <Button type="button" variant="outline" onClick={() => void pauseQueue({ queue: current.name, paused: !current.paused }).unwrap().catch((error) => failure(error, 'Could not change the queue'))}>
                 {current.paused ? 'Resume queue' : 'Pause queue'}
               </Button>
-              <Button type="button" size="sm" onClick={() => setConfirm({ kind: 'retry-all', queue: current.name })} disabled={current.counts.failed === 0}>
+              <Button type="button" onClick={() => setConfirm({ kind: 'retry-all', queue: current.name })} disabled={current.counts.failed === 0}>
                 Retry its temporary failures
               </Button>
-              <Button type="button" size="sm" variant="outline" onClick={() => void cleanQueue({ queue: current.name }).unwrap().then((result) => info(`Cleaned ${result.removed} finished task${result.removed === 1 ? '' : 's'}`)).catch((error) => failure(error, 'Could not clean the queue'))}>
+              <Button type="button" variant="outline" onClick={() => void cleanQueue({ queue: current.name }).unwrap().then((result) => info(`Cleaned ${result.removed} finished task${result.removed === 1 ? '' : 's'}`)).catch((error) => failure(error, 'Could not clean the queue'))}>
                 Clean finished
               </Button>
             </>
@@ -249,8 +275,9 @@ export const JobsTab: React.FC = () => {
           <div className="mb-3 max-w-full overflow-x-auto">
             <Tabs items={STATES.map((state) => ({ id: state, label: `${STATE_LABEL[state]} ${formatCount(current.counts[state])}` }))} activeTab={status} onChange={(id) => { setStatus(id as JobStateName); setPage(1) }} />
           </div>
+          {status === 'failed' && <BulkBar count={queueSel.count} busy={bulking} onRetry={() => void doBulk('retry', queueSel.keys.map(refOf))} onRemove={() => setConfirm({ kind: 'bulk-remove', jobs: queueSel.keys.map(refOf) })} onClear={queueSel.clear} />}
           <div className={listLoading ? 'opacity-70 transition-opacity' : undefined}>
-            <JobTable jobs={jobsPage?.data ?? []} now={now} selected={open} onOpen={(job) => setOpen({ queue: job.queue, id: job.id })} empty={`No ${STATE_LABEL[status].toLowerCase()} tasks in this queue.`} />
+            <JobTable selection={status === 'failed' ? queueSel : undefined} jobs={jobsPage?.data ?? []} now={now} selected={open} onOpen={(job) => setOpen({ queue: job.queue, id: job.id })} empty={`No ${STATE_LABEL[status].toLowerCase()} tasks in this queue.`} />
             {jobsPage && jobsPage.totalRecords > 0 && <PaginationFooter page={jobsPage.page} pageSize={jobsPage.limit} totalItems={jobsPage.totalRecords} totalPages={jobsPage.totalPages} onPageChange={setPage} itemLabel="tasks" />}
           </div>
         </Panel>
@@ -302,11 +329,13 @@ export const JobsTab: React.FC = () => {
         </ScrollArea>
       </Panel>
 
+      <SyncFailuresPanel syncs={syncs} now={now} busy={bulking} onRetry={(jobs) => void doBulk('retry', jobs)} onRemove={(jobs) => setConfirm({ kind: 'bulk-remove', jobs })} />
+
       <Panel
         title="Failed tasks"
         subtitle="Temporary problems can be retried. Press Retry and the task leaves this list and shows up under Running."
         actions={
-          <Button type="button" size="sm" onClick={() => setConfirm({ kind: 'retry-all' })} disabled={retryable === 0} isLoading={retryingAll}>
+          <Button type="button" onClick={() => setConfirm({ kind: 'retry-all' })} disabled={retryable === 0} isLoading={retryingAll}>
             Retry all temporary failures ({retryable})
           </Button>
         }
@@ -319,14 +348,22 @@ export const JobsTab: React.FC = () => {
             </FormField>
           </div>
         </div>
+        <BulkBar count={failedSel.count} busy={bulking} onRetry={() => void doBulk('retry', failedSel.keys.map(refOf))} onRemove={() => setConfirm({ kind: 'bulk-remove', jobs: failedSel.keys.map(refOf) })} onClear={failedSel.clear} />
         <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
           <ScrollArea>
+            {shownFailed.length > 0 && (
+              <label className="flex items-center gap-2 pb-2 text-xs text-text-muted">
+                <SelectionCheckbox label="Select all shown failed tasks" checked={failedSel.headerState === 'all'} indeterminate={failedSel.headerState === 'some'} onChange={failedSel.toggleAllVisible} />
+                Select all shown
+              </label>
+            )}
             {shownFailed.length === 0 ? (
               <p className="text-sm text-text-muted">{failed.length === 0 ? 'No failed tasks. Nice.' : 'No failed task matches.'}</p>
             ) : (
               <ul>
                 {shownFailed.map((job) => (
                   <li key={key(job)} className={cn('flex flex-wrap items-center gap-3 border-t border-border py-3 first:border-t-0', leaving.has(key(job)) && 'monitor-leave', fresh.has(key(job)) && 'monitor-enter')}>
+                    <SelectionCheckbox label={`Select task ${job.id}`} checked={failedSel.isSelected(key(job))} onChange={() => failedSel.toggle(key(job))} />
                     <StatusBadge label={job.failure?.retryable ? 'Temporary' : 'Needs a fix'} tone={job.failure?.retryable ? 'warning' : 'danger'} />
                     <button type="button" onClick={() => setOpen({ queue: job.queue, id: job.id })} className="min-w-0 flex-1 text-left">
                       <div className="text-sm font-medium text-text-primary">
@@ -339,7 +376,7 @@ export const JobsTab: React.FC = () => {
                       </div>
                     </button>
                     {job.failure?.retryable && (
-                      <Button type="button" size="sm" onClick={() => void doRetry(job)}>
+                      <Button type="button" onClick={() => void doRetry(job)}>
                         Retry
                       </Button>
                     )}
@@ -403,14 +440,14 @@ export const JobsTab: React.FC = () => {
 
       <ConfirmDialog
         isOpen={confirm !== null}
-        title={confirm?.kind === 'remove' ? 'Remove this task?' : 'Retry the temporary failures?'}
-        confirmLabel={confirm?.kind === 'remove' ? 'Remove it' : 'Retry them'}
-        tone={confirm?.kind === 'remove' ? 'danger' : 'default'}
-        busy={removing || retryingAll}
+        title={confirm?.kind === 'remove' ? 'Remove this task?' : confirm?.kind === 'bulk-remove' ? `Delete ${confirm.jobs.length} failed task${confirm.jobs.length === 1 ? '' : 's'}?` : 'Retry the temporary failures?'}
+        confirmLabel={confirm?.kind === 'remove' ? 'Remove it' : confirm?.kind === 'bulk-remove' ? 'Delete them' : 'Retry them'}
+        tone={confirm?.kind === 'retry-all' ? 'default' : 'danger'}
+        busy={removing || retryingAll || bulking}
         onConfirm={() => void runConfirmed()}
         onClose={() => setConfirm(null)}
       >
-        {confirm?.kind === 'remove' ? 'The task and its log are deleted and cannot be brought back.' : `Every failed task ${confirm?.kind === 'retry-all' && confirm.queue ? `in ${confirm.queue} ` : ''}whose problem is likely to clear is put back in line (up to 200 at a time). Failures that retrying cannot fix are left alone.`}
+        {confirm?.kind === 'remove' || confirm?.kind === 'bulk-remove' ? 'The tasks and their logs are deleted from Redis and cannot be brought back.' : `Every failed task ${confirm?.kind === 'retry-all' && confirm.queue ? `in ${confirm.queue} ` : ''}whose problem is likely to clear is put back in line (up to 200 at a time). Failures that retrying cannot fix are left alone.`}
       </ConfirmDialog>
     </div>
   )
@@ -428,13 +465,20 @@ const QueueTile: React.FC<{ queue: QueueSummary; selected: boolean; onSelect: ()
   )
 }
 
-const JobTable: React.FC<{ jobs: JobView[]; now: number; selected: { queue: string; id: string } | null; onOpen: (job: JobView) => void; empty: string }> = ({ jobs, now, selected, onOpen, empty }) =>
+type Selection = ReturnType<typeof useRowSelection<string>>
+
+const JobTable: React.FC<{ selection?: Selection; jobs: JobView[]; now: number; selected: { queue: string; id: string } | null; onOpen: (job: JobView) => void; empty: string }> = ({ selection, jobs, now, selected, onOpen, empty }) =>
   jobs.length === 0 ? (
     <p className="py-6 text-center text-sm text-text-muted">{empty}</p>
   ) : (
     <Table>
       <TableHeader>
         <TableRow>
+          {selection && (
+            <TableHead>
+              <SelectionCheckbox label="Select all tasks on this page" checked={selection.headerState === 'all'} indeterminate={selection.headerState === 'some'} onChange={selection.toggleAllVisible} />
+            </TableHead>
+          )}
           <TableHead>Task</TableHead>
           <TableHead>Progress</TableHead>
           <TableHead>Tries</TableHead>
@@ -445,6 +489,11 @@ const JobTable: React.FC<{ jobs: JobView[]; now: number; selected: { queue: stri
       <TableBody>
         {jobs.map((job) => (
           <TableRow key={key(job)} className={cn('cursor-pointer', selected && key(selected) === key(job) && 'bg-sky-50')} onClick={() => onOpen(job)}>
+            {selection && (
+              <TableCell>
+                <SelectionCheckbox label={`Select task ${job.id}`} checked={selection.isSelected(key(job))} onChange={() => selection.toggle(key(job))} />
+              </TableCell>
+            )}
             <TableCell>
               <button type="button" className="text-left" onClick={() => onOpen(job)}>
                 <div className="font-mono text-sm">{job.name}</div>

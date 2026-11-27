@@ -54,6 +54,34 @@ export interface JobDetail extends JobView {
   stacktrace: string[]
 }
 
+export interface JobRef {
+  queue: string
+  id: string
+}
+
+export interface SyncErrorGroup {
+  message: string
+  label: string
+  plain: string
+  retryable: boolean
+  count: number
+  lastAt: number | null
+  jobs: JobRef[]
+}
+
+export interface SyncFailure {
+  id: string
+  sync: string
+  area: string
+  queues: string[]
+  failed: number
+  partial: boolean
+  lastAt: number | null
+  errors: SyncErrorGroup[]
+}
+
+export type BulkJobAction = 'retry' | 'remove'
+
 export interface QueueSummary {
   name: string
   group: string
@@ -199,6 +227,12 @@ export const systemMonitorApi = baseApi.injectEndpoints({
     getJobsOverview: b.query<JobsOverview, void>({ query: () => `${PATH}/jobs/overview`, transformResponse: unwrap, providesTags: [monitorTags.jobsOverview] }),
     getActiveJobs: b.query<JobView[], void>({ query: () => `${PATH}/jobs/active`, transformResponse: unwrap, providesTags: [monitorTags.active] }),
     getFailedJobs: b.query<JobView[], void>({ query: () => `${PATH}/jobs/failed`, transformResponse: unwrap, providesTags: [monitorTags.failed] }),
+    getFailedSyncs: b.query<SyncFailure[], void>({ query: () => `${PATH}/jobs/syncs`, transformResponse: unwrap, providesTags: [monitorTags.failed] }),
+    bulkJobs: b.mutation<{ done: number; skipped: number }, { action: BulkJobAction; jobs: JobRef[] }>({
+      query: (body) => ({ url: `${PATH}/jobs/bulk`, method: 'POST', body }),
+      transformResponse: unwrap,
+      invalidatesTags: [monitorTags.failed, monitorTags.list, monitorTags.jobsOverview],
+    }),
     getSchedules: b.query<ScheduleView[], void>({ query: () => `${PATH}/jobs/schedules`, transformResponse: unwrap, keepUnusedDataFor: 30 }),
     getQueueJobs: b.query<Page<JobView>, QueueJobsParams>({
       query: ({ queue, ...params }) => ({ url: `${PATH}/jobs/queues/${encodeURIComponent(queue)}/jobs`, params }),
@@ -257,6 +291,8 @@ export const {
   useGetJobsOverviewQuery,
   useGetActiveJobsQuery,
   useGetFailedJobsQuery,
+  useGetFailedSyncsQuery,
+  useBulkJobsMutation,
   useGetSchedulesQuery,
   useGetQueueJobsQuery,
   useGetJobDetailQuery,

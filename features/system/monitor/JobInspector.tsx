@@ -71,21 +71,21 @@ export const JobInspector: React.FC<Props> = ({ queue, id, info, onClose, onRetr
         </div>
         <div className="flex flex-wrap gap-2">
           {failed && job.failure?.retryable !== false && (
-            <Button type="button" size="sm" onClick={() => onRetry(job)}>
+            <Button type="button" onClick={() => onRetry(job)}>
               Retry now
             </Button>
           )}
           {job.state === 'delayed' && (
-            <Button type="button" size="sm" variant="outline" onClick={() => onPromote(job)}>
+            <Button type="button" variant="outline" onClick={() => onPromote(job)}>
               Run it now
             </Button>
           )}
           {!running && (
-            <Button type="button" size="sm" variant="outline" onClick={() => onRemove(job)}>
+            <Button type="button" variant="outline" onClick={() => onRemove(job)}>
               Remove
             </Button>
           )}
-          <Button type="button" size="sm" variant="ghost" onClick={onClose}>
+          <Button type="button" variant="ghost" onClick={onClose}>
             Close
           </Button>
         </div>
