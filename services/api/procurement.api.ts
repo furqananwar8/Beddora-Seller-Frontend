@@ -347,7 +347,7 @@ export interface PoBatch {
   /** Units on the batch's packaging list. */
   packed: number
   packagingList: { id: number; plNo: string; kind: PackagingListKind; container: ContainerRef | null } | null
-  lines: Array<{ id: number; product: PoProduct; units: number; unitPrice: number | null; packed: number; remaining: number }>
+  lines: Array<{ id: number; product: PoProduct; units: number; unitPrice: number | null; /** L × W × H in cm typed on the PO for this batch; null when the product's own apply. */ lengthCm: number | null; widthCm: number | null; heightCm: number | null; packed: number; remaining: number }>
 }
 
 export interface AddBatchBody {
@@ -432,7 +432,7 @@ export interface PurchaseOrderBody {
   currency: PoCurrency
   etd: string
   /** The PO's batches; each has its own products. `id` is a saved batch being edited. */
-  batches: Array<{ id?: number; lines: Array<{ productId: number; unitsOrdered: number; unitPrice: number }> }>
+  batches: Array<{ id?: number; lines: Array<{ productId: number; unitsOrdered: number; unitPrice: number; lengthCm: number | null; widthCm: number | null; heightCm: number | null }> }>
   /** Samples on the PO: an `id` links an existing sample, none creates a new one; a unit price of 0 means free. */
   samples: Array<{ id?: number; productId: number; units: number; unitPrice: number }>
   sourcePurchaseOrderId?: number
@@ -1332,8 +1332,8 @@ export const procurementApi = baseApi.injectEndpoints({
       transformResponse: unwrap,
       providesTags: ['ProcurementProducts'],
     }),
-    getPoProductOptions: b.query<PoProduct[], { search?: string; limit?: number; parentsOnly?: boolean; platform?: ProductPlatform }>({
-      query: ({ search, limit, parentsOnly, platform }) => ({ url: '/procurement/products/options', params: { search: search || undefined, limit, parentsOnly: parentsOnly || undefined, platform } }),
+    getPoProductOptions: b.query<PoProduct[], { search?: string; limit?: number; parentsOnly?: boolean; variantsOnly?: boolean; platform?: ProductPlatform }>({
+      query: ({ search, limit, parentsOnly, variantsOnly, platform }) => ({ url: '/procurement/products/options', params: { search: search || undefined, limit, parentsOnly: parentsOnly || undefined, variantsOnly: variantsOnly || undefined, platform } }),
       transformResponse: unwrap,
       // A search result goes stale the moment a product is created; don't keep one around for reuse
       keepUnusedDataFor: 0,

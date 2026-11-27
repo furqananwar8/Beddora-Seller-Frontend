@@ -14,9 +14,9 @@ import { ProductPicker, productLabel } from '../shared/ProductPicker'
 import { ExpandToggle, ProductSpecs, useExpandedRows } from '../shared/ProductSpecs'
 import { ProductTagBadge } from '../shared/ProductTagBadge'
 import { PlatformBadge } from '../shared/platformMeta'
-import { cbmOf, formatCbm, formatDimensions } from '../shared/units'
+import { cbmOf, formatCbm } from '../shared/units'
 import { Button } from '@/design-system/buttons'
-import { allLines, lineAmount, newLine, summarize, type PoFormValues } from './poForm'
+import { allLines, lineAmount, newLine, productSize, summarize, type PoFormValues, type PoLineValues } from './poForm'
 
 interface PoProductsSectionProps {
   form: UseFormReturn<PoFormValues>
@@ -43,6 +43,22 @@ const units = (value: number) => value.toLocaleString('en-CA')
 const cbmPerUnit = (product: PoProduct): number | null =>
   product.cbm ?? (product.lengthCm !== null && product.widthCm !== null && product.heightCm !== null ? cbmOf(product.lengthCm, product.widthCm, product.heightCm, 'CM') : null)
 
+/** One unit's CBM for the line: from the size typed on the PO when it differs from the product's, else the product's. */
+const lineCbmPerUnit = (line: PoLineValues): number | null => {
+  const typed = [line.length, line.width, line.height]
+  const own = productSize(line.product)
+  const edited = typed.some((value, index) => value !== [own.length, own.width, own.height][index])
+  if (!edited || typed.some((value) => !(Number(value) > 0))) return cbmPerUnit(line.product)
+  const [l, w, h] = typed.map(Number)
+  return cbmOf(l, w, h, line.product.dimensionUnit)
+}
+
+const SIZE_FIELDS = [
+  ['length', 'Length'],
+  ['width', 'Width'],
+  ['height', 'Height'],
+] as const
+
 const PoBatchCard: React.FC<PoBatchCardProps> = ({ form, readOnly, fixedProducts, purchaseOrderId, batchIndex, batchCount, locked, onRemove }) => {
   const {
     control,
@@ -53,7 +69,7 @@ const PoBatchCard: React.FC<PoBatchCardProps> = ({ form, readOnly, fixedProducts
   const lines = useWatch({ control, name: `batches.${batchIndex}.lines` }) ?? []
   const batchErrors = errors.batches?.[batchIndex]
   // null when no line has a size to work the volume from
-  const cbms = lines.map((line) => { const unit = cbmPerUnit(line.product); return unit === null ? null : unit * (Number(line.unitsOrdered) || 0) })
+  const cbms = lines.map((line) => { const unit = lineCbmPerUnit(line); return unit === null ? null : unit * (Number(line.unitsOrdered) || 0) })
   const totalCbm = cbms.some((cbm) => cbm !== null) ? cbms.reduce<number>((sum, cbm) => sum + (cbm ?? 0), 0) : null
   const currency = useWatch({ control, name: 'currency' })
   const platform = useWatch({ control, name: 'platform' })
@@ -90,7 +106,7 @@ const PoBatchCard: React.FC<PoBatchCardProps> = ({ form, readOnly, fixedProducts
             <label htmlFor={`po-products-${batchIndex}`} className="ds-input-label">
               Add products
             </label>
-            <ProductPicker id={`po-products-${batchIndex}`} selected={lines.map((line) => line.product)} onChange={syncPicked} canCreate platform={platform} />
+            <ProductPicker id={`po-products-${batchIndex}`} selected={lines.map((line) => line.product)} onChange={syncPicked} canCreate platform={platform} variantsOnly />
           </div>
         )}
         {fixedProducts && !readOnly && <p className="text-xs text-text-muted">This PO takes over units left on another PO, so its products are fixed. Lower a quantity or remove a line if needed.</p>}
@@ -110,7 +126,7 @@ const PoBatchCard: React.FC<PoBatchCardProps> = ({ form, readOnly, fixedProducts
                   <th className={HEAD}>Tag</th>
                   <th className={HEAD}>Brand</th>
                   <th className={HEAD}>Color</th>
-                  <th className={HEAD}>L × W × H</th>
+                  <th className={HEAD} title="Starts from the product; change it here for this PO only, the product is not updated">L × W × H</th>
                   <th className={HEAD} title="One unit's L × W × H CBM × units ordered">CBM</th>
                   <th className={HEAD}>Units ordered</th>
                   <th className={HEAD}>Unit rate ({currency})</th>
@@ -127,7 +143,8 @@ const PoBatchCard: React.FC<PoBatchCardProps> = ({ form, readOnly, fixedProducts
                   const unitsError = batchErrors?.lines?.[index]?.unitsOrdered?.message
                   const rateError = batchErrors?.lines?.[index]?.unitPrice?.message
                   const remaining = (Number(line.unitsOrdered) || 0) - line.allocated
-                  const unitCbm = cbmPerUnit(product)
+                  const unitCbm = lineCbmPerUnit(line)
+                  const sizeError = SIZE_FIELDS.map(([field]) => batchErrors?.lines?.[index]?.[field]?.message).find(Boolean)
                   const unitsOrdered = Number(line.unitsOrdered) || 0
                   const expanded = isOpen(product.id)
                   return (
@@ -152,7 +169,25 @@ const PoBatchCard: React.FC<PoBatchCardProps> = ({ form, readOnly, fixedProducts
                         </td>
                         <td className={CELL}><PlatformBadge platform={product.platform} /></td>
                         <td className={CELL}>{product.color ?? '—'}</td>
-                        <td className={cn(CELL, 'whitespace-nowrap')}>{formatDimensions(product.lengthCm, product.widthCm, product.heightCm, product.dimensionUnit)}</td>
+                        <td className={CELL}>
+                          <CellField error={sizeError}>
+                            <div className="flex items-center justify-center gap-1">
+                              {SIZE_FIELDS.map(([field, name], position) => (
+                                <React.Fragment key={field}>
+                                  {position > 0 && <span className="text-text-muted" aria-hidden>×</span>}
+                                  <NumericInput
+                                    decimal
+                                    aria-label={`${name} of ${product.ref} in ${product.dimensionUnit.toLowerCase()}`}
+                                    className={cn(fieldClass(batchErrors?.lines?.[index]?.[field]?.message), 'h-9 w-16 px-2 py-1 text-right tabular-nums')}
+                                    disabled={readOnly}
+                                    {...register(`batches.${batchIndex}.lines.${index}.${field}`)}
+                                  />
+                                </React.Fragment>
+                              ))}
+                              <span className="text-xs text-text-muted">{product.dimensionUnit.toLowerCase()}</span>
+                            </div>
+                          </CellField>
+                        </td>
                         <td className={cn(CELL, 'whitespace-nowrap tabular-nums')} title={`${formatCbm(unitCbm)} × ${units(unitsOrdered)} units`}>
                           {formatCbm(unitCbm !== null ? unitCbm * unitsOrdered : null)}
                         </td>

@@ -20,6 +20,8 @@ interface ProductPickerProps {
   placeholder?: string
   /** Only products of this platform are listed (a PO is for Ecommerce or Retail). */
   platform?: ProductPlatform
+  /** Lists variations only, no parent or standalone product (what a PO orders). */
+  variantsOnly?: boolean
 }
 
 export const productLabel = (product: Pick<PoProduct, 'name' | 'variantName'>): string => product.variantName ?? product.name
@@ -43,11 +45,11 @@ const ProductOption: React.FC<{ product: PoProduct; note?: React.ReactNode }> = 
  * Server-searched orderable products, fetched only while the dropdown is open. Every opening asks the server
  * again (a product created or edited meanwhile, here or in another browser tab, must show up in the search).
  */
-function useProductOptions(parentsOnly = false, platform?: ProductPlatform) {
+function useProductOptions(parentsOnly = false, platform?: ProductPlatform, variantsOnly = false) {
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
   const debounced = useDebounce(search, 250)
-  const { data = [], isFetching } = useGetPoProductOptionsQuery({ search: debounced, parentsOnly, platform }, { skip: !open, refetchOnMountOrArgChange: true, refetchOnFocus: true })
+  const { data = [], isFetching } = useGetPoProductOptionsQuery({ search: debounced, parentsOnly, variantsOnly, platform }, { skip: !open, refetchOnMountOrArgChange: true, refetchOnFocus: true })
   return { search, setSearch, setOpen, options: data, isFetching }
 }
 
@@ -91,8 +93,8 @@ export const ProductSelect: React.FC<ProductSelectProps> = ({ id, value, onChang
  * Type SKU or name, tick products to add them. Lists what can be ordered: variations and masters
  * without variations, each with its SKU and tag. Shared by every procurement product picker.
  */
-export const ProductPicker: React.FC<ProductPickerProps> = ({ id, selected, onChange, canCreate, disabled, error, placeholder = 'Search SKU or name to add products', platform }) => {
-  const lookup = useProductOptions(false, platform)
+export const ProductPicker: React.FC<ProductPickerProps> = ({ id, selected, onChange, canCreate, disabled, error, placeholder = 'Search SKU or name to add products', platform, variantsOnly }) => {
+  const lookup = useProductOptions(false, platform, variantsOnly)
   const [creating, setCreating] = useState(false)
   const picked = new Set(selected.map((product) => product.id))
 

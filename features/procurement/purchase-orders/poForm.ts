@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { cmTo, convertLength } from '../shared/units'
 import type { PoCurrency, PoDestination, PoProduct, PurchaseOrderBody, PurchaseOrderDetail, RemainingDraft, SupplierRef } from '@/services/api/procurement.api'
 import type { LinkableSample } from '@/services/api/samples.api'
 
@@ -25,6 +26,10 @@ export const poLineSchema = z.object({
   shippedFully: z.boolean().optional(),
   /** From-remaining POs cannot take more than the source PO has left. */
   maxUnits: z.number().optional(),
+  /** This batch's L × W × H for the product, as typed in the product's length unit; blank = none. Starts from the product's and never changes it. */
+  length: z.string().trim(),
+  width: z.string().trim(),
+  height: z.string().trim(),
 })
 
 /** A batch of the PO: its own products. `id` is the saved batch (none on a new one). */
@@ -85,6 +90,11 @@ export const poFormSchema = z
         if (line.unitPrice === '') ctx.addIssue({ code: 'custom', path: [...at, 'unitPrice'], message: 'Enter a unit rate' })
         else if (rates.has(line.product.id) && Number(rates.get(line.product.id)) !== Number(line.unitPrice)) ctx.addIssue({ code: 'custom', path: [...at, 'unitPrice'], message: 'One rate per product: same as in the other batch' })
         rates.set(line.product.id, line.unitPrice)
+        const typed = SIZE_PARTS.filter((part) => line[part] !== '')
+        SIZE_PARTS.forEach((part) => {
+          if (line[part] !== '' && !isSize(line[part])) ctx.addIssue({ code: 'custom', path: [...at, part], message: 'Must be a number above 0' })
+        })
+        if (typed.length > 0 && typed.length < 3) ctx.addIssue({ code: 'custom', path: [...at, SIZE_PARTS.find((part) => line[part] === '')!], message: 'Enter length, width and height' })
         if (line.maxUnits !== undefined && Number(line.unitsOrdered) > line.maxUnits) {
           ctx.addIssue({ code: 'custom', path: [...at, 'unitsOrdered'], message: `Only ${line.maxUnits} left` })
         }
@@ -102,6 +112,15 @@ export const poFormSchema = z
       if (sample.paid && !(Number(sample.unitPrice) > 0)) ctx.addIssue({ code: 'custom', path: ['samples', index, 'unitPrice'], message: 'Enter the sample price' })
     })
   })
+
+/** The product's own L × W × H as typed text in its length unit. */
+export const productSize = (product: Pick<PoProduct, 'lengthCm' | 'widthCm' | 'heightCm' | 'dimensionUnit'>) => {
+  const shown = (cm: number | null) => (cm === null ? '' : String(cmTo(cm, product.dimensionUnit)))
+  return { length: shown(product.lengthCm), width: shown(product.widthCm), height: shown(product.heightCm) }
+}
+
+const SIZE_PARTS = ['length', 'width', 'height'] as const
+const isSize = (value: string) => Number.isFinite(Number(value)) && Number(value) > 0
 
 export type PoFormValues = z.infer<typeof poFormSchema>
 export type PoLineValues = z.infer<typeof poLineSchema>
@@ -136,7 +155,7 @@ export const emptyPoValues: PoFormValues = {
 }
 
 /** A fresh line for a picked product. */
-export const newLine = (product: PoProduct): PoLineValues => ({ product, unitsOrdered: '', unitPrice: '', allocated: 0 })
+export const newLine = (product: PoProduct): PoLineValues => ({ product, unitsOrdered: '', unitPrice: '', allocated: 0, ...productSize(product) })
 
 /** A new sample of a picked product, free until it is marked paid. */
 export const newSample = (product: PoProduct): PoSampleValues => ({ product, units: '', paid: false, unitPrice: '', fixed: false })
@@ -168,6 +187,15 @@ export function summarize(lines: PoLineValues[], samples: PoSampleValues[]) {
 
 const day = (value: string | null): string => (value ? value.slice(0, 10) : '')
 
+/** The typed size in cm; null (follow the product) when blank or still the product's own. */
+function sizeBody(line: PoLineValues): { lengthCm: number | null; widthCm: number | null; heightCm: number | null } {
+  const own = productSize(line.product)
+  const typed = SIZE_PARTS.map((part) => line[part])
+  if (typed.every((value, index) => value === own[SIZE_PARTS[index]]) || typed.some((value) => value === '')) return { lengthCm: null, widthCm: null, heightCm: null }
+  const [lengthCm, widthCm, heightCm] = typed.map((value) => convertLength(Number(value), line.product.dimensionUnit, 'CM'))
+  return { lengthCm, widthCm, heightCm }
+}
+
 export function toPoBody(values: PoFormValues, extras: { sourcePurchaseOrderId?: number; expectedUpdatedAt?: string; submit?: boolean } = {}): PurchaseOrderBody {
   return {
     supplierId: values.supplier!.id,
@@ -181,7 +209,7 @@ export function toPoBody(values: PoFormValues, extras: { sourcePurchaseOrderId?:
     warehouseId: values.warehouseId ? Number(values.warehouseId) : null,
     currency: values.currency as PoCurrency,
     etd: values.etd,
-    batches: values.batches.map((batch) => ({ ...(batch.id && { id: batch.id }), lines: batch.lines.map((line) => ({ productId: line.product.id, unitsOrdered: Number(line.unitsOrdered), unitPrice: Number(line.unitPrice) })) })),
+    batches: values.batches.map((batch) => ({ ...(batch.id && { id: batch.id }), lines: batch.lines.map((line) => ({ productId: line.product.id, unitsOrdered: Number(line.unitsOrdered), unitPrice: Number(line.unitPrice), ...sizeBody(line) })) })),
     samples: values.samples.map((sample) => ({ ...(sample.id && { id: sample.id }), productId: sample.product.id, units: Number(sample.units), unitPrice: sample.paid ? Number(sample.unitPrice) : 0 })),
     ...(extras.sourcePurchaseOrderId && { sourcePurchaseOrderId: extras.sourcePurchaseOrderId }),
     ...(extras.expectedUpdatedAt && { expectedUpdatedAt: extras.expectedUpdatedAt }),
@@ -197,6 +225,13 @@ export function formPathOf(_values: PoFormValues, field: string): string {
   const sample = field.match(/^samples\.(\d+)\.(\w+)$/)
   if (sample) return `samples.${sample[1]}.${sample[2] === 'id' || sample[2] === 'productId' ? 'units' : sample[2]}`
   return field
+}
+
+/** A saved batch line's size: the one typed on the PO, else the product's. */
+function savedSize(line: PurchaseOrderDetail['batches'][number]['lines'][number]) {
+  if (line.lengthCm === null || line.widthCm === null || line.heightCm === null) return productSize(line.product)
+  const unit = line.product.dimensionUnit
+  return { length: String(cmTo(line.lengthCm, unit)), width: String(cmTo(line.widthCm, unit)), height: String(cmTo(line.heightCm, unit)) }
 }
 
 export function fromDetail(po: PurchaseOrderDetail): PoFormValues {
@@ -215,7 +250,7 @@ export function fromDetail(po: PurchaseOrderDetail): PoFormValues {
     batches: po.batches.map((batch) => ({
       id: batch.id,
       locked: batch.packagingList !== null,
-      lines: batch.lines.map((line) => ({ product: line.product, unitsOrdered: String(line.units), unitPrice: line.unitPrice === null ? '' : String(line.unitPrice), allocated: line.packed })),
+      lines: batch.lines.map((line) => ({ product: line.product, unitsOrdered: String(line.units), unitPrice: line.unitPrice === null ? '' : String(line.unitPrice), allocated: line.packed, ...savedSize(line) })),
     })),
     samples: po.samples.map((sample) => ({
       id: sample.id,
@@ -238,6 +273,6 @@ export function fromRemaining(draft: RemainingDraft): PoFormValues {
     destination: draft.destination,
     platform: draft.platform,
     currency: draft.currency,
-    batches: [{ lines: draft.lines.map((line) => ({ product: line.product, unitsOrdered: String(line.unitsOrdered), unitPrice: line.unitPrice === null ? '' : String(line.unitPrice), allocated: 0, maxUnits: line.unitsOrdered })) }],
+    batches: [{ lines: draft.lines.map((line) => ({ product: line.product, unitsOrdered: String(line.unitsOrdered), unitPrice: line.unitPrice === null ? '' : String(line.unitPrice), allocated: 0, maxUnits: line.unitsOrdered, ...productSize(line.product) })) }],
   }
 }
