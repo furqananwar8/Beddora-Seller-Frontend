@@ -113,7 +113,7 @@ export const AdjustmentsScreen: React.FC = () => {
                 value={filters.draft.search}
                 onChange={(e) => filters.setDraft('search', e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && filters.apply()}
-                placeholder="Search SKU or product"
+                placeholder="Search SKU, UPC, ASIN or product name"
                 className={cn('ds-input ds-input-default rounded-lg', filters.changed.has('search') && 'border-primary-500 ring-1 ring-primary-500')}
               />
             </FormField>

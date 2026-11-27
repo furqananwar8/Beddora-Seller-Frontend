@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { toast } from "sonner";
+import { useApiFeedback } from "@/hooks/useApiFeedback";
 import { useSyncCampaignSchedulesNowMutation } from "@/services/api/campaigns.api";
 import type { SyncedCampaign } from "@/app/(dashboard)/dayparting/components/dashboard/scheduler/synced-campaigns-list";
 
 export function useCampaignSync({ selectedCampaign }: { selectedCampaign?: any } = {}) {
   const [syncCampaignSchedulesNow] = useSyncCampaignSchedulesNowMutation();
+  const toast = useApiFeedback();
 
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncedCampaigns, setSyncedCampaigns] = useState<SyncedCampaign[]>([]);
@@ -30,7 +31,7 @@ export function useCampaignSync({ selectedCampaign }: { selectedCampaign?: any }
       setIsSyncing(false);
       setSyncCompleted(true);
     }
-  }, [syncCampaignSchedulesNow]);
+  }, [syncCampaignSchedulesNow, toast]);
 
   // SSE disabled — manual fallback for now
   // TODO: Re-enable when backend SSE endpoint is stable

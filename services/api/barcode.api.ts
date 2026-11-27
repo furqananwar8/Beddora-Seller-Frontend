@@ -183,11 +183,11 @@ export interface ScanLock {
 export type ScanListStatus = 'IN_PROGRESS' | 'COMPLETED' | 'COMPLETED_UNMATCHED' | 'DISCARDED'
 
 export interface ScanSessionFilters {
-  scenario?: ScanScenario
-  direction?: ScanDirection
-  status?: ScanListStatus
-  channel?: string
-  startedBy?: number
+  scenario?: ScanScenario[]
+  direction?: ScanDirection[]
+  status?: ScanListStatus[]
+  channel?: string[]
+  startedBy?: number[]
   from?: string
   to?: string
 }
@@ -292,7 +292,11 @@ export const barcodeApi = baseApi.injectEndpoints({
       providesTags: ['Barcode'],
     }),
     getScanSessions: b.query<Page<ScanSessionSummary>, PageParams & ScanSessionFilters>({
-      query: ({ search, ...params }) => ({ url: '/barcode/sessions', params: { ...params, search: search || undefined } }),
+      // a multi-select filter goes as one comma separated value
+      query: ({ search, scenario, direction, status, channel, startedBy, ...params }) => ({
+        url: '/barcode/sessions',
+        params: { ...params, search: search || undefined, scenario: scenario?.join(','), direction: direction?.join(','), status: status?.join(','), channel: channel?.join(','), startedBy: startedBy?.join(',') },
+      }),
       providesTags: ['Barcode'],
     }),
     getScanSessionStats: b.query<ScanSessionStats, void>({

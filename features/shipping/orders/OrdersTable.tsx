@@ -12,7 +12,7 @@ import { Tooltip } from '@/design-system/tooltips'
 import { ChannelBadge } from '../shared/ChannelBadge'
 import { canBulkBook, isSelectable, orderKey, saveBulkOrders, unitsLeft } from './bulk/bulkSelection'
 import { CarrierPageLink, TrackingNumber } from '../shared/TrackingNumber'
-import { bookingHref, bookOrderHref, BULK_BOOK_HREF, draftHref, FULFILLMENT_META, money, shortDateTime, STATUS_TONE } from '../shippingMeta'
+import { bookingHref, BULK_BOOK_HREF, draftHref, FULFILLMENT_META, money, shortDateTime, STATUS_TONE } from '../shippingMeta'
 import type { OrderListItem as ChannelOrderListItem } from '../types'
 
 interface OrdersTableProps {
@@ -45,9 +45,6 @@ interface OrdersTableProps {
   /** Ticking rows for the bulk actions; omitted when the user can't act on several orders. */
   selection?: { keys: Set<string>; onToggle: (row: ChannelOrderListItem) => void; onTogglePage: (on: boolean) => void }
 }
-
-/** Get rates (and Book remaining quantity) in a row's Action menu is hidden for now; the selection bar's Get rates still opens the booking screen. */
-const SHOW_GET_RATES = false
 
 const HEAD = 'px-4 py-3 text-center align-middle text-xs font-medium uppercase tracking-wide text-text-muted'
 const CELL = 'px-4 py-3 text-center align-middle text-sm'
@@ -148,14 +145,12 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ rows, isLoading, isErr
       return manual
     }
     const items: RowActionItem[] = [{ key: 'details', label: 'Get details', onSelect: () => onOpen(row) }]
-    if (SHOW_GET_RATES && canBulkBook(row) && canWrite) {
+    if (canBulkBook(row) && canWrite) {
       const left = unitsLeft(row)
-      // an order with several units left can be split into bookings: that is the multi-booking screen, here with this one order
+      // the bulk booking screen with this one order, as if it alone were ticked
       const toBook = () => {
-        if (left > 1) {
-          saveBulkOrders([{ channel: row.channel, market: row.market, orderId: row.orderId }])
-          router.push(BULK_BOOK_HREF)
-        } else router.push(bookOrderHref(row))
+        saveBulkOrders([{ channel: row.channel, market: row.market, orderId: row.orderId }])
+        router.push(BULK_BOOK_HREF)
       }
       items.push({ key: 'rates', label: row.unitsBooked > 0 ? `Book remaining quantity (${left})` : 'Get rates', onSelect: toBook })
     }

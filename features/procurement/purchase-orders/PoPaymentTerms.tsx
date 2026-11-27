@@ -12,7 +12,11 @@ import { allLines, summarize, type PoFormValues } from './poForm'
 /** What the second part of the terms can be due on: its title is picked from these and can be changed, never removed. */
 export const BALANCE_TERMS = ['Against B/L on sight', 'Against shipping documents', 'Against delivery', 'On receipt of goods', 'Before shipment', 'Net 30', 'Net 45', 'Net 60']
 
-const clamp = (text: string): string => (text === '' ? '' : String(Math.min(100, Number(text))))
+/** Keeps what was typed (so "25." and "25.0" survive on the way to "25.5"), up to 2 decimals and no more than 100. */
+export const clamp = (text: string): string => {
+  const trimmed = text.replace(/^(\d*\.\d{2}).*$/, '$1')
+  return Number(trimmed) > 100 ? '100' : trimmed
+}
 const complement = (text: string): string => (text === '' ? '' : String(Math.round((100 - Number(text)) * 100) / 100))
 
 interface PoPaymentTermsProps {

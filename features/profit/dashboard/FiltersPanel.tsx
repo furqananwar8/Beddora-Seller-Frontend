@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/design-system/cards'
 import { Input, Select } from '@/design-system/inputs'
+import { applyOnEnter } from '@/components/filter-bar/FilterBar'
 import { DateRangeFilter } from '@/components/filters'
 import { ProfitFilters } from '@/services/api/profit.api'
 import { Button } from '@/design-system/buttons'
@@ -72,7 +73,7 @@ export const FiltersPanel: React.FC<FiltersPanelProps> = ({
         <CardTitle>Filters</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="space-y-4">
+        <div className="space-y-4" {...applyOnEnter(handleApplyFilters)}>
           {/* Account Filter */}
           {accounts.length > 0 && (
             <div>

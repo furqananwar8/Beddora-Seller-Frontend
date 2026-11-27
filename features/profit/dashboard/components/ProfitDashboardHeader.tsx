@@ -2,6 +2,7 @@
 
 import React from 'react'
 import { ApplyFiltersButton } from './ApplyFiltersButton'
+import { applyOnEnter } from '@/components/filter-bar/FilterBar'
 import { Input } from '@/design-system/inputs'
 import { MultiSelectInput } from '@/components/multi-select-input/MultiSelectInput'
 import DateRangePicker, {
@@ -132,7 +133,7 @@ export const ProfitDashboardHeader: React.FC<
   paddingClassName = 'px-6 py-4',
 }) => {
   return (
-    <div className="bg-surface-secondary border-b border-border mb-6">
+    <div className="bg-surface-secondary border-b border-border mb-6" {...(showFilterButton && onFilter && !disabled && !isFiltering ? applyOnEnter(onFilter) : {})}>
       <div className={paddingClassName}>
 
         <div

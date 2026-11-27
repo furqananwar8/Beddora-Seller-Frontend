@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 
 import { Loader2, Trash2, AlertCircle, Filter, ChevronLeft, ChevronRight, Search, X } from "lucide-react";
-import { toast } from "sonner";
+import { useApiFeedback } from "@/hooks/useApiFeedback";
 import { formatInTimeZone } from "date-fns-tz";
 import { useScheduledJobs } from "@/hooks/use-scheduled-jobs";
 import { useDashboard } from "@/lib/context/dashboard-context";
@@ -77,6 +77,7 @@ function getPageWindow(current: number, total: number, size: number) {
 
 export default function ScheduledCampaignsPage() {
   const router = useRouter();
+  const toast = useApiFeedback();
   const searchParams = useSearchParams();
 
   const page = parseInt(searchParams.get("page") || "1", 10);

@@ -14,7 +14,7 @@ import {
   useDashboard,
 } from "@/lib/context/dashboard-context";
 import { useCampaigns } from "@/hooks/useCampaigns";
-import { toast } from "sonner";
+import { useApiFeedback } from "@/hooks/useApiFeedback";
 import { useAppDispatch } from '@/store/hooks';
 // Adjust this path to wherever your baseApi is defined
 import { baseApi } from '@/services/api/baseApi';
@@ -39,6 +39,7 @@ function DashboardLayoutContent({ children }: { children: ReactNode }) {
   const { selectedCampaign, handleSave, isSaving, setIsSaving } = useDashboard();
   const [activeView, setActiveView] = useState<View>("dayparting");
   const dispatch = useAppDispatch();
+  const toast = useApiFeedback();
   
   const { isConnected, showAuthModal, handleAuthSuccess, handleAuthError, setShowAuthModal } = useAmazonAuth();
 

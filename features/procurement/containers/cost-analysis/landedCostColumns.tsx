@@ -28,6 +28,7 @@ export const landedCostColumns = (currency: string): CostColumn<LandedCostRow>[]
     // `wrap`: a long SKU breaks at its hyphens when the column is narrow, never cut off with an ellipsis
     { key: 'sku', header: 'SKU', align: 'center', wrap: true, cell: (row) => <span className="font-mono font-semibold text-text-primary">{row.sku}</span>, footer: () => 'Total' },
     { key: 'brand', header: 'Brand', align: 'center', cell: (row) => <BrandCell platforms={row.platform ? [row.platform] : []} /> },
+    { key: 'upc', header: 'UPC', align: 'center', cell: (row) => (row.upc ? <span className="font-mono">{row.upc}</span> : '\u2014') },
     { key: 'supplier', header: 'Supplier', align: 'center', wrap: true, cell: (row) => row.supplier },
     { key: 'units', header: 'Units', align: 'center', cell: (row) => qty(row.units), footer: (totals) => qty(totals.units) },
     { key: 'cartons', header: 'Cartons', align: 'center', cell: (row) => qty(row.cartons) },

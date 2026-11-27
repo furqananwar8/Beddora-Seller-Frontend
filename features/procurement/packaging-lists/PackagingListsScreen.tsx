@@ -13,12 +13,14 @@ import { useFitToViewport } from '@/hooks/useFitToViewport'
 import { PaginationFooter } from '@/components/pagination-footer/PaginationFooter'
 import { RowActionsMenu, type RowActionItem } from '@/components/row-actions-menu/RowActionsMenu'
 import { SegmentedToggle } from '@/components/segmented-toggle/SegmentedToggle'
+import { Button } from '@/design-system/buttons'
+import { Modal } from '@/design-system/modals'
 import { Spinner } from '@/design-system/loaders'
 import { Tabs } from '@/design-system/tabs'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/design-system/tables'
 import { useApiFeedback } from '@/hooks/useApiFeedback'
 import { useAppAbility } from '@/hooks/useAppAbility'
-import { useDeletePackagingListMutation, useGetPackagingListsQuery, useGetPackagingListSummaryQuery, useRequestContainerMutation, type ContainerFilter, type PackagingListItem, type PackagingListKind } from '@/services/api/procurement.api'
+import { useDeletePackagingListMutation, useGetContainerRequestRecipientsQuery, useGetPackagingListsQuery, useGetPackagingListSummaryQuery, useRequestContainerMutation, type ContainerFilter, type NotifiedPerson, type PackagingListItem, type PackagingListKind } from '@/services/api/procurement.api'
 import { cn } from '@/utils/cn'
 import { downloadApiFile } from '@/utils/downloadFile'
 import { CONTAINER_ROUTES } from '../containers/routes'
@@ -80,6 +82,8 @@ export const PackagingListsScreen: React.FC = () => {
 
   const [requesting, setRequesting] = useState<PackagingListItem | null>(null)
   const [requestContainer, { isLoading: requestBusy }] = useRequestContainerMutation()
+  const [requested, setRequested] = useState<{ plNo: string; containerNo: string; notified: NotifiedPerson[] } | null>(null)
+  const { data: willNotify, isLoading: willNotifyLoading } = useGetContainerRequestRecipientsQuery(undefined, { skip: requesting === null })
   const [deleting, setDeleting] = useState<PackagingListItem | null>(null)
   const [deleteList, { isLoading: deletingBusy }] = useDeletePackagingListMutation()
 
@@ -98,7 +102,7 @@ export const PackagingListsScreen: React.FC = () => {
     if (!requesting) return
     try {
       const container = await requestContainer({ packagingListId: requesting.id }).unwrap()
-      success(`${container.containerNo} requested for ${requesting.plNo}. The container team was notified.`)
+      setRequested({ plNo: requesting.plNo, containerNo: container.containerNo, notified: container.notified })
       setRequesting(null)
     } catch (error) {
       failure(error, 'Could not request a container')
@@ -181,7 +185,7 @@ export const PackagingListsScreen: React.FC = () => {
                 type="search"
                 value={draft.search}
                 onChange={(event) => setDraft('search', event.target.value)}
-                placeholder="PL #, supplier, PO # or SKU"
+                placeholder="PL #, supplier, PO #, SKU, UPC or ASIN"
                 className="ds-input ds-input-default rounded-lg"
               />
             </FormField>
@@ -267,8 +271,23 @@ export const PackagingListsScreen: React.FC = () => {
         onConfirm={confirmRequest}
         onClose={() => setRequesting(null)}
       >
-        <p>The container team is notified. A placeholder container carrying this list appears on Containers, and they fill in its details there.</p>
+        <p>A placeholder container carrying this list appears on Containers, and the people below fill in its details there.</p>
+        <div className="mt-3">{willNotifyLoading ? <Spinner /> : <NotifiedList people={willNotify ?? []} heading="Will be notified" />}</div>
       </ConfirmDialog>
+
+      <Modal isOpen={requested !== null} onClose={() => setRequested(null)} title={`${requested?.containerNo ?? 'Container'} requested`} size="sm">
+        <div className="text-sm text-text-secondary">
+          <p>A placeholder container now carries {requested?.plNo}.</p>
+          <div className="mt-3">
+            <NotifiedList people={requested?.notified ?? []} heading="Notified" />
+          </div>
+        </div>
+        <div className="mt-6 flex justify-end">
+          <Button type="button" onClick={() => setRequested(null)}>
+            Done
+          </Button>
+        </div>
+      </Modal>
 
       <ConfirmDialog isOpen={deleting !== null} title={`Delete ${deleting?.plNo ?? 'list'}`} confirmLabel="Delete list" tone="danger" busy={deletingBusy} onConfirm={confirmDelete} onClose={() => setDeleting(null)}>
         <p>
@@ -276,5 +295,29 @@ export const PackagingListsScreen: React.FC = () => {
         </p>
       </ConfirmDialog>
     </Container>
+  )
+}
+
+/** The people a notification reaches, or how to set them when nobody is configured. */
+function NotifiedList({ people, heading }: { people: NotifiedPerson[]; heading: string }) {
+  if (people.length === 0)
+    return (
+      <p>
+        No one is configured to be notified - set recipients in{' '}
+        <Link href="/dashboard/settings/approvals" className="font-semibold text-blue-600 hover:underline">
+          Approvals &gt; Notifications
+        </Link>
+        .
+      </p>
+    )
+  return (
+    <div>
+      <p className="font-semibold text-text-primary">{heading} ({people.length})</p>
+      <ul className="mt-1 list-disc pl-5">
+        {people.map((person) => (
+          <li key={person.id}>{person.name}</li>
+        ))}
+      </ul>
+    </div>
   )
 }

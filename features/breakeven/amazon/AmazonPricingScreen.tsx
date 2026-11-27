@@ -16,6 +16,7 @@ import { ColumnResizeHandle } from '@/components/column-resize-handle/ColumnResi
 import { columnsFor, FROZEN_WIDTHS, type ColumnContext, type PricingColumn } from './amazonPricingColumns'
 import type { Fulfillment, SessionMode } from './amazonPricing.calc'
 import { useAmazonPricing, type PricingGlobals } from './useAmazonPricing'
+import { applyOnEnter } from '@/components/filter-bar/FilterBar'
 import { ApplyFiltersButton } from '@/features/profit/dashboard/components/ApplyFiltersButton'
 
 /**
@@ -106,7 +107,7 @@ const AmazonPricingBoard: React.FC<{ country: PricingCountry; onCountryChange: (
         description="Price and profit by listing: change a filter or any highlighted cell and the figures to its right update live"
       />
 
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-3" {...applyOnEnter(applyFilters)}>
         <div className="flex flex-wrap items-center gap-3">
           <div className="relative min-w-[260px] flex-1">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" />
@@ -137,10 +138,10 @@ const AmazonPricingBoard: React.FC<{ country: PricingCountry; onCountryChange: (
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          <GlobalInput id="days" label="Days in stock" value={draft.daysInStock} onChange={(value) => update('daysInStock', value)} onEnter={applyFilters} />
-          <GlobalInput id="overhead" label="Operation overhead" suffix="%" value={draft.overheadPct} onChange={(value) => update('overheadPct', value)} onEnter={applyFilters} />
-          <GlobalInput id="marketing" label="Marketing" suffix="%" value={draft.marketingPct} onChange={(value) => update('marketingPct', value)} onEnter={applyFilters} />
-          <GlobalInput id="promo" label="Promo discount" suffix="%" value={draft.promoPct} onChange={(value) => update('promoPct', value)} onEnter={applyFilters} />
+          <GlobalInput id="days" label="Days in stock" value={draft.daysInStock} onChange={(value) => update('daysInStock', value)} />
+          <GlobalInput id="overhead" label="Operation overhead" suffix="%" value={draft.overheadPct} onChange={(value) => update('overheadPct', value)} />
+          <GlobalInput id="marketing" label="Marketing" suffix="%" value={draft.marketingPct} onChange={(value) => update('marketingPct', value)} />
+          <GlobalInput id="promo" label="Promo discount" suffix="%" value={draft.promoPct} onChange={(value) => update('promoPct', value)} />
 
           <div className="flex-1" />
           {editedCount > 0 && (
@@ -229,7 +230,7 @@ const StatusRow: React.FC<{ children: React.ReactNode; tone?: 'danger' }> = ({ c
 )
 
 /** A number above the table: digits only, so never negative; emptied, it counts as zero. */
-const GlobalInput: React.FC<{ id: string; label: string; suffix?: string; value: number; onChange: (value: number) => void; onEnter: () => void }> = ({ id, label, suffix, value, onChange, onEnter }) => {
+const GlobalInput: React.FC<{ id: string; label: string; suffix?: string; value: number; onChange: (value: number) => void }> = ({ id, label, suffix, value, onChange }) => {
   // the typed text is kept as typed ("5." stays "5.") while the number it stands for is what the board uses
   const [draft, setDraft] = useState(String(value))
   return (
@@ -247,7 +248,6 @@ const GlobalInput: React.FC<{ id: string; label: string; suffix?: string; value:
           onChange(parseFloat(event.target.value) || 0)
         }}
         onBlur={() => setDraft(String(value))}
-        onKeyDown={(event) => event.key === 'Enter' && onEnter()}
         className="w-20 rounded-r-lg border border-border bg-surface-primary px-2 py-2.5 text-center text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
       />
     </div>

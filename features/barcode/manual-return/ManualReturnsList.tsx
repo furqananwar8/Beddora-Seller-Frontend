@@ -5,12 +5,17 @@ import { Spinner } from '@/design-system/loaders'
 import { Button } from '@/design-system/buttons'
 import { Input } from '@/design-system/inputs'
 import { Tooltip } from '@/design-system/tooltips'
+import { NewTabLink } from '@/components/new-tab-link/NewTabLink'
 import { PaginationFooter } from '@/components/pagination-footer/PaginationFooter'
 import { useDebounce } from '@/utils/debounce'
 import { useGetManualReturnsQuery } from '@/services/api/barcode.api'
 
 import { usePageSize } from '@/hooks/usePageSize'
 const PAGE_SIZE = 10
+/** The channel listing's SKU in Channel Inventory (Temu has no channel filter there), and the internal SKU in Warehouse Inventory. */
+const channelSkuHref = (channel: string, sku: string) =>
+  `/dashboard/inventory/channel-inventory?${new URLSearchParams({ ...(channel === 'amazon' || channel === 'walmart' ? { channel } : {}), search: sku })}`
+const internalSkuHref = (sku: string) => `/dashboard/inventory/warehouse-inventory?search=${encodeURIComponent(sku)}`
 const when = (iso: string) => new Date(iso).toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false })
 
 /** The returns entered by hand, newest first: what came back, how it was split, and the notes kept with it. */
@@ -65,13 +70,27 @@ export function ManualReturnsList({ onAdd }: { onAdd?: () => void }) {
                     <td className="px-3 py-3 text-center align-middle">{entry.channelLabel}</td>
                     <td className="px-3 py-3 text-center align-middle">{entry.marketplace}</td>
                     <td className="px-3 py-3 text-center align-middle">
-                      <div className="font-medium text-text-primary">{entry.productName ?? entry.channelSku}</div>
+                      {entry.lines.length ? (
+                        <NewTabLink href={internalSkuHref(entry.lines[0].sku)} title="Open this product's SKU in a new tab" className="font-medium">
+                          {entry.productName ?? entry.channelSku}
+                        </NewTabLink>
+                      ) : (
+                        <div className="font-medium text-text-primary">{entry.productName ?? entry.channelSku}</div>
+                      )}
                       {entry.orderId && <div className="break-all text-xs text-text-muted">FBM order {entry.orderId}</div>}
                     </td>
                     <td className="px-3 py-3 text-center align-middle font-mono text-xs">
-                      <div className="break-all text-text-primary">{entry.channelSku}</div>
+                      <div className="break-all">
+                        <NewTabLink href={channelSkuHref(entry.channel, entry.channelSku)} title="Open this channel SKU in a new tab">
+                          {entry.channelSku}
+                        </NewTabLink>
+                      </div>
                       {entry.lines.map((line) => (
-                        <div key={line.sku} className="break-all text-text-muted">{line.sku}</div>
+                        <div key={line.sku} className="break-all">
+                          <NewTabLink href={internalSkuHref(line.sku)} title="Open this inventory SKU in a new tab">
+                            {line.sku}
+                          </NewTabLink>
+                        </div>
                       ))}
                     </td>
                     <td className="px-3 py-3 text-center align-middle">{entry.units}</td>

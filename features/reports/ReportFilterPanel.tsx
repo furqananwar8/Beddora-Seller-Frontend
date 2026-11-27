@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/design-system/cards'
 import { Input, Select } from '@/design-system/inputs'
+import { applyOnEnter } from '@/components/filter-bar/FilterBar'
 import { DateRangeFilter } from '@/components/filters'
 import { ReportFilters, ReportType } from '@/services/api/reports.api'
 import { Button } from '@/design-system/buttons'
@@ -44,7 +45,7 @@ export const ReportFilterPanel: React.FC<ReportFilterPanelProps> = ({
         <CardTitle>Report Filters</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="space-y-4">
+        <div className="space-y-4" {...applyOnEnter(handleApply)}>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <Select
               label="Report Type"

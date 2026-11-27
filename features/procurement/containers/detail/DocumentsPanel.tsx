@@ -1,14 +1,13 @@
 'use client'
 
 import React, { useMemo, useState } from 'react'
-import { FileDropzone } from '@/components/file-dropzone/FileDropzone'
 import { FilePreviewDialog } from '@/components/file-preview/FilePreviewDialog'
 import { Button } from '@/design-system/buttons'
-import { Modal } from '@/design-system/modals'
 import { formatBytes, formatDay } from '@/features/finance/shared/format'
 import { useApiFeedback } from '@/hooks/useApiFeedback'
-import { useUploadContainerDocumentsMutation, type ContainerDetail, type ContainerDocument } from '@/services/api/procurement.api'
+import type { ContainerDetail, ContainerDocument } from '@/services/api/procurement.api'
 import { downloadApiFile, fetchApiBlob } from '@/utils/downloadFile'
+import { UploadDocumentsModal } from '../uploads/UploadDocumentsModal'
 import { ExpandablePanel, PanelEmpty } from './Panel'
 
 /** How many documents the summary lists before the rest go behind "More". */
@@ -21,11 +20,9 @@ interface DocumentsPanelProps {
 
 /** The container's documents: the latest few by default, all of them behind "More"; open one to preview it, or upload more, several at a time. */
 export const DocumentsPanel: React.FC<DocumentsPanelProps> = ({ container, canWrite }) => {
-  const { success, failure } = useApiFeedback()
+  const { failure } = useApiFeedback()
   const [uploading, setUploading] = useState(false)
-  const [files, setFiles] = useState<File[]>([])
   const [viewing, setViewing] = useState<ContainerDocument | null>(null)
-  const [upload, { isLoading }] = useUploadContainerDocumentsMutation()
   const canUpload = canWrite && container.permissions.canUpload
   const fileUrl = (document: ContainerDocument) => `/procurement/containers/${container.id}/documents/${document.id}`
 
@@ -34,21 +31,6 @@ export const DocumentsPanel: React.FC<DocumentsPanelProps> = ({ container, canWr
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [viewing]
   )
-
-  const close = () => {
-    setUploading(false)
-    setFiles([])
-  }
-
-  const save = async () => {
-    try {
-      await upload({ id: container.id, files }).unwrap()
-      success(`${files.length} document${files.length === 1 ? '' : 's'} added`)
-      close()
-    } catch (error) {
-      failure(error, 'Could not upload the documents')
-    }
-  }
 
   /** One document: open it to preview, or download it. */
   const row = (document: ContainerDocument) => (
@@ -105,19 +87,7 @@ export const DocumentsPanel: React.FC<DocumentsPanelProps> = ({ container, canWr
         <ul className="flex flex-col divide-y divide-border">{documents.map(row)}</ul>
       </ExpandablePanel>
 
-      <Modal isOpen={uploading} onClose={close} title="Upload documents" size="md" closeOnEscape={!isLoading}>
-        <div className="flex flex-col gap-4">
-          <FileDropzone files={files} onChange={setFiles} multiple />
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={close} disabled={isLoading}>
-              Cancel
-            </Button>
-            <Button type="button" onClick={() => void save()} isLoading={isLoading} disabled={files.length === 0}>
-              Upload {files.length > 0 ? files.length : ''}
-            </Button>
-          </div>
-        </div>
-      </Modal>
+      <UploadDocumentsModal containerId={container.id} isOpen={uploading} onClose={() => setUploading(false)} />
       <FilePreviewDialog
         target={target}
         onClose={() => setViewing(null)}

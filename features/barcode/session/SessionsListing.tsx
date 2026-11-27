@@ -5,10 +5,15 @@ import { useState } from 'react'
 import { Badge } from '@/design-system/badges'
 import { Button } from '@/design-system/buttons'
 import { Card, CardContent } from '@/design-system/cards'
-import { Input, Select } from '@/design-system/inputs'
+import { Input } from '@/design-system/inputs'
+import { FormField } from '@/components/form-field/FormField'
+import { FilterMultiSelect, type FilterOption } from '@/components/filter-bar/FilterMultiSelect'
+import { NewTabLink } from '@/components/new-tab-link/NewTabLink'
+import { orderSearchHref } from '@/features/shipping/shippingMeta'
+import { RECEIVING_ROUTES } from '@/features/inventory/inbound-receiving/routes'
 import { Spinner } from '@/design-system/loaders'
 import { useRealtime } from '@/components/realtime/RealtimeProvider'
-import { useGetScanSessionsQuery, useGetScanSessionStatsQuery, useGetScanStartersQuery, type ScanListStatus, type ScanSessionFilters } from '@/services/api/barcode.api'
+import { useGetScanSessionsQuery, useGetScanSessionStatsQuery, useGetScanStartersQuery, type ScanSessionFilters, type ScanSessionSummary } from '@/services/api/barcode.api'
 import { RowActionsMenu } from '@/components/row-actions-menu/RowActionsMenu'
 import { CHANNEL_LABEL, SOURCE_LABEL, channelName, sessionCode } from './scanSession'
 import { StatusChip } from './StatusChip'
@@ -21,26 +26,47 @@ const REFRESH_MS = 15_000
 
 interface Draft {
   search: string
-  scenario: string
-  channel: string
-  status: string
-  direction: string
+  scenario: string[]
+  channel: string[]
+  status: string[]
+  direction: string[]
   from: string
   to: string
-  startedBy: string
+  startedBy: string[]
 }
-const EMPTY: Draft = { search: '', scenario: '', channel: '', status: '', direction: '', from: '', to: '', startedBy: '' }
+const EMPTY: Draft = { search: '', scenario: [], channel: [], status: [], direction: [], from: '', to: '', startedBy: [] }
+
+const SOURCE_OPTIONS: FilterOption[] = Object.entries(SOURCE_LABEL).map(([value, label]) => ({ value, label: value === 'CONTAINER' ? 'Inbound receiving' : value === 'FBM_ORDER' ? 'Shipping order' : label }))
+const CHANNEL_OPTIONS: FilterOption[] = Object.entries(CHANNEL_LABEL).map(([value, label]) => ({ value, label }))
+const STATUS_OPTIONS: FilterOption[] = [
+  { value: 'IN_PROGRESS', label: 'In progress' },
+  { value: 'COMPLETED', label: 'Completed' },
+  { value: 'COMPLETED_UNMATCHED', label: 'Completed with unmatched' },
+  { value: 'DISCARDED', label: 'Discarded' },
+]
+const DIRECTION_OPTIONS: FilterOption[] = [
+  { value: 'OUT', label: 'Out' },
+  { value: 'IN', label: 'In' },
+]
 
 const toFilters = (d: Draft): ScanSessionFilters & { search?: string } => ({
   ...(d.search.trim() ? { search: d.search.trim() } : {}),
-  ...(d.scenario ? { scenario: d.scenario as ScanSessionFilters['scenario'] } : {}),
-  ...(d.channel ? { channel: d.channel } : {}),
-  ...(d.status ? { status: d.status as ScanListStatus } : {}),
-  ...(d.direction ? { direction: d.direction as ScanSessionFilters['direction'] } : {}),
+  ...(d.scenario.length ? { scenario: d.scenario as ScanSessionFilters['scenario'] } : {}),
+  ...(d.channel.length ? { channel: d.channel } : {}),
+  ...(d.status.length ? { status: d.status as ScanSessionFilters['status'] } : {}),
+  ...(d.direction.length ? { direction: d.direction as ScanSessionFilters['direction'] } : {}),
   ...(d.from ? { from: d.from } : {}),
   ...(d.to ? { to: d.to } : {}),
-  ...(d.startedBy ? { startedBy: Number(d.startedBy) } : {}),
+  ...(d.startedBy.length ? { startedBy: d.startedBy.map(Number) } : {}),
 })
+
+/** The page of the record a session scanned, so its source can be opened and checked. */
+function sourceHref(s: Pick<ScanSessionSummary, 'scenario' | 'sourceId'>): string {
+  if (s.scenario === 'CONTAINER') return RECEIVING_ROUTES.update(s.sourceId)
+  if (s.scenario === 'FBA_WFS') return `/dashboard/inventory/shipments?search=${encodeURIComponent(`SHP-${s.sourceId.padStart(4, '0')}`)}`
+  // an order's id is channel:market:orderId
+  return orderSearchHref(s.sourceId.split(':').slice(2).join(':'))
+}
 
 const when = (iso: string | null) => (iso ? new Date(iso).toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false }) : '-')
 
@@ -51,10 +77,11 @@ export function SessionsListing() {
   const [applied, setApplied] = useState<Draft>(EMPTY)
   const [page, setPage] = useState(1)
   const pageSize = usePageSize(PAGE_SIZE)
-  const set = (key: keyof Draft) => (value: string) => setDraft((d) => ({ ...d, [key]: value }))
+  const set = <K extends keyof Draft>(key: K) => (value: Draft[K]) => setDraft((d) => ({ ...d, [key]: value }))
 
   const { data: stats, refetch: refetchStats } = useGetScanSessionStatsQuery(undefined, { pollingInterval: REFRESH_MS })
-  const { data: users } = useGetScanStartersQuery()
+  const { data: users, isLoading: usersLoading } = useGetScanStartersQuery()
+  const starterOptions: FilterOption[] = (users ?? []).map((u) => ({ value: String(u.id), label: u.name ?? `User ${u.id}` }))
   const { data, isFetching, refetch } = useGetScanSessionsQuery({ page, limit: pageSize, ...toFilters(applied) }, { pollingInterval: REFRESH_MS })
   // A session started, scanned or ended anywhere shows up right away; the polling above is only the fallback
   useRealtime('barcode.scan-session', () => {
@@ -99,21 +126,18 @@ export function SessionsListing() {
             <div className="xl:col-span-1">
               <Input label="Search" placeholder="Session ID, shipment / order / receiving no., or UPC" value={draft.search} onChange={(e) => set('search')(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && apply()} />
             </div>
-            <Select label="Source" value={draft.scenario} onChange={(e) => set('scenario')(e.target.value)} options={[{ value: '', label: 'All sources' }, ...Object.entries(SOURCE_LABEL).map(([value, label]) => ({ value, label: value === 'CONTAINER' ? 'Inbound receiving' : value === 'FBM_ORDER' ? 'Shipping order' : label }))]} />
-            <Select label="Channel" value={draft.channel} onChange={(e) => set('channel')(e.target.value)} options={[{ value: '', label: 'All channels' }, ...Object.entries(CHANNEL_LABEL).map(([value, label]) => ({ value, label }))]} />
-            <Select
-              label="Status"
-              value={draft.status}
-              onChange={(e) => set('status')(e.target.value)}
-              options={[
-                { value: '', label: 'Any status' },
-                { value: 'IN_PROGRESS', label: 'In progress' },
-                { value: 'COMPLETED', label: 'Completed' },
-                { value: 'COMPLETED_UNMATCHED', label: 'Completed with unmatched' },
-                { value: 'DISCARDED', label: 'Discarded' },
-              ]}
-            />
-            <Select label="Inventory direction" value={draft.direction} onChange={(e) => set('direction')(e.target.value)} options={[{ value: '', label: 'In and out' }, { value: 'OUT', label: 'Out' }, { value: 'IN', label: 'In' }]} />
+            <FormField label="Source" htmlFor="scan-source">
+              <FilterMultiSelect id="scan-source" options={SOURCE_OPTIONS} value={draft.scenario} onChange={set('scenario')} anyLabel="All sources" highlighted={draft.scenario.join() !== applied.scenario.join()} />
+            </FormField>
+            <FormField label="Channel" htmlFor="scan-channel">
+              <FilterMultiSelect id="scan-channel" options={CHANNEL_OPTIONS} value={draft.channel} onChange={set('channel')} anyLabel="All channels" highlighted={draft.channel.join() !== applied.channel.join()} />
+            </FormField>
+            <FormField label="Status" htmlFor="scan-status">
+              <FilterMultiSelect id="scan-status" options={STATUS_OPTIONS} value={draft.status} onChange={set('status')} anyLabel="Any status" highlighted={draft.status.join() !== applied.status.join()} />
+            </FormField>
+            <FormField label="Inventory direction" htmlFor="scan-direction">
+              <FilterMultiSelect id="scan-direction" options={DIRECTION_OPTIONS} value={draft.direction} onChange={set('direction')} anyLabel="In and out" highlighted={draft.direction.join() !== applied.direction.join()} />
+            </FormField>
           </div>
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div className="flex flex-wrap items-end gap-4">
@@ -124,7 +148,9 @@ export function SessionsListing() {
                 <Input label="To" type="date" value={draft.to} onChange={(e) => set('to')(e.target.value)} />
               </div>
               <div className="w-56">
-                <Select label="Started by" value={draft.startedBy} onChange={(e) => set('startedBy')(e.target.value)} options={[{ value: '', label: 'Anyone' }, ...(users ?? []).map((u) => ({ value: String(u.id), label: u.name ?? `User ${u.id}` }))]} />
+                <FormField label="Started by" htmlFor="scan-started-by">
+                  <FilterMultiSelect id="scan-started-by" options={starterOptions} value={draft.startedBy} onChange={set('startedBy')} anyLabel="Anyone" loading={usersLoading} highlighted={draft.startedBy.join() !== applied.startedBy.join()} />
+                </FormField>
               </div>
             </div>
             <div className="flex gap-3">
@@ -151,17 +177,17 @@ export function SessionsListing() {
                 <thead className="bg-secondary-100 text-center text-xs text-secondary-600">
                   <tr>
                     {['Session', 'Source', 'Channel', 'Started by', 'Started', 'Ended'].map((h) => (
-                      <th key={h} className="whitespace-nowrap px-3.5 py-3 font-semibold">
+                      <th key={h} className="whitespace-nowrap px-3.5 py-3 text-center align-middle font-semibold">
                         {h}
                       </th>
                     ))}
                     {['Scanned', 'Matched', 'Not matched', 'Units adjusted'].map((h) => (
-                      <th key={h} className="whitespace-nowrap px-3.5 py-3 text-center font-semibold">
+                      <th key={h} className="whitespace-nowrap px-3.5 py-3 text-center align-middle font-semibold">
                         {h}
                       </th>
                     ))}
-                    <th className="px-3.5 py-3 font-semibold align-middle">Direction</th>
-                    <th className="px-3.5 py-3 font-semibold align-middle">Status</th>
+                    <th className="px-3.5 py-3 text-center font-semibold align-middle">Direction</th>
+                    <th className="px-3.5 py-3 text-center font-semibold align-middle">Status</th>
                     <th className="px-3.5 py-3 text-center font-semibold align-middle">Actions</th>
                   </tr>
                 </thead>
@@ -169,25 +195,27 @@ export function SessionsListing() {
                   {data.data.map((s) => {
                     return (
                       <tr key={s.id} className="border-t border-border">
-                        <td className="px-3.5 py-3.5 font-mono text-xs align-middle">{sessionCode(s.id)}</td>
-                        <td className="px-3.5 py-3.5 align-middle">
-                          <div className="font-bold">{SOURCE_LABEL[s.scenario]}</div>
-                          <div className="break-all text-xs text-text-muted">{s.ref}</div>
+                        <td className="px-3.5 py-3.5 text-center font-mono text-xs align-middle">{sessionCode(s.id)}</td>
+                        <td className="px-3.5 py-3.5 text-center align-middle">
+                          <NewTabLink href={sourceHref(s)} title="Open the scanned record in a new tab" className="block">
+                            <div className="font-bold">{SOURCE_LABEL[s.scenario]}</div>
+                            <div className="break-all text-xs">{s.ref}</div>
+                          </NewTabLink>
                         </td>
-                        <td className="whitespace-nowrap px-3.5 py-3.5 align-middle">{channelName(s.channel)}</td>
-                        <td className="whitespace-nowrap px-3.5 py-3.5 align-middle">{s.startedBy.name ?? '-'}</td>
-                        <td className="whitespace-nowrap px-3.5 py-3.5 align-middle">{when(s.startedAt)}</td>
-                        <td className="whitespace-nowrap px-3.5 py-3.5 align-middle">{when(s.endedAt)}</td>
+                        <td className="whitespace-nowrap px-3.5 py-3.5 text-center align-middle">{channelName(s.channel)}</td>
+                        <td className="whitespace-nowrap px-3.5 py-3.5 text-center align-middle">{s.startedBy.name ?? '-'}</td>
+                        <td className="whitespace-nowrap px-3.5 py-3.5 text-center align-middle">{when(s.startedAt)}</td>
+                        <td className="whitespace-nowrap px-3.5 py-3.5 text-center align-middle">{when(s.endedAt)}</td>
                         <td className="px-3.5 py-3.5 text-center align-middle">{s.scanned}</td>
                         <td className="px-3.5 py-3.5 text-center align-middle">{s.matched}</td>
-                        <td className={`px-3.5 py-3.5 text-center ${s.notMatched > 0 ? 'font-semibold text-warning-700' : ''}`}>{s.notMatched}</td>
+                        <td className={`px-3.5 py-3.5 text-center align-middle ${s.notMatched > 0 ? 'font-semibold text-warning-700' : ''}`}>{s.notMatched}</td>
                         <td className="px-3.5 py-3.5 text-center align-middle">{s.status === 'COMPLETED' ? s.unitsApplied : '-'}</td>
-                        <td className="px-3.5 py-3.5 align-middle">
+                        <td className="px-3.5 py-3.5 text-center align-middle">
                           <Badge variant={s.direction === 'IN' ? 'success' : 'warning'} size="sm">
                             {s.direction}
                           </Badge>
                         </td>
-                        <td className="whitespace-nowrap px-3.5 py-3.5 align-middle">
+                        <td className="whitespace-nowrap px-3.5 py-3.5 text-center align-middle">
                           <StatusChip session={s} />
                         </td>
                         <td className="px-3.5 py-3.5 text-center align-middle">

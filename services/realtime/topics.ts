@@ -31,6 +31,8 @@ export const REALTIME_TOPICS: Record<string, TagType[]> = {
   'procurement.purchase-invoice': ['ProcurementPurchaseInvoices'],
   'procurement.packaging-list': ['ProcurementPackagingLists', 'ProcurementPurchaseOrders', 'ProcurementContainers'],
   'procurement.container': ['ProcurementContainers', 'ProcurementPackagingLists', 'ProcurementPurchaseOrders'],
+  /** Per-file progress, completion and failure of a container's document uploads (addressed to the uploader); `ContainerUploadEventListener` folds them into the upload list. */
+  'procurement.container-upload': [],
   'procurement.price-analysis': ['ProcurementPriceAnalysis'],
   /** Email sent / failed / queued: only the four accounts that may open System > Email receive it. `useEmailLive` patches the cache itself instead of refetching. */
   'system.email': [],
