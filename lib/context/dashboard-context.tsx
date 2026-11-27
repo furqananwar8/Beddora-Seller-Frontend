@@ -6,7 +6,7 @@ import {
   buildSchedulesFromWeekTemplate,
 } from "@/app/(dashboard)/dayparting/components/dashboard/scheduler/scheduler-utils";
 import { useUpdateCampaignScheduleMutation } from "@/services/api/campaigns.api";
-import { toast } from "sonner";
+import { useApiFeedback } from "@/hooks/useApiFeedback";
 
 export type Campaign = {
   id: string;
@@ -108,6 +108,7 @@ export function DashboardProvider({
   const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(null);
 
   const [updateSchedule] = useUpdateCampaignScheduleMutation();
+  const toast = useApiFeedback();
 
   const selectedCampaign = useMemo(() => {
     if (!selectedCampaignId || !campaigns) return null;

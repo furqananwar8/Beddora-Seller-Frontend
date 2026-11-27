@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { Search } from 'lucide-react'
-import { toast } from 'sonner'
+import { useApiFeedback } from "@/hooks/useApiFeedback";
 
 import { Container } from '@/components/layout'
 import { Switch } from '@/components/switch/Switch'
@@ -76,6 +76,7 @@ export const ChannelReport: React.FC<{ channel: ChannelId }> = ({ channel }) => 
   // ──────────────────────────────
 
   const period = useTilePeriodFilters({ storageKey: STORAGE_KEY })
+  const toast = useApiFeedback();
   const { data: connectionsData, isLoading: connectionsLoading } = useChannelConnections()
   const connections = connectionsData ?? []
   // Stable while loading, so the selections derived from it do not change on every render
@@ -239,7 +240,7 @@ export const ChannelReport: React.FC<{ channel: ChannelId }> = ({ channel }) => 
           toast.info(`Linking "${row.listing?.channelSku}" to a product arrives with the API phase.`),
         onShowDetails: openRowDetails,
       }),
-    [openRowDetails],
+    [openRowDetails, toast],
   )
 
   // Excel export of the products table, with the same filters the table shows

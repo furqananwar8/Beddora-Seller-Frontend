@@ -9,9 +9,11 @@ import { Container } from '@/components/layout'
 import DateRangePicker, { DateRangePreset, DateRangeValue } from '@/components/date-range-picker/DateRangePicker'
 import { PaginationFooter } from '@/components/pagination-footer/PaginationFooter'
 import { Button } from '@/design-system/buttons'
-import { Select } from '@/design-system/inputs'
 import { ExportExcelButton } from '@/components/export-button/ExportExcelButton'
 import { Tabs } from '@/design-system/tabs'
+import { FilterBar, FilterItem, FILL_PICKER } from '@/components/filter-bar/FilterBar'
+import { FilterMultiSelect } from '@/components/filter-bar/FilterMultiSelect'
+import { useStagedFilters } from '@/components/filter-bar/useStagedFilters'
 import {
   PaymentRequestListParams,
   RequestPaymentFilter,
@@ -24,8 +26,7 @@ import {
 import { formatPoNo } from '@/features/procurement/shared/poMeta'
 import { cn } from '@/utils/cn'
 import { formatBatchNo, formatRequestNo } from '../shared/format'
-import { ScreenSearch } from '../shared/ScreenSearch'
-import { SelectShell } from '../shared/SelectShell'
+import { FormField } from '../shared/FormField'
 import { ExpenseTypesModal } from './ExpenseTypesModal'
 import { ConfirmDialog } from '@/components/confirm-dialog/ConfirmDialog'
 import { RejectDialog } from './RejectDialog'
@@ -82,6 +83,21 @@ function rangeFor(range: DateRangeValue): { dateFrom?: string; dateTo?: string }
   return { dateFrom: startOfDay(parseISO(range.startDate)).toISOString(), dateTo: endOfDay(parseISO(range.endDate)).toISOString() }
 }
 
+/** The boxes of the filter bar; ids of the multi-selects are strings. */
+interface ListFilters extends Record<string, unknown> {
+  search: string
+  costCenterIds: string[]
+  batched: string[]
+  dateRange: DateRangeValue
+}
+
+const DEFAULT_FILTERS: ListFilters = { search: '', costCenterIds: [], batched: [], dateRange: THIS_MONTH }
+
+const BATCH_OPTIONS = [
+  { value: 'yes', label: 'Batched' },
+  { value: 'no', label: 'Single' },
+]
+
 export const PaymentRequestScreen: React.FC = () => {
   const fit = useFitToViewport<HTMLDivElement>()
   const router = useRouter()
@@ -118,41 +134,36 @@ export const PaymentRequestScreen: React.FC = () => {
   const canManageExpenseTypes = approverStatus?.canManageExpenseTypes ?? false
   const canCreateRequests = approverStatus?.canCreateRequests ?? false
 
-  // A link can start the list filtered, e.g. a container's page opens its container number here
-  const [search, setSearch] = useState(() => searchParams.get('search') ?? '')
+  // `pickerRange` is what the picker shows while a custom range is being chosen; the staged filter only takes it on the picker's own Apply.
+  // A linked request may be older than this month, so the list then starts without a date range
+  const startRange = highlightId ? ANY_DATE : THIS_MONTH
+  const [pickerRange, setPickerRange] = useState<DateRangeValue>(startRange)
+  const pickerIsCustom = !pickerRange.presetId || pickerRange.presetId === 'custom'
   const [page, setPage] = useState(1)
   const pageSize = usePageSize(PAGE_SIZE)
   const [chosenTab, setChosenTab] = useState<TabId | null>(() => (tabParam && TAB_IDS.has(tabParam) ? tabParam : highlightId ? 'ALL' : null))
-  const [costCenterId, setCostCenterId] = useState('')
-  const [batched, setBatched] = useState<'' | 'yes' | 'no'>('')
-  // `dateRange` is what the lists use; `draftRange` is what the picker shows while a custom range is being chosen.
-  // A linked request may be older than this month, so the list then starts without a date range
-  const [dateRange, setDateRange] = useState<DateRangeValue>(() => (highlightId ? ANY_DATE : THIS_MONTH))
-  const [draftRange, setDraftRange] = useState<DateRangeValue>(() => (highlightId ? ANY_DATE : THIS_MONTH))
-  const draftIsCustom = !draftRange.presetId || draftRange.presetId === 'custom'
-  const canApplyCustom = draftIsCustom && Boolean(draftRange.startDate && draftRange.endDate) && (draftRange.startDate !== dateRange.startDate || draftRange.endDate !== dateRange.endDate)
   const [rejectId, setRejectId] = useState<number | null>(null)
   const [deleteId, setDeleteId] = useState<number | null>(null)
   const [busyId, setBusyId] = useState<number | null>(null)
   const [showTypes, setShowTypes] = useState(false)
 
+  // A link can start the list filtered, e.g. a container's page opens its container number here
+  const initialFilters = useMemo<ListFilters>(() => ({ ...DEFAULT_FILTERS, search: searchParams.get('search') ?? '', dateRange: startRange }), []) // eslint-disable-line react-hooks/exhaustive-deps
+  // Search, expense, batch and date only reach the lists on Apply filters (the status tabs stay instant)
+  const staged = useStagedFilters(DEFAULT_FILTERS, () => setPage(1), initialFilters)
+  const { draft, applied, setDraft, changed } = staged
+  const box = (key: keyof ListFilters) => changed.has(key)
+
   const tab: TabId = chosenTab ?? 'ALL'
   const actions = useRequestActions()
   const { data: costCenters } = useGetLeafCostCentersQuery()
 
-  // Search, expense, batch and date only reach the lists when Filter is pressed (the status tabs stay instant)
-  const [applied, setApplied] = useState({ search: search.trim(), costCenterId, batched, dateRange })
-  const dirty = search.trim() !== applied.search || costCenterId !== applied.costCenterId || batched !== applied.batched || dateRange !== applied.dateRange
-  const applyFilters = () => {
-    setApplied({ search: search.trim(), costCenterId, batched, dateRange })
-    setPage(1)
-  }
   const dates = useMemo(() => rangeFor(applied.dateRange), [applied.dateRange])
   const filters = {
-    search: applied.search,
-    costCenterId: applied.costCenterId ? Number(applied.costCenterId) : undefined,
+    search: applied.search.trim(),
+    costCenterIds: applied.costCenterIds.length ? applied.costCenterIds.map(Number) : undefined,
     batchId: batchId ?? undefined,
-    batched: applied.batched || undefined,
+    batched: applied.batched.length ? (applied.batched as Array<'yes' | 'no'>) : undefined,
     // A PO's payments are shown whenever they were raised, so the date range does not apply
     ...(purchaseOrderId ? { purchaseOrderId } : dates),
   }
@@ -193,12 +204,6 @@ export const PaymentRequestScreen: React.FC = () => {
 
   return (
     <Container size="full" className="py-4 sm:py-8">
-      <ScreenSearch
-        placeholder="Search requests..."
-        value={search}
-        onChange={setSearch}
-      />
-
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
           {backHref && !openId && (
@@ -239,86 +244,76 @@ export const PaymentRequestScreen: React.FC = () => {
         </div>
       </div>
 
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div className="max-w-full overflow-x-auto">
-          <Tabs
-            items={tabs}
-            activeTab={tab}
-            onChange={(id) => {
-              setChosenTab(id as TabId)
-              setPage(1)
-            }}
-          />
-        </div>
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="w-full min-w-0 sm:w-48">
-            <label htmlFor="filter-cost-center" className="ds-input-label">
-              Expense
-            </label>
-            <SelectShell>
-            <Select
-              id="filter-cost-center"
-              className="h-10 appearance-none rounded-lg py-0 pr-9"
-              value={costCenterId}
-              onChange={(e) => {
-                setCostCenterId(e.target.value)
-              }}
-              options={[{ value: '', label: 'All' }, ...(costCenters ?? []).map((option) => ({ value: String(option.id), label: option.path }))]}
-            />
-            </SelectShell>
-          </div>
-          <div className="w-full min-w-0 sm:w-36">
-            <label htmlFor="filter-batch" className="ds-input-label">
-              Batch
-            </label>
-            <SelectShell>
-              <Select
-                id="filter-batch"
-                className="h-10 appearance-none rounded-lg py-0 pr-9"
-                value={batched}
-                onChange={(e) => {
-                  setBatched(e.target.value as '' | 'yes' | 'no')
-                }}
-                options={[
-                  { value: '', label: 'All' },
-                  { value: 'yes', label: 'Batched' },
-                  { value: 'no', label: 'Single' },
-                ]}
+      <div className="mb-4 max-w-full overflow-x-auto">
+        <Tabs
+          items={tabs}
+          activeTab={tab}
+          onChange={(id) => {
+            setChosenTab(id as TabId)
+            setPage(1)
+          }}
+        />
+      </div>
+
+      <div className="mb-4 rounded-lg border border-border bg-surface p-3 shadow-sm sm:p-4">
+        <FilterBar pendingCount={changed.size} activeCount={staged.activeCount} onApply={staged.apply} onReset={() => { staged.reset(); setPickerRange(DEFAULT_FILTERS.dateRange) }}>
+          <FilterItem wide>
+            <FormField label="Search" htmlFor="pr-search">
+              <input
+                id="pr-search"
+                type="search"
+                value={draft.search}
+                onChange={(event) => setDraft('search', event.target.value)}
+                placeholder="Request #, partner, invoice #, PO # or container #"
+                className="ds-input ds-input-default rounded-lg"
               />
-            </SelectShell>
-          </div>
-          <div className="w-full min-w-0 sm:w-56">
-            <span className="ds-input-label">Date</span>
-            <div className="w-full sm:w-56 [&>div]:block [&>div]:w-full [&>div>button]:h-10 [&>div>button]:w-full [&>div>button]:py-0 [&>div>button>span]:flex-1 [&>div>button>span]:text-left">
-              <DateRangePicker
-                presets={FILTER_PRESETS}
-                value={draftRange}
-                placement="right"
-                placeholder="Custom range"
-                keepOpenPresetIds={['custom']}
-                applyAction={
-                  draftIsCustom
-                    ? {
-                        label: 'Apply',
-                        disabled: !canApplyCustom,
-                        onApply: () => {
-                          setDateRange({ ...draftRange, presetId: 'custom' })
-                        },
-                      }
-                    : undefined
-                }
-                onChange={(range) => {
-                  setDraftRange(range)
-                  // A preset is picked straight away; a custom range waits for its own Apply. Neither reaches the list until Filter.
-                  if (range.presetId && range.presetId !== 'custom') setDateRange(range)
-                }}
+            </FormField>
+          </FilterItem>
+          <FilterItem>
+            <FormField label="Expense" htmlFor="pr-expense">
+              <FilterMultiSelect
+                id="pr-expense"
+                options={(costCenters ?? []).map((option) => ({ value: String(option.id), label: option.path }))}
+                value={draft.costCenterIds}
+                onChange={(value) => setDraft('costCenterIds', value)}
+                anyLabel="All expenses"
+                highlighted={box('costCenterIds')}
               />
-            </div>
-          </div>
-          <Button type="button" variant="primary" disabled={!dirty} onClick={applyFilters}>
-            Filter
-          </Button>
-        </div>
+            </FormField>
+          </FilterItem>
+          <FilterItem>
+            <FormField label="Batch" htmlFor="pr-batch">
+              <FilterMultiSelect id="pr-batch" options={BATCH_OPTIONS} value={draft.batched} onChange={(value) => setDraft('batched', value)} anyLabel="All" highlighted={box('batched')} />
+            </FormField>
+          </FilterItem>
+          <FilterItem>
+            <FormField label="Date">
+              <div className={FILL_PICKER}>
+                <DateRangePicker
+                  presets={FILTER_PRESETS}
+                  value={pickerRange}
+                  placement="right"
+                  placeholder="Custom range"
+                  keepOpenPresetIds={['custom']}
+                  applyAction={
+                    pickerIsCustom
+                      ? {
+                          label: 'Apply',
+                          disabled: !(pickerRange.startDate && pickerRange.endDate),
+                          onApply: () => setDraft('dateRange', { ...pickerRange, presetId: 'custom' }),
+                        }
+                      : undefined
+                  }
+                  onChange={(range) => {
+                    setPickerRange(range)
+                    // A preset is staged straight away; a custom range waits for the picker's own Apply
+                    if (range.presetId && range.presetId !== 'custom') setDraft('dateRange', range)
+                  }}
+                />
+              </div>
+            </FormField>
+          </FilterItem>
+        </FilterBar>
       </div>
 
       <div className={cn('overflow-hidden rounded-lg border border-border shadow-sm', isFetching && 'opacity-70 transition-opacity')}>
